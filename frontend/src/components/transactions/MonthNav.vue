@@ -31,9 +31,7 @@ const isCurrentMonth = computed(() => {
 
 <style scoped lang="scss">
 .month-nav {
-  position: sticky;
-  top: 8px;
-  z-index: 40;
+  /* Обычный блок — НЕ sticky */
   display: flex;
   align-items: center;
   gap: 8px;
@@ -44,8 +42,6 @@ const isCurrentMonth = computed(() => {
   border-radius: 14px;
   padding: 8px 12px;
   box-shadow: var(--shadow-md);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
 }
 
 .month-nav button {
@@ -95,6 +91,31 @@ const isCurrentMonth = computed(() => {
 }
 
 @media (max-width: 700px) {
-  .month-nav { top: 4px; }
+  .month-nav {
+    padding: 6px 8px;
+    gap: 6px;
+    border-radius: 12px;
+  }
+
+  .month-nav button {
+    width: 32px;
+    height: 32px;
+    font-size: 12px;
+  }
+
+  .month-label {
+    font-size: 13px;
+
+    .today-mark {
+      font-size: 9px;
+      padding: 1px 6px;
+      margin-left: 5px;
+    }
+  }
+
+  .today-btn {
+    padding: 0 10px !important;
+    font-size: 11px !important;
+  }
 }
 </style>

@@ -44,80 +44,80 @@ function pick(action) {
 </template>
 
 <style scoped lang="scss">
+/* FAB — только на мобильных */
 .fab-menu {
-  position: fixed;
-  right: 16px;
-  bottom: 16px;
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 12px;
+  display: none;
 }
 
-.fab-options {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 10px;
-}
-
-.fab-option {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 11px 16px 11px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: #ffffff;
-  color: var(--text);
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 10px 24px -10px rgba(0, 0, 0, 0.3);
-  transition: all 0.15s;
-  white-space: nowrap;
-
-  &:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: rgba(56, 189, 248, 0.08);
-    transform: translateY(-1px);
+@media (max-width: 700px) {
+  .fab-menu {
+    display: flex;
+    position: fixed;
+    right: 16px;
+    bottom: calc(16px + env(safe-area-inset-bottom, 0));
+    z-index: 100;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 12px;
   }
 
-  .icon { font-size: 16px; }
-}
-
-.fab-main {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  border: none;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  color: #fff;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 10px 28px -8px rgba(59, 130, 246, 0.75);
-  transition: all 0.3s cubic-bezier(.34,1.56,.64,1);
-
-  &:hover {
-    box-shadow: 0 14px 34px -10px rgba(59, 130, 246, 0.9);
+  .fab-options {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
   }
-  &:active {
-    transform: scale(0.92);
-  }
-}
 
-.fab-icon {
-  width: 26px;
-  height: 26px;
-  transition: transform 0.3s cubic-bezier(.34,1.56,.64,1);
-}
-.fab-menu.open .fab-icon {
-  transform: rotate(45deg);
+  .fab-option {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 11px 16px 11px 14px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: #ffffff;
+    color: var(--text);
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: 0 10px 24px -10px rgba(0, 0, 0, 0.4);
+    white-space: nowrap;
+    transition: all 0.15s;
+
+    &:active {
+      transform: scale(0.95);
+    }
+
+    .icon { font-size: 16px; }
+  }
+
+  .fab-main {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    border: none;
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 10px 28px -8px rgba(59, 130, 246, 0.75);
+    transition: transform 0.3s cubic-bezier(.34,1.56,.64,1);
+
+    &:active { transform: scale(0.92); }
+  }
+
+  .fab-icon {
+    width: 26px;
+    height: 26px;
+    transition: transform 0.3s cubic-bezier(.34,1.56,.64,1);
+  }
+
+  .fab-menu.open .fab-icon {
+    transform: rotate(45deg);
+  }
 }
 
 /* Анимация появления опций */
@@ -128,6 +128,6 @@ function pick(action) {
 .fab-options-enter-from,
 .fab-options-leave-to {
   opacity: 0;
-  transform: translateY(12px) scale(0.95);
+  transform: translateY(12px) scale(0.9);
 }
 </style>

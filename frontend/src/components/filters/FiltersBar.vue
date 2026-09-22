@@ -4,8 +4,11 @@ import { useFiltersStore } from '@/stores/filters';
 const filters = useFiltersStore();
 
 function removeChip(key) {
-  filters.set(key, 'all');
-  if (key === 'search') filters.set('search', '');
+  if (key === 'search') {
+    filters.set('search', '');
+  } else {
+    filters.set(key, 'all');
+  }
 }
 </script>
 
@@ -99,7 +102,6 @@ function removeChip(key) {
   }
 }
 
-/* Анимация появления */
 .filters-bar-enter-active,
 .filters-bar-leave-active {
   transition: all 0.25s cubic-bezier(.34,1.56,.64,1);
@@ -111,5 +113,32 @@ function removeChip(key) {
   max-height: 0;
   padding: 0 12px;
   margin: 0;
+}
+
+/* ============================================================
+   МОБИЛЬНЫЙ
+   ============================================================ */
+@media (max-width: 700px) {
+  .filters-bar {
+    padding: 8px 10px;
+    gap: 4px;
+    font-size: 11px;
+  }
+
+  .fb-label {
+    font-size: 10px;
+    width: 100%;
+    margin-bottom: 2px;
+  }
+
+  .fb-chip {
+    padding: 4px 9px;
+    font-size: 11px;
+  }
+
+  .fb-reset {
+    font-size: 10px;
+    padding: 3px 9px;
+  }
 }
 </style>

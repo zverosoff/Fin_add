@@ -45,6 +45,8 @@ const { toasts, runAction, dismiss } = useToast();
   z-index: 9999;
   pointer-events: none;
   align-items: center;
+  padding: 0 12px;
+  box-sizing: border-box;
 }
 
 .toast {
@@ -61,7 +63,7 @@ const { toasts, runAction, dismiss } = useToast();
   box-shadow: var(--shadow-lg);
   backdrop-filter: blur(20px);
   pointer-events: auto;
-  max-width: calc(100vw - 40px);
+  max-width: calc(100vw - 24px);
 
   &.success { border-color: var(--accent-2); }
   &.error   { border-color: var(--danger); }
@@ -112,4 +114,35 @@ const { toasts, runAction, dismiss } = useToast();
 }
 .toast-enter-from { opacity: 0; transform: translateY(20px) scale(0.95); }
 .toast-leave-to   { opacity: 0; transform: translateY(-10px) scale(0.95); }
+
+/* ============================================================
+   МОБИЛЬНЫЙ
+   ============================================================ */
+@media (max-width: 700px) {
+  .toast-container {
+    bottom: calc(80px + env(safe-area-inset-bottom, 0));
+    padding: 0 10px;
+  }
+
+  .toast {
+    padding: 11px 14px;
+    font-size: 12.5px;
+    gap: 8px;
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+
+  .toast-msg {
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.3;
+  }
+
+  .toast-action {
+    padding: 5px 10px;
+    font-size: 11.5px;
+    flex-shrink: 0;
+  }
+}
 </style>

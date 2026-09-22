@@ -75,7 +75,7 @@ function bankLogo(id) {
 
 <template>
   <section class="accounts-block" :class="{ 'section-open': sectionOpen }">
-    <!-- ═══ Кликабельный заголовок: раскрывает всю секцию ═══ -->
+    <!-- Заголовок: раскрывает всю секцию -->
     <header class="ab-head" @click="toggleSection">
       <h3>💳 Наши счета</h3>
       <div class="ab-total">{{ fmt(accounts.total) }} ₽</div>
@@ -90,7 +90,7 @@ function bankLogo(id) {
       </button>
     </header>
 
-    <!-- ═══ Компактные строки владельцев ═══ -->
+    <!-- Компактные строки владельцев -->
     <div class="ab-rows">
       <div
         v-for="(list, owner) in accounts.byOwner"
@@ -112,7 +112,7 @@ function bankLogo(id) {
           {{ owner }}
         </span>
 
-        <!-- Чипы (показываются при клике на стрелку владельца) -->
+        <!-- Чипы (раскрываются по стрелке) -->
         <span class="ab-row-chips">
           <span
             v-for="acc in list"
@@ -130,10 +130,8 @@ function bankLogo(id) {
           </span>
         </span>
 
-        <!-- Итого по владельцу -->
         <span class="ab-row-total">{{ fmt(ownerTotal(list)) }} ₽</span>
 
-        <!-- Стрелка → раскрывает чипы этого владельца -->
         <button
           class="ab-row-arrow"
           type="button"
@@ -147,7 +145,7 @@ function bankLogo(id) {
       </div>
     </div>
 
-    <!-- ═══ Развёрнутая секция со счетами и «Сверить» ═══ -->
+    <!-- Развёрнутая секция -->
     <div class="ab-expanded">
       <div v-for="(list, owner) in accounts.byOwner" :key="owner" class="ab-group">
         <div class="ab-group-title">
@@ -213,7 +211,7 @@ function bankLogo(id) {
   &:not(.section-open) { padding-bottom: 14px; }
 }
 
-/* ─────────── Заголовок ─────────── */
+/* ─── Заголовок ─── */
 .ab-head {
   display: flex;
   align-items: center;
@@ -285,7 +283,7 @@ function bankLogo(id) {
   transform: rotate(0deg);
 }
 
-/* ─────────── Строки владельцев ─────────── */
+/* ─── Строки владельцев ─── */
 .ab-rows {
   display: flex;
   flex-direction: column;
@@ -331,7 +329,6 @@ function bankLogo(id) {
   .emoji { font-size: 13px; }
 }
 
-/* ─── Чипы ─── */
 .ab-row-chips {
   display: inline-flex;
   align-items: center;
@@ -461,7 +458,7 @@ function bankLogo(id) {
   transform: rotate(0deg);
 }
 
-/* ─────────── Развёрнутая секция ─────────── */
+/* ─── Развёрнутая секция ─── */
 .ab-expanded {
   max-height: 0;
   overflow: hidden;
@@ -504,6 +501,7 @@ function bankLogo(id) {
   gap: 8px;
 }
 
+/* ─── Карточка счёта ─── */
 .account-card {
   display: flex;
   flex-direction: column;
@@ -602,5 +600,95 @@ function bankLogo(id) {
   }
 
   &:active { transform: scale(0.97); }
+}
+
+/* ============================================================
+   МОБИЛЬНЫЙ
+   ============================================================ */
+@media (max-width: 700px) {
+  .accounts-block {
+    padding: 12px 14px;
+    border-radius: 14px;
+  }
+
+  .ab-head h3 { font-size: 11px; }
+
+  .ab-total {
+    font-size: 12px;
+    padding: 3px 10px;
+  }
+
+  .ab-section-arrow {
+    width: 26px;
+    height: 26px;
+  }
+
+  .ab-row {
+    gap: 6px;
+    padding: 5px 6px;
+    margin: 0 -6px;
+  }
+
+  .ab-row-owner {
+    font-size: 11px;
+    min-width: 48px;
+    gap: 4px;
+  }
+
+  .ab-row-owner .emoji { font-size: 12px; }
+
+  .ab-chip {
+    padding: 2px 8px 2px 3px;
+    gap: 4px;
+  }
+
+  .ab-chip-logo {
+    width: 16px;
+    height: 16px;
+  }
+
+  .ab-chip-sum { font-size: 11px; }
+
+  .ab-row-total {
+    font-size: 11px;
+    padding: 3px 9px;
+    margin-right: 3px;
+  }
+
+  .ab-row-arrow {
+    width: 20px;
+    height: 20px;
+
+    svg { width: 11px; height: 11px; }
+  }
+
+  .ab-group-title { font-size: 10px; }
+
+  .account-card {
+    padding: 10px 12px;
+    gap: 6px;
+  }
+
+  .account-logo-img,
+  .account-logo-fallback {
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+  }
+
+  .account-name-text { font-size: 12px; }
+
+  .acc-balance .value { font-size: 14px; }
+
+  .acc-diff {
+    font-size: 10.5px;
+    padding: 3px 8px;
+  }
+
+  .acc-reconcile-btn {
+    padding: 9px 12px;
+    font-size: 12px;
+    min-height: 36px;
+  }
 }
 </style>

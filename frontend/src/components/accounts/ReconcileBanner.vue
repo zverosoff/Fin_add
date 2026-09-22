@@ -151,17 +151,53 @@ const users = computed(() => accounts.userDiffs);
   &:active { transform: scale(0.97); }
 }
 
+/* ============================================================
+   МОБИЛЬНЫЙ
+   ============================================================ */
 @media (max-width: 700px) {
+  .reconcile-banner {
+    padding: 12px 14px;
+    border-radius: 12px;
+    gap: 8px;
+  }
+
+  .banner-head {
+    gap: 8px;
+
+    .icon { font-size: 18px; }
+    .title { font-size: 11px; letter-spacing: 0.03em; }
+  }
+
   .user-row {
     grid-template-columns: auto 1fr;
     gap: 6px 10px;
+    padding: 8px 10px;
     font-size: 12px;
   }
-  .name { grid-column: 2; }
+
+  .avatar { font-size: 15px; }
+
+  .name {
+    grid-column: 2;
+    font-size: 12px;
+  }
+
   .detail {
     grid-column: 1 / 3;
     font-size: 11.5px;
   }
-  .reconcile-btn { flex: 1; justify-content: center; }
+
+  .banner-actions {
+    gap: 6px;
+    flex-direction: column;
+  }
+
+  .reconcile-btn {
+    width: 100%;
+    justify-content: center;
+    padding: 10px 12px;
+    font-size: 12.5px;
+    min-height: 44px;
+  }
 }
 </style>

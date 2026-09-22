@@ -12,18 +12,15 @@ function close() {
   emit('update:modelValue', false);
 }
 
-// Блокируем скролл body, когда открыто
+// Блокировка скролла body
 watch(() => props.modelValue, (val) => {
   document.body.style.overflow = val ? 'hidden' : '';
 });
 
 function onKeydown(e) {
-  if (e.key === 'Escape' && props.modelValue) {
-    close();
-  }
+  if (e.key === 'Escape' && props.modelValue) close();
 }
 
-// Подписываемся на клавишу Escape
 watch(() => props.modelValue, (val) => {
   if (val) document.addEventListener('keydown', onKeydown);
   else document.removeEventListener('keydown', onKeydown);
@@ -39,6 +36,9 @@ watch(() => props.modelValue, (val) => {
         @click.self="close"
       >
         <div class="modal-box">
+          <!-- Ручка-индикатор для мобильных -->
+          <div class="modal-handle"></div>
+
           <header class="modal-head">
             <h3>{{ title }}</h3>
             <button class="modal-close" @click="close" aria-label="Закрыть">✕</button>
@@ -64,6 +64,7 @@ watch(() => props.modelValue, (val) => {
   z-index: 1000;
   background: rgba(15, 23, 42, 0.5);
   backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -71,6 +72,7 @@ watch(() => props.modelValue, (val) => {
 }
 
 .modal-box {
+  position: relative;
   width: 100%;
   max-width: 460px;
   max-height: 92vh;
@@ -81,6 +83,17 @@ watch(() => props.modelValue, (val) => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+
+/* Ручка-индикатор (только на мобильных) */
+.modal-handle {
+  display: none;
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(148, 163, 184, 0.5);
+  margin: 8px auto 0;
+  flex-shrink: 0;
 }
 
 .modal-head {
@@ -108,6 +121,7 @@ watch(() => props.modelValue, (val) => {
   cursor: pointer;
   font-size: 14px;
   transition: all 0.15s;
+  flex-shrink: 0;
 
   &:hover {
     border-color: var(--danger);
@@ -133,7 +147,9 @@ watch(() => props.modelValue, (val) => {
   background: #ffffff;
 }
 
-/* Анимация */
+/* ============================================================
+   Анимация
+   ============================================================ */
 .modal-enter-active,
 .modal-leave-active {
   transition: opacity 0.22s ease;
@@ -150,5 +166,67 @@ watch(() => props.modelValue, (val) => {
 .modal-leave-to .modal-box {
   transform: scale(0.95) translateY(8px);
   opacity: 0;
+}
+
+/* ============================================================
+   МОБИЛЬНАЯ — fullscreen снизу
+   ============================================================ */
+@media (max-width: 700px) {
+  .modal-overlay {
+    padding: 0;
+    align-items: flex-end;
+  }
+
+  .modal-box {
+    max-width: 100%;
+    width: 100%;
+    max-height: 92vh;
+    border-radius: 20px 20px 0 0;
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  /* Показываем ручку */
+  .modal-handle {
+    display: block;
+  }
+
+  .modal-head {
+    padding: 12px 18px 10px;
+    background: #fff;
+    position: sticky;
+    top: 0;
+    z-index: 5;
+  }
+
+  .modal-head h3 {
+    font-size: 15px;
+  }
+
+  .modal-body {
+    padding: 14px 16px;
+  }
+
+  .modal-foot {
+    padding: 12px 16px 16px;
+    flex-direction: column-reverse;
+    gap: 8px;
+
+    button {
+      width: 100%;
+      min-height: 48px;
+      font-size: 14px;
+    }
+  }
+
+  /* Анимация снизу */
+  .modal-enter-active .modal-box,
+  .modal-leave-active .modal-box {
+    transition: transform 0.3s cubic-bezier(.22,.61,.36,1);
+  }
+  .modal-enter-from .modal-box,
+  .modal-leave-to .modal-box {
+    transform: translateY(100%);
+    opacity: 1;
+  }
 }
 </style>

@@ -112,8 +112,29 @@ const users = [
 }
 
 @media (max-width: 700px) {
-  .divider { display: none; }
-  .quick-chips { padding: 6px 8px; gap: 6px; }
-  .chip { padding: 5px 10px; font-size: 11px; }
+  .quick-chips {
+    padding: 8px 10px;
+    gap: 6px;
+    overflow-x: auto;
+    flex-wrap: nowrap;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar { display: none; }
+  }
+
+  .chips-group {
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+  }
+
+  .chip {
+    padding: 6px 12px;
+    font-size: 12px;
+    flex-shrink: 0;
+  }
+
+  .divider {
+    display: none;
+  }
 }
 </style>

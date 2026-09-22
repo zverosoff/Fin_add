@@ -1,11 +1,11 @@
 <script setup>
 import { onMounted, computed, ref } from 'vue';
-import { useAuthStore } from '@/stores/auth';
 import { useAccountsStore } from '@/stores/accounts';
 import { useAnalyticsStore } from '@/stores/analytics';
 import { useGoalsStore } from '@/stores/goals';
 import { useWebSocket } from '@/composables/useWebSocket';
 import { useToast } from '@/composables/useToast';
+import { notifySaved, notifyError } from '@/composables/useDataStatus';
 import { fmt } from '@/composables/useFormat';
 
 import PageHero from '@/components/ui/PageHero.vue';
@@ -20,7 +20,6 @@ import GoalModal from '@/components/goals/GoalModal.vue';
 import ContributeModal from '@/components/goals/ContributeModal.vue';
 import EditContribModal from '@/components/goals/EditContribModal.vue';
 
-const auth = useAuthStore();
 const accounts = useAccountsStore();
 const analytics = useAnalyticsStore();
 const goalsStore = useGoalsStore();
@@ -39,9 +38,13 @@ const editContribUser = ref('');
 
 onMounted(async () => {
   try {
-    if (!accounts.loaded) await accounts.load();
+    if (!accounts.loaded) {
+      await accounts.load();
+    }
+    notifySaved('готово');
     connect();
   } catch (e) {
+    notifyError(e.message || 'Не удалось загрузить данные');
     toast.error('Не удалось загрузить данные');
     console.error(e);
   }
@@ -120,6 +123,7 @@ function openEditContrib({ goal, user }) {
           :hint="saveMonthlyHint"
           accent
           size="big"
+          class="metric-big"
         />
         <MetricCard
           icon="📊"
@@ -241,6 +245,7 @@ function openEditContrib({ goal, user }) {
   cursor: pointer;
   box-shadow: 0 6px 16px -8px rgba(59, 130, 246, 0.7);
   transition: all 0.15s;
+  white-space: nowrap;
 
   &:hover {
     transform: translateY(-1px);
@@ -248,21 +253,67 @@ function openEditContrib({ goal, user }) {
   }
 }
 
+/* ============================================================
+   ПЛАНШЕТ
+   ============================================================ */
 @media (max-width: 900px) {
   .metrics-grid {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
   }
-  .metrics-grid > :first-child { grid-column: 1 / -1; }
+  .metrics-grid > :first-child {
+    grid-column: 1 / -1;
+  }
 }
 
+/* ============================================================
+   МОБИЛЬНЫЙ
+   ============================================================ */
 @media (max-width: 700px) {
-  .analytics-page { padding: 16px 12px 40px; }
-  .container { gap: 10px; }
-  .card { padding: 12px 14px; }
+  .analytics-page {
+    padding: 12px 12px 40px;
+  }
+
+  .container {
+    gap: 10px;
+  }
+
+  .metrics-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .metrics-grid > :first-child {
+    grid-column: 1 / -1;
+  }
+
+  .card {
+    padding: 12px 14px;
+    border-radius: 14px;
+  }
+
+  .card-title {
+    font-size: 11px;
+    letter-spacing: 0.06em;
+  }
+
+  .card-head {
+    margin-bottom: 10px;
+    gap: 6px;
+  }
+
+  .btn-add-goal {
+    padding: 6px 12px;
+    font-size: 11px;
+  }
 }
 
-@media (max-width: 400px) {
-  .metrics-grid { grid-template-columns: 1fr; }
+/* ============================================================
+   УЗКИЙ ЭКРАН
+   ============================================================ */
+@media (max-width: 380px) {
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>

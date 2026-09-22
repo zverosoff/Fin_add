@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted, onUnmounted } from 'vue';
+import { onDataStatus } from '@/composables/useDataStatus';
 
 const props = defineProps({
   title: { type: String, required: true },
@@ -9,37 +10,82 @@ const hidden = ref(false);
 const statusText = ref('Подключение к серверу…');
 const statusType = ref(''); // '' | 'saved' | 'dirty' | 'error'
 const freshness = ref('');
-const freshnessType = ref(''); // '' | 'fresh' | 'stale' | 'old' | 'offline'
+const freshnessType = ref('');
 
 const API_HOST = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 let hideTimer = null;
 let freshTimer = null;
+let fallbackTimer = null;
 let scrollRaf = null;
-let lastUpdate = Date.now();
+let lastUpdate = 0;
+let unsubscribe = null;
 
 onMounted(() => {
+  // Скрытие hero через 5 сек
   hideTimer = setTimeout(() => {
     hidden.value = true;
   }, 5000);
 
+  // Тикер свежести
   freshTimer = setInterval(updateFreshness, 30000);
-  updateFreshness();
 
+  // Подписка на события статуса
+  unsubscribe = onDataStatus((detail) => {
+    handleStatusUpdate(detail);
+  });
+
+  // Fallback: если через 3 сек статус всё ещё «Подключение…» — значит ошибка
+  fallbackTimer = setTimeout(() => {
+    if (statusType.value === '') {
+      // Нет ответа от сервера
+      statusType.value = 'dirty';
+      statusText.value = 'Нет ответа от сервера';
+    }
+  }, 3000);
+
+  // Скролл
   window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('online', onOnlineChange);
   window.addEventListener('offline', onOnlineChange);
-  window.addEventListener('finance-data-updated', onDataUpdate);
 });
 
 onUnmounted(() => {
   clearTimeout(hideTimer);
   clearInterval(freshTimer);
+  clearTimeout(fallbackTimer);
+  if (unsubscribe) unsubscribe();
   window.removeEventListener('scroll', onScroll);
   window.removeEventListener('online', onOnlineChange);
   window.removeEventListener('offline', onOnlineChange);
-  window.removeEventListener('finance-data-updated', onDataUpdate);
 });
+
+function handleStatusUpdate(detail) {
+  clearTimeout(fallbackTimer);
+  lastUpdate = Date.now();
+
+  const type = detail?.type || 'saved';
+  statusType.value = type;
+
+  if (type === 'error') {
+    statusText.value = 'Ошибка: ' + (detail?.message || 'сервер недоступен');
+  } else if (type === 'dirty') {
+    statusText.value = 'Есть несохранённые изменения…';
+  } else {
+    statusText.value = `Сервер: ${API_HOST}  ·  ${detail?.message || 'готово'}`;
+  }
+
+  // Для «saved» — сбросить статус через 5 секунд
+  if (type === 'saved') {
+    setTimeout(() => {
+      if (statusType.value === 'saved') {
+        statusType.value = '';
+      }
+    }, 5000);
+  }
+
+  updateFreshness();
+}
 
 function onScroll() {
   if (hidden.value || scrollRaf) return;
@@ -49,30 +95,17 @@ function onScroll() {
   });
 }
 
-function onDataUpdate(e) {
-  lastUpdate = Date.now();
-  const type = e.detail?.type || 'saved';
-  statusType.value = type;
-  statusText.value = type === 'error'
-    ? 'Ошибка: ' + (e.detail?.message || 'сервер недоступен')
-    : type === 'dirty'
-      ? 'Есть несохранённые изменения…'
-      : `Сервер: ${API_HOST}`;
-
-  if (type === 'saved') {
-    setTimeout(() => {
-      statusType.value = '';
-    }, 5000);
-  }
-
-  updateFreshness();
-}
-
 function onOnlineChange() {
   updateFreshness();
 }
 
 function updateFreshness() {
+  if (!lastUpdate) {
+    freshnessType.value = '';
+    freshness.value = '—';
+    return;
+  }
+
   if (!navigator.onLine) {
     freshnessType.value = 'offline';
     freshness.value = 'офлайн';
@@ -172,6 +205,7 @@ h1 {
   -webkit-backdrop-filter: blur(20px);
   box-shadow: var(--shadow-sm);
   max-width: calc(100vw - 40px);
+  transition: color 0.2s, border-color 0.2s;
 
   .dot {
     width: 8px;
@@ -279,6 +313,29 @@ h1 {
 }
 
 @media (max-width: 700px) {
+  .hero-block {
+    margin: 0 0 14px;
+    padding-top: 2px;
+    gap: 8px;
+  }
+
+  h1 {
+    font-size: 18px;
+    white-space: normal;
+    padding: 0 12px;
+  }
+
+  .file-status {
+    font-size: 11px;
+    padding: 5px 12px;
+    gap: 6px;
+  }
+
+  .file-status .dot {
+    width: 7px;
+    height: 7px;
+  }
+
   .freshness-indicator {
     bottom: 78px;
     right: 12px;

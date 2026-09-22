@@ -4,6 +4,7 @@ import { useAccountsStore } from '@/stores/accounts';
 import { useTransactionsStore } from '@/stores/transactions';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from '@/composables/useToast';
+import { notifySaved, notifyError } from '@/composables/useDataStatus';
 import { fmt } from '@/composables/useFormat';
 import Modal from '@/components/ui/Modal.vue';
 
@@ -16,10 +17,6 @@ const accounts = useAccountsStore();
 const tx = useTransactionsStore();
 const auth = useAuthStore();
 const toast = useToast();
-
-// ============================================================
-// Состояние формы
-// ============================================================
 
 const form = ref({
   type: 'expense',
@@ -34,7 +31,6 @@ const form = ref({
 const error = ref('');
 const saving = ref(false);
 
-// Категории
 const INCOME_CATEGORIES = [
   'Зарплата', 'Аванс', 'Премия', 'Фриланс', 'Бизнес',
   'Инвестиции', 'Дивиденды', 'Проценты по вкладу', 'Кэшбэк',
@@ -56,27 +52,19 @@ const categories = computed(() =>
   form.value.type === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES
 );
 
-// Счета, доступные выбранному пользователю
 const userAccounts = computed(() =>
   accounts.accounts.filter(a => (a.owner || 'Сергей') === form.value.user)
 );
 
-// ============================================================
-// Реактивные эффекты
-// ============================================================
-
-// При смене типа — сбросить категорию
 watch(() => form.value.type, () => {
   form.value.category = 'Прочее';
 });
 
-// При смене пользователя — обновить список счетов и выбрать первый
 watch(() => form.value.user, () => {
   const accs = userAccounts.value;
   form.value.accountId = accs.length ? accs[0].id : '';
 }, { immediate: true });
 
-// При открытии модалки — сбросить форму
 watch(() => props.modelValue, (val) => {
   if (val) {
     form.value = {
@@ -89,15 +77,10 @@ watch(() => props.modelValue, (val) => {
       accountId: '',
     };
     error.value = '';
-    // Триггерим watch для правильного выбора счёта
     const accs = accounts.accounts.filter(a => (a.owner || 'Сергей') === form.value.user);
     form.value.accountId = accs.length ? accs[0].id : '';
   }
 });
-
-// ============================================================
-// Автокатегоризация (простая)
-// ============================================================
 
 const CATEGORY_HINTS = [
   { re: /магнит|пятёрочк|пятерочк|перекресток|лента|ашан|дикси|продукт/i, cat: 'Продукты' },
@@ -121,10 +104,6 @@ watch(() => form.value.name, (name) => {
     }
   }
 });
-
-// ============================================================
-// Сохранение
-// ============================================================
 
 async function save() {
   error.value = '';
@@ -162,9 +141,11 @@ async function save() {
   saving.value = true;
   try {
     await tx.save(txData);
+    notifySaved();
     toast.success(`✅ Добавлено: ${name} — ${fmt(amount)} ₽`);
     emit('update:modelValue', false);
   } catch (e) {
+    notifyError(e.message);
     error.value = e.response?.data?.error || e.message || 'Ошибка сохранения';
   } finally {
     saving.value = false;
@@ -183,7 +164,6 @@ function close() {
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div class="form">
-      <!-- Тип -->
       <div class="field">
         <label>Тип</label>
         <div class="type-switch">
@@ -200,7 +180,6 @@ function close() {
         </div>
       </div>
 
-      <!-- Название -->
       <div class="field">
         <label>📝 Название</label>
         <input
@@ -211,7 +190,6 @@ function close() {
         />
       </div>
 
-      <!-- Сумма -->
       <div class="field">
         <label>💰 Сумма, ₽</label>
         <input
@@ -224,7 +202,6 @@ function close() {
         />
       </div>
 
-      <!-- Категория -->
       <div class="field">
         <label>📁 Категория</label>
         <select v-model="form.category">
@@ -232,7 +209,6 @@ function close() {
         </select>
       </div>
 
-      <!-- Дата + Кто -->
       <div class="row">
         <div class="field">
           <label>📅 Дата</label>
@@ -247,7 +223,6 @@ function close() {
         </div>
       </div>
 
-      <!-- Счёт -->
       <div class="field">
         <label>💳 Счёт</label>
         <select v-model="form.accountId">
@@ -257,7 +232,6 @@ function close() {
         </select>
       </div>
 
-      <!-- Ошибка -->
       <div v-if="error" class="error-msg">{{ error }}</div>
     </div>
 
@@ -271,11 +245,7 @@ function close() {
 </template>
 
 <style scoped lang="scss">
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
+.form { display: flex; flex-direction: column; gap: 12px; }
 
 .field {
   display: flex;
@@ -299,7 +269,6 @@ function close() {
     font-family: inherit;
     font-size: 14px;
     outline: none;
-    transition: all 0.15s;
     width: 100%;
 
     &:focus {
@@ -360,7 +329,6 @@ function close() {
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.15s;
   border: 1px solid transparent;
 }
 
@@ -369,9 +337,7 @@ function close() {
   color: var(--text);
   border-color: var(--border);
 
-  &:hover {
-    background: #e2e8f0;
-  }
+  &:hover { background: #e2e8f0; }
 }
 
 .btn-save {
@@ -379,10 +345,7 @@ function close() {
   color: #fff;
   box-shadow: 0 10px 24px -10px rgba(59, 130, 246, 0.7);
 
-  &:disabled {
-    opacity: 0.5;
-    cursor: wait;
-  }
+  &:disabled { opacity: 0.5; cursor: wait; }
 
   &:not(:disabled):hover {
     transform: translateY(-1px);
@@ -390,10 +353,10 @@ function close() {
   }
 }
 
-/* Мобильная версия */
-@media (max-width: 500px) {
+@media (max-width: 700px) {
   .row {
     grid-template-columns: 1fr;
+    gap: 10px;
   }
 }
 </style>

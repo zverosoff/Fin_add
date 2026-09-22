@@ -47,4 +47,18 @@ watch(() => props.data, render, { deep: true });
   width: 100%;
   height: 100%;
 }
+
+@media (max-width: 700px) {
+  .chart-wrap {
+    height: 180px;
+    padding: 8px;
+    border-radius: 12px;
+  }
+}
+
+@media (max-width: 380px) {
+  .chart-wrap {
+    height: 160px;
+  }
+}
 </style>

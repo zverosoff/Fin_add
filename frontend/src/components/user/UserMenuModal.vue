@@ -39,7 +39,6 @@ function handleSwitch() {
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div class="user-menu">
-      <!-- Шапка -->
       <div class="um-head">
         <div class="um-avatar">{{ emoji }}</div>
         <div class="um-info">
@@ -50,7 +49,6 @@ function handleSwitch() {
         </div>
       </div>
 
-      <!-- Пункты меню -->
       <div class="um-list">
         <button
           class="um-item"
@@ -212,5 +210,21 @@ function handleSwitch() {
   transition: all 0.15s;
 
   &:hover { background: #e2e8f0; }
+}
+
+/* ============================================================
+   МОБИЛЬНЫЙ
+   ============================================================ */
+@media (max-width: 700px) {
+  .um-head { padding: 12px 14px; }
+  .um-avatar { font-size: 26px; }
+  .um-name { font-size: 15px; }
+  .um-item {
+    padding: 12px 12px;
+    font-size: 13.5px;
+    gap: 10px;
+  }
+  .um-icon { font-size: 15px; width: 18px; }
+  .um-badge { font-size: 9px; padding: 2px 6px; }
 }
 </style>

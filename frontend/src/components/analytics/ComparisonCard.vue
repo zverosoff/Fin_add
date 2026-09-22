@@ -108,4 +108,41 @@ const currBalance = computed(() =>
   &.down { color: #16a34a; }
   &.flat { color: var(--muted); }
 }
+
+/* ============================================================
+   МОБИЛЬНЫЙ
+   ============================================================ */
+@media (max-width: 700px) {
+  .compare-grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+  }
+
+  .compare-item {
+    padding: 10px 10px;
+    border-radius: 12px;
+  }
+
+  .compare-label {
+    font-size: 9px;
+  }
+
+  .compare-value {
+    font-size: 13px;
+  }
+
+  .compare-delta {
+    font-size: 10px;
+    margin-top: 2px;
+  }
+}
+
+@media (max-width: 380px) {
+  .compare-value {
+    font-size: 12px;
+  }
+  .compare-delta {
+    font-size: 9px;
+  }
+}
 </style>

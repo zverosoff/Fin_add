@@ -3,12 +3,11 @@ import { ref, computed, watch } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
 import { useTransactionsStore } from '@/stores/transactions';
 import { useToast } from '@/composables/useToast';
-import { fmt } from '@/composables/useFormat';
 import Modal from '@/components/ui/Modal.vue';
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  tx: { type: Object, default: null },  // редактируемая транзакция
+  tx: { type: Object, default: null },
 });
 const emit = defineEmits(['update:modelValue', 'saved']);
 
@@ -16,6 +15,9 @@ const accounts = useAccountsStore();
 const txStore = useTransactionsStore();
 const toast = useToast();
 
+// ============================================================
+// Форма
+// ============================================================
 const form = ref({
   type: 'expense',
   name: '',
@@ -29,6 +31,9 @@ const form = ref({
 const error = ref('');
 const saving = ref(false);
 
+// ============================================================
+// Категории
+// ============================================================
 const INCOME_CATEGORIES = [
   'Зарплата', 'Аванс', 'Премия', 'Фриланс', 'Бизнес',
   'Инвестиции', 'Дивиденды', 'Проценты по вкладу', 'Кэшбэк',
@@ -54,7 +59,9 @@ const userAccounts = computed(() =>
   accounts.accounts.filter(a => (a.owner || 'Сергей') === form.value.user)
 );
 
-// Заполняем форму при открытии
+// ============================================================
+// Заполнение формы при открытии
+// ============================================================
 watch(() => [props.modelValue, props.tx], ([open, t]) => {
   if (!open || !t) return;
 
@@ -64,14 +71,16 @@ watch(() => [props.modelValue, props.tx], ([open, t]) => {
     name: t.name || '',
     amount: String(t.amount || ''),
     category: t.category || 'Прочее',
-    date: !isNaN(d.getTime()) ? d.toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+    date: !isNaN(d.getTime())
+      ? d.toISOString().split('T')[0]
+      : new Date().toISOString().split('T')[0],
     user: t.user || 'Сергей',
     accountId: t.accountId || '',
   };
   error.value = '';
 }, { immediate: true });
 
-// При смене типа — если категория не подходит, сбрасываем
+// При смене типа — сбросить категорию если не подходит
 watch(() => form.value.type, (newType, oldType) => {
   if (newType === oldType) return;
   const list = newType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
@@ -80,15 +89,17 @@ watch(() => form.value.type, (newType, oldType) => {
   }
 });
 
-// При смене пользователя — обновляем список счетов
+// При смене пользователя — обновить счёт
 watch(() => form.value.user, () => {
   const accs = userAccounts.value;
-  // Если текущий счёт не принадлежит новому пользователю — выбираем первый
   if (!accs.find(a => a.id === form.value.accountId)) {
     form.value.accountId = accs.length ? accs[0].id : '';
   }
 });
 
+// ============================================================
+// Сохранение
+// ============================================================
 async function save() {
   error.value = '';
 
@@ -125,10 +136,12 @@ async function save() {
   saving.value = true;
   try {
     await txStore.save(updated);
+    notifySaved();
     toast.success('💾 Сохранено');
     emit('update:modelValue', false);
     emit('saved');
   } catch (e) {
+    notifyError(e.message);
     error.value = e.response?.data?.error || e.message || 'Ошибка';
   } finally {
     saving.value = false;
@@ -147,6 +160,7 @@ function close() {
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div class="form">
+      <!-- Тип -->
       <div class="field">
         <label>Тип</label>
         <div class="type-switch">
@@ -163,16 +177,25 @@ function close() {
         </div>
       </div>
 
+      <!-- Название -->
       <div class="field">
         <label>📝 Название</label>
         <input v-model="form.name" type="text" autocomplete="off" />
       </div>
 
+      <!-- Сумма -->
       <div class="field">
         <label>💰 Сумма, ₽</label>
-        <input v-model="form.amount" type="number" step="0.01" min="0" inputmode="decimal" />
+        <input
+          v-model="form.amount"
+          type="number"
+          step="0.01"
+          min="0"
+          inputmode="decimal"
+        />
       </div>
 
+      <!-- Категория -->
       <div class="field">
         <label>📁 Категория</label>
         <select v-model="form.category">
@@ -180,6 +203,7 @@ function close() {
         </select>
       </div>
 
+      <!-- Дата + Кто -->
       <div class="row">
         <div class="field">
           <label>📅 Дата</label>
@@ -194,6 +218,7 @@ function close() {
         </div>
       </div>
 
+      <!-- Счёт -->
       <div class="field">
         <label>💳 Счёт</label>
         <select v-model="form.accountId">
@@ -203,12 +228,14 @@ function close() {
         </select>
       </div>
 
+      <!-- Ошибка -->
       <div v-if="error" class="error-msg">{{ error }}</div>
     </div>
 
+    <!-- Футер с кнопками -->
     <template #footer>
-      <button class="btn-cancel" @click="close">Отмена</button>
-      <button class="btn-save" :disabled="saving" @click="save">
+      <button class="btn-cancel" type="button" @click="close">Отмена</button>
+      <button class="btn-save" type="button" :disabled="saving" @click="save">
         {{ saving ? 'Сохранение…' : '💾 Сохранить' }}
       </button>
     </template>
@@ -216,7 +243,6 @@ function close() {
 </template>
 
 <style scoped lang="scss">
-/* Те же стили, что и в ManualModal */
 .form {
   display: flex;
   flex-direction: column;
@@ -312,6 +338,8 @@ function close() {
   background: #f1f5f9;
   color: var(--text);
   border-color: var(--border);
+
+  &:hover { background: #e2e8f0; }
 }
 
 .btn-save {
@@ -320,9 +348,18 @@ function close() {
   box-shadow: 0 10px 24px -10px rgba(59, 130, 246, 0.7);
 
   &:disabled { opacity: 0.5; cursor: wait; }
+
+  &:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow: 0 14px 30px -10px rgba(59, 130, 246, 0.9);
+  }
 }
 
-@media (max-width: 500px) {
-  .row { grid-template-columns: 1fr; }
+/* Мобильная версия */
+@media (max-width: 700px) {
+  .row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
 }
 </style>

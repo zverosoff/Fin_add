@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useAccountsStore } from '@/stores/accounts';
 import { useWebSocket } from '@/composables/useWebSocket';
 import { useToast } from '@/composables/useToast';
+import { notifySaved, notifyError } from '@/composables/useDataStatus';
 
 import PageHero from '@/components/ui/PageHero.vue';
 import AppTabs from '@/components/ui/AppTabs.vue';
@@ -36,9 +37,15 @@ const userMenuOwner = ref('');
 
 onMounted(async () => {
   try {
-    if (!accounts.loaded) await accounts.load();
+    if (!accounts.loaded) {
+      await accounts.load();
+    }
+    // ✅ Сообщаем о готовности данных
+    notifySaved('готово');
+
     connect();
   } catch (e) {
+    notifyError(e.message || 'Не удалось загрузить данные');
     toast.error('Не удалось загрузить данные');
     console.error(e);
   }

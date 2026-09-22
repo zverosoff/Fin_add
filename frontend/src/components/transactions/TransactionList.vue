@@ -6,10 +6,6 @@ import { useToast } from '@/composables/useToast';
 import { fmtDateLong, isToday, fmt } from '@/composables/useFormat';
 import TransactionItem from './TransactionItem.vue';
 import EditModal from './EditModal.vue';
-import SearchBar from '@/components/filters/SearchBar.vue';
-import QuickChips from '@/components/filters/QuickChips.vue';
-import FiltersBar from '@/components/filters/FiltersBar.vue';
-import FiltersModal from '@/components/filters/FiltersModal.vue';
 
 const tx = useTransactionsStore();
 const filters = useFiltersStore();
@@ -17,7 +13,6 @@ const toast = useToast();
 
 const editOpen = ref(false);
 const editTx = ref(null);
-const filtersModalOpen = ref(false);
 
 function onEdit(t) {
   editTx.value = t;
@@ -51,29 +46,20 @@ async function restoreFromSnapshot(snapshot) {
 
 <template>
   <div class="tx-list">
-    <!-- Поиск + фильтры -->
-    <div class="tx-toolbar">
-      <SearchBar />
-      <button
-        class="tx-filters-btn"
-        :class="{ active: filters.hasActive }"
-        type="button"
-        @click="filtersModalOpen = true"
-        title="Расширенные фильтры"
+    <!-- Индикатор активных фильтров (компактный, если что-то выбрано) -->
+    <div v-if="filters.hasActive" class="tx-active-filter">
+      <span class="taf-label">🎯 Фильтр:</span>
+      <span
+        v-for="f in filters.activeList"
+        :key="f.key"
+        class="taf-chip"
+        @click="f.key === 'search' ? filters.set('search', '') : filters.set(f.key, 'all')"
       >
-        <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
-          <path d="M3 5h18v2H3V5zm3 6h12v2H6v-2zm3 6h6v2H9v-2z"/>
-        </svg>
-        <span>Фильтры</span>
-        <span v-if="filters.hasActive" class="badge">{{ filters.activeList.length }}</span>
-      </button>
+        {{ f.label }}
+        <span class="taf-close">✕</span>
+      </span>
+      <button class="taf-reset" @click="filters.reset()">Сбросить</button>
     </div>
-
-    <!-- Быстрые чипы -->
-    <QuickChips />
-
-    <!-- Плашка активных фильтров -->
-    <FiltersBar />
 
     <!-- Пусто -->
     <div v-if="tx.groupedByDay.length === 0" class="tx-empty">
@@ -89,7 +75,7 @@ async function restoreFromSnapshot(snapshot) {
       </button>
     </div>
 
-    <!-- Группы по дням -->
+    <!-- Список операций -->
     <template v-else>
       <template v-for="group in tx.groupedByDay" :key="group.key">
         <div class="tx-day-header">
@@ -114,73 +100,99 @@ async function restoreFromSnapshot(snapshot) {
       </template>
     </template>
 
-    <!-- Модалки -->
+    <!-- Модалка редактирования -->
     <EditModal v-model="editOpen" :tx="editTx" />
-    <FiltersModal v-model="filtersModalOpen" />
   </div>
 </template>
 
 <style scoped lang="scss">
+/* ============================================================
+   СПИСОК
+   ============================================================ */
 .tx-list {
   display: flex;
   flex-direction: column;
   gap: 8px;
 }
 
-.tx-toolbar {
+/* ============================================================
+   КОМПАКТНЫЙ ИНДИКАТОР АКТИВНОГО ФИЛЬТРА
+   ============================================================ */
+.tx-active-filter {
   display: flex;
-  gap: 8px;
-  align-items: stretch;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(139, 92, 246, 0.06));
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 12px;
+  font-size: 12px;
+  animation: filterIn 0.2s ease;
 }
 
-.tx-filters-btn {
+@keyframes filterIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.taf-label {
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-size: 11px;
+}
+
+.taf-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 0 14px;
-  border-radius: 12px;
-  border: 1px solid var(--border);
-  background: rgba(255, 255, 255, 0.9);
-  color: var(--muted);
-  font-family: inherit;
-  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: var(--accent);
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s;
-  flex-shrink: 0;
-
-  svg {
-    flex-shrink: 0;
-  }
 
   &:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: rgba(56, 189, 248, 0.06);
+    background: rgba(239, 68, 68, 0.15);
+    border-color: rgba(239, 68, 68, 0.5);
+    color: var(--danger);
   }
 
-  &.active {
-    border-color: var(--accent);
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-    color: #fff;
-    box-shadow: 0 6px 16px -8px rgba(59, 130, 246, 0.7);
-  }
-
-  .badge {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    min-width: 18px;
-    height: 18px;
-    padding: 0 6px;
-    border-radius: 999px;
-    background: #fff;
-    color: #3b82f6;
-    font-size: 10px;
-    font-weight: 800;
+  .taf-close {
+    font-size: 12px;
+    line-height: 1;
+    opacity: 0.8;
   }
 }
 
+.taf-reset {
+  margin-left: auto;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px dashed var(--border);
+  background: transparent;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+    background: rgba(239, 68, 68, 0.08);
+  }
+}
+
+/* ============================================================
+   ПУСТО
+   ============================================================ */
 .tx-empty {
   text-align: center;
   padding: 60px 24px;
@@ -189,12 +201,14 @@ async function restoreFromSnapshot(snapshot) {
   border-radius: 16px;
 
   .empty-icon { font-size: 48px; opacity: 0.6; }
+
   .empty-title {
     font-size: 17px;
     font-weight: 700;
     margin-top: 12px;
     color: var(--text);
   }
+
   .empty-sub {
     font-size: 13px;
     color: var(--muted);
@@ -221,16 +235,34 @@ async function restoreFromSnapshot(snapshot) {
   }
 }
 
+/* ============================================================
+   ЗАГОЛОВОК ДНЯ
+   ============================================================ */
 .tx-day-header {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 8px 6px;
+  padding: 10px 12px 8px;
   font-size: 12px;
   font-weight: 700;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
+  margin-top: 4px;
+
+  background: linear-gradient(
+    180deg,
+    rgba(238, 242, 248, 1) 0%,
+    rgba(238, 242, 248, 0.95) 70%,
+    rgba(238, 242, 248, 0) 100%
+  );
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border-radius: 8px 8px 0 0;
 
   .day-date {
     display: inline-flex;
@@ -247,6 +279,7 @@ async function restoreFromSnapshot(snapshot) {
         height: 6px;
         border-radius: 50%;
         background: #22c55e;
+        box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
       }
     }
   }
@@ -255,20 +288,54 @@ async function restoreFromSnapshot(snapshot) {
     font-family: var(--mono);
     font-size: 12px;
     font-weight: 800;
+    letter-spacing: 0;
+    text-transform: none;
 
     &.positive { color: #22c55e; }
     &.negative { color: #ef4444; }
   }
 }
 
+/* ============================================================
+   МОБИЛЬНАЯ
+   ============================================================ */
 @media (max-width: 700px) {
-  .tx-toolbar {
-    flex-direction: column;
+  .tx-active-filter {
+    padding: 8px 10px;
+    gap: 4px;
+    font-size: 11px;
   }
 
-  .tx-filters-btn {
-    justify-content: center;
-    padding: 10px 14px;
+  .taf-label {
+    font-size: 10px;
+    width: 100%;
+    margin-bottom: 2px;
+  }
+
+  .taf-chip {
+    padding: 4px 9px;
+    font-size: 11px;
+  }
+
+  .taf-reset {
+    font-size: 10px;
+    padding: 3px 9px;
+  }
+
+  .tx-day-header {
+    padding: 8px 4px 6px;
+    font-size: 11px;
+
+    .day-sum { font-size: 11px; }
+  }
+
+  .tx-empty {
+    padding: 40px 16px;
+    border-radius: 14px;
+
+    .empty-icon { font-size: 40px; }
+    .empty-title { font-size: 15px; margin-top: 10px; }
+    .empty-sub { font-size: 12px; }
   }
 }
 </style>

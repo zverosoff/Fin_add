@@ -500,22 +500,28 @@ function itemStyle() {
 }
 
 /* ============================================================
-   Мобильная версия
+   МОБИЛЬНАЯ ВЕРСИЯ
    ============================================================ */
 @media (max-width: 700px) {
   .tx-item {
-    padding: 10px 12px;
+    padding: 12px 14px;
     gap: 10px;
+    border-radius: 12px;
   }
 
   .tx-avatar {
-    width: 34px;
-    height: 34px;
-    font-size: 16px;
+    width: 36px;
+    height: 36px;
+    font-size: 18px;
+  }
+
+  .tx-bank-logo {
+    padding: 4px;
   }
 
   .tx-name {
     font-size: 14px;
+    margin-bottom: 2px;
   }
 
   .tx-meta {
@@ -523,24 +529,33 @@ function itemStyle() {
     gap: 5px;
   }
 
+  .tx-meta .who::after {
+    margin-left: 5px;
+  }
+
   .tx-meta .cat {
     font-size: 10px;
-    padding: 1px 7px;
+    padding: 2px 7px;
+  }
+
+  .tx-meta .cat.acc-badge {
+    font-size: 9.5px;
+    padding: 2px 6px;
   }
 
   .tx-amount {
     font-size: 15px;
   }
 
-  /* На мобильных кнопки видны всегда */
+  /* Кнопки показываем всегда (нет hover) */
   .tx-actions {
     opacity: 1;
   }
 
   .tx-actions button {
-    width: 30px;
-    height: 30px;
-    font-size: 13px;
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
   }
 }
 </style>

@@ -61,4 +61,19 @@ const periods = [
     }
   }
 }
+
+@media (max-width: 700px) {
+  .period-selector {
+    padding: 5px 6px;
+    gap: 3px;
+
+    button {
+      flex: 1;
+      padding: 6px 4px;
+      font-size: 11px;
+      text-align: center;
+      min-width: 0;
+    }
+  }
+}
 </style>

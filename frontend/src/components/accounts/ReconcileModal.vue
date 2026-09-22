@@ -23,13 +23,11 @@ const actualBalance = ref('');
 const error = ref('');
 const saving = ref(false);
 
-// Ожидаемый баланс
 const expected = computed(() => {
   if (!props.account) return 0;
   return computeExpectedBalance(props.account, accounts.transactions);
 });
 
-// Разница
 const diff = computed(() => {
   const val = parseFloat(actualBalance.value);
   if (!isFinite(val)) return null;
@@ -40,7 +38,6 @@ const hasDiff = computed(() =>
   diff.value !== null && Math.abs(diff.value) > 0.01
 );
 
-// При открытии — подставляем текущий value
 watch(() => props.modelValue, (open) => {
   if (!open || !props.account) return;
   actualBalance.value = String(Number(props.account.value) || 0);
@@ -80,18 +77,14 @@ async function save() {
 
   saving.value = true;
   try {
-    // Создаём корректировочную операцию
     await txStore.save(txData);
 
-    // Обновляем openingBalance, чтобы value совпал с фактическим
-    // (это важно, потому что fromReconcile не учитывается в expected)
     const acc = accounts.accounts.find(a => a.id === props.account.id);
     if (acc) {
       acc.openingBalance = (Number(acc.openingBalance) || 0) + difference;
       acc.value = val;
     }
 
-    // Сохраняем только accounts — goals и т.п. остаются
     const { api } = await import('@/api/client');
     await api.post('/state', { accounts: accounts.accounts });
 
@@ -117,7 +110,6 @@ function close() {
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div v-if="account" class="form">
-      <!-- Инфо -->
       <div class="reconcile-info">
         <div class="row">
           <span class="k">Начальный остаток</span>
@@ -129,7 +121,6 @@ function close() {
         </div>
       </div>
 
-      <!-- Фактический баланс -->
       <div class="field">
         <label>💰 Фактический баланс (из банка), ₽</label>
         <input
@@ -143,7 +134,6 @@ function close() {
         />
       </div>
 
-      <!-- Превью корректировки -->
       <div v-if="diff !== null" class="preview">
         <template v-if="!hasDiff">
           <div class="preview-ok">
@@ -233,9 +223,7 @@ function close() {
   }
 }
 
-.preview {
-  min-height: 0;
-}
+.preview { min-height: 0; }
 
 .preview-ok {
   padding: 10px 14px;
@@ -297,5 +285,13 @@ function close() {
   box-shadow: 0 10px 24px -10px rgba(245, 158, 11, 0.7);
 
   &:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+}
+
+@media (max-width: 700px) {
+  .field input { font-size: 16px; padding: 12px 14px; min-height: 46px; }
+
+  .reconcile-info .row { font-size: 12.5px; }
+  .preview-diff { font-size: 12.5px; }
+  .preview-diff strong { font-size: 14px; }
 }
 </style>

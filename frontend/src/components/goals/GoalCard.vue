@@ -11,9 +11,6 @@ const emit = defineEmits(['edit', 'delete', 'contribute', 'edit-contrib']);
 
 const analytics = useAnalyticsStore();
 
-// ============================================================
-// ETA — сколько месяцев осталось до цели
-// ============================================================
 const eta = computed(() => {
   if (props.goal.done) return null;
   const monthlySave = Math.max(0, analytics.currentMonthMetrics.monthSave);
@@ -36,9 +33,6 @@ const etaText = computed(() => {
   return `≈ ${eta.value} ${plural(eta.value, 'месяц', 'месяца', 'месяцев')}`;
 });
 
-// ============================================================
-// Участники — те, кто уже вносил
-// ============================================================
 const contributors = computed(() =>
   Object.entries(props.goal.contributions ?? {})
     .filter(([_, v]) => Number(v) > 0)
@@ -50,9 +44,6 @@ const contributors = computed(() =>
     }))
 );
 
-// ============================================================
-// Владелец
-// ============================================================
 const ownerEmoji = computed(() =>
   props.goal.owner === 'Сергей' ? '👨' : '👩'
 );
@@ -67,7 +58,6 @@ function onEditContrib(user) {
 
 <template>
   <div class="goal-card" :class="{ done: goal.done }">
-    <!-- Заголовок -->
     <div class="goal-head">
       <div class="goal-title-row">
         <span class="goal-emoji">{{ goal.emoji || '🎯' }}</span>
@@ -93,13 +83,11 @@ function onEditContrib(user) {
       </div>
     </div>
 
-    <!-- Прогресс -->
     <div class="goal-progress">
       <span class="current">{{ fmt(goal.totalSaved) }} ₽</span>
       <span class="target">из {{ fmt(goal.target) }} ₽</span>
     </div>
 
-    <!-- Полоса -->
     <div class="goal-track">
       <div
         class="goal-fill"
@@ -108,7 +96,6 @@ function onEditContrib(user) {
       ></div>
     </div>
 
-    <!-- Итог -->
     <div class="goal-foot">
       <span class="goal-pct" :class="{ done: goal.done }">
         {{ goal.pct.toFixed(1) }}%
@@ -122,7 +109,6 @@ function onEditContrib(user) {
       </span>
     </div>
 
-    <!-- Взносы -->
     <div v-if="contributors.length > 0" class="goal-contribs">
       <span
         v-for="c in contributors"
@@ -155,6 +141,7 @@ function onEditContrib(user) {
   flex-direction: column;
   gap: 10px;
   transition: transform 0.15s, box-shadow 0.2s;
+  min-width: 0;
 
   &:hover {
     transform: translateY(-2px);
@@ -193,6 +180,7 @@ function onEditContrib(user) {
   color: var(--text);
   line-height: 1.3;
   overflow-wrap: anywhere;
+  min-width: 0;
 }
 
 .goal-owner {
@@ -204,6 +192,7 @@ function onEditContrib(user) {
   padding: 3px 9px;
   border-radius: 999px;
   white-space: nowrap;
+  flex-shrink: 0;
 
   &.sergey {
     color: #2563eb;
@@ -235,6 +224,7 @@ function onEditContrib(user) {
     justify-content: center;
     padding: 0 8px;
     transition: all 0.15s;
+    font-family: inherit;
 
     &:hover {
       color: var(--accent);
@@ -387,5 +377,66 @@ function onEditContrib(user) {
     font-weight: 600;
     font-style: normal;
   }
+}
+
+/* ============================================================
+   МОБИЛЬНЫЙ
+   ============================================================ */
+@media (max-width: 700px) {
+  .goal-card {
+    padding: 12px 14px;
+    gap: 8px;
+    border-radius: 12px;
+  }
+
+  .goal-title-row { gap: 6px; }
+  .goal-emoji { font-size: 20px; }
+  .goal-name { font-size: 13px; }
+
+  .goal-owner {
+    font-size: 10px;
+    padding: 2px 7px;
+  }
+
+  .goal-actions {
+    gap: 4px;
+
+    button {
+      min-width: 28px;
+      height: 28px;
+      font-size: 11px;
+    }
+
+    button.act-contribute {
+      padding: 0 10px;
+      font-size: 11px;
+      height: 28px;
+    }
+  }
+
+  .goal-progress {
+    .current { font-size: 15px; }
+    .target  { font-size: 11px; }
+  }
+
+  .goal-foot { font-size: 11px; }
+
+  .goal-contribs { gap: 5px; padding-top: 6px; }
+
+  .goal-contrib {
+    font-size: 10.5px;
+    padding: 3px 8px;
+    gap: 4px;
+  }
+
+  .goal-empty-contribs {
+    font-size: 10.5px;
+    padding: 5px 8px;
+  }
+}
+
+@media (max-width: 380px) {
+  .goal-name { font-size: 12.5px; }
+  .goal-progress .current { font-size: 14px; }
 }
 </style>

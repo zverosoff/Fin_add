@@ -31,7 +31,6 @@ const balanceClass = computed(() => {
 
 <template>
   <div class="summary-compact" :class="{ collapsed }">
-    <!-- Верхняя строка с метриками -->
     <div class="sc-top">
       <div class="sc-item">
         <span class="sc-icon">📈</span>
@@ -52,7 +51,6 @@ const balanceClass = computed(() => {
       </div>
     </div>
 
-    <!-- Заголовок сворачиваемой секции -->
     <div class="sc-users-header" @click="toggle">
       <span class="sc-users-icon">👥</span>
       <span class="sc-users-title">По пользователям</span>
@@ -61,7 +59,6 @@ const balanceClass = computed(() => {
       </button>
     </div>
 
-    <!-- Строки пользователей -->
     <div class="sc-users">
       <div
         v-for="(data, user) in tx.byUser"
@@ -267,5 +264,49 @@ const balanceClass = computed(() => {
 
   &.positive { color: #22c55e; }
   &.negative { color: #f87171; }
+}
+
+/* ============================================================
+   МОБИЛЬНЫЙ
+   ============================================================ */
+@media (max-width: 700px) {
+  .summary-compact {
+    padding: 10px 12px;
+    border-radius: 12px;
+  }
+
+  .sc-top { gap: 6px; }
+
+  .sc-icon { font-size: 12px; }
+  .sc-value { font-size: 14px; }
+  .sc-label { font-size: 8.5px; letter-spacing: 0.05em; }
+  .sc-divider { height: 28px; }
+
+  .sc-users-header {
+    margin-top: 10px;
+    padding-top: 8px;
+    gap: 6px;
+  }
+
+  .sc-users-icon { font-size: 12px; }
+  .sc-users-title { font-size: 10px; }
+  .sc-toggle { width: 22px; height: 22px; }
+  .sc-toggle .chev { width: 11px; height: 11px; }
+
+  .sc-user-row {
+    padding: 5px 6px;
+    margin: 0 -6px;
+    gap: 6px;
+  }
+
+  .sc-user-avatar { font-size: 13px; }
+  .sc-user-name { font-size: 11px; min-width: 44px; }
+
+  .sc-user-details { gap: 6px; }
+  .sc-user-inc, .sc-user-exp { font-size: 10px; }
+  .sc-user-bal {
+    font-size: 10px;
+    padding: 1px 6px;
+  }
 }
 </style>

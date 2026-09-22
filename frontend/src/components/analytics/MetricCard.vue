@@ -5,7 +5,7 @@ defineProps({
   value: { type: String, required: true },
   hint: { type: String, default: '' },
   accent: { type: Boolean, default: false },
-  size: { type: String, default: 'normal' }, // normal | big
+  size: { type: String, default: 'normal' },
 });
 </script>
 
@@ -31,6 +31,7 @@ defineProps({
   gap: 2px;
   overflow: hidden;
   transition: transform 0.18s cubic-bezier(.34,1.56,.64,1), box-shadow 0.18s;
+  min-width: 0;
 
   &:hover {
     transform: translateY(-2px);
@@ -57,6 +58,9 @@ defineProps({
   letter-spacing: 0.06em;
   font-weight: 700;
   line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .metric-value {
@@ -87,5 +91,53 @@ defineProps({
   color: var(--muted);
   margin-top: 2px;
   line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* ============================================================
+   МОБИЛЬНЫЙ
+   ============================================================ */
+@media (max-width: 700px) {
+  .metric-card {
+    padding: 10px 12px;
+    border-radius: 12px;
+    gap: 1px;
+  }
+
+  .metric-icon {
+    font-size: 16px;
+    margin-bottom: 1px;
+  }
+
+  .metric-label {
+    font-size: 9px;
+    letter-spacing: 0.05em;
+  }
+
+  .metric-value {
+    font-size: 16px;
+  }
+
+  .metric-card.big .metric-value {
+    font-size: 20px;
+  }
+
+  .metric-hint {
+    font-size: 9.5px;
+  }
+}
+
+@media (max-width: 380px) {
+  .metric-value {
+    font-size: 15px;
+  }
+
+  .metric-card.big .metric-value {
+    font-size: 18px;
+  }
 }
 </style>
