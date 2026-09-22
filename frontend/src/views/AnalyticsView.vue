@@ -1,9 +1,10 @@
 <script setup>
-import { onMounted, computed } from 'vue';
+import { onMounted, computed, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useAccountsStore } from '@/stores/accounts';
 import { useAnalyticsStore } from '@/stores/analytics';
+import { useGoalsStore } from '@/stores/goals';
 import { useWebSocket } from '@/composables/useWebSocket';
 import { useToast } from '@/composables/useToast';
 import { fmt } from '@/composables/useFormat';
@@ -14,13 +15,31 @@ import MetricCard from '@/components/analytics/MetricCard.vue';
 import ComparisonCard from '@/components/analytics/ComparisonCard.vue';
 import BarChart from '@/components/analytics/BarChart.vue';
 import LineChart from '@/components/analytics/LineChart.vue';
+import GoalsList from '@/components/goals/GoalsList.vue';
+import GoalModal from '@/components/goals/GoalModal.vue';
+import ContributeModal from '@/components/goals/ContributeModal.vue';
+import EditContribModal from '@/components/goals/EditContribModal.vue';
 
 const router = useRouter();
 const auth = useAuthStore();
 const accounts = useAccountsStore();
 const analytics = useAnalyticsStore();
+const goalsStore = useGoalsStore();
 const toast = useToast();
 const { connect } = useWebSocket();
+
+// ============================================================
+// Модалки целей
+// ============================================================
+const goalModalOpen = ref(false);
+const goalToEdit = ref(null);
+
+const contributeModalOpen = ref(false);
+const contributeGoal = ref(null);
+
+const editContribModalOpen = ref(false);
+const editContribGoal = ref(null);
+const editContribUser = ref('');
 
 // ============================================================
 // Инициализация
@@ -55,17 +74,47 @@ const runwayHint = computed(() => {
   return '❗ Мало';
 });
 
-// Подсказка для карточки «Можно откладывать»
 const saveMonthlyHint = computed(() => {
   const m = metrics.value;
-  if (m.monthSave > 0) {
-    return `${m.monthName}: ${fmt(m.monthIncome)} ₽ − ${fmt(m.monthExpense)} ₽`;
-  }
-  if (m.monthSave < 0) {
-    return `${m.monthName}: перерасход ${fmt(Math.abs(m.monthSave))} ₽`;
-  }
+  if (m.monthSave > 0) return `${m.monthName}: ${fmt(m.monthIncome)} ₽ − ${fmt(m.monthExpense)} ₽`;
+  if (m.monthSave < 0) return `${m.monthName}: перерасход ${fmt(Math.abs(m.monthSave))} ₽`;
   return `${m.monthName}: нет данных`;
 });
+
+// ============================================================
+// Действия с целями
+// ============================================================
+
+function openAddGoal() {
+  goalToEdit.value = null;
+  goalModalOpen.value = true;
+}
+
+function openEditGoal(goal) {
+  goalToEdit.value = goal;
+  goalModalOpen.value = true;
+}
+
+async function onDeleteGoal(goal) {
+  if (!confirm(`Удалить цель «${goal.name}»?`)) return;
+  try {
+    await goalsStore.remove(goal.id);
+    toast.info('🗑 Цель удалена');
+  } catch (e) {
+    toast.error('Ошибка: ' + e.message);
+  }
+}
+
+function openContribute(goal) {
+  contributeGoal.value = goal;
+  contributeModalOpen.value = true;
+}
+
+function openEditContrib({ goal, user }) {
+  editContribGoal.value = goal;
+  editContribUser.value = user;
+  editContribModalOpen.value = true;
+}
 
 // ============================================================
 // Выход
@@ -79,7 +128,6 @@ async function handleLogout() {
 
 <template>
   <div class="analytics-page">
-    <!-- Шапка -->
     <header class="top-bar">
       <h1>📊 Аналитика</h1>
       <div class="user-info">
@@ -88,11 +136,9 @@ async function handleLogout() {
       </div>
     </header>
 
-    <!-- Табы -->
     <AppTabs />
 
     <div class="container">
-      <!-- Переключатель периода -->
       <PeriodSelector />
 
       <!-- Метрики -->
@@ -105,21 +151,18 @@ async function handleLogout() {
           accent
           size="big"
         />
-
         <MetricCard
           icon="📊"
           label="Норма сбережений"
           :value="Math.round(metrics.monthSaveRate) + '%'"
           :hint="saveRateHint"
         />
-
         <MetricCard
           icon="⏳"
           label="Подушка"
           :value="metrics.runway.toFixed(1) + ' мес'"
           :hint="runwayHint"
         />
-
         <MetricCard
           icon="🔥"
           label="Расход в день"
@@ -128,24 +171,47 @@ async function handleLogout() {
         />
       </div>
 
-      <!-- Сравнение периодов -->
+      <!-- Сравнение -->
       <section class="card">
         <h2 class="card-title">🔀 Сравнение с прошлым периодом</h2>
         <ComparisonCard />
       </section>
 
-      <!-- Столбчатая диаграмма -->
+      <!-- 🎯 ЦЕЛИ -->
+      <section class="card">
+        <div class="card-head">
+          <h2 class="card-title">🎯 Цели накоплений и желаемые покупки</h2>
+          <button class="btn-add-goal" @click="openAddGoal">+ Добавить</button>
+        </div>
+        <GoalsList
+          @add="openAddGoal"
+          @edit="openEditGoal"
+          @delete="onDeleteGoal"
+          @contribute="openContribute"
+          @edit-contrib="openEditContrib"
+        />
+      </section>
+
+      <!-- Графики -->
       <section class="card">
         <h2 class="card-title">📊 Доходы и расходы по месяцам</h2>
         <BarChart :data="analytics.monthlyData" />
       </section>
 
-      <!-- Линейный график -->
       <section class="card">
         <h2 class="card-title">📈 Накопление баланса</h2>
         <LineChart :data="analytics.monthlyData" />
       </section>
     </div>
+
+    <!-- Модалки -->
+    <GoalModal v-model="goalModalOpen" :goal="goalToEdit" />
+    <ContributeModal v-model="contributeModalOpen" :goal="contributeGoal" />
+    <EditContribModal
+      v-model="editContribModalOpen"
+      :goal="editContribGoal"
+      :user="editContribUser"
+    />
   </div>
 </template>
 
@@ -155,9 +221,6 @@ async function handleLogout() {
   padding: 20px 20px 60px;
 }
 
-/* ============================================================
-   Шапка
-   ============================================================ */
 .top-bar {
   display: flex;
   justify-content: space-between;
@@ -184,7 +247,6 @@ async function handleLogout() {
   align-items: center;
   gap: 12px;
   font-size: 13px;
-  color: var(--text);
 
   button {
     padding: 6px 14px;
@@ -192,7 +254,6 @@ async function handleLogout() {
     border-radius: 999px;
     background: transparent;
     color: var(--muted);
-    font-family: inherit;
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
@@ -201,14 +262,10 @@ async function handleLogout() {
     &:hover {
       border-color: var(--danger);
       color: var(--danger);
-      background: rgba(239, 68, 68, 0.05);
     }
   }
 }
 
-/* ============================================================
-   Контейнер
-   ============================================================ */
 .container {
   max-width: 900px;
   margin: 0 auto;
@@ -217,29 +274,27 @@ async function handleLogout() {
   gap: 14px;
 }
 
-/* ============================================================
-   Метрики
-   ============================================================ */
 .metrics-grid {
   display: grid;
   grid-template-columns: 2fr 1fr 1fr 1fr;
   gap: 10px;
 }
 
-/* ============================================================
-   Карточки-секции
-   ============================================================ */
 .card {
   padding: 16px 18px;
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid var(--border);
   border-radius: 16px;
   box-shadow: var(--shadow-md);
-  transition: box-shadow 0.2s;
+}
 
-  &:hover {
-    box-shadow: var(--shadow-lg);
-  }
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
 }
 
 .card-title {
@@ -248,75 +303,46 @@ async function handleLogout() {
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-weight: 700;
-  margin: 0 0 12px;
+  margin: 0;
 }
 
-/* ============================================================
-   Планшет
-   ============================================================ */
+.card-head .card-title { margin-bottom: 0; }
+
+.btn-add-goal {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: none;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  color: #fff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 16px -8px rgba(59, 130, 246, 0.7);
+  transition: all 0.15s;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px -10px rgba(59, 130, 246, 0.9);
+  }
+}
+
 @media (max-width: 900px) {
   .metrics-grid {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
   }
-
-  .metrics-grid > :first-child {
-    grid-column: 1 / -1;
-  }
+  .metrics-grid > :first-child { grid-column: 1 / -1; }
 }
 
-/* ============================================================
-   Мобильный
-   ============================================================ */
 @media (max-width: 700px) {
-  .analytics-page {
-    padding: 16px 12px 40px;
-  }
-
-  .top-bar {
-    padding: 10px 16px;
-    margin-bottom: 12px;
-
-    h1 { font-size: 17px; }
-  }
-
-  .user-info {
-    gap: 8px;
-    font-size: 12px;
-
-    button {
-      padding: 5px 10px;
-      font-size: 11px;
-    }
-  }
-
-  .container {
-    gap: 10px;
-  }
-
-  .metrics-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
-
-  .metrics-grid > :first-child {
-    grid-column: 1 / -1;
-  }
-
-  .card {
-    padding: 12px 14px;
-    border-radius: 14px;
-  }
-
-  .card-title {
-    font-size: 11px;
-    margin-bottom: 10px;
-  }
+  .analytics-page { padding: 16px 12px 40px; }
+  .top-bar { padding: 10px 16px; margin-bottom: 12px; h1 { font-size: 17px; } }
+  .container { gap: 10px; }
+  .card { padding: 12px 14px; }
 }
 
 @media (max-width: 400px) {
-  .metrics-grid {
-    grid-template-columns: 1fr;
-  }
+  .metrics-grid { grid-template-columns: 1fr; }
 }
 </style>

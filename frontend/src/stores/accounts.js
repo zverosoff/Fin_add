@@ -5,6 +5,7 @@ import { api } from '@/api/client';
 export const useAccountsStore = defineStore('accounts', () => {
   const accounts = ref([]);
   const transactions = ref([]);
+  const goals = ref([]);
   const loaded = ref(false);
 
   // ============================================================
@@ -16,7 +17,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     accounts.value.reduce((sum, a) => sum + (Number(a.value) || 0), 0)
   );
 
-  /** Счета, сгруппированные по владельцу: { Сергей: [...], Саша: [...] } */
+  /** Счета, сгруппированные по владельцу */
   const byOwner = computed(() => {
     const map = {};
     for (const acc of accounts.value) {
@@ -52,6 +53,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     const { data } = await api.get('/state');
     accounts.value = data.accounts ?? [];
     transactions.value = data.transactions ?? [];
+    goals.value = data.goals ?? [];
     loaded.value = true;
     recalculate();
   }
@@ -72,6 +74,7 @@ export const useAccountsStore = defineStore('accounts', () => {
   function setFromWS(state) {
     accounts.value = state.accounts ?? [];
     transactions.value = state.transactions ?? [];
+    goals.value = state.goals ?? [];
     recalculate();
   }
 
@@ -81,7 +84,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     return acc ? acc.name : '';
   }
 
-  /** Определить банк счёта: 'sber' | 'tbank' | null */
+  /** Определить банк счёта */
   function getBank(id) {
     if (!id) return null;
     if (id.startsWith('sber')) return 'sber';
@@ -92,6 +95,7 @@ export const useAccountsStore = defineStore('accounts', () => {
   return {
     accounts,
     transactions,
+    goals,
     loaded,
     total,
     byOwner,
