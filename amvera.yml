@@ -11,5 +11,3 @@ run:
   command: node --experimental-sqlite --no-warnings src/index.js
   persistenceMount: /data
   containerPort: 3000
-
-workDir: backend
