@@ -38,9 +38,7 @@ const editContribUser = ref('');
 
 onMounted(async () => {
   try {
-    if (!accounts.loaded) {
-      await accounts.load();
-    }
+    if (!accounts.loaded) await accounts.load();
     notifySaved('готово');
     connect();
   } catch (e) {
@@ -112,67 +110,77 @@ function openEditContrib({ goal, user }) {
 
     <AppTabs />
 
-    <div class="container">
-      <PeriodSelector />
+    <div class="analytics-grid">
+      <!-- ЛЕВАЯ КОЛОНКА -->
+      <div class="an-col an-col-left">
+        <!-- Метрики (4 в ряд) -->
+        <div class="metrics-grid">
+          <MetricCard
+            icon="💰"
+            label="Можно откладывать в месяц"
+            :value="fmt(metrics.monthSave) + ' ₽'"
+            :hint="saveMonthlyHint"
+            accent
+            size="big"
+          />
+          <MetricCard
+            icon="📊"
+            label="Норма сбережений"
+            :value="Math.round(metrics.monthSaveRate) + '%'"
+            :hint="saveRateHint"
+          />
+          <MetricCard
+            icon="⏳"
+            label="Подушка"
+            :value="metrics.runway.toFixed(1) + ' мес'"
+            :hint="runwayHint"
+          />
+          <MetricCard
+            icon="🔥"
+            label="Расход в день"
+            :value="fmt(metrics.dailyAvg) + ' ₽'"
+            :hint="'при ' + fmt(metrics.avgExpense) + ' ₽/мес'"
+          />
+        </div>
 
-      <div class="metrics-grid">
-        <MetricCard
-          icon="💰"
-          label="Можно откладывать в месяц"
-          :value="fmt(metrics.monthSave) + ' ₽'"
-          :hint="saveMonthlyHint"
-          accent
-          size="big"
-          class="metric-big"
-        />
-        <MetricCard
-          icon="📊"
-          label="Норма сбережений"
-          :value="Math.round(metrics.monthSaveRate) + '%'"
-          :hint="saveRateHint"
-        />
-        <MetricCard
-          icon="⏳"
-          label="Подушка"
-          :value="metrics.runway.toFixed(1) + ' мес'"
-          :hint="runwayHint"
-        />
-        <MetricCard
-          icon="🔥"
-          label="Расход в день"
-          :value="fmt(metrics.dailyAvg) + ' ₽'"
-          :hint="'при ' + fmt(metrics.avgExpense) + ' ₽/мес'"
-        />
+        <!-- Период -->
+        <PeriodSelector />
+
+        <!-- Сравнение с прошлым периодом -->
+        <section class="card">
+          <h2 class="card-title">🔀 Сравнение с прошлым периодом</h2>
+          <ComparisonCard />
+        </section>
+
+        <!-- Графики -->
+        <section class="card">
+          <h2 class="card-title">📊 Доходы и расходы по месяцам</h2>
+          <BarChart :data="analytics.monthlyData" />
+        </section>
+
+        <section class="card">
+          <h2 class="card-title">📈 Накопление баланса</h2>
+          <LineChart :data="analytics.monthlyData" />
+        </section>
       </div>
 
-      <section class="card">
-        <h2 class="card-title">🔀 Сравнение с прошлым периодом</h2>
-        <ComparisonCard />
-      </section>
-
-      <section class="card">
-        <div class="card-head">
-          <h2 class="card-title">🎯 Цели накоплений</h2>
-          <button class="btn-add-goal" @click="openAddGoal">+ Добавить</button>
-        </div>
-        <GoalsList
-          @add="openAddGoal"
-          @edit="openEditGoal"
-          @delete="onDeleteGoal"
-          @contribute="openContribute"
-          @edit-contrib="openEditContrib"
-        />
-      </section>
-
-      <section class="card">
-        <h2 class="card-title">📊 Доходы и расходы по месяцам</h2>
-        <BarChart :data="analytics.monthlyData" />
-      </section>
-
-      <section class="card">
-        <h2 class="card-title">📈 Накопление баланса</h2>
-        <LineChart :data="analytics.monthlyData" />
-      </section>
+      <!-- ПРАВАЯ КОЛОНКА -->
+      <div class="an-col an-col-right">
+        <!-- Цели -->
+        <section class="card">
+          <div class="card-head">
+            <h2 class="card-title">🎯 Цели накоплений и желаемые покупки</h2>
+            <button class="btn-add-goal" @click="openAddGoal">+ Добавить</button>
+          </div>
+          <GoalsList
+            @add="openAddGoal"
+            @edit="openEditGoal"
+            @delete="onDeleteGoal"
+            @contribute="openContribute"
+            @edit-contrib="openEditContrib"
+          />
+        </section>
+      </div>
     </div>
 
     <GoalModal v-model="goalModalOpen" :goal="goalToEdit" />
@@ -191,12 +199,28 @@ function openEditContrib({ goal, user }) {
   padding: 20px 20px 60px;
 }
 
-.container {
-  max-width: 900px;
+/* ============================================================
+   ДЕСКТОП — 2 колонки
+   ============================================================ */
+.analytics-grid {
+  max-width: 1400px;
   margin: 0 auto;
+  display: grid;
+  grid-template-columns: 1fr 380px;
+  gap: 20px;
+  align-items: start;
+}
+
+.an-col {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  min-width: 0;
+}
+
+.an-col-right {
+  position: sticky;
+  top: 20px;
 }
 
 .metrics-grid {
@@ -256,13 +280,21 @@ function openEditContrib({ goal, user }) {
 /* ============================================================
    ПЛАНШЕТ
    ============================================================ */
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
+  .analytics-grid {
+    grid-template-columns: 1fr;
+    max-width: 900px;
+  }
+
+  .an-col-right {
+    position: static;
+  }
+
   .metrics-grid {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
-  }
-  .metrics-grid > :first-child {
-    grid-column: 1 / -1;
+
+    & > :first-child { grid-column: 1 / -1; }
   }
 }
 
@@ -270,37 +302,16 @@ function openEditContrib({ goal, user }) {
    МОБИЛЬНЫЙ
    ============================================================ */
 @media (max-width: 700px) {
-  .analytics-page {
-    padding: 12px 12px 40px;
-  }
+  .analytics-page { padding: 12px 12px 40px; }
+  .analytics-grid { gap: 10px; }
 
-  .container {
-    gap: 10px;
-  }
+  .an-col { gap: 10px; }
 
-  .metrics-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-  }
+  .card { padding: 12px 14px; border-radius: 14px; }
 
-  .metrics-grid > :first-child {
-    grid-column: 1 / -1;
-  }
+  .card-title { font-size: 11px; letter-spacing: 0.06em; }
 
-  .card {
-    padding: 12px 14px;
-    border-radius: 14px;
-  }
-
-  .card-title {
-    font-size: 11px;
-    letter-spacing: 0.06em;
-  }
-
-  .card-head {
-    margin-bottom: 10px;
-    gap: 6px;
-  }
+  .card-head { margin-bottom: 10px; gap: 6px; }
 
   .btn-add-goal {
     padding: 6px 12px;
@@ -308,12 +319,7 @@ function openEditContrib({ goal, user }) {
   }
 }
 
-/* ============================================================
-   УЗКИЙ ЭКРАН
-   ============================================================ */
 @media (max-width: 380px) {
-  .metrics-grid {
-    grid-template-columns: 1fr;
-  }
+  .metrics-grid { grid-template-columns: 1fr; }
 }
 </style>

@@ -1,3 +1,7 @@
+# ============================================================
+# Корневой .gitignore
+# ============================================================
+
 # Зависимости
 node_modules/
 __pycache__/
@@ -14,6 +18,7 @@ data/
 *.db-shm
 *.db-wal
 *.sqlite
+*.sqlite3
 
 # Окружение
 .env
@@ -29,5 +34,8 @@ npm-debug.log*
 .idea/
 .DS_Store
 
-# Vercel / Amvera
+# Vercel
 .vercel/
+
+# Amvera
+.amvera/

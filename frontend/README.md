@@ -1,5 +1,47 @@
-# Vue 3 + Vite
+# 💎 Финансы PRO+
 
-This template should help get you started developing with Vue 3 in Vite. The template uses Vue 3 `<script setup>` SFCs, check out the [script setup docs](https://v3.vuejs.org/api/sfc-script-setup.html#sfc-script-setup) to learn more.
+Fullstack-приложение для управления личными финансами.
 
-Learn more about IDE Support for Vue in the [Vue Docs Scaling up Guide](https://vuejs.org/guide/scaling-up/tooling.html#ide-support).
+## Стек
+
+- **Frontend**: Vue 3 + Vite + Pinia + Vue Router
+- **Backend**: Node.js + Express + SQLite (`node:sqlite`) + Socket.IO
+- **Auth**: JWT + PIN
+
+## Структура
+finance-pro/
+├── backend/ # Node.js API + WebSocket + SQLite
+│ ├── src/
+│ ├── amvera.yml
+│ └── package.json
+├── frontend/ # Vue 3 SPA
+│ ├── src/
+│ ├── .env.production
+│ ├── vercel.json
+│ └── package.json
+└── .gitignore
+
+text
+
+## Локальный запуск
+
+**Backend:**
+```bash
+cd backend
+npm install
+npm run dev
+Frontend:
+
+bash
+cd frontend
+npm install
+npm run dev
+Открыть: http://localhost:5173
+
+Деплой
+Backend → Amvera (Node.js Server, /data для SQLite)
+
+Frontend → Vercel (Vite preset, frontend/ root)
+
+Лицензия
+Приватный проект.

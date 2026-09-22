@@ -1,16 +1,15 @@
 import axios from 'axios';
 
-/**
- * Axios-instance для всех запросов к бэкенду.
- * withCredentials: true — отправляет httpOnly cookies автоматически.
- */
+// В продакшене — Amvera из .env.production
+// В деве — '/api' (прокси Vite)
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
+
 export const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE,
   withCredentials: true,
-  timeout: 15_000,
+  timeout: 15000,
 });
 
-// Response interceptor — на 401 (кроме логина) перекидываем на /login
 api.interceptors.response.use(
   response => response,
   error => {

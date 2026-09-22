@@ -13,9 +13,12 @@ export function useWebSocket() {
   function connect() {
     if (socket) return;
 
-    socket = io({
+    const wsUrl = import.meta.env.VITE_WS_URL || undefined;
+
+    socket = io(wsUrl, {
       auth: { token: auth.token },
       transports: ['websocket'],
+      withCredentials: true,
     });
 
     socket.on('connect', () => {

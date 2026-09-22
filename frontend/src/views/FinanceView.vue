@@ -37,12 +37,8 @@ const userMenuOwner = ref('');
 
 onMounted(async () => {
   try {
-    if (!accounts.loaded) {
-      await accounts.load();
-    }
-    // ✅ Сообщаем о готовности данных
+    if (!accounts.loaded) await accounts.load();
     notifySaved('готово');
-
     connect();
   } catch (e) {
     notifyError(e.message || 'Не удалось загрузить данные');
@@ -84,15 +80,22 @@ function onUserMenu(owner) {
 
     <AppTabs />
 
-    <div class="container">
-      <AccountsBlock
-        @reconcile="onReconcile"
-        @user-menu="onUserMenu"
-      />
-      <ReconcileBanner @reconcile="onReconcileUser" />
-      <MonthNav />
-      <SummaryCompact />
-      <TransactionList />
+    <div class="finance-grid">
+      <!-- ЛЕВАЯ КОЛОНКА — счета, месяц, сводка -->
+      <aside class="finance-side">
+        <AccountsBlock
+          @reconcile="onReconcile"
+          @user-menu="onUserMenu"
+        />
+        <MonthNav />
+        <SummaryCompact />
+      </aside>
+
+      <!-- ПРАВАЯ КОЛОНКА — операции -->
+      <main class="finance-main">
+        <ReconcileBanner @reconcile="onReconcileUser" />
+        <TransactionList />
+      </main>
     </div>
 
     <FabMenu
@@ -119,16 +122,56 @@ function onUserMenu(owner) {
   padding: 20px 20px 100px;
 }
 
-.container {
-  max-width: 900px;
+/* ============================================================
+   ДЕСКТОП — 2 колонки
+   ============================================================ */
+.finance-grid {
+  max-width: 1400px;
   margin: 0 auto;
+  display: grid;
+  grid-template-columns: 380px 1fr;
+  gap: 20px;
+  align-items: start;
+}
+
+.finance-side {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  position: sticky;
+  top: 20px;
 }
 
+.finance-main {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+/* ============================================================
+   ПЛАНШЕТ — 1 колонка
+   ============================================================ */
+@media (max-width: 1100px) {
+  .finance-grid {
+    grid-template-columns: 1fr;
+    gap: 14px;
+    max-width: 900px;
+  }
+
+  .finance-side {
+    position: static;
+  }
+}
+
+/* ============================================================
+   МОБИЛЬНЫЙ
+   ============================================================ */
 @media (max-width: 700px) {
   .finance-page { padding: 16px 12px 100px; }
-  .container { gap: 10px; }
+
+  .finance-grid { gap: 10px; }
+  .finance-side,
+  .finance-main { gap: 10px; }
 }
 </style>

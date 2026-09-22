@@ -9,16 +9,23 @@ const routes = [
     meta: { public: true },
   },
   { path: '/', redirect: '/finance' },
+
   {
     path: '/finance',
     name: 'finance',
     component: () => import('@/views/FinanceView.vue'),
   },
   {
-    path: '/analytics',                             // ← НОВОЕ
-    name: 'analytics',                              // ← НОВОЕ
-    component: () => import('@/views/AnalyticsView.vue'),  // ← НОВОЕ
+    path: '/analytics',
+    name: 'analytics',
+    component: () => import('@/views/AnalyticsView.vue'),
   },
+  {
+    path: '/deposits',
+    name: 'deposits',
+    component: () => import('@/views/DepositsView.vue'),
+  },
+
   { path: '/:catchAll(.*)', redirect: '/finance' },
 ];
 

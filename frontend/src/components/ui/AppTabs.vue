@@ -4,8 +4,9 @@ import { useRoute } from 'vue-router';
 const route = useRoute();
 
 const tabs = [
-  { to: '/finance',   icon: '⭐', label: 'Финансы',  short: 'Финансы' },
-  { to: '/analytics', icon: '📊', label: 'Аналитика', short: 'Анализ' },
+  { to: '/finance',   icon: '⭐', label: 'Финансы',      short: 'Финансы' },
+  { to: '/deposits',  icon: '💎', label: 'Вклады',       short: 'Вклады' },
+  { to: '/analytics', icon: '📊', label: 'Аналитика',    short: 'Анализ' },
 ];
 </script>
 
@@ -71,9 +72,6 @@ const tabs = [
 
 .tab-label-short { display: none; }
 
-/* ============================================================
-   МОБИЛЬНЫЙ
-   ============================================================ */
 @media (max-width: 700px) {
   .app-tabs {
     gap: 6px;
