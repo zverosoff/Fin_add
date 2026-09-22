@@ -1,16 +1,25 @@
 <script setup>
-import { onMounted } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useAccountsStore } from '@/stores/accounts';
 import { useWebSocket } from '@/composables/useWebSocket';
 import { useToast } from '@/composables/useToast';
+import { fmt } from '@/composables/useFormat';
+
+import MonthNav from '@/components/transactions/MonthNav.vue';
+import SummaryCompact from '@/components/transactions/SummaryCompact.vue';
+import TransactionList from '@/components/transactions/TransactionList.vue';
+import ManualModal from '@/components/transactions/ManualModal.vue';
+import FabMenu from '@/components/ui/FabMenu.vue';
 
 const router = useRouter();
 const auth = useAuthStore();
 const accounts = useAccountsStore();
 const toast = useToast();
 const { connect } = useWebSocket();
+
+const manualOpen = ref(false);
 
 onMounted(async () => {
   try {
@@ -28,8 +37,10 @@ async function handleLogout() {
   router.push('/login');
 }
 
-function fmt(n) {
-  return (Number(n) || 0).toLocaleString('ru-RU', { maximumFractionDigits: 0 });
+function onFabAction(action) {
+  if (action === 'manual') manualOpen.value = true;
+  if (action === 'scan') toast.info('📸 Сканирование чека — в разработке');
+  if (action === 'pdf') toast.info('📄 Импорт PDF — в разработке');
 }
 </script>
 
@@ -44,6 +55,7 @@ function fmt(n) {
     </header>
 
     <div class="container">
+      <!-- Счета -->
       <section class="accounts-card">
         <h2>💳 Наши счета</h2>
         <div class="total">Итого: <strong>{{ fmt(accounts.total) }} ₽</strong></div>
@@ -64,23 +76,24 @@ function fmt(n) {
         </div>
       </section>
 
-      <section class="transactions-card">
-        <h2>📋 Операции</h2>
-        <p v-if="accounts.transactions.length === 0" class="empty">
-          Пока нет операций
-        </p>
-        <p v-else class="count">
-          Найдено: {{ accounts.transactions.length }}
-        </p>
-      </section>
+      <MonthNav />
+      <SummaryCompact />
+      <TransactionList />
     </div>
+
+    <!-- FAB -->
+    <FabMenu @manual="onFabAction('manual')" @scan="onFabAction('scan')" @pdf="onFabAction('pdf')" />
+
+    <!-- Модалка ручного добавления -->
+    <ManualModal v-model="manualOpen" />
   </div>
 </template>
 
 <style scoped lang="scss">
+/* Стили — те же, что были + padding-bottom для FAB */
 .finance-page {
   min-height: 100vh;
-  padding: 20px;
+  padding: 20px 20px 100px;  /* +80px снизу для FAB */
 }
 
 .top-bar {
@@ -131,11 +144,10 @@ function fmt(n) {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
 
-.accounts-card,
-.transactions-card {
+.accounts-card {
   padding: 20px;
   background: rgba(255, 255, 255, 0.9);
   border-radius: 16px;
@@ -195,15 +207,5 @@ function fmt(n) {
     font-family: var(--mono);
     font-weight: 700;
   }
-}
-
-.empty {
-  color: var(--muted);
-  text-align: center;
-  padding: 30px;
-}
-.count {
-  color: var(--muted);
-  font-size: 13px;
 }
 </style>
