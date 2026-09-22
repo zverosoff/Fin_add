@@ -8,12 +8,6 @@ build:
   skip: no
 
 run:
-  command: node --experimental-sqlite --no-warnings src/index.js
+  command: cd backend && npm install && node --experimental-sqlite --no-warnings src/index.js
   persistenceMount: /data
   containerPort: 3000
-
-env:
-  - name: DATA_DIR
-    value: /data
-  - name: NODE_ENV
-    value: production
