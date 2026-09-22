@@ -14,6 +14,8 @@ import MonthNav from '@/components/transactions/MonthNav.vue';
 import SummaryCompact from '@/components/transactions/SummaryCompact.vue';
 import TransactionList from '@/components/transactions/TransactionList.vue';
 import ManualModal from '@/components/transactions/ManualModal.vue';
+import ScanModal from '@/components/scan/ScanModal.vue';
+import PdfImportModal from '@/components/scan/PdfImportModal.vue';
 import FabMenu from '@/components/ui/FabMenu.vue';
 
 const router = useRouter();
@@ -22,13 +24,19 @@ const accounts = useAccountsStore();
 const toast = useToast();
 const { connect } = useWebSocket();
 
+// Модалки
 const manualOpen = ref(false);
 const reconcileOpen = ref(false);
 const reconcileAccount = ref(null);
+const scanOpen = ref(false);
+const pdfOpen = ref(false);
 
+// ============================================================
+// Инициализация
+// ============================================================
 onMounted(async () => {
   try {
-    await accounts.load();
+    if (!accounts.loaded) await accounts.load();
     connect();
   } catch (e) {
     toast.error('Не удалось загрузить данные');
@@ -36,6 +44,9 @@ onMounted(async () => {
   }
 });
 
+// ============================================================
+// Действия
+// ============================================================
 async function handleLogout() {
   if (!confirm('Выйти из аккаунта?')) return;
   await auth.logout();
@@ -48,15 +59,14 @@ function onReconcile(acc) {
 }
 
 function onReconcileUser(userDiff) {
-  // Открываем сверку по первому счёту пользователя с расхождением
-  const acc = userDiff.accounts.find(a => accounts.diffByAccount[a.id]?.hasDiff);
+  const acc = userDiff.accounts.find(a => accounts.diffByAccount?.[a.id]?.hasDiff);
   if (acc) onReconcile(acc);
 }
 
 function onFabAction(action) {
   if (action === 'manual') manualOpen.value = true;
-  if (action === 'scan') toast.info('📸 Сканирование чека — в разработке');
-  if (action === 'pdf') toast.info('📄 Импорт PDF — в разработке');
+  if (action === 'scan')   scanOpen.value = true;
+  if (action === 'pdf')    pdfOpen.value = true;
 }
 </script>
 
@@ -73,19 +83,13 @@ function onFabAction(action) {
     <AppTabs />
 
     <div class="container">
-      <!-- Счета -->
       <AccountsBlock @reconcile="onReconcile" />
-
-      <!-- Предупреждение о расхождении -->
       <ReconcileBanner @reconcile="onReconcileUser" />
-
-      <!-- Месяц / Сводка / Список -->
       <MonthNav />
       <SummaryCompact />
       <TransactionList />
     </div>
 
-    <!-- FAB -->
     <FabMenu
       @manual="onFabAction('manual')"
       @scan="onFabAction('scan')"
@@ -95,6 +99,8 @@ function onFabAction(action) {
     <!-- Модалки -->
     <ManualModal v-model="manualOpen" />
     <ReconcileModal v-model="reconcileOpen" :account="reconcileAccount" />
+    <ScanModal v-model="scanOpen" />
+    <PdfImportModal v-model="pdfOpen" />
   </div>
 </template>
 
@@ -137,13 +143,16 @@ function onFabAction(action) {
     border-radius: 999px;
     background: transparent;
     color: var(--muted);
+    font-family: inherit;
     font-size: 12px;
     font-weight: 600;
     cursor: pointer;
+    transition: all 0.15s;
 
     &:hover {
       border-color: var(--danger);
       color: var(--danger);
+      background: rgba(239, 68, 68, 0.05);
     }
   }
 }
@@ -159,6 +168,7 @@ function onFabAction(action) {
 @media (max-width: 700px) {
   .finance-page { padding: 16px 12px 100px; }
   .top-bar { padding: 10px 16px; margin-bottom: 12px; h1 { font-size: 17px; } }
+  .user-info { gap: 8px; font-size: 12px; button { padding: 5px 10px; font-size: 11px; } }
   .container { gap: 10px; }
 }
 </style>
