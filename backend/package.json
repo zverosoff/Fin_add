@@ -1,0 +1,23 @@
+{
+  "name": "finance-pro-backend",
+  "version": "1.0.0",
+  "description": "Backend для Финансы PRO+",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "dev": "node --experimental-sqlite --watch src/index.js",
+    "start": "node --experimental-sqlite src/index.js"
+  },
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "cors": "^2.8.5",
+    "socket.io": "^4.7.5",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "dotenv": "^16.4.5",
+    "cookie-parser": "^1.4.6"
+  }
+}
