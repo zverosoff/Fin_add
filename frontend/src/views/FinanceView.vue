@@ -24,16 +24,12 @@ const accounts = useAccountsStore();
 const toast = useToast();
 const { connect } = useWebSocket();
 
-// Модалки
 const manualOpen = ref(false);
 const reconcileOpen = ref(false);
 const reconcileAccount = ref(null);
 const scanOpen = ref(false);
 const pdfOpen = ref(false);
 
-// ============================================================
-// Инициализация
-// ============================================================
 onMounted(async () => {
   try {
     if (!accounts.loaded) await accounts.load();
@@ -44,9 +40,6 @@ onMounted(async () => {
   }
 });
 
-// ============================================================
-// Действия
-// ============================================================
 async function handleLogout() {
   if (!confirm('Выйти из аккаунта?')) return;
   await auth.logout();
@@ -85,8 +78,10 @@ function onFabAction(action) {
     <div class="container">
       <AccountsBlock @reconcile="onReconcile" />
       <ReconcileBanner @reconcile="onReconcileUser" />
+
       <MonthNav />
       <SummaryCompact />
+
       <TransactionList />
     </div>
 
@@ -96,7 +91,6 @@ function onFabAction(action) {
       @pdf="onFabAction('pdf')"
     />
 
-    <!-- Модалки -->
     <ManualModal v-model="manualOpen" />
     <ReconcileModal v-model="reconcileOpen" :account="reconcileAccount" />
     <ScanModal v-model="scanOpen" />

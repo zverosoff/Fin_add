@@ -31,34 +31,41 @@ const isCurrentMonth = computed(() => {
 
 <style scoped lang="scss">
 .month-nav {
+  position: sticky;
+  top: 8px;
+  z-index: 40;
   display: flex;
   align-items: center;
   gap: 8px;
-  background: linear-gradient(180deg, rgba(139, 92, 246, 0.05), transparent 60%), rgba(255, 255, 255, 0.9);
+  background:
+    linear-gradient(180deg, rgba(139, 92, 246, 0.05), transparent 60%),
+    rgba(255, 255, 255, 0.95);
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 8px 12px;
   box-shadow: var(--shadow-md);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+}
 
-  button {
-    background: #f1f5f9;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    width: 36px;
-    height: 36px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 700;
-    color: var(--text);
-    transition: all 0.15s;
+.month-nav button {
+  background: #f1f5f9;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  width: 36px;
+  height: 36px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  transition: all 0.15s;
 
-    &:hover {
-      background: rgba(56, 189, 248, 0.15);
-      border-color: var(--accent);
-      color: var(--accent);
-    }
-    &:active { transform: scale(0.94); }
+  &:hover {
+    background: rgba(56, 189, 248, 0.15);
+    border-color: var(--accent);
+    color: var(--accent);
   }
+  &:active { transform: scale(0.94); }
 }
 
 .month-label {
@@ -85,5 +92,9 @@ const isCurrentMonth = computed(() => {
   width: auto !important;
   padding: 0 14px !important;
   font-size: 12px !important;
+}
+
+@media (max-width: 700px) {
+  .month-nav { top: 4px; }
 }
 </style>
