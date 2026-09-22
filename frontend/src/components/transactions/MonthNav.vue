@@ -21,14 +21,13 @@ const isCurrentMonth = computed(() => {
   return now.getMonth() === cur.getMonth() && now.getFullYear() === cur.getFullYear();
 });
 
-// ✅ Полная дата для «Сегодня»
-const todayLabel = computed(() => {
+// ✅ Дата для зелёной плашки «сегодня»
+const todayDate = computed(() => {
   const now = new Date();
   return now.toLocaleDateString('ru-RU', {
     day: '2-digit',
     month: 'short',
-    year: 'numeric',
-  });
+  }).replace('.', '');
 });
 
 async function deleteMonth() {
@@ -102,81 +101,45 @@ async function deleteMonth() {
 
 <template>
   <div class="month-nav">
-    <!-- Первая строка: ◀ Название ▶ -->
-    <div class="mn-row">
-      <button class="mn-arrow" @click="tx.prevMonth()" aria-label="Предыдущий месяц">◀</button>
-      <div class="month-label">
-        <span>{{ label }}</span>
-        <small v-if="isCurrentMonth" class="today-mark">сегодня</small>
-      </div>
-      <button class="mn-arrow" @click="tx.nextMonth()" aria-label="Следующий месяц">▶</button>
+    <button class="mn-arrow" @click="tx.prevMonth()" aria-label="Предыдущий месяц">◀</button>
+
+    <div class="month-label">
+      <span class="month-name">{{ label }}</span>
+      <!-- ✅ Зелёная плашка: «сегодня · 22 сен» -->
+      <span v-if="isCurrentMonth" class="today-badge">
+        сегодня · {{ todayDate }}
+      </span>
     </div>
 
-    <!-- ✅ Вторая строка: Сегодня + дата + удалить -->
-    <div class="mn-row mn-row-bottom">
-      <button class="today-btn" @click="tx.goToday()">
-        Сегодня · {{ todayLabel }}
-      </button>
+    <button class="mn-arrow" @click="tx.nextMonth()" aria-label="Следующий месяц">▶</button>
 
-      <button
-        class="del-month-btn desktop-only"
-        type="button"
-        :disabled="deleting"
-        @click="deleteMonth"
-        title="Удалить все операции за месяц"
-        aria-label="Удалить все операции за месяц"
-      >
-        🗑
-      </button>
-    </div>
+    <button class="today-btn" @click="tx.goToday()">Сегодня</button>
+
+    <button
+      class="del-month-btn desktop-only"
+      type="button"
+      :disabled="deleting"
+      @click="deleteMonth"
+      title="Удалить все операции за месяц"
+      aria-label="Удалить все операции за месяц"
+    >
+      🗑
+    </button>
   </div>
 </template>
 
 <style scoped lang="scss">
 .month-nav {
   display: flex;
-  flex-direction: column;
+  align-items: center;
   gap: 8px;
   background:
     linear-gradient(180deg, rgba(139, 92, 246, 0.05), transparent 60%),
     rgba(255, 255, 255, 0.95);
   border: 1px solid var(--border);
   border-radius: 14px;
-  padding: 10px 12px;
+  padding: 8px 12px;
   box-shadow: var(--shadow-md);
-}
-
-.mn-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.mn-row-bottom {
-  justify-content: space-between;
-}
-
-.month-label {
-  flex: 1;
-  text-align: center;
-  font-size: 15px;
-  font-weight: 700;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-
-  .today-mark {
-    display: inline-block;
-    margin-left: 8px;
-    padding: 1px 8px;
-    font-size: 10px;
-    font-weight: 700;
-    border-radius: 999px;
-    background: rgba(34, 197, 94, 0.15);
-    color: #22c55e;
-    border: 1px solid rgba(34, 197, 94, 0.35);
-    vertical-align: middle;
-  }
 }
 
 .mn-arrow {
@@ -203,19 +166,52 @@ async function deleteMonth() {
   &:active { transform: scale(0.94); }
 }
 
-/* ✅ Кнопка «Сегодня · дата» */
-.today-btn {
+.month-label {
   flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.month-name {
+  white-space: nowrap;
+}
+
+/* ✅ Зелёная плашка с датой */
+.today-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  letter-spacing: 0.02em;
+}
+
+.today-btn {
   background: #f1f5f9;
   border: 1px solid var(--border);
   border-radius: 10px;
-  padding: 8px 14px;
+  padding: 0 14px;
+  height: 36px;
   font-family: inherit;
   font-size: 12px;
   font-weight: 700;
   color: var(--text);
   cursor: pointer;
   white-space: nowrap;
+  flex-shrink: 0;
   transition: all 0.15s;
 
   &:hover {
@@ -263,7 +259,7 @@ async function deleteMonth() {
    ============================================================ */
 @media (max-width: 700px) {
   .month-nav {
-    padding: 8px 10px;
+    padding: 6px 8px;
     gap: 6px;
     border-radius: 12px;
   }
@@ -276,17 +272,18 @@ async function deleteMonth() {
 
   .month-label {
     font-size: 13px;
+    gap: 6px;
+  }
 
-    .today-mark {
-      font-size: 9px;
-      padding: 1px 6px;
-      margin-left: 5px;
-    }
+  .today-badge {
+    font-size: 9.5px;
+    padding: 2px 8px;
   }
 
   .today-btn {
+    height: 32px;
+    padding: 0 10px;
     font-size: 11px;
-    padding: 7px 10px;
   }
 
   .desktop-only {
