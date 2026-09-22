@@ -1,7 +1,5 @@
 <script setup>
 import { onMounted } from 'vue';
-import { useRouter } from 'vue-router';
-import { useAuthStore } from '@/stores/auth';
 import { useAccountsStore } from '@/stores/accounts';
 import { useWebSocket } from '@/composables/useWebSocket';
 import { useToast } from '@/composables/useToast';
@@ -11,8 +9,6 @@ import PageHero from '@/components/ui/PageHero.vue';
 import AppTabs from '@/components/ui/AppTabs.vue';
 import FixedTable from '@/components/deposits/FixedTable.vue';
 
-const router = useRouter();
-const auth = useAuthStore();
 const accounts = useAccountsStore();
 const toast = useToast();
 const { connect } = useWebSocket();
@@ -25,7 +21,6 @@ onMounted(async () => {
   } catch (e) {
     notifyError(e.message || 'Не удалось загрузить данные');
     toast.error('Не удалось загрузить данные');
-    console.error(e);
   }
 });
 </script>
@@ -49,7 +44,7 @@ onMounted(async () => {
 }
 
 .container {
-  max-width: 1100px;
+  max-width: 1000px;
   margin: 0 auto;
   display: flex;
   flex-direction: column;

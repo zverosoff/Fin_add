@@ -7,13 +7,11 @@ import { fmt } from '@/composables/useFormat';
 
 const toast = useToast();
 
-// ── Локальные данные (из state, прилетят через WS) ──
 const accountStart = ref(0);
 const rate = ref(0);
 const incomes = ref([]);
 const expenses = ref([]);
 
-// ── Загрузка ──
 onMounted(loadFromServer);
 
 async function loadFromServer() {
@@ -23,8 +21,6 @@ async function loadFromServer() {
     rate.value = Number(data.rate) || 0;
     incomes.value = Array.isArray(data.incomes) ? data.incomes : [];
     expenses.value = Array.isArray(data.expenses) ? data.expenses : [];
-
-    // Гарантируем «Вклад»
     ensureLockedIncome();
   } catch (e) {
     notifyError(e.message);
@@ -46,7 +42,6 @@ function ensureLockedIncome() {
   }
 }
 
-// ── Автосохранение ──
 let saveTimer = null;
 function scheduleSave() {
   if (saveTimer) clearTimeout(saveTimer);
@@ -67,7 +62,6 @@ async function saveToServer() {
   }
 }
 
-// ── Пересчёт вклада ──
 const incomeYearCredit = computed(() => accountStart.value * rate.value / 100);
 const incomeMonthCredit = computed(() => incomeYearCredit.value / 12);
 
@@ -84,7 +78,6 @@ watch([accountStart, rate], () => {
   scheduleSave();
 });
 
-// ── Итоги ──
 const totalIncome = computed(() =>
   incomes.value.reduce((s, x) => s + (Number(x.value) || 0), 0)
 );
@@ -93,7 +86,6 @@ const totalExpense = computed(() =>
 );
 const netIncome = computed(() => totalIncome.value - totalExpense.value);
 
-// ── Добавление / удаление ──
 function addIncome() {
   incomes.value.push({ id: 'row_' + Date.now(), name: 'Новый доход', value: 0 });
   scheduleSave();
@@ -115,10 +107,10 @@ function removeExpense(idx) {
   scheduleSave();
 }
 
-function onNameChange() { scheduleSave(); }
-function onValueChange() { scheduleSave(); }
+function isLocked(item) {
+  return item && item.id === 'depositIncome';
+}
 
-// ── Отчёт по пользователям ──
 function isSasha(name) {
   return name && /саш/i.test(name);
 }
@@ -140,10 +132,6 @@ const byUser = computed(() => {
     sasha:  { income: sashaI, expense: sashaE, balance: sashaI - sashaE },
   };
 });
-
-function isLocked(item) {
-  return item && item.id === 'depositIncome';
-}
 </script>
 
 <template>
@@ -177,13 +165,15 @@ function isLocked(item) {
       </table>
     </div>
 
-    <!-- Таблица доходов и расходов -->
+    <!-- Доходы и расходы -->
     <div class="card">
-      <h2>
-        Доходы и расходы
-        <button class="btn-add-mini" @click="addIncome" type="button">+ доход</button>
-        <button class="btn-add-mini" @click="addExpense" type="button">+ расход</button>
-      </h2>
+      <div class="card-head">
+        <h2>Доходы и расходы</h2>
+        <div class="card-actions">
+          <button class="btn-add-mini" @click="addIncome" type="button">+ доход</button>
+          <button class="btn-add-mini" @click="addExpense" type="button">+ расход</button>
+        </div>
+      </div>
 
       <div class="dt-grid">
         <!-- Доходы -->
@@ -193,20 +183,23 @@ function isLocked(item) {
             v-for="(item, idx) in incomes"
             :key="item.id"
             class="dt-row"
+            :class="{ locked: isLocked(item) }"
           >
             <input
               v-model="item.name"
               type="text"
               class="dt-name"
               :readonly="isLocked(item)"
-              @input="onNameChange"
+              :disabled="isLocked(item)"
+              @input="scheduleSave"
             />
             <input
               v-model.number="item.value"
               type="number"
               class="dt-value"
               :readonly="isLocked(item)"
-              @input="onValueChange"
+              :disabled="isLocked(item)"
+              @input="scheduleSave"
             />
             <button
               v-if="!isLocked(item)"
@@ -214,6 +207,7 @@ function isLocked(item) {
               @click="removeIncome(idx)"
               type="button"
             >✕</button>
+            <span v-else class="lock-icon" title="Автоматически из вклада">🔒</span>
           </div>
           <div class="dt-total">Итого доходов: <strong>{{ fmt(totalIncome) }} ₽</strong></div>
         </div>
@@ -230,13 +224,13 @@ function isLocked(item) {
               v-model="item.name"
               type="text"
               class="dt-name"
-              @input="onNameChange"
+              @input="scheduleSave"
             />
             <input
               v-model.number="item.value"
               type="number"
               class="dt-value"
-              @input="onValueChange"
+              @input="scheduleSave"
             />
             <button
               class="btn-del-mini"
@@ -314,6 +308,8 @@ function isLocked(item) {
   display: flex;
   flex-direction: column;
   gap: 14px;
+  width: 100%;
+  min-width: 0;
 }
 
 .card {
@@ -322,18 +318,32 @@ function isLocked(item) {
   border: 1px solid var(--border);
   border-radius: 16px;
   box-shadow: var(--shadow-md);
+  min-width: 0;
+}
 
-  h2 {
-    font-size: 12px;
-    color: var(--accent);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin: 0 0 14px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex-wrap: wrap;
-  }
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+
+  h2 { margin: 0; }
+}
+
+.card-actions {
+  display: flex;
+  gap: 6px;
+}
+
+h2 {
+  font-size: 12px;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  margin: 0;
 }
 
 table {
@@ -358,6 +368,7 @@ td {
 
     input {
       width: 140px;
+      max-width: 100%;
       padding: 6px 10px;
       border: 1px solid var(--border);
       border-radius: 8px;
@@ -387,7 +398,6 @@ tr.highlight td {
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
-  margin-left: auto;
 
   &:hover { background: var(--accent); color: #fff; }
 }
@@ -413,6 +423,14 @@ tr.highlight td {
   gap: 6px;
   align-items: center;
   margin-bottom: 6px;
+
+  &.locked .dt-name,
+  &.locked .dt-value {
+    background: rgba(148, 163, 184, 0.1);
+    color: var(--muted);
+    cursor: not-allowed;
+    border-style: dashed;
+  }
 }
 
 .dt-name,
@@ -423,6 +441,8 @@ tr.highlight td {
   font-family: inherit;
   font-size: 13px;
   outline: none;
+  min-width: 0;
+  width: 100%;
 
   &:focus { border-color: var(--accent); }
 }
@@ -433,7 +453,8 @@ tr.highlight td {
   font-weight: 700;
 }
 
-.btn-del-mini {
+.btn-del-mini,
+.lock-icon {
   width: 26px;
   height: 26px;
   border-radius: 6px;
@@ -442,12 +463,16 @@ tr.highlight td {
   color: var(--muted);
   cursor: pointer;
   font-size: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
 
-  &:hover {
-    border-color: var(--danger);
-    color: var(--danger);
-    background: rgba(239, 68, 68, 0.08);
-  }
+.lock-icon {
+  border: none;
+  font-size: 14px;
+  cursor: not-allowed;
 }
 
 .dt-total {
@@ -474,6 +499,8 @@ tr.highlight td {
   align-items: center;
   font-size: 14px;
   font-weight: 700;
+  flex-wrap: wrap;
+  gap: 8px;
 
   &.positive {
     background: rgba(34, 197, 94, 0.1);
@@ -497,7 +524,6 @@ tr.highlight td {
   }
 }
 
-/* Отчёт по пользователям */
 .user-report {
   display: flex;
   flex-direction: column;
@@ -595,6 +621,19 @@ tr.highlight td {
     flex-direction: column;
     align-items: flex-start;
     gap: 6px;
+
+    strong { font-size: 16px; }
+  }
+
+  td.value input {
+    width: 100px;
+    font-size: 13px;
+  }
+}
+
+@media (max-width: 400px) {
+  .dt-row {
+    grid-template-columns: 1fr 80px auto;
   }
 }
 </style>
