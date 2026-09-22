@@ -7,6 +7,7 @@ import { useWebSocket } from '@/composables/useWebSocket';
 import { useToast } from '@/composables/useToast';
 import { fmt } from '@/composables/useFormat';
 
+import AppTabs from '@/components/ui/AppTabs.vue';
 import MonthNav from '@/components/transactions/MonthNav.vue';
 import SummaryCompact from '@/components/transactions/SummaryCompact.vue';
 import TransactionList from '@/components/transactions/TransactionList.vue';
@@ -53,6 +54,8 @@ function onFabAction(action) {
         <button @click="handleLogout">Выйти</button>
       </div>
     </header>
+
+    <AppTabs />
 
     <div class="container">
       <!-- Счета -->

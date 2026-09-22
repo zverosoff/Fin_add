@@ -14,6 +14,11 @@ const routes = [
     name: 'finance',
     component: () => import('@/views/FinanceView.vue'),
   },
+  {
+    path: '/analytics',                             // ← НОВОЕ
+    name: 'analytics',                              // ← НОВОЕ
+    component: () => import('@/views/AnalyticsView.vue'),  // ← НОВОЕ
+  },
   { path: '/:catchAll(.*)', redirect: '/finance' },
 ];
 

@@ -7,10 +7,16 @@ export const useAccountsStore = defineStore('accounts', () => {
   const transactions = ref([]);
   const loaded = ref(false);
 
+  // ============================================================
+  // Вычисляемые
+  // ============================================================
+
+  /** Общая сумма по всем счетам */
   const total = computed(() =>
     accounts.value.reduce((sum, a) => sum + (Number(a.value) || 0), 0)
   );
 
+  /** Счета, сгруппированные по владельцу: { Сергей: [...], Саша: [...] } */
   const byOwner = computed(() => {
     const map = {};
     for (const acc of accounts.value) {
@@ -21,12 +27,27 @@ export const useAccountsStore = defineStore('accounts', () => {
     return map;
   });
 
+  /** Быстрый поиск счёта по id */
   const byId = computed(() => {
     const map = {};
     for (const acc of accounts.value) map[acc.id] = acc;
     return map;
   });
 
+  /** Сумма по каждому владельцу */
+  const totalByOwner = computed(() => {
+    const result = {};
+    for (const [owner, list] of Object.entries(byOwner.value)) {
+      result[owner] = list.reduce((s, a) => s + (Number(a.value) || 0), 0);
+    }
+    return result;
+  });
+
+  // ============================================================
+  // Действия
+  // ============================================================
+
+  /** Загрузить с сервера */
   async function load() {
     const { data } = await api.get('/state');
     accounts.value = data.accounts ?? [];
@@ -35,6 +56,7 @@ export const useAccountsStore = defineStore('accounts', () => {
     recalculate();
   }
 
+  /** Пересчёт балансов из транзакций */
   function recalculate() {
     for (const acc of accounts.value) {
       const opening = Number(acc.openingBalance) || 0;
@@ -46,17 +68,20 @@ export const useAccountsStore = defineStore('accounts', () => {
     }
   }
 
+  /** Обновление из WebSocket */
   function setFromWS(state) {
     accounts.value = state.accounts ?? [];
     transactions.value = state.transactions ?? [];
     recalculate();
   }
 
+  /** Получить имя счёта по id */
   function getAccountName(id) {
     const acc = byId.value[id];
     return acc ? acc.name : '';
   }
 
+  /** Определить банк счёта: 'sber' | 'tbank' | null */
   function getBank(id) {
     if (!id) return null;
     if (id.startsWith('sber')) return 'sber';
@@ -65,9 +90,17 @@ export const useAccountsStore = defineStore('accounts', () => {
   }
 
   return {
-    accounts, transactions, loaded,
-    total, byOwner, byId,
-    load, recalculate, setFromWS,
-    getAccountName, getBank,
+    accounts,
+    transactions,
+    loaded,
+    total,
+    byOwner,
+    byId,
+    totalByOwner,
+    load,
+    recalculate,
+    setFromWS,
+    getAccountName,
+    getBank,
   };
 });
