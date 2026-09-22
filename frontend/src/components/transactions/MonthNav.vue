@@ -21,7 +21,7 @@ const isCurrentMonth = computed(() => {
   return now.getMonth() === cur.getMonth() && now.getFullYear() === cur.getFullYear();
 });
 
-// ✅ Дата для зелёной плашки «сегодня»
+// Дата для зелёной плашки
 const todayDate = computed(() => {
   const now = new Date();
   return now.toLocaleDateString('ru-RU', {
@@ -103,9 +103,9 @@ async function deleteMonth() {
   <div class="month-nav">
     <button class="mn-arrow" @click="tx.prevMonth()" aria-label="Предыдущий месяц">◀</button>
 
+    <!-- ✅ Метка месяца + зелёный бейдж на новой строке -->
     <div class="month-label">
       <span class="month-name">{{ label }}</span>
-      <!-- ✅ Зелёная плашка: «сегодня · 22 сен» -->
       <span v-if="isCurrentMonth" class="today-badge">
         сегодня · {{ todayDate }}
       </span>
@@ -166,37 +166,41 @@ async function deleteMonth() {
   &:active { transform: scale(0.94); }
 }
 
+/* ✅ Метка — колонка из двух строк */
 .month-label {
   flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  font-size: 15px;
-  font-weight: 700;
+  gap: 3px;
   min-width: 0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  text-align: center;
 }
 
 .month-name {
+  font-size: 15px;
+  font-weight: 700;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
-/* ✅ Зелёная плашка с датой */
+/* ✅ Зелёная плашка — вторая строка */
 .today-badge {
   display: inline-flex;
   align-items: center;
-  padding: 2px 10px;
+  padding: 1px 10px;
   border-radius: 999px;
   background: rgba(34, 197, 94, 0.15);
   color: #22c55e;
   border: 1px solid rgba(34, 197, 94, 0.35);
-  font-size: 11px;
+  font-size: 10.5px;
   font-weight: 700;
   white-space: nowrap;
   letter-spacing: 0.02em;
+  line-height: 1.4;
 }
 
 .today-btn {
@@ -270,14 +274,13 @@ async function deleteMonth() {
     font-size: 12px;
   }
 
-  .month-label {
+  .month-name {
     font-size: 13px;
-    gap: 6px;
   }
 
   .today-badge {
     font-size: 9.5px;
-    padding: 2px 8px;
+    padding: 1px 8px;
   }
 
   .today-btn {
