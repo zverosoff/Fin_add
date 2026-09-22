@@ -1,13 +1,40 @@
-# Vite
+# Зависимости
 node_modules/
+__pycache__/
+*.pyc
+
+# Сборки
 dist/
+build/
 .vite/
 
-# Локальные env
+# Данные
+data/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Окружение
 .env
 .env.local
 .env.*.local
-!.env.production     # ← ЭТОТ файл должен идти в git
+
+# Логи
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
 
 # Vercel
 .vercel/
+
+# Amvera
+.amvera/
+
+# Старое (на всякий случай)
+venv/
