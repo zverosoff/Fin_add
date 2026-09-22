@@ -1,12 +1,11 @@
-import { DatabaseSync } from 'node:sqlite';
+import Database from 'better-sqlite3';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-// Куда сохранять БД
-const DATA_DIR = path.resolve(__dirname, '../../', process.env.DATA_DIR || './data');
+const DATA_DIR = process.env.DATA_DIR || path.resolve(__dirname, '../../data');
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   console.log(`[db] создана папка ${DATA_DIR}`);
@@ -15,9 +14,10 @@ if (!fs.existsSync(DATA_DIR)) {
 const DB_PATH = path.join(DATA_DIR, 'finance.db');
 console.log(`[db] файл базы: ${DB_PATH}`);
 
-const db = new DatabaseSync(DB_PATH);
-db.exec('PRAGMA journal_mode = WAL;');
-db.exec('PRAGMA foreign_keys = ON;');
+const db = new Database(DB_PATH);
+
+db.pragma('journal_mode = WAL');
+db.pragma('foreign_keys = ON');
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS app_state (
@@ -54,13 +54,9 @@ const INITIAL_STATE = {
   incomes: [
     { id: 'depositIncome', name: 'Вклад',    value: 0,     auto: true  },
     { id: 'salary',        name: 'Зарплата', value: 78989, auto: false },
-    { id: 'incomeSasha',   name: 'Доход Саша', value: 30000, auto: false },
   ],
   expenses: [
-    { id: 'expCar',      name: 'Автокредит', value: 0,     auto: false },
-    { id: 'expGarage',   name: 'Гараж',      value: 5000,  auto: false },
-    { id: 'expGarden',   name: 'Сад',        value: 20000, auto: false },
-    { id: 'expMortgage', name: 'Ипотека',    value: 36820, auto: false },
+    { id: 'expMortgage', name: 'Ипотека', value: 36820, auto: false },
   ],
   users: ['Сергей', 'Саша'],
   accounts: [

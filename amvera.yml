@@ -2,12 +2,12 @@ meta:
   environment: node
   toolchain:
     name: npm
-    version: "22"
+    version: "22.11"
 
 build:
   skip: no
 
 run:
-  command: node --experimental-sqlite --no-warnings src/index.js
+  command: node src/index.js
   persistenceMount: /data
-  containerPort: 3000
+  containerPort: 80
