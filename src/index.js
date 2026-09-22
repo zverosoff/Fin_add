@@ -27,6 +27,7 @@ const server = http.createServer(app);
 const ALLOWED_ORIGINS = [
   'http://localhost:5173',
   'http://localhost:4173',
+  'https://fin.mia0.amvera.tech',  
   'https://fin-opal-five.vercel.app',
   'https://fin-zverosoff.mia0.amvera.tech',
   process.env.FRONTEND_URL,
@@ -38,11 +39,12 @@ app.use(cors({
   origin: (origin, cb) => {
     if (!origin) return cb(null, true);
     if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
-    // Разрешаем все *.vercel.app
     if (/\.vercel\.app$/.test(origin)) return cb(null, true);
     cb(new Error(`Origin ${origin} not allowed`));
   },
   credentials: true,
+  methods: ['GET', 'POST', 'DELETE', 'OPTIONS', 'PATCH', 'PUT'],   // ← добавить
+  allowedHeaders: ['Content-Type', 'Authorization'],               // ← добавить
 }));
 
 app.use(express.json({ limit: '10mb' }));
@@ -88,7 +90,7 @@ app.set('io', io);
 // ============================================================
 // Запуск
 // ============================================================
-const PORT = Number(process.env.PORT) || 3000;
+const PORT = Number(process.env.PORT) || 80;
 server.listen(PORT, () => {
   console.log('='.repeat(60));
   console.log(`  🚀 Backend запущен: http://localhost:${PORT}`);

@@ -2,19 +2,14 @@ import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me';
 
-/**
- * Проверяет JWT-токен. Токен ищем:
- *  1) в httpOnly cookie `token`
- *  2) в заголовке `Authorization: Bearer xxx`
- * Если всё ок — кладём имя пользователя в req.user.
- */
 export function requireAuth(req, res, next) {
+  // ✅ Читаем токен из cookie И из заголовка Authorization
   const cookieToken = req.cookies?.token;
   const headerToken = req.headers.authorization?.startsWith('Bearer ')
     ? req.headers.authorization.slice(7)
     : null;
 
-  const token = cookieToken || headerToken;
+  const token = headerToken || cookieToken;   // ← приоритет заголовку
 
   if (!token) {
     return res.status(401).json({ ok: false, error: 'Unauthorized' });

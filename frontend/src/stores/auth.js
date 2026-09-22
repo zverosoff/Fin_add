@@ -15,8 +15,13 @@ export const useAuthStore = defineStore('auth', () => {
 
       user.value = data.user;
       token.value = data.token;
+
+      // ✅ Сохраняем в localStorage
       localStorage.setItem('auth_user', data.user);
       localStorage.setItem('auth_token', data.token);
+
+      console.log('[auth] logged in:', data.user, 'token length:', data.token.length);
+
       return true;
     } finally {
       loading.value = false;
