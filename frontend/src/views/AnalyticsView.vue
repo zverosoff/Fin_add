@@ -1,6 +1,5 @@
 <script setup>
 import { onMounted, computed, ref } from 'vue';
-import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useAccountsStore } from '@/stores/accounts';
 import { useAnalyticsStore } from '@/stores/analytics';
@@ -9,6 +8,7 @@ import { useWebSocket } from '@/composables/useWebSocket';
 import { useToast } from '@/composables/useToast';
 import { fmt } from '@/composables/useFormat';
 
+import PageHero from '@/components/ui/PageHero.vue';
 import AppTabs from '@/components/ui/AppTabs.vue';
 import PeriodSelector from '@/components/analytics/PeriodSelector.vue';
 import MetricCard from '@/components/analytics/MetricCard.vue';
@@ -20,7 +20,6 @@ import GoalModal from '@/components/goals/GoalModal.vue';
 import ContributeModal from '@/components/goals/ContributeModal.vue';
 import EditContribModal from '@/components/goals/EditContribModal.vue';
 
-const router = useRouter();
 const auth = useAuthStore();
 const accounts = useAccountsStore();
 const analytics = useAnalyticsStore();
@@ -28,9 +27,6 @@ const goalsStore = useGoalsStore();
 const toast = useToast();
 const { connect } = useWebSocket();
 
-// ============================================================
-// Модалки целей
-// ============================================================
 const goalModalOpen = ref(false);
 const goalToEdit = ref(null);
 
@@ -41,9 +37,6 @@ const editContribModalOpen = ref(false);
 const editContribGoal = ref(null);
 const editContribUser = ref('');
 
-// ============================================================
-// Инициализация
-// ============================================================
 onMounted(async () => {
   try {
     if (!accounts.loaded) await accounts.load();
@@ -54,9 +47,6 @@ onMounted(async () => {
   }
 });
 
-// ============================================================
-// Метрики
-// ============================================================
 const metrics = computed(() => analytics.currentMonthMetrics);
 
 const saveRateHint = computed(() => {
@@ -80,10 +70,6 @@ const saveMonthlyHint = computed(() => {
   if (m.monthSave < 0) return `${m.monthName}: перерасход ${fmt(Math.abs(m.monthSave))} ₽`;
   return `${m.monthName}: нет данных`;
 });
-
-// ============================================================
-// Действия с целями
-// ============================================================
 
 function openAddGoal() {
   goalToEdit.value = null;
@@ -115,33 +101,17 @@ function openEditContrib({ goal, user }) {
   editContribUser.value = user;
   editContribModalOpen.value = true;
 }
-
-// ============================================================
-// Выход
-// ============================================================
-async function handleLogout() {
-  if (!confirm('Выйти из аккаунта?')) return;
-  await auth.logout();
-  router.push('/login');
-}
 </script>
 
 <template>
   <div class="analytics-page">
-    <header class="top-bar">
-      <h1>📊 Аналитика</h1>
-      <div class="user-info">
-        <span>👤 {{ auth.user }}</span>
-        <button @click="handleLogout">Выйти</button>
-      </div>
-    </header>
+    <PageHero title="📊 Аналитика" />
 
     <AppTabs />
 
     <div class="container">
       <PeriodSelector />
 
-      <!-- Метрики -->
       <div class="metrics-grid">
         <MetricCard
           icon="💰"
@@ -171,16 +141,14 @@ async function handleLogout() {
         />
       </div>
 
-      <!-- Сравнение -->
       <section class="card">
         <h2 class="card-title">🔀 Сравнение с прошлым периодом</h2>
         <ComparisonCard />
       </section>
 
-      <!-- 🎯 ЦЕЛИ -->
       <section class="card">
         <div class="card-head">
-          <h2 class="card-title">🎯 Цели накоплений и желаемые покупки</h2>
+          <h2 class="card-title">🎯 Цели накоплений</h2>
           <button class="btn-add-goal" @click="openAddGoal">+ Добавить</button>
         </div>
         <GoalsList
@@ -192,7 +160,6 @@ async function handleLogout() {
         />
       </section>
 
-      <!-- Графики -->
       <section class="card">
         <h2 class="card-title">📊 Доходы и расходы по месяцам</h2>
         <BarChart :data="analytics.monthlyData" />
@@ -204,7 +171,6 @@ async function handleLogout() {
       </section>
     </div>
 
-    <!-- Модалки -->
     <GoalModal v-model="goalModalOpen" :goal="goalToEdit" />
     <ContributeModal v-model="contributeModalOpen" :goal="contributeGoal" />
     <EditContribModal
@@ -219,51 +185,6 @@ async function handleLogout() {
 .analytics-page {
   min-height: 100vh;
   padding: 20px 20px 60px;
-}
-
-.top-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  max-width: 900px;
-  margin: 0 auto 16px;
-  padding: 12px 20px;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 16px;
-  box-shadow: var(--shadow-md);
-
-  h1 {
-    font-size: 20px;
-    margin: 0;
-    background: linear-gradient(135deg, #0f172a, #0284c7);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 13px;
-
-  button {
-    padding: 6px 14px;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: transparent;
-    color: var(--muted);
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.15s;
-
-    &:hover {
-      border-color: var(--danger);
-      color: var(--danger);
-    }
-  }
 }
 
 .container {
@@ -337,7 +258,6 @@ async function handleLogout() {
 
 @media (max-width: 700px) {
   .analytics-page { padding: 16px 12px 40px; }
-  .top-bar { padding: 10px 16px; margin-bottom: 12px; h1 { font-size: 17px; } }
   .container { gap: 10px; }
   .card { padding: 12px 14px; }
 }

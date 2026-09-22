@@ -3,7 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
 import { fmt } from '@/composables/useFormat';
 
-const emit = defineEmits(['reconcile']);
+const emit = defineEmits(['reconcile', 'user-menu']);
 const accounts = useAccountsStore();
 
 // ── Состояние 1: раскрыта ли вся секция ──
@@ -30,7 +30,6 @@ watch(expandedByOwner, (val) => {
   try { localStorage.setItem(LS_KEY_CHIPS, JSON.stringify(val)); } catch (e) {}
 }, { deep: true });
 
-// ── Действия ──
 function toggleSection() {
   sectionOpen.value = !sectionOpen.value;
 }
@@ -91,7 +90,7 @@ function bankLogo(id) {
       </button>
     </header>
 
-    <!-- ═══ Компактные строки владельцев (всегда видны) ═══ -->
+    <!-- ═══ Компактные строки владельцев ═══ -->
     <div class="ab-rows">
       <div
         v-for="(list, owner) in accounts.byOwner"
@@ -103,7 +102,12 @@ function bankLogo(id) {
           sasha: owner === 'Саша',
         }"
       >
-        <span class="ab-row-owner">
+        <!-- Имя владельца — клик открывает контекстное меню -->
+        <span
+          class="ab-row-owner"
+          :title="`Открыть меню: ${owner}`"
+          @click.stop="emit('user-menu', owner)"
+        >
           <span class="emoji">{{ owner === 'Сергей' ? '👨' : '👩' }}</span>
           {{ owner }}
         </span>
@@ -313,11 +317,21 @@ function bankLogo(id) {
   white-space: nowrap;
   flex-shrink: 0;
   min-width: 54px;
+  cursor: pointer;
+  padding: 2px 6px;
+  margin-left: -6px;
+  border-radius: 6px;
+  transition: color 0.15s, background 0.15s;
+
+  &:hover {
+    background: rgba(56, 189, 248, 0.12);
+    color: var(--accent);
+  }
 
   .emoji { font-size: 13px; }
 }
 
-/* ─── Чипы: разворачиваются по клику на стрелку владельца ─── */
+/* ─── Чипы ─── */
 .ab-row-chips {
   display: inline-flex;
   align-items: center;
@@ -380,7 +394,6 @@ function bankLogo(id) {
   font-weight: 700;
 }
 
-/* ─── Итого по владельцу ─── */
 .ab-row-total {
   margin-left: auto;
   margin-right: 4px;
@@ -414,7 +427,6 @@ function bankLogo(id) {
   pointer-events: none;
 }
 
-/* ─── Стрелка владельца ─── */
 .ab-row-arrow {
   flex-shrink: 0;
   width: 22px;
@@ -492,7 +504,6 @@ function bankLogo(id) {
   gap: 8px;
 }
 
-/* ─── Карточка счёта ─── */
 .account-card {
   display: flex;
   flex-direction: column;

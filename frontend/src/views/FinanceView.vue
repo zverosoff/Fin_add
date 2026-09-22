@@ -6,6 +6,7 @@ import { useAccountsStore } from '@/stores/accounts';
 import { useWebSocket } from '@/composables/useWebSocket';
 import { useToast } from '@/composables/useToast';
 
+import PageHero from '@/components/ui/PageHero.vue';
 import AppTabs from '@/components/ui/AppTabs.vue';
 import AccountsBlock from '@/components/accounts/AccountsBlock.vue';
 import ReconcileBanner from '@/components/accounts/ReconcileBanner.vue';
@@ -17,6 +18,7 @@ import ManualModal from '@/components/transactions/ManualModal.vue';
 import ScanModal from '@/components/scan/ScanModal.vue';
 import PdfImportModal from '@/components/scan/PdfImportModal.vue';
 import FabMenu from '@/components/ui/FabMenu.vue';
+import UserMenuModal from '@/components/user/UserMenuModal.vue';
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -29,6 +31,8 @@ const reconcileOpen = ref(false);
 const reconcileAccount = ref(null);
 const scanOpen = ref(false);
 const pdfOpen = ref(false);
+const userMenuOpen = ref(false);
+const userMenuOwner = ref('');
 
 onMounted(async () => {
   try {
@@ -41,7 +45,6 @@ onMounted(async () => {
 });
 
 async function handleLogout() {
-  if (!confirm('Выйти из аккаунта?')) return;
   await auth.logout();
   router.push('/login');
 }
@@ -61,27 +64,27 @@ function onFabAction(action) {
   if (action === 'scan')   scanOpen.value = true;
   if (action === 'pdf')    pdfOpen.value = true;
 }
+
+function onUserMenu(owner) {
+  userMenuOwner.value = owner;
+  userMenuOpen.value = true;
+}
 </script>
 
 <template>
   <div class="finance-page">
-    <header class="top-bar">
-      <h1>Финансы PRO+</h1>
-      <div class="user-info">
-        <span>👤 {{ auth.user }}</span>
-        <button @click="handleLogout">Выйти</button>
-      </div>
-    </header>
+    <PageHero title="Финансы PRO+" />
 
     <AppTabs />
 
     <div class="container">
-      <AccountsBlock @reconcile="onReconcile" />
+      <AccountsBlock
+        @reconcile="onReconcile"
+        @user-menu="onUserMenu"
+      />
       <ReconcileBanner @reconcile="onReconcileUser" />
-
       <MonthNav />
       <SummaryCompact />
-
       <TransactionList />
     </div>
 
@@ -95,6 +98,11 @@ function onFabAction(action) {
     <ReconcileModal v-model="reconcileOpen" :account="reconcileAccount" />
     <ScanModal v-model="scanOpen" />
     <PdfImportModal v-model="pdfOpen" />
+    <UserMenuModal
+      v-model="userMenuOpen"
+      :owner="userMenuOwner"
+      @logout="handleLogout"
+    />
   </div>
 </template>
 
@@ -102,53 +110,6 @@ function onFabAction(action) {
 .finance-page {
   min-height: 100vh;
   padding: 20px 20px 100px;
-}
-
-.top-bar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  max-width: 900px;
-  margin: 0 auto 16px;
-  padding: 12px 20px;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 16px;
-  box-shadow: var(--shadow-md);
-
-  h1 {
-    font-size: 20px;
-    margin: 0;
-    background: linear-gradient(135deg, #0f172a, #0284c7);
-    -webkit-background-clip: text;
-    background-clip: text;
-    color: transparent;
-  }
-}
-
-.user-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 13px;
-
-  button {
-    padding: 6px 14px;
-    border: 1px solid var(--border);
-    border-radius: 999px;
-    background: transparent;
-    color: var(--muted);
-    font-family: inherit;
-    font-size: 12px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.15s;
-
-    &:hover {
-      border-color: var(--danger);
-      color: var(--danger);
-      background: rgba(239, 68, 68, 0.05);
-    }
-  }
 }
 
 .container {
@@ -161,8 +122,6 @@ function onFabAction(action) {
 
 @media (max-width: 700px) {
   .finance-page { padding: 16px 12px 100px; }
-  .top-bar { padding: 10px 16px; margin-bottom: 12px; h1 { font-size: 17px; } }
-  .user-info { gap: 8px; font-size: 12px; button { padding: 5px 10px; font-size: 11px; } }
   .container { gap: 10px; }
 }
 </style>

@@ -92,14 +92,26 @@ export const useAccountsStore = defineStore('accounts', () => {
   // ============================================================
 
   /** Загрузить с сервера */
-  async function load() {
-    const { data } = await api.get('/state');
-    accounts.value = data.accounts ?? [];
-    transactions.value = data.transactions ?? [];
-    goals.value = data.goals ?? [];
-    loaded.value = true;
-    recalculate();
-  }
+async function load(onProgress) {
+  onProgress?.(10, 'Подключение к серверу…');
+  const { data } = await api.get('/state');
+
+  onProgress?.(50, 'Обработка счетов…');
+  accounts.value = data.accounts ?? [];
+
+  onProgress?.(70, 'Обработка операций…');
+  transactions.value = data.transactions ?? [];
+
+  onProgress?.(85, 'Обработка целей…');
+  goals.value = data.goals ?? [];
+
+  loaded.value = true;
+
+  onProgress?.(95, 'Пересчёт балансов…');
+  recalculate();
+
+  onProgress?.(100, 'Готово!');
+}
 
   /** Пересчёт балансов из транзакций */
   function recalculate() {
