@@ -1,6 +1,11 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { api } from '@/api/client';
+import {
+  computeDiff,
+  computeExpectedBalance,
+  computeUserDiff,
+} from '@/composables/useBalance';
 
 export const useAccountsStore = defineStore('accounts', () => {
   const accounts = ref([]);
@@ -9,7 +14,7 @@ export const useAccountsStore = defineStore('accounts', () => {
   const loaded = ref(false);
 
   // ============================================================
-  // Вычисляемые
+  // Вычисляемые — базовые
   // ============================================================
 
   /** Общая сумма по всем счетам */
@@ -43,6 +48,44 @@ export const useAccountsStore = defineStore('accounts', () => {
     }
     return result;
   });
+
+  // ============================================================
+  // Вычисляемые — расхождения
+  // ============================================================
+
+  /** Ожидаемый баланс для каждого счёта */
+  const expectedByAccount = computed(() => {
+    const map = {};
+    for (const acc of accounts.value) {
+      map[acc.id] = computeExpectedBalance(acc, transactions.value);
+    }
+    return map;
+  });
+
+  /** Расхождения по каждому счёту */
+  const diffByAccount = computed(() => {
+    const map = {};
+    for (const acc of accounts.value) {
+      map[acc.id] = computeDiff(acc, transactions.value);
+    }
+    return map;
+  });
+
+  /** Есть ли хоть одно расхождение */
+  const hasAnyDiff = computed(() =>
+    Object.values(diffByAccount.value).some(d => d.hasDiff)
+  );
+
+  /** Расхождения по пользователям */
+  const userDiffs = computed(() => {
+    const users = ['Сергей', 'Саша'];
+    return users.map(u => computeUserDiff(u, accounts.value, transactions.value));
+  });
+
+  /** Пользователи с расхождением */
+  const usersWithDiff = computed(() =>
+    userDiffs.value.filter(u => u.hasDiff)
+  );
 
   // ============================================================
   // Действия
@@ -97,10 +140,18 @@ export const useAccountsStore = defineStore('accounts', () => {
     transactions,
     goals,
     loaded,
+
     total,
     byOwner,
     byId,
     totalByOwner,
+
+    expectedByAccount,
+    diffByAccount,
+    hasAnyDiff,
+    userDiffs,
+    usersWithDiff,
+
     load,
     recalculate,
     setFromWS,

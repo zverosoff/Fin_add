@@ -5,9 +5,11 @@ import { useAuthStore } from '@/stores/auth';
 import { useAccountsStore } from '@/stores/accounts';
 import { useWebSocket } from '@/composables/useWebSocket';
 import { useToast } from '@/composables/useToast';
-import { fmt } from '@/composables/useFormat';
 
 import AppTabs from '@/components/ui/AppTabs.vue';
+import AccountsBlock from '@/components/accounts/AccountsBlock.vue';
+import ReconcileBanner from '@/components/accounts/ReconcileBanner.vue';
+import ReconcileModal from '@/components/accounts/ReconcileModal.vue';
 import MonthNav from '@/components/transactions/MonthNav.vue';
 import SummaryCompact from '@/components/transactions/SummaryCompact.vue';
 import TransactionList from '@/components/transactions/TransactionList.vue';
@@ -21,6 +23,8 @@ const toast = useToast();
 const { connect } = useWebSocket();
 
 const manualOpen = ref(false);
+const reconcileOpen = ref(false);
+const reconcileAccount = ref(null);
 
 onMounted(async () => {
   try {
@@ -36,6 +40,17 @@ async function handleLogout() {
   if (!confirm('Выйти из аккаунта?')) return;
   await auth.logout();
   router.push('/login');
+}
+
+function onReconcile(acc) {
+  reconcileAccount.value = acc;
+  reconcileOpen.value = true;
+}
+
+function onReconcileUser(userDiff) {
+  // Открываем сверку по первому счёту пользователя с расхождением
+  const acc = userDiff.accounts.find(a => accounts.diffByAccount[a.id]?.hasDiff);
+  if (acc) onReconcile(acc);
 }
 
 function onFabAction(action) {
@@ -59,44 +74,34 @@ function onFabAction(action) {
 
     <div class="container">
       <!-- Счета -->
-      <section class="accounts-card">
-        <h2>💳 Наши счета</h2>
-        <div class="total">Итого: <strong>{{ fmt(accounts.total) }} ₽</strong></div>
+      <AccountsBlock @reconcile="onReconcile" />
 
-        <div v-for="(list, owner) in accounts.byOwner" :key="owner" class="owner-group">
-          <div class="owner-title">
-            {{ owner === 'Сергей' ? '👨' : '👩' }} {{ owner }}
-          </div>
-          <div class="account-list">
-            <div v-for="acc in list" :key="acc.id" class="account-item">
-              <span class="bank-icon">
-                {{ acc.id.startsWith('sber') ? '🟢' : '🟡' }}
-              </span>
-              <span class="bank-name">{{ acc.name }}</span>
-              <span class="amount">{{ fmt(acc.value) }} ₽</span>
-            </div>
-          </div>
-        </div>
-      </section>
+      <!-- Предупреждение о расхождении -->
+      <ReconcileBanner @reconcile="onReconcileUser" />
 
+      <!-- Месяц / Сводка / Список -->
       <MonthNav />
       <SummaryCompact />
       <TransactionList />
     </div>
 
     <!-- FAB -->
-    <FabMenu @manual="onFabAction('manual')" @scan="onFabAction('scan')" @pdf="onFabAction('pdf')" />
+    <FabMenu
+      @manual="onFabAction('manual')"
+      @scan="onFabAction('scan')"
+      @pdf="onFabAction('pdf')"
+    />
 
-    <!-- Модалка ручного добавления -->
+    <!-- Модалки -->
     <ManualModal v-model="manualOpen" />
+    <ReconcileModal v-model="reconcileOpen" :account="reconcileAccount" />
   </div>
 </template>
 
 <style scoped lang="scss">
-/* Стили — те же, что были + padding-bottom для FAB */
 .finance-page {
   min-height: 100vh;
-  padding: 20px 20px 100px;  /* +80px снизу для FAB */
+  padding: 20px 20px 100px;
 }
 
 .top-bar {
@@ -104,7 +109,7 @@ function onFabAction(action) {
   justify-content: space-between;
   align-items: center;
   max-width: 900px;
-  margin: 0 auto 20px;
+  margin: 0 auto 16px;
   padding: 12px 20px;
   background: rgba(255, 255, 255, 0.9);
   border-radius: 16px;
@@ -124,6 +129,7 @@ function onFabAction(action) {
   display: flex;
   align-items: center;
   gap: 12px;
+  font-size: 13px;
 
   button {
     padding: 6px 14px;
@@ -132,8 +138,8 @@ function onFabAction(action) {
     background: transparent;
     color: var(--muted);
     font-size: 12px;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.15s;
 
     &:hover {
       border-color: var(--danger);
@@ -150,65 +156,9 @@ function onFabAction(action) {
   gap: 14px;
 }
 
-.accounts-card {
-  padding: 20px;
-  background: rgba(255, 255, 255, 0.9);
-  border-radius: 16px;
-  box-shadow: var(--shadow-md);
-
-  h2 {
-    font-size: 14px;
-    color: var(--accent);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin: 0 0 14px;
-  }
-}
-
-.total {
-  font-size: 15px;
-  margin-bottom: 16px;
-  color: var(--muted);
-
-  strong {
-    color: var(--text);
-    font-family: var(--mono);
-    font-size: 18px;
-  }
-}
-
-.owner-group {
-  margin-bottom: 12px;
-  &:last-child { margin-bottom: 0; }
-}
-
-.owner-title {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--muted);
-  text-transform: uppercase;
-  margin-bottom: 6px;
-}
-
-.account-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.account-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  background: rgba(241, 245, 249, 0.95);
-  border-radius: 10px;
-
-  .bank-icon { font-size: 16px; }
-  .bank-name { flex: 1; font-weight: 600; }
-  .amount {
-    font-family: var(--mono);
-    font-weight: 700;
-  }
+@media (max-width: 700px) {
+  .finance-page { padding: 16px 12px 100px; }
+  .top-bar { padding: 10px 16px; margin-bottom: 12px; h1 { font-size: 17px; } }
+  .container { gap: 10px; }
 }
 </style>
