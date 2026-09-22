@@ -1,0 +1,33 @@
+# Зависимости
+node_modules/
+__pycache__/
+*.pyc
+
+# Сборки
+dist/
+build/
+.vite/
+
+# Данные
+data/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+
+# Окружение
+.env
+.env.local
+.env.*.local
+
+# Логи
+*.log
+npm-debug.log*
+
+# IDE
+.vscode/
+.idea/
+.DS_Store
+
+# Vercel / Amvera
+.vercel/
