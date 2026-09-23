@@ -241,10 +241,10 @@ export function parseReceipt(lines) {
 
   const ROUBLE_CLASS = '[₽рРPpL]';
 
-  // ✅ AMOUNT_RE: принимает мусор после валюты (©, ‘, ’, \\ и т.п.)
-  const AMOUNT_RE = new RegExp(
-    `([+\\-−]?\\s*\\d[\\d\\s]*(?:[.,]\\d{1,2})?)\\s*(?:${ROUBLE_CLASS}|руб\\.?)?[\\s\\-−©‘’'.,;:!?/\\\\|*~\`^\\[\\]{}]*$`
-  );
+  // ✅ САМЫЙ МЯГКИЙ AMOUNT_RE:
+  // находим последнее число в строке, всё после него — неважно
+  const AMOUNT_RE = /([+\-−]?\s*\d[\d\s]*(?:[.,]\d{1,2})?)[^\d]*$/;
+
   const DATE_RU_RE = /(\d{1,2})\s*(январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)[а-яё]*\s*(\d{4})?/i;
   const DATE_NUM_RE = /(\d{1,2})[.\/-](\d{1,2})(?:[.\/-](\d{2,4}))?/;
 
@@ -277,7 +277,6 @@ export function parseReceipt(lines) {
   const BONUS_RE = /^\+\d{1,3}\s/;
   const JUNK_RE = /^[\d:]+\s*№?\s*\d*\s*[a-zA-Zа-яА-Я]?\s*[\/\\]?\s*\d*\s*\d*\s*\d*\s*\)?$/;
 
-  // ✅ Относительная дата — без \b (он не работает на кириллице)
   function extractRelativeDate(line) {
     const t = line.trim().toLowerCase();
     const today = new Date();
@@ -340,14 +339,10 @@ export function parseReceipt(lines) {
     return { amount, sign, rest };
   }
 
-  // ============================================================
-  // Основной проход
-  // ============================================================
   for (let i = 0; i < lines.length; i++) {
     let line = lines[i];
     if (!line || line.length < 2) continue;
 
-    // ✅ НОРМАЛИЗАЦИЯ: убираем невидимые символы
     line = line
       .replace(/[\u200B-\u200D\uFEFF]/g, '')
       .replace(/\u00A0/g, ' ')
@@ -358,7 +353,6 @@ export function parseReceipt(lines) {
 
     if (line.length < 2) continue;
 
-    // ─── Пропуски ───
     if (FILTER_RE.test(line)) continue;
     if (TIME_RE.test(line)) continue;
     if (GARBAGE_RE.test(line)) continue;
@@ -367,35 +361,29 @@ export function parseReceipt(lines) {
     if (BONUS_RE.test(line)) continue;
     if (RASROCHKA_RE.test(line)) continue;
 
-    // ✅ Сводки (учитываем и ₽, и Р)
     const roubleMatches = line.match(new RegExp(ROUBLE_CLASS, 'g')) || [];
-
     if (MULTI_AMOUNT_RE.test(line)) continue;
     if (SUMMARY_RE.test(line)) continue;
     if (roubleMatches.length >= 2) continue;
 
-    // ─── Относительная дата ───
     const rel = extractRelativeDate(line);
     if (rel && line.length < 30) {
       currentDate = rel;
       continue;
     }
 
-    // ─── Дата ───
     const d = extractDate(line);
     if (d && line.length < 30) {
       currentDate = d;
       continue;
     }
 
-    // ─── Сумма ───
     const amt = extractAmount(line);
     if (!amt) continue;
     if (ONLY_AMOUNT_RE.test(line)) continue;
 
     let title = amt.rest;
 
-    // ✅ Если title плохой — берём предыдущую строку (если она не метаданные)
     const titleIsBad = !title || title.length < 2 || isMetadataLine(title);
 
     if (titleIsBad) {
@@ -415,7 +403,6 @@ export function parseReceipt(lines) {
       }
     }
 
-    // ✅ Если title всё ещё пустой/мусор — ставим 'Операция'
     if (!title || title.length < 2 || isMetadataLine(title)) {
       title = 'Операция';
     }
@@ -428,7 +415,6 @@ export function parseReceipt(lines) {
 
     if (TIME_RE.test(title) || /^\d+\s*%/.test(title)) continue;
 
-    // ─── Категория: из следующей строки ───
     let category = 'Прочее';
     const nextLine = i + 1 < lines.length ? lines[i + 1] : '';
 
