@@ -62,9 +62,18 @@ function onReconcileUser(userDiff) {
   if (acc) onReconcile(acc);
 }
 
-function openManual() { manualOpen.value = true; }
-function openScan()   { scanOpen.value = true;   }
-function openPdf()    { pdfOpen.value = true;    }
+// ✅ FAB сразу открывает сканер
+function openScan() { scanOpen.value = true; }
+
+// ✅ Переключения из ScanModal
+function switchToManual() {
+  scanOpen.value = false;
+  manualOpen.value = true;
+}
+function switchToPdf() {
+  scanOpen.value = false;
+  pdfOpen.value = true;
+}
 
 function onUserMenu(owner) {
   userMenuOwner.value = owner;
@@ -94,16 +103,16 @@ function onUserMenu(owner) {
       </main>
     </div>
 
-    <!-- FAB на всех размерах -->
-    <FabMenu
-      @manual="openManual"
-      @scan="openScan"
-      @pdf="openPdf"
-    />
+    <!-- ✅ FAB теперь открывает сразу сканер -->
+    <FabMenu @scan="openScan" />
 
     <ManualModal v-model="manualOpen" />
     <ReconcileModal v-model="reconcileOpen" :account="reconcileAccount" />
-    <ScanModal v-model="scanOpen" />
+    <ScanModal
+      v-model="scanOpen"
+      @switch-to-manual="switchToManual"
+      @switch-to-pdf="switchToPdf"
+    />
     <PdfImportModal v-model="pdfOpen" />
     <UserMenuModal
       v-model="userMenuOpen"
@@ -119,9 +128,6 @@ function onUserMenu(owner) {
   padding: 20px 20px 100px;
 }
 
-/* ============================================================
-   ДЕСКТОП — 2 колонки
-   ============================================================ */
 .finance-grid {
   max-width: 1400px;
   margin: 0 auto;
@@ -146,9 +152,6 @@ function onUserMenu(owner) {
   min-width: 0;
 }
 
-/* ============================================================
-   ПЛАНШЕТ — 1 колонка
-   ============================================================ */
 @media (max-width: 1100px) {
   .finance-grid {
     grid-template-columns: 1fr;
@@ -159,9 +162,6 @@ function onUserMenu(owner) {
   .finance-side { position: static; }
 }
 
-/* ============================================================
-   МОБИЛЬНЫЙ
-   ============================================================ */
 @media (max-width: 700px) {
   .finance-page { padding: 16px 12px 100px; }
   .finance-grid { gap: 10px; }

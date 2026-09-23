@@ -1,43 +1,23 @@
 <script setup>
-import { ref } from 'vue';
+const emit = defineEmits(['scan']);
 
-const emit = defineEmits(['manual', 'scan', 'pdf']);
-
-const open = ref(false);
-
-function toggle() {
-  open.value = !open.value;
-}
-
-function close() {
-  open.value = false;
-}
-
-function pick(action) {
-  close();
-  emit(action);
+function handleClick() {
+  emit('scan');
 }
 </script>
 
 <template>
-  <div class="fab-menu" :class="{ open }">
-    <Transition name="fab-options">
-      <div v-if="open" class="fab-options">
-        <button class="fab-option" @click="pick('manual')">
-          <span class="icon">✏️</span> Вручную
-        </button>
-        <button class="fab-option" @click="pick('scan')">
-          <span class="icon">📸</span> Чек
-        </button>
-        <button class="fab-option" @click="pick('pdf')">
-          <span class="icon">📄</span> PDF-выписка
-        </button>
-      </div>
-    </Transition>
-
-    <button class="fab-main" @click="toggle" :aria-label="open ? 'Закрыть' : 'Добавить операцию'">
+  <div class="fab-menu">
+    <button
+      class="fab-main"
+      type="button"
+      @click="handleClick"
+      aria-label="Сканировать чек"
+      title="Сканировать чек"
+    >
       <svg viewBox="0 0 24 24" fill="currentColor" class="fab-icon">
-        <path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6V5z"/>
+        <!-- Иконка фотоаппарата / сканера -->
+        <path d="M9 3 7.17 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.17L15 3H9zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
       </svg>
     </button>
   </div>
@@ -46,49 +26,13 @@ function pick(action) {
 <style scoped lang="scss">
 /* ✅ FAB работает ВЕЗДЕ (и ПК, и мобильные) */
 .fab-menu {
-  display: flex;
   position: fixed;
   right: 24px;
   bottom: 24px;
   z-index: 100;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 12px;
-}
-
-.fab-options {
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 10px;
-}
-
-.fab-option {
-  display: inline-flex;
-  align-items: center;
-  gap: 10px;
-  padding: 11px 16px 11px 14px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: #ffffff;
-  color: var(--text);
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-  box-shadow: 0 10px 24px -10px rgba(0, 0, 0, 0.4);
-  white-space: nowrap;
-  transition: all 0.15s;
-
-  &:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: rgba(56, 189, 248, 0.08);
-  }
-
-  &:active { transform: scale(0.95); }
-
-  .icon { font-size: 16px; }
 }
 
 .fab-main {
@@ -103,10 +47,11 @@ function pick(action) {
   align-items: center;
   justify-content: center;
   box-shadow: 0 10px 28px -8px rgba(59, 130, 246, 0.75);
-  transition: transform 0.3s cubic-bezier(.34,1.56,.64,1);
+  transition: transform 0.2s cubic-bezier(.34,1.56,.64,1), box-shadow 0.2s;
 
   &:hover {
     box-shadow: 0 14px 34px -10px rgba(59, 130, 246, 0.9);
+    transform: translateY(-2px);
   }
 
   &:active { transform: scale(0.92); }
@@ -115,22 +60,6 @@ function pick(action) {
 .fab-icon {
   width: 26px;
   height: 26px;
-  transition: transform 0.3s cubic-bezier(.34,1.56,.64,1);
-}
-
-.fab-menu.open .fab-icon {
-  transform: rotate(45deg);
-}
-
-/* Анимация появления опций */
-.fab-options-enter-active,
-.fab-options-leave-active {
-  transition: all 0.25s cubic-bezier(.34,1.56,.64,1);
-}
-.fab-options-enter-from,
-.fab-options-leave-to {
-  opacity: 0;
-  transform: translateY(12px) scale(0.9);
 }
 
 /* ============================================================

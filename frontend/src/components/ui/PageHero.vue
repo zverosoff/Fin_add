@@ -38,7 +38,6 @@ onMounted(() => {
   // Fallback: если через 3 сек статус всё ещё «Подключение…» — значит ошибка
   fallbackTimer = setTimeout(() => {
     if (statusType.value === '') {
-      // Нет ответа от сервера
       statusType.value = 'dirty';
       statusText.value = 'Нет ответа от сервера';
     }
@@ -75,7 +74,6 @@ function handleStatusUpdate(detail) {
     statusText.value = `Сервер: ${API_HOST}  ·  ${detail?.message || 'готово'}`;
   }
 
-  // Для «saved» — сбросить статус через 5 секунд
   if (type === 'saved') {
     setTimeout(() => {
       if (statusType.value === 'saved') {
@@ -219,7 +217,6 @@ h1 {
   &.saved {
     color: #16a34a;
     border-color: rgba(34, 197, 94, 0.35);
-
     .dot {
       background: #16a34a;
       box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.18);
@@ -229,7 +226,6 @@ h1 {
   &.dirty {
     color: #d97706;
     border-color: rgba(245, 158, 11, 0.35);
-
     .dot {
       background: #d97706;
       box-shadow: 0 0 0 4px rgba(245, 158, 11, 0.18);
@@ -240,7 +236,6 @@ h1 {
   &.error {
     color: #dc2626;
     border-color: rgba(239, 68, 68, 0.4);
-
     .dot {
       background: #dc2626;
       box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.2);
@@ -253,10 +248,14 @@ h1 {
   50%      { opacity: 0.6; transform: scale(1.15); }
 }
 
+/* ============================================================
+   ✅ ИНДИКАТОР СВЕЖЕСТИ — переехал в ЛЕВЫЙ НИЖНИЙ УГОЛ,
+   чтобы не мешать FAB (который справа снизу)
+   ============================================================ */
 .freshness-indicator {
   position: fixed;
   bottom: 12px;
-  right: 12px;
+  left: 12px;                 /* ← было right: 12px */
   z-index: 999;
   display: inline-flex;
   align-items: center;
@@ -274,6 +273,7 @@ h1 {
   transition: opacity 0.2s, color 0.25s, border-color 0.25s;
   cursor: help;
   white-space: nowrap;
+  pointer-events: none;       /* ← не перехватывает клики */
 
   &:hover { opacity: 1; }
 
@@ -304,7 +304,6 @@ h1 {
   &.offline {
     color: var(--danger);
     border-color: rgba(239, 68, 68, 0.4);
-
     .fi-dot {
       background: #ef4444;
       box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25);
@@ -336,9 +335,10 @@ h1 {
     height: 7px;
   }
 
+  /* ✅ На мобильном — тоже слева снизу, с учётом safe-area */
   .freshness-indicator {
-    bottom: 78px;
-    right: 12px;
+    bottom: calc(12px + env(safe-area-inset-bottom, 0));
+    left: 12px;
     font-size: 10px;
     padding: 3px 8px;
   }

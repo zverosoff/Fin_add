@@ -11,7 +11,7 @@ import Modal from '@/components/ui/Modal.vue';
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
 });
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits(['update:modelValue', 'switch-to-manual', 'switch-to-pdf']);
 
 const accounts = useAccountsStore();
 const txStore = useTransactionsStore();
@@ -25,7 +25,6 @@ const filePreview = ref('');
 const progress = ref(0);
 const statusText = ref('');
 
-// Предпросмотр операций
 const items = ref([]);
 const selectedIndices = ref(new Set());
 
@@ -37,6 +36,19 @@ const error = ref('');
 const saving = ref(false);
 
 // ============================================================
+// Переключатель режима
+// ============================================================
+function switchToManual() {
+  emit('update:modelValue', false);
+  emit('switch-to-manual');
+}
+
+function switchToPdf() {
+  emit('update:modelValue', false);
+  emit('switch-to-pdf');
+}
+
+// ============================================================
 // Счета выбранного пользователя
 // ============================================================
 const userAccounts = computed(() =>
@@ -44,7 +56,7 @@ const userAccounts = computed(() =>
 );
 
 // ============================================================
-// Сброс формы при открытии
+// Сброс
 // ============================================================
 function reset() {
   step.value = 'upload';
@@ -65,7 +77,6 @@ watch(() => props.modelValue, (open) => {
   if (open) reset();
 });
 
-// При смене пользователя — обновить список счетов
 watch(user, () => {
   const accs = userAccounts.value;
   if (!accs.find(a => a.id === accountId.value)) {
@@ -103,12 +114,10 @@ async function recognize() {
   error.value = '';
 
   try {
-    // Предобработка
     const processed = await preprocessImage(file.value);
     statusText.value = 'Загрузка модели OCR…';
     progress.value = 5;
 
-    // Распознавание
     const lines = await recognizeText(processed, (pct) => {
       progress.value = pct;
       statusText.value = `Распознавание: ${pct}%`;
@@ -118,17 +127,12 @@ async function recognize() {
       throw new Error('Не удалось распознать текст на фото');
     }
 
-    console.log('[scan] распознанные строки:', lines);
-
-    // Парсер
     const parsed = parseReceipt(lines);
-    console.log('[scan] разобранные операции:', parsed);
 
     if (!parsed.length) {
       throw new Error('Не найдено операций в чеке');
     }
 
-    // Применяем дату из формы ко всем
     const dateObj = new Date(manualDate.value + 'T12:00:00');
     for (const it of parsed) {
       it.date = dateObj.toISOString();
@@ -253,6 +257,19 @@ function close() {
     title="📸 Сканирование чека"
     @update:model-value="emit('update:modelValue', $event)"
   >
+    <!-- ✅ Переключатель режима — всегда сверху, чтобы можно было перескочить -->
+    <div class="mode-switch">
+      <button type="button" class="mode active" disabled>
+        📸 Чек
+      </button>
+      <button type="button" class="mode" @click="switchToManual">
+        ✏️ Вручную
+      </button>
+      <button type="button" class="mode" @click="switchToPdf">
+        📄 PDF
+      </button>
+    </div>
+
     <!-- ШАГ 1. Загрузка -->
     <div v-if="step === 'upload'" class="step">
       <div class="field">
@@ -384,6 +401,47 @@ function close() {
 </template>
 
 <style scoped lang="scss">
+/* ✅ Переключатель режима */
+.mode-switch {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 14px;
+  background: #f1f5f9;
+  border-radius: 12px;
+
+  .mode {
+    flex: 1;
+    padding: 8px 10px;
+    border: none;
+    background: transparent;
+    color: var(--muted);
+    font-family: inherit;
+    font-size: 12.5px;
+    font-weight: 700;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.18s;
+    white-space: nowrap;
+
+    &:hover:not(:disabled) {
+      color: var(--accent);
+      background: rgba(56, 189, 248, 0.08);
+    }
+
+    &.active {
+      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      color: #fff;
+      box-shadow: 0 4px 12px -4px rgba(59, 130, 246, 0.6);
+      cursor: default;
+    }
+
+    &:disabled {
+      cursor: default;
+    }
+  }
+}
+
 .step { display: flex; flex-direction: column; gap: 12px; }
 
 .field {
@@ -452,16 +510,8 @@ function close() {
 }
 
 .upload-text { display: flex; flex-direction: column; gap: 2px; }
-
-.upload-title {
-  font-size: 15px;
-  font-weight: 700;
-}
-
-.upload-sub {
-  font-size: 11.5px;
-  color: var(--muted);
-}
+.upload-title { font-size: 15px; font-weight: 700; }
+.upload-sub { font-size: 11.5px; color: var(--muted); }
 
 .preview {
   margin-top: 8px;
@@ -480,7 +530,6 @@ function close() {
   }
 }
 
-/* Распознавание */
 .recognize {
   display: flex;
   flex-direction: column;
@@ -499,15 +548,9 @@ function close() {
   animation: spin 1s linear infinite;
 }
 
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 
-.status {
-  font-size: 14px;
-  color: var(--text);
-  font-weight: 600;
-}
+.status { font-size: 14px; color: var(--text); font-weight: 600; }
 
 .progress {
   width: 100%;
@@ -531,7 +574,6 @@ function close() {
   color: var(--muted);
 }
 
-/* Предпросмотр */
 .bulk-bar {
   display: flex;
   align-items: center;
@@ -542,11 +584,7 @@ function close() {
   border: 1px solid rgba(56, 189, 248, 0.25);
   flex-wrap: wrap;
 
-  label {
-    font-size: 12px;
-    font-weight: 700;
-    color: var(--accent);
-  }
+  label { font-size: 12px; font-weight: 700; color: var(--accent); }
 }
 
 .bulk-input {
