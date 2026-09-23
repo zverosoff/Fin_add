@@ -165,19 +165,13 @@ onUnmounted(() => {
 
 <style>
 /* ============================================================
-   ✅ Обёртка страницы — гарантированная высота,
-   чтобы body не схлопывалось при slide-анимации
+   Обёртка страницы
    ============================================================ */
 .page-transition-wrap {
   position: relative;
-  min-height: calc(100vh - 100px);
+  min-height: 100vh;
   width: 100%;
-}
-
-@media (max-width: 700px) {
-  .page-transition-wrap {
-    min-height: calc(100vh - 90px);
-  }
+  overflow-x: hidden;
 }
 
 /* ============================================================
@@ -198,7 +192,7 @@ onUnmounted(() => {
   opacity: 0;
 }
 
-/* ✅ Уходящая — absolute, но НЕ выходит за границы (учитывает min-height) */
+/* Уходящая — absolute */
 .slide-left-leave-active,
 .slide-right-leave-active {
   position: absolute;

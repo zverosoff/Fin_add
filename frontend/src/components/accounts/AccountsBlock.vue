@@ -11,13 +11,10 @@ const auth = useAuthStore();
 const userName = computed(() => auth.user || 'Сергей');
 const userEmoji = computed(() => userName.value === 'Сергей' ? '👨' : '👩');
 
-// ✅ Баланс залогиненного пользователя
-const userBalance = computed(() => {
-  const owner = userName.value;
-  return accounts.totalByOwner?.[owner] || 0;
-});
+// ✅ Общий баланс (все счета всех пользователей)
+const totalBalance = computed(() => accounts.total);
 
-// ✅ Список владельцев — активный первым
+// ✅ Активный — первым
 const ownersSorted = computed(() => {
   const all = Object.keys(accounts.byOwner || {});
   const me = userName.value;
@@ -27,6 +24,10 @@ const ownersSorted = computed(() => {
     return a.localeCompare(b, 'ru');
   });
 });
+
+function ownerTotal(list) {
+  return list.reduce((s, a) => s + (Number(a.value) || 0), 0);
+}
 
 function bankLogo(id) {
   if (!id) return null;
@@ -38,23 +39,23 @@ function bankLogo(id) {
 function isMe(owner) {
   return owner === userName.value;
 }
+
+function onOwnerClick(owner) {
+  if (isMe(owner)) return;
+  emit('user-menu', owner);
+}
 </script>
 
 <template>
   <section class="accounts-block">
     <div class="bank-card">
-      <!-- Верх: баланс + аватар -->
+      <!-- Верх: общий баланс + аватар -->
       <div class="bc-top">
         <div class="bc-balance">
-          <div class="bc-label">
-            <span class="bc-label-emoji">{{ userEmoji }}</span>
-            <span>{{ userName }}</span>
-          </div>
-          <div class="bc-amount">{{ fmt(userBalance) }} ₽</div>
-          <div class="bc-sub">Баланс на сегодня</div>
+          <div class="bc-label">Ваш общий баланс</div>
+          <div class="bc-amount">{{ fmt(totalBalance) }} ₽</div>
         </div>
 
-        <!-- ✅ Аватар на белом фоне -->
         <div class="bc-avatar">
           <div class="bc-avatar-inner">{{ userEmoji }}</div>
         </div>
@@ -70,8 +71,10 @@ function isMe(owner) {
         >
           <button
             class="bc-owner-name"
+            :class="{ 'is-clickable': !isMe(owner) }"
             type="button"
-            @click="emit('user-menu', owner)"
+            :disabled="isMe(owner)"
+            @click="onOwnerClick(owner)"
           >
             <span class="bc-owner-emoji">{{ owner === 'Сергей' ? '👨' : '👩' }}</span>
             <span class="bc-owner-text">{{ owner }}</span>
@@ -98,6 +101,11 @@ function isMe(owner) {
               <span class="bc-chip-value">{{ fmt(acc.value) }} ₽</span>
             </button>
           </div>
+
+          <!-- ✅ Итог по владельцу справа -->
+          <div class="bc-owner-total">
+            {{ fmt(ownerTotal(accounts.byOwner[owner])) }} ₽
+          </div>
         </div>
       </div>
     </div>
@@ -119,7 +127,6 @@ function isMe(owner) {
   border-radius: 22px;
   overflow: hidden;
 
-  /* ✅ Анимированный градиент */
   background:
     radial-gradient(circle at 15% 0%, rgba(255, 255, 255, 0.18), transparent 55%),
     radial-gradient(circle at 95% 100%, rgba(255, 255, 255, 0.14), transparent 60%),
@@ -151,18 +158,11 @@ function isMe(owner) {
 .bc-balance { min-width: 0; flex: 1; }
 
 .bc-label {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   opacity: 0.85;
-}
-
-.bc-label-emoji {
-  font-size: 14px;
 }
 
 .bc-amount {
@@ -178,14 +178,7 @@ function isMe(owner) {
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-.bc-sub {
-  font-size: 11.5px;
-  font-weight: 600;
-  opacity: 0.75;
-  margin-top: 4px;
-}
-
-/* ✅ Аватар — на белом фоне */
+/* Аватар на белом фоне */
 .bc-avatar {
   width: 62px;
   height: 62px;
@@ -232,12 +225,12 @@ function isMe(owner) {
   border-radius: 10px;
   transition: background 0.25s;
 
-  /* ✅ Активный пользователь — выделен */
   &.is-me {
     background: rgba(255, 255, 255, 0.12);
   }
 }
 
+/* Имя владельца — pill */
 .bc-owner-name {
   display: inline-flex;
   align-items: center;
@@ -250,15 +243,25 @@ function isMe(owner) {
   font-family: inherit;
   font-size: 11.5px;
   font-weight: 700;
-  cursor: pointer;
+  cursor: default;
   flex-shrink: 0;
   transition: all 0.15s;
   white-space: nowrap;
   backdrop-filter: blur(6px);
 
-  &:hover {
-    background: rgba(255, 255, 255, 0.28);
-    transform: translateY(-1px);
+  /* ✅ Кликабельно только если НЕ вы */
+  &.is-clickable {
+    cursor: pointer;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.28);
+      transform: translateY(-1px);
+    }
+  }
+
+  &:disabled {
+    opacity: 1;
+    cursor: default;
   }
 
   .is-me & {
@@ -284,6 +287,7 @@ function isMe(owner) {
   letter-spacing: 0.05em;
 }
 
+/* Чипы счетов */
 .bc-chips {
   display: flex;
   align-items: center;
@@ -353,6 +357,21 @@ function isMe(owner) {
   letter-spacing: -0.02em;
 }
 
+/* ✅ Итог по владельцу — pill справа */
+.bc-owner-total {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #4f46e5;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.25);
+}
+
 /* ============================================================
    МОБИЛЬНЫЙ
    ============================================================ */
@@ -366,7 +385,6 @@ function isMe(owner) {
 
   .bc-label { font-size: 10px; }
   .bc-amount { font-size: 30px; margin-top: 4px; }
-  .bc-sub { font-size: 11px; }
 
   .bc-avatar {
     width: 54px;
@@ -384,6 +402,11 @@ function isMe(owner) {
   .bc-chip-logo,
   .bc-chip-logo-fallback { width: 16px; height: 16px; }
   .bc-chip-value { font-size: 11px; }
+
+  .bc-owner-total {
+    font-size: 11px;
+    padding: 2px 8px;
+  }
 }
 
 @media (max-width: 380px) {
