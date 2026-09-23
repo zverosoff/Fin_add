@@ -1,6 +1,7 @@
 /**
  * OCR-обработка чеков и скриншотов банковских приложений через Tesseract.js
  * Портировано из рабочего scan.js (чистый JS).
+ * ✅ Округление сумм до целого (игнорируем копейки).
  */
 
 export function preprocessImage(file) {
@@ -170,7 +171,7 @@ function detectCategory(line) {
    ПАРСЕР (портирован из scan.js)
    ============================================================ */
 
-// ✅ УНИВЕРСАЛЬНЫЙ: после суммы — любые нецифры
+// ✅ Сумма: последнее число в строке, всё после — мусор
 const AMOUNT_RE = /([+\-]?\s*\d[\d\s]*(?:[.,]\d{1,2})?)[^\d]*$/;
 
 const MONTHS_RU = '(январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)';
@@ -265,6 +266,9 @@ function extractDate(s) {
   return null;
 }
 
+/**
+ * Извлечь сумму. ✅ ОКРУГЛЯЕМ ДО ЦЕЛОГО.
+ */
 function extractAmount(s) {
   if (!s) return null;
   const m = s.match(AMOUNT_RE);
@@ -282,10 +286,16 @@ function extractAmount(s) {
     amountStr = raw.replace('-', '').trim();
   }
 
+  // ✅ Убираем пробелы, заменяем запятую на точку
   const clean = amountStr.replace(/\s+/g, '').replace(',', '.');
-  const amount = parseFloat(clean);
+  const parsed = parseFloat(clean);
 
-  if (!isFinite(amount) || amount <= 0 || amount > 10000000) return null;
+  if (!isFinite(parsed) || parsed <= 0) return null;
+
+  // ✅ ОКРУГЛЯЕМ ДО ЦЕЛОГО
+  const amount = Math.round(parsed);
+
+  if (amount <= 0 || amount > 10000000) return null;
 
   const mIdx = s.indexOf(raw, m.index || 0);
   const rest = s.slice(0, mIdx >= 0 ? mIdx : 0).trim();
@@ -403,7 +413,7 @@ export function parseReceipt(textLines) {
     return {
       date: date.toISOString(),
       description: cleanTitle.slice(0, 80),
-      amount: amt.amount,
+      amount: amt.amount, // ✅ уже округлено
       type,
       category: finalCategory,
     };
@@ -426,7 +436,7 @@ export function parseReceipt(textLines) {
     if (isMetadataLine(curText)) { i++; continue; }
     if (looksLikeFilterLine(curText)) { i++; continue; }
 
-    // ✅ Сводки с 2+ рублями (например, '117 085 Р 106 515 Р')
+    // ✅ Сводки с 2+ рублями
     const roubles = (curText.match(/[₽рРPpL]/g) || []).length;
     if (roubles >= 2) { i++; continue; }
 
