@@ -466,13 +466,13 @@ function close() {
           hidden
           @change="onFileSelected"
         />
-        <button class="upload-btn" type="button" @click="triggerFileInput">
-          <span class="upload-icon">📷</span>
-          <span class="upload-text">
-            <span class="upload-title">Выбрать файл</span>
-            <span class="upload-sub">Скриншот Т-Банка, Сбера или фото чека</span>
-          </span>
-        </button>
+<button class="upload-btn" type="button" @click="triggerFileInput">
+  <span class="upload-icon">📷</span>
+  <span class="upload-text">
+    <span class="upload-title">Выбрать файл</span>
+    <span class="upload-sub">Скриншот Т-Банка, Сбера или фото чека</span>
+  </span>
+</button>
       </div>
 
       <!-- ✅ Превью с анимацией сканирования -->
@@ -1366,10 +1366,7 @@ function close() {
 
 .scan-beam {
   position: absolute;
-  left: 0;
-  right: 0;
-  top: 0;
-  bottom: 0;
+  inset: 0;
   pointer-events: none;
   overflow: hidden;
   z-index: 3;
@@ -1380,7 +1377,6 @@ function close() {
   position: absolute;
   left: 0;
   right: 0;
-  top: 0;
   height: 3px;
   background: linear-gradient(90deg,
     transparent 0%,
@@ -1391,29 +1387,29 @@ function close() {
   box-shadow:
     0 0 12px rgba(56, 189, 248, 0.9),
     0 0 30px rgba(139, 92, 246, 0.6);
-  animation: scanBeamMove 1.8s cubic-bezier(.45,.05,.55,.95) infinite;
+  animation: scanBeamMove 1s cubic-bezier(.45,.05,.55,.95) infinite;
 }
 
 .scan-beam-glow {
   position: absolute;
   left: 0;
   right: 0;
-  top: 0;
-  height: 60px;
+  height: 80px;
   background: linear-gradient(180deg,
     transparent 0%,
     rgba(56, 189, 248, 0.15) 40%,
-    rgba(139, 92, 246, 0.2) 50%,
+    rgba(139, 92, 246, 0.25) 50%,
     rgba(56, 189, 248, 0.15) 60%,
     transparent 100%);
-  animation: scanBeamMove 1.8s cubic-bezier(.45,.05,.55,.95) infinite;
+  animation: scanBeamMove 1s cubic-bezier(.45,.05,.55,.95) infinite;
+  margin-top: -40px;
 }
 
 @keyframes scanBeamMove {
-  0%   { transform: translateY(-60px); opacity: 0; }
-  10%  { opacity: 1; }
-  90%  { opacity: 1; }
-  100% { transform: translateY(calc(100% + 60px)); opacity: 0; }
+  0%   { top: -15%;  opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { top: 115%;  opacity: 0; }
 }
 
 /* Пульсирующая рамка вокруг превью */
@@ -1436,6 +1432,18 @@ function close() {
   50% {
     box-shadow: 0 0 20px 4px rgba(139, 92, 246, 0.4),
                 inset 0 0 30px rgba(139, 92, 246, 0.25);
+  }
+}
+
+/* Отключаем анимации для prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .scan-beam-line,
+  .scan-beam-glow,
+  .preview-image-wrapper.is-scanning::after {
+    animation: none;
+  }
+  .scan-beam-glow {
+    background: rgba(56, 189, 248, 0.1);
   }
 }
 </style>

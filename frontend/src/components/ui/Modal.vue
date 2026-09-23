@@ -1,5 +1,5 @@
 <script setup>
-import { watch } from 'vue';
+import { watch, ref, onUnmounted } from 'vue';
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
@@ -7,6 +7,13 @@ const props = defineProps({
 });
 
 const emit = defineEmits(['update:modelValue']);
+
+const boxEl = ref(null);
+
+// ✅ Состояние свайпа
+const swipeStartY = ref(0);
+const swipeDeltaY = ref(0);
+const isSwiping = ref(false);
 
 function close() {
   emit('update:modelValue', false);
@@ -25,6 +32,85 @@ watch(() => props.modelValue, (val) => {
   if (val) document.addEventListener('keydown', onKeydown);
   else document.removeEventListener('keydown', onKeydown);
 }, { immediate: true });
+
+// ✅ Свайп вниз для закрытия (только на мобильных)
+function isMobile() {
+  return window.innerWidth <= 700;
+}
+
+function onTouchStart(e) {
+  if (!isMobile()) return;
+  if (e.touches.length !== 1) return;
+
+  // Свайп только если начали с ручки или шапки
+  const target = e.target;
+  const isHandle = target.classList.contains('modal-handle')
+    || target.closest('.modal-handle')
+    || target.classList.contains('modal-head')
+    || target.closest('.modal-head');
+
+  if (!isHandle) return;
+
+  swipeStartY.value = e.touches[0].clientY;
+  swipeDeltaY.value = 0;
+  isSwiping.value = true;
+}
+
+function onTouchMove(e) {
+  if (!isSwiping.value) return;
+  if (e.touches.length !== 1) return;
+
+  const dy = e.touches[0].clientY - swipeStartY.value;
+  // Только вниз
+  swipeDeltaY.value = Math.max(0, dy);
+
+  // Применяем transform к box
+  if (boxEl.value) {
+    boxEl.value.style.transition = 'none';
+    boxEl.value.style.transform = `translateY(${swipeDeltaY.value}px)`;
+  }
+}
+
+function onTouchEnd() {
+  if (!isSwiping.value) return;
+  isSwiping.value = false;
+
+  const threshold = 80;
+
+  if (swipeDeltaY.value >= threshold) {
+    // Закрываем — анимируем до конца
+    if (boxEl.value) {
+      boxEl.value.style.transition = 'transform 0.25s ease-out';
+      boxEl.value.style.transform = 'translateY(100%)';
+    }
+    setTimeout(() => {
+      close();
+      // Сбрасываем transform после закрытия
+      if (boxEl.value) {
+        boxEl.value.style.transition = '';
+        boxEl.value.style.transform = '';
+      }
+    }, 220);
+  } else {
+    // Возврат на место
+    if (boxEl.value) {
+      boxEl.value.style.transition = 'transform 0.25s cubic-bezier(.34,1.56,.64,1)';
+      boxEl.value.style.transform = 'translateY(0)';
+      setTimeout(() => {
+        if (boxEl.value) {
+          boxEl.value.style.transition = '';
+          boxEl.value.style.transform = '';
+        }
+      }, 250);
+    }
+  }
+
+  swipeDeltaY.value = 0;
+}
+
+onUnmounted(() => {
+  document.removeEventListener('keydown', onKeydown);
+});
 </script>
 
 <template>
@@ -35,9 +121,22 @@ watch(() => props.modelValue, (val) => {
         class="modal-overlay"
         @click.self="close"
       >
-        <div class="modal-box">
+        <div
+          ref="boxEl"
+          class="modal-box"
+          @touchstart.passive="onTouchStart"
+          @touchmove.passive="onTouchMove"
+          @touchend="onTouchEnd"
+          @touchcancel="onTouchEnd"
+        >
           <!-- Ручка-индикатор для мобильных -->
-          <div class="modal-handle"></div>
+          <div
+            class="modal-handle"
+            @touchstart.passive="onTouchStart"
+            @touchmove.passive="onTouchMove"
+            @touchend="onTouchEnd"
+            @touchcancel="onTouchEnd"
+          ></div>
 
           <header class="modal-head">
             <h3>{{ title }}</h3>
@@ -83,6 +182,7 @@ watch(() => props.modelValue, (val) => {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  touch-action: pan-y;
 }
 
 /* Ручка-индикатор (только на мобильных) */
@@ -94,6 +194,11 @@ watch(() => props.modelValue, (val) => {
   background: rgba(148, 163, 184, 0.5);
   margin: 8px auto 0;
   flex-shrink: 0;
+  padding: 8px 20px;
+  box-sizing: content-box;
+  cursor: grab;
+
+  &:active { cursor: grabbing; }
 }
 
 .modal-head {
@@ -147,9 +252,7 @@ watch(() => props.modelValue, (val) => {
   background: #ffffff;
 }
 
-/* ============================================================
-   Анимация
-   ============================================================ */
+/* Анимация */
 .modal-enter-active,
 .modal-leave-active {
   transition: opacity 0.22s ease;
@@ -183,9 +286,9 @@ watch(() => props.modelValue, (val) => {
     max-height: 92vh;
     border-radius: 20px 20px 0 0;
     padding-bottom: env(safe-area-inset-bottom, 0);
+    touch-action: pan-y;
   }
 
-  /* Показываем ручку */
   .modal-handle {
     display: block;
   }
@@ -218,7 +321,6 @@ watch(() => props.modelValue, (val) => {
     }
   }
 
-  /* Анимация снизу */
   .modal-enter-active .modal-box,
   .modal-leave-active .modal-box {
     transition: transform 0.3s cubic-bezier(.22,.61,.36,1);

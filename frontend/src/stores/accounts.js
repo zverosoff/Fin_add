@@ -14,15 +14,30 @@ export const useAccountsStore = defineStore('accounts', () => {
   const loaded = ref(false);
 
   // ============================================================
+  // ✅ Сортировка: Т-Банк → СберБанк → остальные
+  // ============================================================
+  function sortAccounts(list) {
+    return [...list].sort((a, b) => {
+      const bankOrder = (id) => {
+        if (!id) return 2;
+        if (id.startsWith('tbank')) return 0;
+        if (id.startsWith('sber')) return 1;
+        return 2;
+      };
+      const aBank = bankOrder(a.id);
+      const bBank = bankOrder(b.id);
+      if (aBank !== bBank) return aBank - bBank;
+      return (a.owner || '').localeCompare(b.owner || '', 'ru');
+    });
+  }
+
+  // ============================================================
   // Вычисляемые — базовые
   // ============================================================
-
-  /** Общая сумма по всем счетам */
   const total = computed(() =>
     accounts.value.reduce((sum, a) => sum + (Number(a.value) || 0), 0)
   );
 
-  /** Счета, сгруппированные по владельцу */
   const byOwner = computed(() => {
     const map = {};
     for (const acc of accounts.value) {
@@ -33,14 +48,12 @@ export const useAccountsStore = defineStore('accounts', () => {
     return map;
   });
 
-  /** Быстрый поиск счёта по id */
   const byId = computed(() => {
     const map = {};
     for (const acc of accounts.value) map[acc.id] = acc;
     return map;
   });
 
-  /** Сумма по каждому владельцу */
   const totalByOwner = computed(() => {
     const result = {};
     for (const [owner, list] of Object.entries(byOwner.value)) {
@@ -52,8 +65,6 @@ export const useAccountsStore = defineStore('accounts', () => {
   // ============================================================
   // Вычисляемые — расхождения
   // ============================================================
-
-  /** Ожидаемый баланс для каждого счёта */
   const expectedByAccount = computed(() => {
     const map = {};
     for (const acc of accounts.value) {
@@ -62,7 +73,6 @@ export const useAccountsStore = defineStore('accounts', () => {
     return map;
   });
 
-  /** Расхождения по каждому счёту */
   const diffByAccount = computed(() => {
     const map = {};
     for (const acc of accounts.value) {
@@ -71,18 +81,15 @@ export const useAccountsStore = defineStore('accounts', () => {
     return map;
   });
 
-  /** Есть ли хоть одно расхождение */
   const hasAnyDiff = computed(() =>
     Object.values(diffByAccount.value).some(d => d.hasDiff)
   );
 
-  /** Расхождения по пользователям */
   const userDiffs = computed(() => {
     const users = ['Сергей', 'Саша'];
     return users.map(u => computeUserDiff(u, accounts.value, transactions.value));
   });
 
-  /** Пользователи с расхождением */
   const usersWithDiff = computed(() =>
     userDiffs.value.filter(u => u.hasDiff)
   );
@@ -90,30 +97,28 @@ export const useAccountsStore = defineStore('accounts', () => {
   // ============================================================
   // Действия
   // ============================================================
+  async function load(onProgress) {
+    onProgress?.(10, 'Подключение к серверу…');
+    const { data } = await api.get('/state');
 
-  /** Загрузить с сервера */
-async function load(onProgress) {
-  onProgress?.(10, 'Подключение к серверу…');
-  const { data } = await api.get('/state');
+    onProgress?.(50, 'Обработка счетов…');
+    // ✅ Сортируем счета — Т-Банк первый
+    accounts.value = sortAccounts(data.accounts ?? []);
 
-  onProgress?.(50, 'Обработка счетов…');
-  accounts.value = data.accounts ?? [];
+    onProgress?.(70, 'Обработка операций…');
+    transactions.value = data.transactions ?? [];
 
-  onProgress?.(70, 'Обработка операций…');
-  transactions.value = data.transactions ?? [];
+    onProgress?.(85, 'Обработка целей…');
+    goals.value = data.goals ?? [];
 
-  onProgress?.(85, 'Обработка целей…');
-  goals.value = data.goals ?? [];
+    loaded.value = true;
 
-  loaded.value = true;
+    onProgress?.(95, 'Пересчёт балансов…');
+    recalculate();
 
-  onProgress?.(95, 'Пересчёт балансов…');
-  recalculate();
+    onProgress?.(100, 'Готово!');
+  }
 
-  onProgress?.(100, 'Готово!');
-}
-
-  /** Пересчёт балансов из транзакций */
   function recalculate() {
     for (const acc of accounts.value) {
       const opening = Number(acc.openingBalance) || 0;
@@ -125,21 +130,19 @@ async function load(onProgress) {
     }
   }
 
-  /** Обновление из WebSocket */
   function setFromWS(state) {
-    accounts.value = state.accounts ?? [];
+    // ✅ Сортируем счета — Т-Банк первый
+    accounts.value = sortAccounts(state.accounts ?? []);
     transactions.value = state.transactions ?? [];
     goals.value = state.goals ?? [];
     recalculate();
   }
 
-  /** Получить имя счёта по id */
   function getAccountName(id) {
     const acc = byId.value[id];
     return acc ? acc.name : '';
   }
 
-  /** Определить банк счёта */
   function getBank(id) {
     if (!id) return null;
     if (id.startsWith('sber')) return 'sber';
