@@ -1,8 +1,7 @@
 /**
  * OCR-обработка чеков и скриншотов банковских приложений через Tesseract.js
- * ✅ Полностью портировано из рабочего scan.js (чистый JS).
+ * ✅ Автоматически отрезает шапку/фильтры/сводки — парсит только список операций.
  * ✅ Округление до целого.
- * ✅ Не блокируем строки метаданных — просто пропускаем.
  */
 
 export function preprocessImage(file) {
@@ -163,16 +162,15 @@ function detectCategory(line) {
   if (/аптек|aptek|gorzdrav/i.test(low)) return 'Аптека';
   if (/netflix|spotify|яндекс\s*плюс|ivi|okko|подписк/i.test(low)) return 'Подписки';
   if (/ozon|озон|wildberries|вайлдберриз|avito/i.test(low)) return 'Покупки';
-  if (/piter\s*smoke|pitersmoke|табач|smoke|вейп|vape|сигарет/i.test(low)) return 'Покупки';
+  if (/pitersmoke|piter\s*smoke|табач|сигарет|вейп|vape|smoke/i.test(low)) return 'Покупки';
 
   return 'Прочее';
 }
 
 /* ============================================================
-   ПАРСЕР (полностью из scan.js)
+   ПАРСЕР
    ============================================================ */
 
-// ✅ Сумма: последнее число, поддержка всех минусов, пробелы в тысячах, копейки
 const AMOUNT_RE = /([+\-−–—]?\s*\d[\d\s]*(?:[.,]\d{1,2})?)[^\d]*$/;
 
 const MONTHS_RU = '(январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)';
@@ -184,7 +182,7 @@ const DATE_LINE_RE = new RegExp(
 );
 const DATE_NUM_RE = /^(\d{1,2})[.\/-](\d{1,2})(?:[.\/-](\d{2,4}))?\s*$/;
 
-const SUMMARY_LINE_RE = /^(итого|итог|баланс|всего|траты|доходы|расходы|сумма|выписка|операции|сентябрь|октябрь|ноябрь|декабрь|январь|февраль|март|апрель|май|июнь|июль|август)\b/i;
+const SUMMARY_LINE_RE = /^(итого|итог|баланс|всего|траты|доходы|расходы|сумма|выписка|операции)\b/i;
 
 const MONTH_INDEX = {
   'январ': 0, 'феврал': 1, 'март': 2, 'апрел': 3,
@@ -192,7 +190,6 @@ const MONTH_INDEX = {
   'август': 7, 'сентябр': 8, 'октябр': 9, 'ноябр': 10, 'декабр': 11,
 };
 
-// ✅ Многострочная проверка на дату (как в scan.js)
 function isDateLine(s) {
   if (!s) return false;
   const lower = s.toLowerCase().trim();
@@ -207,7 +204,6 @@ function isDateLine(s) {
   if (DATE_LINE_RE.test(s)) return true;
   if (DATE_NUM_RE.test(s)) return true;
 
-  // ✅ «20 сентября» — день + месяц
   if (/^\d{1,2}\s+(январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)/i.test(lower)) {
     return true;
   }
@@ -296,7 +292,6 @@ function extractAmount(s) {
   return { amount, sign, raw, rest };
 }
 
-// ✅ Как в scan.js
 function looksLikeTitle(s) {
   if (!s) return false;
   const t = s.trim();
@@ -310,7 +305,6 @@ function looksLikeCategory(s) {
   if (!s) return false;
   const t = s.trim();
   if (t.length < 3 || t.length > 50) return false;
-  // ✅ Категория может содержать `+число`, `Black`, `Дебетовая карта` — убираем их
   if (!/^[А-ЯA-ZЁа-яa-z+\d\s]+$/.test(t)) return false;
   if (SUMMARY_LINE_RE.test(t)) return false;
   return true;
@@ -321,9 +315,6 @@ function isAmountLine(s) {
   return /^[+\-−–—\s]*\d[\d\s.,]*\s*(?:[₽pPрРгГ]|руб\.?)?$/.test(s.trim());
 }
 
-/**
- * Очистить строку от мусора.
- */
 function cleanLine(s) {
   if (!s) return '';
   return s
@@ -333,12 +324,9 @@ function cleanLine(s) {
     .trim();
 }
 
-/**
- * Очистить название от бонусов и типа карты.
- */
 function cleanTitle(raw) {
   return (raw || '')
-    .replace(/\s+\+\d{1,3}\s*$/g, '')                 // +22, +5 в конце
+    .replace(/\s+\+\d{1,3}\s*$/g, '')
     .replace(/\s+Дебетовая\s+карта\s*/gi, ' ')
     .replace(/\s+Кредитная\s+карта\s*/gi, ' ')
     .replace(/\s+Black\s*/gi, ' ')
@@ -347,18 +335,40 @@ function cleanTitle(raw) {
     .trim();
 }
 
-/**
- * Очистить категорию от бонусов и типа карты.
- */
 function cleanCategory(raw) {
   return (raw || '')
-    .replace(/^\+\d{1,3}\s*/g, '')                     // +22 в начале
+    .replace(/^\+\d{1,3}\s*/g, '')
     .replace(/\s+\+\d{1,3}\s*$/g, '')
     .replace(/\s+Дебетовая\s+карта\s*/gi, ' ')
     .replace(/\s+Кредитная\s+карта\s*/gi, ' ')
     .replace(/\s+Black\s*/gi, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+/**
+ * ✅ Обрезаем всё до первой строки-даты.
+ * Это отсекает шапку, фильтры, сводки (они все над первой датой).
+ */
+function trimBeforeFirstDate(lines) {
+  // Ищем минимум 2 строки-даты, чтобы не обрезать случайно одно число
+  const dateIndices = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (isDateLine(lines[i].text)) {
+      dateIndices.push(i);
+    }
+  }
+
+  if (dateIndices.length === 0) {
+    // Дат не нашли — возвращаем всё как есть
+    console.log('[scan] дат не найдено, парсим всё');
+    return lines;
+  }
+
+  // Обрезаем до первой даты
+  const firstDateIdx = dateIndices[0];
+  console.log(`[scan] обрезаем ${firstDateIdx} строк до первой даты`);
+  return lines.slice(firstDateIdx);
 }
 
 export function parseReceipt(textLines) {
@@ -369,6 +379,11 @@ export function parseReceipt(textLines) {
     if (!t) continue;
     lines.push({ text: t, order: idx });
   }
+
+  // ✅ Обрезаем шапку/фильтры/сводки
+  const trimmed = trimBeforeFirstDate(lines);
+
+  console.log('[scan] после обрезки:', trimmed.map(l => l.text));
 
   const items = [];
 
@@ -393,8 +408,8 @@ export function parseReceipt(textLines) {
   }
 
   let i = 0;
-  while (i < lines.length) {
-    const curText = lines[i].text;
+  while (i < trimmed.length) {
+    const curText = trimmed[i].text;
 
     // 1. Дата?
     if (isDateLine(curText)) {
@@ -416,8 +431,8 @@ export function parseReceipt(textLines) {
         title = amt.rest;
 
         // Следующая строка — категория?
-        if (i + 1 < lines.length) {
-          const next = lines[i + 1];
+        if (i + 1 < trimmed.length) {
+          const next = trimmed[i + 1];
           if (looksLikeCategory(next.text)) {
             category = next.text;
             items.push(buildItem(title, category, amt, currentDate));
@@ -433,10 +448,10 @@ export function parseReceipt(textLines) {
 
       // 2b. Title в предыдущей строке
       if (i - 1 >= 0) {
-        const prev = lines[i - 1];
+        const prev = trimmed[i - 1];
 
         if (looksLikeCategory(prev.text) && i - 2 >= 0) {
-          const prev2 = lines[i - 2];
+          const prev2 = trimmed[i - 2];
           if (looksLikeTitle(prev2.text) && !isAmountLine(prev2.text)) {
             title = prev2.text;
             category = prev.text;
