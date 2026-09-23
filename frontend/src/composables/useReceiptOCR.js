@@ -70,7 +70,6 @@ export async function recognizeText(file, onProgress) {
   const { data } = await worker.recognize(file);
   await worker.terminate();
 
-  // ✅ Используем data.lines — как в рабочей версии
   const textLines = [];
   if (data.lines && Array.isArray(data.lines)) {
     for (const line of data.lines) {
@@ -82,7 +81,6 @@ export async function recognizeText(file, onProgress) {
       });
     }
   } else {
-    // fallback
     const lines = (data.text || '').split('\n');
     for (const l of lines) {
       const t = l.trim();
@@ -97,7 +95,7 @@ export async function recognizeText(file, onProgress) {
 }
 
 /* ============================================================
-   КАТЕГОРИИ (маппинг T-Bank/Сбер → наши)
+   КАТЕГОРИИ
    ============================================================ */
 const CATEGORY_MAP = {
   'супермаркеты': 'Продукты',
@@ -169,12 +167,11 @@ function detectCategory(line) {
 }
 
 /* ============================================================
-   ПАРСЕР
-   Портировано из scan.js (чистый JS) — работает на скриншотах Т-Банка
+   ПАРСЕР (портирован из scan.js)
    ============================================================ */
 
-// ✅ Как в scan.js
-const AMOUNT_RE = /([+\-]?\s*\d[\d\s]*(?:[.,]\d{1,2})?)\s*(?:[₽pPрРгГ]|руб\.?)?[\s\\|*`~^\[\]{}]*$/;
+// ✅ УНИВЕРСАЛЬНЫЙ: после суммы — любые нецифры
+const AMOUNT_RE = /([+\-]?\s*\d[\d\s]*(?:[.,]\d{1,2})?)[^\d]*$/;
 
 const MONTHS_RU = '(январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)';
 const DATE_LINE_RE = new RegExp(
@@ -193,7 +190,6 @@ const MONTH_INDEX = {
   'август': 7, 'сентябр': 8, 'октябр': 9, 'ноябр': 10, 'декабр': 11,
 };
 
-// ✅ Как в scan.js
 function looksLikeFilterLine(s) {
   if (!s) return false;
   if (/[▾▼▲]/.test(s)) return true;
@@ -326,49 +322,39 @@ function isAmountLine(s) {
 
 const CARD_TYPES = /^(дебетовая|кредитная|виртуальная|зарплатная|детская)\s+карта$/i;
 
-/**
- * Проверка на «Просто метаданные» (карта, категория) — не операция.
- */
 function isMetadataLine(s) {
   if (!s) return false;
   const low = s.toLowerCase().trim();
 
   if (CARD_TYPES.test(low)) return true;
 
-  // Убираем «карта» и тип карты
   const cleaned = low
     .replace(/(дебетовая|кредитная|виртуальная|зарплатная|детская)/g, '')
     .replace(/(карта|счёт|счет)/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 
-  if (!cleaned) return true; // было только «карта»
+  if (!cleaned) return true;
 
-  // Проверяем на точное совпадение с CATEGORY_MAP
   if (CATEGORY_MAP[cleaned]) return true;
 
   return false;
 }
 
 /**
- * Главная функция парсинга.
- * @param {Array<{text: string, bbox: object|null}>} textLines — строки из data.lines
+ * Главная функция.
+ * @param {Array<{text: string, bbox: object|null}>} textLines
  * @returns {Array<{date, description, amount, type, category}>}
  */
 export function parseReceipt(textLines) {
-  // Приводим к формату { text, order }
   const lines = [];
   for (let idx = 0; idx < textLines.length; idx++) {
     const li = textLines[idx];
     const t = (li.text || '').trim();
     if (!t) continue;
-    lines.push({
-      text: t,
-      order: idx,
-    });
+    lines.push({ text: t, order: idx });
   }
 
-  // Чистим мусорные символы по краям
   lines.forEach(l => {
     l.text = l.text
       .replace(/^[\\|*`~^\[\]{}]+/g, ' ')
@@ -423,7 +409,6 @@ export function parseReceipt(textLines) {
     };
   }
 
-  // ✅ Основной цикл — как в scan.js
   let i = 0;
   while (i < lines.length) {
     const cur = lines[i];
@@ -437,9 +422,14 @@ export function parseReceipt(textLines) {
       continue;
     }
 
-    // 2. Метаданные / фильтры / категории — пропускаем
+    // 2. Метаданные / фильтры / сводки
     if (isMetadataLine(curText)) { i++; continue; }
     if (looksLikeFilterLine(curText)) { i++; continue; }
+
+    // ✅ Сводки с 2+ рублями (например, '117 085 Р 106 515 Р')
+    const roubles = (curText.match(/[₽рРPpL]/g) || []).length;
+    if (roubles >= 2) { i++; continue; }
+
     if (SUMMARY_LINE_RE.test(curText) && !extractAmount(curText)) { i++; continue; }
 
     // 3. Сумма?
@@ -449,11 +439,9 @@ export function parseReceipt(textLines) {
       let title = '';
       let category = '';
 
-      // 3a. Если сумма + title в одной строке
       if (amt.rest && looksLikeTitle(amt.rest)) {
         title = amt.rest;
 
-        // Следующая строка = категория?
         if (i + 1 < lines.length) {
           const next = lines[i + 1];
           if (looksLikeCategory(next.text)) {
@@ -469,11 +457,9 @@ export function parseReceipt(textLines) {
         continue;
       }
 
-      // 3b. Иначе — берём title/category из соседних строк
       if (i - 1 >= 0) {
         const prev = lines[i - 1];
 
-        // Prev — категория? (для «Красное и белое / Супермаркеты / -104,97 ₽»)
         if (looksLikeCategory(prev.text) && i - 2 >= 0) {
           const prev2 = lines[i - 2];
           if (looksLikeTitle(prev2.text) && !isAmountLine(prev2.text)) {
