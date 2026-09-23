@@ -6,6 +6,17 @@ const router = Router();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me';
 const SESSION_DAYS = Number(process.env.SESSION_DAYS) || 30;
+const IS_PROD = process.env.NODE_ENV === 'production';
+
+// ✅ Единый набор опций cookie для login и logout
+const COOKIE_OPTS = {
+  httpOnly: true,
+  // Для кросс-доменных запросов (Vercel ↔ Amvera) нужен 'none' + secure.
+  // В dev (localhost) — 'lax', иначе браузер отклонит cookie без HTTPS.
+  sameSite: IS_PROD ? 'none' : 'lax',
+  secure: IS_PROD,
+  path: '/',
+};
 
 // Пользователи — берём PIN из .env, хешируем при старте
 // ⚠️ В продакшене пользователей стоит хранить в БД
@@ -48,16 +59,17 @@ router.post('/login', async (req, res) => {
       { expiresIn: `${SESSION_DAYS}d` }
     );
 
+    // ✅ Ставим httpOnly-cookie для кросс-доменной работы
     res.cookie('token', token, {
-      httpOnly: true,
-      sameSite: 'lax',
-      secure: process.env.NODE_ENV === 'production',
+      ...COOKIE_OPTS,
       maxAge: SESSION_DAYS * 24 * 60 * 60 * 1000,
-      path: '/',
     });
 
     console.log(`[auth] ✓ успешный вход: ${user} от ${req.ip}`);
-    res.json({ ok: true, user, token, expiresInDays: SESSION_DAYS });
+    console.log(`[auth] cookie: sameSite=${COOKIE_OPTS.sameSite}, secure=${COOKIE_OPTS.secure}`);
+
+    // ✅ НЕ отдаём токен в JSON — он уже в httpOnly-cookie
+    res.json({ ok: true, user, expiresInDays: SESSION_DAYS });
 
   } catch (err) {
     console.error('[auth] ОШИБКА в /login:', err);
@@ -69,7 +81,8 @@ router.post('/login', async (req, res) => {
  * POST /api/auth/logout
  */
 router.post('/logout', (req, res) => {
-  res.clearCookie('token', { path: '/' });
+  // ✅ Те же опции, что при установке — иначе clearCookie может не сработать
+  res.clearCookie('token', COOKIE_OPTS);
   res.json({ ok: true });
 });
 
