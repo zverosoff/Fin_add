@@ -1,10 +1,13 @@
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue';
+import { ref, onMounted, onUnmounted, watch } from 'vue';
+import { useRoute } from 'vue-router';
 import { onDataStatus } from '@/composables/useDataStatus';
 
 const props = defineProps({
   title: { type: String, required: true },
 });
+
+const route = useRoute();
 
 const hidden = ref(false);
 const statusText = ref('Подключение к серверу…');
@@ -17,10 +20,16 @@ let fallbackTimer = null;
 let scrollRaf = null;
 let unsubscribe = null;
 
-onMounted(() => {
+function startHideTimer() {
+  if (hideTimer) clearTimeout(hideTimer);
   hideTimer = setTimeout(() => {
     hidden.value = true;
   }, 5000);
+}
+
+onMounted(() => {
+  startHideTimer();
+  window.scrollTo({ top: 0, behavior: 'instant' });
 
   unsubscribe = onDataStatus((detail) => {
     handleStatusUpdate(detail);
@@ -45,6 +54,13 @@ onUnmounted(() => {
   window.removeEventListener('scroll', onScroll);
   window.removeEventListener('online', onOnlineChange);
   window.removeEventListener('offline', onOnlineChange);
+});
+
+// ✅ При смене маршрута — снова показать hero + перезапустить таймер
+watch(() => route.path, () => {
+  hidden.value = false;
+  window.scrollTo({ top: 0, behavior: 'instant' });
+  startHideTimer();
 });
 
 function handleStatusUpdate(detail) {
@@ -79,7 +95,6 @@ function onScroll() {
 }
 
 function onOnlineChange() {
-  // Обновление статуса от внешнего события
   if (!navigator.onLine) {
     statusType.value = 'error';
     statusText.value = 'Офлайн';
@@ -99,7 +114,6 @@ function onOnlineChange() {
       <span class="status-text">{{ statusText }}</span>
     </div>
   </div>
-  <!-- ✅ freshness-indicator убран — статус показывает FAB -->
 </template>
 
 <style scoped lang="scss">

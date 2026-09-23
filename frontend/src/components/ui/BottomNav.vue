@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, watch, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useWebSocket } from '@/composables/useWebSocket';
 import { useAccountsStore } from '@/stores/accounts';
@@ -11,24 +11,64 @@ const { connected } = useWebSocket();
 const accounts = useAccountsStore();
 const scanStore = useScanStore();
 
+// ✅ FAB: показать спиннер 2-3 сек после приветствия
+const fabBooting = ref(true);
+onMounted(() => {
+  setTimeout(() => {
+    fabBooting.value = false;
+  }, 2500);
+});
+
 // Статус сервера
 const serverStatus = computed(() => {
+  if (fabBooting.value) return 'loading';
   if (!accounts.loaded) return 'loading';
   if (!connected.value) return 'error';
   return 'ok';
 });
 
-// Левая часть — 2 таба
+// 2 таба слева
 const navLeft = [
   { to: '/finance',   icon: '💳', label: 'Финансы' },
   { to: '/analytics', icon: '📊', label: 'Анализ' },
 ];
 
-// Правая часть — 2 таба
+// 2 таба справа
 const navRight = [
   { to: '/deposits', icon: '💎', label: 'Вклады' },
   { to: '/profile',  icon: '👤', label: 'Профиль' },
 ];
+
+// ✅ Все табы для расчёта позиции индикатора
+const allTabs = [...navLeft, ...navRight];
+
+const activeIndex = computed(() => {
+  for (let i = 0; i < allTabs.length; i++) {
+    const to = allTabs[i].to;
+    if (route.path === to || route.path.startsWith(to + '/')) {
+      return i;
+    }
+  }
+  return -1;
+});
+
+// Позиция индикатора: слева = index, справа = index + 3 (пропуская FAB)
+const indicatorStyle = computed(() => {
+  const idx = activeIndex.value;
+  if (idx < 0) return { opacity: 0 };
+
+  // Колонки: [0=Финансы] [1=Анализ] [2=FAB] [3=Вклады] [4=Профиль]
+  const colIndex = idx < 2 ? idx : idx + 1;
+  const columns = 5;
+  const widthPercent = 100 / columns;
+  const leftPercent = colIndex * widthPercent;
+
+  return {
+    opacity: 1,
+    left: leftPercent + '%',
+    width: widthPercent + '%',
+  };
+});
 
 function isActive(item) {
   return route.path === item.to || route.path.startsWith(item.to + '/');
@@ -39,16 +79,18 @@ function go(item) {
 }
 
 function handleFabClick() {
-  // ✅ FAB всегда открывает ScanModal, независимо от статуса
-  // Если нужна блокировка при ошибке — раскомментируйте
-  // if (serverStatus.value === 'error') return;
-
   scanStore.open();
 }
 </script>
 
 <template>
   <nav class="bottom-nav">
+    <!-- ✅ Переезжающий индикатор -->
+    <div
+      class="bn-indicator"
+      :style="indicatorStyle"
+    ></div>
+
     <!-- Финансы, Анализ -->
     <button
       v-for="item in navLeft"
@@ -62,7 +104,7 @@ function handleFabClick() {
       <span class="bn-label">{{ item.label }}</span>
     </button>
 
-    <!-- FAB по центру (3-я позиция из 5) -->
+    <!-- FAB -->
     <div class="bn-fab-wrapper">
       <button
         type="button"
@@ -71,17 +113,14 @@ function handleFabClick() {
         @click="handleFabClick"
         aria-label="Сканировать чек"
       >
-        <!-- Loading -->
         <svg v-if="serverStatus === 'loading'" class="bn-fab-spinner" viewBox="0 0 50 50">
           <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
         </svg>
 
-        <!-- OK -->
         <svg v-else-if="serverStatus === 'ok'" class="bn-fab-icon" viewBox="0 0 24 24" fill="currentColor">
           <path d="M9 3 7.17 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.17L15 3H9zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
         </svg>
 
-        <!-- Error -->
         <svg v-else class="bn-fab-icon" viewBox="0 0 24 24" fill="currentColor">
           <path d="M12 2 1 21h22L12 2zm1 16h-2v-2h2v2zm0-4h-2V9h2v5z"/>
         </svg>
@@ -104,9 +143,6 @@ function handleFabClick() {
 </template>
 
 <style scoped lang="scss">
-/* ============================================================
-   КОНТЕЙНЕР
-   ============================================================ */
 .bottom-nav {
   position: fixed;
   bottom: 0;
@@ -129,10 +165,25 @@ function handleFabClick() {
     0 -2px 8px -4px rgba(15, 23, 42, 0.06);
 }
 
-/* ============================================================
-   ОБЫЧНЫЕ ТАБЫ
-   ============================================================ */
+/* ✅ Переезжающий индикатор */
+.bn-indicator {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.08));
+  pointer-events: none;
+  transition:
+    left 0.35s cubic-bezier(.34,1.56,.64,1),
+    width 0.35s cubic-bezier(.34,1.56,.64,1),
+    opacity 0.25s ease;
+  z-index: 1;
+  margin: 0 4px;
+}
+
 .bn-item {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -146,18 +197,15 @@ function handleFabClick() {
   font-size: 10.5px;
   font-weight: 600;
   cursor: pointer;
-  transition: color 0.18s, transform 0.18s, background 0.18s;
+  transition: color 0.25s, transform 0.18s;
   border-radius: 12px;
   min-width: 0;
 
   &:hover { color: #64748b; }
-
   &:active { transform: scale(0.94); }
 
-  /* ✅ Активная вкладка — фиолетовый цвет + фоновая плашка */
   &.active {
     color: #4f46e5;
-    background: rgba(99, 102, 241, 0.08);
 
     .bn-icon {
       transform: translateY(-2px) scale(1.1);
@@ -174,7 +222,7 @@ function handleFabClick() {
 .bn-icon {
   font-size: 22px;
   line-height: 1;
-  transition: transform 0.22s cubic-bezier(.34,1.56,.64,1);
+  transition: transform 0.35s cubic-bezier(.34,1.56,.64,1), filter 0.25s;
 }
 
 .bn-label {
@@ -184,18 +232,16 @@ function handleFabClick() {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
-  transition: color 0.18s;
+  transition: color 0.25s;
 }
 
-/* ============================================================
-   ЦЕНТРАЛЬНАЯ FAB
-   ============================================================ */
 .bn-fab-wrapper {
   display: flex;
   justify-content: center;
   align-items: flex-end;
   padding: 0 6px 4px;
   position: relative;
+  z-index: 2;
 }
 
 .bn-fab {
@@ -254,9 +300,7 @@ function handleFabClick() {
   }
 }
 
-@keyframes spinFab {
-  to { transform: rotate(360deg); }
-}
+@keyframes spinFab { to { transform: rotate(360deg); } }
 
 @keyframes dashFab {
   0%   { stroke-dasharray: 1, 150; stroke-dashoffset: 0; }
@@ -269,24 +313,18 @@ function handleFabClick() {
   height: 26px;
 }
 
-/* ============================================================
-   МОБИЛЬНЫЙ
-   ============================================================ */
 @media (max-width: 700px) {
   .bottom-nav {
     padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0));
     border-radius: 20px 20px 0 0;
   }
-
   .bn-icon { font-size: 20px; }
   .bn-label { font-size: 10px; }
-
   .bn-fab {
     width: 54px;
     height: 54px;
     margin-top: -24px;
   }
-
   .bn-fab-icon { width: 24px; height: 24px; }
   .bn-fab-spinner { width: 24px; height: 24px; }
 }

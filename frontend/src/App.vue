@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useAccountsStore } from '@/stores/accounts';
 import { useWebSocket } from '@/composables/useWebSocket';
 import { useScanStore } from '@/stores/scan';
+import { notifySaved } from '@/composables/useDataStatus';
 import WelcomeOverlay from '@/components/ui/WelcomeOverlay.vue';
 import ToastContainer from '@/components/ui/ToastContainer.vue';
 import BottomNav from '@/components/ui/BottomNav.vue';
@@ -24,13 +25,11 @@ const percent = ref(0);
 const stage = ref('Запуск…');
 const done = ref(false);
 
-// Модалки, управляемые из App.vue
 const manualOpen = ref(false);
 const pdfOpen = ref(false);
 
 const showBottomNav = computed(() => route.name !== 'login');
 
-// ✅ Переключения из ScanModal
 function switchToManual() {
   scanStore.close();
   manualOpen.value = true;
@@ -92,8 +91,10 @@ onMounted(async () => {
     stage.value = 'Подключение…';
     percent.value = 95;
 
-    // ✅ WebSocket подключается ГЛОБАЛЬНО — один раз
     connect();
+
+    // ✅ Уведомляем PageHero, что всё готово
+    notifySaved('готово');
 
     percent.value = 100;
     stage.value = 'Готово!';
@@ -123,7 +124,6 @@ onUnmounted(() => {
 
   <BottomNav v-if="showBottomNav" />
 
-  <!-- ✅ ScanModal теперь глобальный — открывается с любой вкладки -->
   <ScanModal
     v-model="scanStore.isOpen"
     @switch-to-manual="switchToManual"
