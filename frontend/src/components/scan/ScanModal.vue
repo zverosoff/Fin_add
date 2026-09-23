@@ -420,7 +420,8 @@ function close() {
 
     <!-- ШАГ 1. Загрузка -->
     <div v-if="step === 'upload'" class="step">
-      <div class="fields-row">
+      <!-- ✅ Поля видны ТОЛЬКО пока файл не выбран -->
+      <div v-if="!file" class="fields-row">
         <div class="field">
           <label>👤 Кто вносит</label>
           <select v-model="user">
@@ -438,7 +439,8 @@ function close() {
         </div>
       </div>
 
-      <div class="field">
+      <!-- ✅ Кнопка загрузки — тоже только пока файл не выбран -->
+      <div v-if="!file" class="field">
         <label>📷 Фото чека / скриншот</label>
         <input
           id="scanFileInput"
@@ -454,6 +456,21 @@ function close() {
             <span class="upload-sub">Скриншот Т-Банка, Сбера или фото чека</span>
           </span>
         </button>
+      </div>
+
+      <!-- ✅ Если файл уже выбран — показываем компактную кнопку «Заменить» -->
+      <div v-else class="replace-file-row">
+        <span class="replace-file-label">📷 Файл выбран</span>
+        <button class="replace-file-btn" type="button" @click="triggerFileInput">
+          Заменить
+        </button>
+        <input
+          id="scanFileInput"
+          type="file"
+          accept="image/*"
+          hidden
+          @change="onFileSelected"
+        />
       </div>
 
       <div v-if="filePreview" class="preview-block">
@@ -567,8 +584,6 @@ function close() {
           </button>
         </div>
       </div>
-
-      <!-- ✅ Кнопки выбора/снятия видимых УДАЛЕНЫ -->
 
       <div class="items-list">
         <div
@@ -728,6 +743,43 @@ function close() {
   }
 }
 
+/* ✅ Компактная строка «Файл выбран» + Заменить */
+.replace-file-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(139, 92, 246, 0.06));
+  border: 1px solid rgba(56, 189, 248, 0.25);
+}
+
+.replace-file-label {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.replace-file-btn {
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  background: #ffffff;
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+
+  &:hover {
+    background: rgba(56, 189, 248, 0.12);
+    border-color: var(--accent);
+  }
+}
+
 .upload-btn {
   display: flex;
   align-items: center;
@@ -884,6 +936,93 @@ function close() {
   strong {
     color: var(--accent);
     font-family: var(--mono);
+  }
+}
+
+/* Сканирующий луч */
+.preview-image-wrapper.is-scanning .preview-image {
+  filter: brightness(0.7) contrast(1.1);
+  transition: filter 0.3s ease;
+}
+
+.scan-beam {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 3;
+  border-radius: 12px;
+}
+
+.scan-beam-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(56, 189, 248, 0.4) 20%,
+    rgba(139, 92, 246, 0.9) 50%,
+    rgba(56, 189, 248, 0.4) 80%,
+    transparent 100%);
+  box-shadow:
+    0 0 12px rgba(56, 189, 248, 0.9),
+    0 0 30px rgba(139, 92, 246, 0.6);
+  animation: scanBeamMove 1s cubic-bezier(.45,.05,.55,.95) infinite;
+}
+
+.scan-beam-glow {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 80px;
+  background: linear-gradient(180deg,
+    transparent 0%,
+    rgba(56, 189, 248, 0.15) 40%,
+    rgba(139, 92, 246, 0.25) 50%,
+    rgba(56, 189, 248, 0.15) 60%,
+    transparent 100%);
+  animation: scanBeamMove 1s cubic-bezier(.45,.05,.55,.95) infinite;
+  margin-top: -40px;
+}
+
+@keyframes scanBeamMove {
+  0%   { top: -15%;  opacity: 0; }
+  15%  { opacity: 1; }
+  85%  { opacity: 1; }
+  100% { top: 115%;  opacity: 0; }
+}
+
+.preview-image-wrapper.is-scanning::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(56, 189, 248, 0.6);
+  border-radius: 12px;
+  pointer-events: none;
+  animation: scanPulse 1.8s ease-in-out infinite;
+  z-index: 4;
+}
+
+@keyframes scanPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.5),
+                inset 0 0 20px rgba(56, 189, 248, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 20px 4px rgba(139, 92, 246, 0.4),
+                inset 0 0 30px rgba(139, 92, 246, 0.25);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scan-beam-line,
+  .scan-beam-glow,
+  .preview-image-wrapper.is-scanning::after {
+    animation: none;
+  }
+  .scan-beam-glow {
+    background: rgba(56, 189, 248, 0.1);
   }
 }
 
@@ -1068,7 +1207,7 @@ function close() {
   &:active { transform: scale(0.97); }
 }
 
-/* Список операций — сетка */
+/* Список операций */
 .items-list {
   display: flex;
   flex-direction: column;
