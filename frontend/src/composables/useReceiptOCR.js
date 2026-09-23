@@ -344,27 +344,6 @@ export function parseReceipt(lines) {
 
     if (line.length < 2) continue;
 
-    // ✅ ДИАГНОСТИКА
-    const dbg = {
-      i,
-      line: line.slice(0, 50),
-      FILTER: FILTER_RE.test(line),
-      TIME: TIME_RE.test(line),
-      GARBAGE: GARBAGE_RE.test(line),
-      JUNK: JUNK_RE.test(line),
-      CARD: CARD_TYPE_RE.test(line),
-      BONUS: BONUS_RE.test(line),
-      RASROCHKA: RASROCHKA_RE.test(line),
-      MULTI: MULTI_AMOUNT_RE.test(line),
-      SUMMARY: SUMMARY_RE.test(line),
-      roubleCount: (line.match(new RegExp(ROUBLE_CLASS, 'g')) || []).length,
-      rel: !!extractRelativeDate(line),
-      date: !!extractDate(line),
-      lastNum: findLastNumber(line),
-      onlyAmount: ONLY_AMOUNT_RE.test(line),
-    };
-    console.log('[scan][dbg]', JSON.stringify(dbg));
-
     if (FILTER_RE.test(line)) continue;
     if (TIME_RE.test(line)) continue;
     if (GARBAGE_RE.test(line)) continue;
@@ -373,10 +352,14 @@ export function parseReceipt(lines) {
     if (BONUS_RE.test(line)) continue;
     if (RASROCHKA_RE.test(line)) continue;
 
+    // ✅ Считаем рубли/символы валюты
     const roubleMatches = line.match(new RegExp(ROUBLE_CLASS, 'g')) || [];
-    if (MULTI_AMOUNT_RE.test(line)) continue;
+    const roubleCount = roubleMatches.length;
+
+    // ✅ MULTI применяем ТОЛЬКО если в строке 2+ валюты
+    if (roubleCount >= 2 && MULTI_AMOUNT_RE.test(line)) continue;
     if (SUMMARY_RE.test(line)) continue;
-    if (roubleMatches.length >= 2) continue;
+    if (roubleCount >= 2) continue;
 
     const rel = extractRelativeDate(line);
     if (rel && line.length < 30) {
