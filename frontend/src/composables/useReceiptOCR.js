@@ -1,7 +1,7 @@
 /**
  * OCR-обработка чеков и скриншотов банковских приложений через Tesseract.js
  * ✅ Автоматически отрезает шапку/фильтры/сводки — парсит только список операций.
- * ✅ Округление до целого.
+ * ✅ Возвращает bbox первой даты для визуальной разметки.
  */
 
 export function preprocessImage(file) {
@@ -89,7 +89,12 @@ export async function recognizeText(file, onProgress) {
 
   console.log('[scan] OCR lines:', textLines);
 
-  return textLines;
+  // ✅ Возвращаем и строки, и bbox для отрисовки
+  return {
+    lines: textLines,
+    imageWidth: data.lines?.[0]?.bbox?.x1 || null,
+    imageHeight: data.lines?.[data.lines.length - 1]?.bbox?.y1 || null,
+  };
 }
 
 /* ============================================================
@@ -190,7 +195,7 @@ const MONTH_INDEX = {
   'август': 7, 'сентябр': 8, 'октябр': 9, 'ноябр': 10, 'декабр': 11,
 };
 
-function isDateLine(s) {
+export function isDateLine(s) {
   if (!s) return false;
   const lower = s.toLowerCase().trim();
 
@@ -209,6 +214,20 @@ function isDateLine(s) {
   }
 
   return false;
+}
+
+/**
+ * ✅ Найти Y-координату первой строки-даты.
+ * @returns {number|null} — Y (в пикселях исходного изображения) или null
+ */
+export function findFirstDateY(textLines) {
+  for (const line of textLines) {
+    if (!line.bbox) continue;
+    if (isDateLine(line.text)) {
+      return line.bbox.y0;
+    }
+  }
+  return null;
 }
 
 function extractDate(s) {
@@ -346,12 +365,7 @@ function cleanCategory(raw) {
     .trim();
 }
 
-/**
- * ✅ Обрезаем всё до первой строки-даты.
- * Это отсекает шапку, фильтры, сводки (они все над первой датой).
- */
 function trimBeforeFirstDate(lines) {
-  // Ищем минимум 2 строки-даты, чтобы не обрезать случайно одно число
   const dateIndices = [];
   for (let i = 0; i < lines.length; i++) {
     if (isDateLine(lines[i].text)) {
@@ -360,12 +374,10 @@ function trimBeforeFirstDate(lines) {
   }
 
   if (dateIndices.length === 0) {
-    // Дат не нашли — возвращаем всё как есть
     console.log('[scan] дат не найдено, парсим всё');
     return lines;
   }
 
-  // Обрезаем до первой даты
   const firstDateIdx = dateIndices[0];
   console.log(`[scan] обрезаем ${firstDateIdx} строк до первой даты`);
   return lines.slice(firstDateIdx);
@@ -380,7 +392,6 @@ export function parseReceipt(textLines) {
     lines.push({ text: t, order: idx });
   }
 
-  // ✅ Обрезаем шапку/фильтры/сводки
   const trimmed = trimBeforeFirstDate(lines);
 
   console.log('[scan] после обрезки:', trimmed.map(l => l.text));
@@ -411,7 +422,6 @@ export function parseReceipt(textLines) {
   while (i < trimmed.length) {
     const curText = trimmed[i].text;
 
-    // 1. Дата?
     if (isDateLine(curText)) {
       const d = extractDate(curText);
       if (d) currentDate = d;
@@ -419,18 +429,15 @@ export function parseReceipt(textLines) {
       continue;
     }
 
-    // 2. Сумма?
     const amt = extractAmount(curText);
 
     if (amt) {
       let title = '';
       let category = '';
 
-      // 2a. Есть title в той же строке
       if (amt.rest && looksLikeTitle(amt.rest)) {
         title = amt.rest;
 
-        // Следующая строка — категория?
         if (i + 1 < trimmed.length) {
           const next = trimmed[i + 1];
           if (looksLikeCategory(next.text)) {
@@ -446,7 +453,6 @@ export function parseReceipt(textLines) {
         continue;
       }
 
-      // 2b. Title в предыдущей строке
       if (i - 1 >= 0) {
         const prev = trimmed[i - 1];
 

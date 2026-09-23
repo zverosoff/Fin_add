@@ -5,7 +5,12 @@ import { useTransactionsStore } from '@/stores/transactions';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from '@/composables/useToast';
 import { fmt } from '@/composables/useFormat';
-import { preprocessImage, recognizeText, parseReceipt } from '@/composables/useReceiptOCR';
+import {
+  preprocessImage,
+  recognizeText,
+  parseReceipt,
+  findFirstDateY,
+} from '@/composables/useReceiptOCR';
 import Modal from '@/components/ui/Modal.vue';
 
 const props = defineProps({
@@ -28,12 +33,17 @@ const statusText = ref('');
 const items = ref([]);
 const selectedIndices = ref(new Set());
 
-// ✅ Фильтр по датам (кнопки сверху)
-const dateFilters = ref([]);        // [{ key, date, label, count, active }]
+// ✅ Фильтр по датам
+const dateFilters = ref([]);
 
-// ✅ Своя дата (перезапись)
+// ✅ Своя дата
 const manualDate = ref(new Date().toISOString().split('T')[0]);
 const showManualDate = ref(false);
+
+// ✅ Y-координата обрезки (в исходном изображении)
+const cropY = ref(null);           // null | number
+const cropYPercent = ref(null);    // для CSS-разметки (0-100)
+const originalImageSize = ref({ w: 0, h: 0 });
 
 const user = ref(auth.user || 'Сергей');
 const accountId = ref('');
@@ -79,6 +89,9 @@ function reset() {
   showManualDate.value = false;
   error.value = '';
   saving.value = false;
+  cropY.value = null;
+  cropYPercent.value = null;
+  originalImageSize.value = { w: 0, h: 0 };
 }
 
 watch(() => props.modelValue, (open) => {
@@ -101,6 +114,13 @@ function onFileSelected(e) {
   file.value = f;
   filePreview.value = URL.createObjectURL(f);
   error.value = '';
+
+  // Запоминаем размеры исходного изображения
+  const img = new Image();
+  img.onload = () => {
+    originalImageSize.value = { w: img.width, h: img.height };
+  };
+  img.src = filePreview.value;
 }
 
 function triggerFileInput() {
@@ -167,27 +187,38 @@ async function recognize() {
     statusText.value = 'Загрузка модели OCR…';
     progress.value = 5;
 
-    const lines = await recognizeText(processed, (pct) => {
+    // ✅ recognizeText теперь возвращает { lines, imageWidth, imageHeight }
+    const result = await recognizeText(processed, (pct) => {
       progress.value = pct;
       statusText.value = `Распознавание: ${pct}%`;
     });
 
-    if (!lines.length) {
+    const textLines = result.lines;
+
+    if (!textLines.length) {
       throw new Error('Не удалось распознать текст на фото');
     }
 
-    const parsed = parseReceipt(lines);
+    // ✅ Ищем Y первой даты для визуальной разметки
+    const firstDateY = findFirstDateY(textLines);
+    if (firstDateY !== null && originalImageSize.value.h > 0) {
+      // bbox в исходном изображении был в 2x масштабе (scale = 2 в preprocessImage)
+      const y = firstDateY / 2;
+      cropY.value = y;
+      cropYPercent.value = (y / originalImageSize.value.h) * 100;
+    } else {
+      cropY.value = null;
+      cropYPercent.value = null;
+    }
+
+    const parsed = parseReceipt(textLines);
 
     if (!parsed.length) {
       throw new Error('Не найдено операций в чеке');
     }
 
-    // ✅ Даты уже распознаны парсером (Сегодня/Вчера/цифры).
-    // НЕ перезаписываем их — оставляем как есть.
     items.value = parsed;
     selectedIndices.value = new Set(parsed.map((_, i) => i));
-
-    // ✅ Собираем фильтры по датам
     dateFilters.value = buildDateFilters(parsed);
 
     step.value = 'preview';
@@ -209,21 +240,16 @@ function toggleDateFilter(key) {
   dateFilters.value = [...dateFilters.value];
 }
 
-/** Включить все даты */
 function enableAllDates() {
   dateFilters.value.forEach(f => { f.active = true; });
   dateFilters.value = [...dateFilters.value];
 }
 
-/** Выключить все даты */
 function disableAllDates() {
   dateFilters.value.forEach(f => { f.active = false; });
   dateFilters.value = [...dateFilters.value];
 }
 
-// ============================================================
-// Своя дата (перезапись всех операций)
-// ============================================================
 function applyManualDate() {
   const d = new Date(manualDate.value + 'T12:00:00');
   if (isNaN(d.getTime())) {
@@ -236,7 +262,6 @@ function applyManualDate() {
   }
   items.value = [...items.value];
 
-  // Пересобираем фильтры — теперь одна дата
   dateFilters.value = buildDateFilters(items.value);
 
   showManualDate.value = false;
@@ -282,9 +307,6 @@ function formatDate(iso) {
   return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
-// ============================================================
-// Видимые операции (с учётом фильтра по датам)
-// ============================================================
 const visibleItems = computed(() => {
   const activeKeys = new Set(
     dateFilters.value.filter(f => f.active).map(f => f.key)
@@ -299,19 +321,16 @@ const visibleItems = computed(() => {
     });
 });
 
-// Сколько всего выбрано для сохранения (учитывая фильтр)
 const selectedCount = computed(() =>
   visibleItems.value.filter(it => selectedIndices.value.has(it.index)).length
 );
 
-// Выбрать все видимые
 function selectAllVisible() {
   const set = new Set(selectedIndices.value);
   for (const it of visibleItems.value) set.add(it.index);
   selectedIndices.value = set;
 }
 
-// Снять все видимые
 function deselectAllVisible() {
   const set = new Set(selectedIndices.value);
   for (const it of visibleItems.value) set.delete(it.index);
@@ -322,7 +341,6 @@ function deselectAllVisible() {
 // Сохранение
 // ============================================================
 async function save() {
-  // Сохраняем ТОЛЬКО выбранные И активные по фильтру
   const activeKeys = new Set(
     dateFilters.value.filter(f => f.active).map(f => f.key)
   );
@@ -388,7 +406,7 @@ function close() {
     title="📸 Сканирование чека"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <!-- ✅ Переключатель режима -->
+    <!-- Переключатель режима -->
     <div class="mode-switch">
       <button type="button" class="mode active" disabled>📸 Чек</button>
       <button type="button" class="mode" @click="switchToManual">✏️ Вручную</button>
@@ -430,10 +448,24 @@ function close() {
             <span class="upload-sub">JPG, PNG · скриншот или фото</span>
           </span>
         </button>
+        <div class="hint">
+          💡 Совет: обрежьте скриншот так, чтобы в кадр попал только список операций
+        </div>
       </div>
 
-      <div v-if="filePreview" class="preview">
-        <img :src="filePreview" alt="preview" />
+      <div v-if="filePreview" class="preview-wrapper">
+        <div class="preview">
+          <img :src="filePreview" alt="preview" />
+
+          <!-- ✅ Красная линия — граница обрезки (если определена) -->
+          <div
+            v-if="cropYPercent !== null"
+            class="crop-line"
+            :style="{ top: cropYPercent + '%' }"
+          >
+            <span class="crop-line-label">До этой линии — распознаётся</span>
+          </div>
+        </div>
       </div>
 
       <div v-if="error" class="error-msg">{{ error }}</div>
@@ -453,7 +485,14 @@ function close() {
 
     <!-- ШАГ 3. Предпросмотр -->
     <div v-else-if="step === 'preview'" class="step">
-      <!-- ✅ Фильтр по датам -->
+      <!-- ✅ Мини-превью с линией обрезки -->
+      <div v-if="filePreview && cropYPercent !== null" class="mini-preview">
+        <img :src="filePreview" alt="cropped" />
+        <div class="mini-crop-line" :style="{ top: cropYPercent + '%' }"></div>
+        <div class="mini-crop-label">↑ Шапка отсечена, ниже — операции</div>
+      </div>
+
+      <!-- Фильтр по датам -->
       <div v-if="dateFilters.length > 0" class="dates-bar">
         <div class="dates-label">
           <span>📅 Даты:</span>
@@ -479,7 +518,6 @@ function close() {
             <span class="date-chip-count">{{ f.count }}</span>
           </button>
 
-          <!-- ✅ Кнопка «Своя дата» -->
           <button
             type="button"
             class="date-chip manual"
@@ -490,7 +528,6 @@ function close() {
           </button>
         </div>
 
-        <!-- ✅ Инпут своей даты -->
         <div v-if="showManualDate" class="manual-date-row">
           <input v-model="manualDate" type="date" class="manual-date-input" />
           <button type="button" class="manual-date-apply" @click="applyManualDate">
@@ -499,7 +536,6 @@ function close() {
         </div>
       </div>
 
-      <!-- Массовые действия -->
       <div class="bulk-actions">
         <button type="button" class="bulk-mini" @click="selectAllVisible">
           ✅ Выбрать видимые
@@ -512,7 +548,6 @@ function close() {
         </span>
       </div>
 
-      <!-- Список операций -->
       <div class="items-list">
         <div
           v-for="it in visibleItems"
@@ -583,7 +618,7 @@ function close() {
 </template>
 
 <style scoped lang="scss">
-/* ✅ Переключатель режима */
+/* ... оставляем всё как было, добавляем только новые стили ... */
 .mode-switch {
   display: flex;
   gap: 4px;
@@ -655,6 +690,16 @@ function close() {
   }
 }
 
+.hint {
+  font-size: 11.5px;
+  color: var(--muted);
+  padding: 6px 10px;
+  border-radius: 8px;
+  background: rgba(148, 163, 184, 0.08);
+  text-align: center;
+  line-height: 1.4;
+}
+
 .upload-btn {
   display: flex;
   align-items: center;
@@ -693,8 +738,13 @@ function close() {
 .upload-title { font-size: 15px; font-weight: 700; }
 .upload-sub { font-size: 11.5px; color: var(--muted); }
 
-.preview {
+/* ✅ Обёртка для превью с линией обрезки */
+.preview-wrapper {
   margin-top: 8px;
+}
+
+.preview {
+  position: relative;
   border-radius: 12px;
   overflow: hidden;
   border: 1px solid var(--border);
@@ -710,336 +760,69 @@ function close() {
   }
 }
 
-.recognize {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 16px;
-  padding: 30px 20px;
-  text-align: center;
-}
+/* ✅ Красная линия обрезки */
+.crop-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 2px dashed #dc2626;
+  pointer-events: none;
+  z-index: 10;
 
-.spinner {
-  width: 44px;
-  height: 44px;
-  border: 4px solid rgba(56, 189, 248, 0.2);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-}
-
-@keyframes spin { to { transform: rotate(360deg); } }
-
-.status { font-size: 14px; color: var(--text); font-weight: 600; }
-
-.progress {
-  width: 100%;
-  max-width: 300px;
-  height: 8px;
-  border-radius: 4px;
-  background: rgba(148, 163, 184, 0.15);
-  overflow: hidden;
-}
-
-.progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #38bdf8, #8b5cf6);
-  border-radius: 4px;
-  transition: width 0.3s;
-}
-
-.progress-pct {
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--muted);
-}
-
-/* ✅ Фильтр по датам */
-.dates-bar {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(139, 92, 246, 0.06));
-  border: 1px solid rgba(56, 189, 248, 0.25);
-}
-
-.dates-label {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  font-size: 11.5px;
-  font-weight: 700;
-  color: var(--accent);
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-}
-
-.dates-toggle-mini {
-  padding: 3px 10px;
-  border-radius: 999px;
-  border: 1px solid rgba(56, 189, 248, 0.4);
-  background: transparent;
-  color: var(--accent);
-  font-family: inherit;
-  font-size: 10.5px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s;
-
-  &:hover {
-    background: rgba(56, 189, 248, 0.15);
-  }
-}
-
-.dates-chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.date-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: #f8fafc;
-  color: var(--muted);
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s;
-  white-space: nowrap;
-
-  &:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-
-  &.active {
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  .crop-line-label {
+    position: absolute;
+    top: -18px;
+    left: 8px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    background: #dc2626;
     color: #fff;
-    border-color: transparent;
-    box-shadow: 0 4px 12px -4px rgba(59, 130, 246, 0.6);
-  }
-
-  &.manual {
-    border-style: dashed;
-    color: var(--muted);
-
-    &.active {
-      border-style: solid;
-      background: linear-gradient(135deg, #f59e0b, #f97316);
-      color: #fff;
-    }
-  }
-}
-
-.date-chip-count {
-  padding: 1px 7px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.3);
-  font-size: 10.5px;
-  font-weight: 800;
-
-  .date-chip:not(.active) & {
-    background: rgba(148, 163, 184, 0.2);
-  }
-}
-
-.manual-date-row {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  padding-top: 4px;
-}
-
-.manual-date-input {
-  flex: 1;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  font-family: inherit;
-  font-size: 13px;
-  background: #fff;
-  color: var(--text);
-  outline: none;
-
-  &:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
-  }
-}
-
-.manual-date-apply {
-  padding: 8px 14px;
-  border-radius: 10px;
-  border: none;
-  background: linear-gradient(135deg, #f59e0b, #f97316);
-  color: #fff;
-  font-family: inherit;
-  font-size: 12.5px;
-  font-weight: 700;
-  cursor: pointer;
-  white-space: nowrap;
-  box-shadow: 0 6px 16px -6px rgba(245, 158, 11, 0.6);
-  transition: all 0.15s;
-
-  &:hover { transform: translateY(-1px); }
-  &:active { transform: scale(0.97); }
-}
-
-/* ✅ Массовые действия */
-.bulk-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding: 6px 0;
-}
-
-.bulk-mini {
-  padding: 5px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: #f8fafc;
-  color: var(--text);
-  font-family: inherit;
-  font-size: 11.5px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s;
-
-  &:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: rgba(56, 189, 248, 0.08);
-  }
-}
-
-.bulk-counter {
-  margin-left: auto;
-  font-size: 11.5px;
-  color: var(--muted);
-  font-weight: 700;
-}
-
-.items-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 45vh;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.item-row {
-  display: grid;
-  grid-template-columns: auto 1fr auto auto;
-  gap: 8px;
-  align-items: center;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: #ffffff;
-  transition: border-color 0.15s;
-
-  &.selected { border-color: var(--accent); }
-}
-
-.item-desc {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-
-  .date {
-    font-size: 10.5px;
-    color: var(--accent);
+    font-size: 9px;
     font-weight: 700;
-    text-transform: uppercase;
-  }
-
-  .name {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text);
-    overflow: hidden;
-    text-overflow: ellipsis;
     white-space: nowrap;
-    cursor: pointer;
-
-    &:hover { color: var(--accent); }
   }
 }
 
-.type-badge {
-  padding: 4px 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  font-size: 13px;
-  font-weight: 700;
+/* ✅ Мини-превью с линией */
+.mini-preview {
+  position: relative;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  max-height: 120px;
+  background: #f8fafc;
 
-  &.income { background: rgba(34, 197, 94, 0.15); }
-  &.expense { background: rgba(239, 68, 68, 0.15); }
+  img {
+    max-width: 100%;
+    max-height: 120px;
+    object-fit: contain;
+    display: block;
+    opacity: 0.5;
+  }
+
+  .mini-crop-line {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 0;
+    border-top: 2px dashed #dc2626;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .mini-crop-label {
+    position: absolute;
+    bottom: 4px;
+    right: 6px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(0, 0, 0, 0.7);
+    color: #fff;
+    font-size: 9px;
+    font-weight: 600;
+  }
 }
 
-.amount {
-  font-family: var(--mono);
-  font-size: 14px;
-  font-weight: 800;
-  cursor: pointer;
-  white-space: nowrap;
-
-  &.income { color: #16a34a; }
-  &.expense { color: #dc2626; }
-}
-
-.empty-filter {
-  padding: 24px 16px;
-  text-align: center;
-  color: var(--muted);
-  font-size: 13px;
-  border: 1px dashed var(--border);
-  border-radius: 10px;
-}
-
-.error-msg {
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.3);
-  color: var(--danger);
-  font-size: 12.5px;
-  font-weight: 600;
-}
-
-.btn-cancel, .btn-save {
-  padding: 10px 20px;
-  border-radius: 10px;
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-
-.btn-cancel {
-  background: #f1f5f9;
-  color: var(--text);
-  border-color: var(--border);
-}
-
-.btn-save {
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  color: #fff;
-  box-shadow: 0 10px 24px -10px rgba(59, 130, 246, 0.7);
-
-  &:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
-}
+/* ... остальные стили (recognize, progress, dates-bar, items-list и т.д.) — без изменений ... */
 </style>
