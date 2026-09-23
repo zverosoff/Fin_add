@@ -42,7 +42,6 @@ function onTouchStart(e) {
   if (!isMobile()) return;
   if (e.touches.length !== 1) return;
 
-  // Свайп только если начали с ручки или шапки
   const target = e.target;
   const isHandle = target.classList.contains('modal-handle')
     || target.closest('.modal-handle')
@@ -61,10 +60,8 @@ function onTouchMove(e) {
   if (e.touches.length !== 1) return;
 
   const dy = e.touches[0].clientY - swipeStartY.value;
-  // Только вниз
   swipeDeltaY.value = Math.max(0, dy);
 
-  // Применяем transform к box
   if (boxEl.value) {
     boxEl.value.style.transition = 'none';
     boxEl.value.style.transform = `translateY(${swipeDeltaY.value}px)`;
@@ -78,21 +75,18 @@ function onTouchEnd() {
   const threshold = 80;
 
   if (swipeDeltaY.value >= threshold) {
-    // Закрываем — анимируем до конца
     if (boxEl.value) {
       boxEl.value.style.transition = 'transform 0.25s ease-out';
       boxEl.value.style.transform = 'translateY(100%)';
     }
     setTimeout(() => {
       close();
-      // Сбрасываем transform после закрытия
       if (boxEl.value) {
         boxEl.value.style.transition = '';
         boxEl.value.style.transform = '';
       }
     }, 220);
   } else {
-    // Возврат на место
     if (boxEl.value) {
       boxEl.value.style.transition = 'transform 0.25s cubic-bezier(.34,1.56,.64,1)';
       boxEl.value.style.transform = 'translateY(0)';
@@ -129,14 +123,7 @@ onUnmounted(() => {
           @touchend="onTouchEnd"
           @touchcancel="onTouchEnd"
         >
-          <!-- Ручка-индикатор для мобильных -->
-          <div
-            class="modal-handle"
-            @touchstart.passive="onTouchStart"
-            @touchmove.passive="onTouchMove"
-            @touchend="onTouchEnd"
-            @touchcancel="onTouchEnd"
-          ></div>
+          <div class="modal-handle"></div>
 
           <header class="modal-head">
             <h3>{{ title }}</h3>
@@ -185,20 +172,15 @@ onUnmounted(() => {
   touch-action: pan-y;
 }
 
-/* Ручка-индикатор (только на мобильных) */
+/* ✅ Ручка-индикатор — тонкая, компактная (только на мобильных) */
 .modal-handle {
   display: none;
-  width: 40px;
-  height: 4px;
+  width: 36px;
+  height: 3px;
   border-radius: 2px;
-  background: rgba(148, 163, 184, 0.5);
-  margin: 8px auto 0;
+  background: rgba(148, 163, 184, 0.45);
+  margin: 6px auto 0;
   flex-shrink: 0;
-  padding: 8px 20px;
-  box-sizing: content-box;
-  cursor: grab;
-
-  &:active { cursor: grabbing; }
 }
 
 .modal-head {
@@ -272,7 +254,7 @@ onUnmounted(() => {
 }
 
 /* ============================================================
-   МОБИЛЬНАЯ — fullscreen снизу
+   МОБИЛЬНАЯ
    ============================================================ */
 @media (max-width: 700px) {
   .modal-overlay {
@@ -291,6 +273,12 @@ onUnmounted(() => {
 
   .modal-handle {
     display: block;
+    /* ✅ Расширенная зона для свайпа без визуального увеличения */
+    padding: 8px 20px;
+    margin: 0 auto;
+    background-clip: content-box;
+    box-sizing: content-box;
+    cursor: grab;
   }
 
   .modal-head {

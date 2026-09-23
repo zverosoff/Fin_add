@@ -36,13 +36,11 @@ const dateFilters = ref([]);
 const manualDate = ref(new Date().toISOString().split('T')[0]);
 const showManualDate = ref(false);
 
-// ✅ Обрезка
 const cropYPercent = ref(null);
 const previewLoading = ref(false);
 
-// ✅ Кэш результатов OCR — чтобы не делать его дважды
-const prefetchedLines = ref(null);       // результат первого OCR
-const prefetchedCropY = ref(null);       // Y-координата (в исходном масштабе)
+const prefetchedLines = ref(null);
+const prefetchedCropY = ref(null);
 
 const user = ref(auth.user || 'Сергей');
 const accountId = ref('');
@@ -103,7 +101,7 @@ watch(user, () => {
 });
 
 // ============================================================
-// ✅ Загрузка файла + АВТО-OCR
+// Загрузка файла + АВТО-OCR
 // ============================================================
 async function onFileSelected(e) {
   const f = e.target.files?.[0];
@@ -119,7 +117,6 @@ async function onFileSelected(e) {
   previewLoading.value = true;
 
   try {
-    // Размеры исходного изображения
     const img = new Image();
     await new Promise((res, rej) => {
       img.onload = res;
@@ -128,16 +125,14 @@ async function onFileSelected(e) {
     });
     const originalH = img.height;
 
-    // ✅ Один раз делаем OCR
     const processed = await preprocessImage(f);
     const result = await recognizeText(processed, () => {});
 
     prefetchedLines.value = result.lines;
 
-    // Ищем Y первой даты
     const firstY = findFirstDateY(result.lines);
     if (firstY !== null && originalH > 0) {
-      const y = firstY / 2; // scale=2 в preprocessImage
+      const y = firstY / 2;
       prefetchedCropY.value = y;
       cropYPercent.value = Math.min(95, Math.max(5, (y / originalH) * 100));
       console.log('[scan] линия обрезки:', cropYPercent.value + '%');
@@ -195,7 +190,7 @@ function formatDateLabel(d) {
 }
 
 // ============================================================
-// ✅ Переход к следующему шагу — без повторного OCR
+// Переход к следующему шагу
 // ============================================================
 async function recognize() {
   if (!file.value) {
@@ -205,11 +200,9 @@ async function recognize() {
 
   error.value = '';
 
-  // ✅ Если OCR уже был при выборе файла — переиспользуем
   let textLines = prefetchedLines.value;
 
   if (!textLines) {
-    // Fallback: делаем OCR сейчас (если автопоиск упал или ещё идёт)
     step.value = 'recognizing';
     progress.value = 0;
     statusText.value = 'Подготовка изображения…';
@@ -349,18 +342,6 @@ const selectedCount = computed(() =>
   visibleItems.value.filter(it => selectedIndices.value.has(it.index)).length
 );
 
-function selectAllVisible() {
-  const set = new Set(selectedIndices.value);
-  for (const it of visibleItems.value) set.add(it.index);
-  selectedIndices.value = set;
-}
-
-function deselectAllVisible() {
-  const set = new Set(selectedIndices.value);
-  for (const it of visibleItems.value) set.delete(it.index);
-  selectedIndices.value = set;
-}
-
 // ============================================================
 // Сохранение
 // ============================================================
@@ -466,16 +447,15 @@ function close() {
           hidden
           @change="onFileSelected"
         />
-<button class="upload-btn" type="button" @click="triggerFileInput">
-  <span class="upload-icon">📷</span>
-  <span class="upload-text">
-    <span class="upload-title">Выбрать файл</span>
-    <span class="upload-sub">Скриншот Т-Банка, Сбера или фото чека</span>
-  </span>
-</button>
+        <button class="upload-btn" type="button" @click="triggerFileInput">
+          <span class="upload-icon">📷</span>
+          <span class="upload-text">
+            <span class="upload-title">Выбрать файл</span>
+            <span class="upload-sub">Скриншот Т-Банка, Сбера или фото чека</span>
+          </span>
+        </button>
       </div>
 
-      <!-- ✅ Превью с анимацией сканирования -->
       <div v-if="filePreview" class="preview-block">
         <div class="preview-header">
           <span class="preview-title">📸 Превью распознавания</span>
@@ -493,7 +473,6 @@ function close() {
         <div class="preview-image-wrapper" :class="{ 'is-scanning': previewLoading }">
           <img :src="filePreview" alt="preview" class="preview-image" />
 
-          <!-- ✅ Магический луч -->
           <div v-if="previewLoading" class="scan-beam">
             <div class="scan-beam-glow"></div>
             <div class="scan-beam-line"></div>
@@ -589,17 +568,7 @@ function close() {
         </div>
       </div>
 
-      <div class="bulk-actions">
-        <button type="button" class="bulk-mini" @click="selectAllVisible">
-          ✅ Выбрать видимые
-        </button>
-        <button type="button" class="bulk-mini" @click="deselectAllVisible">
-          ⬜ Снять видимые
-        </button>
-        <span class="bulk-counter">
-          Выбрано: {{ selectedCount }} из {{ visibleItems.length }}
-        </span>
-      </div>
+      <!-- ✅ Кнопки выбора/снятия видимых УДАЛЕНЫ -->
 
       <div class="items-list">
         <div
@@ -681,9 +650,7 @@ function close() {
 </template>
 
 <style scoped lang="scss">
-/* ============================================================
-   Переключатель режима
-   ============================================================ */
+/* Переключатель режима */
 .mode-switch {
   display: flex;
   gap: 4px;
@@ -724,9 +691,6 @@ function close() {
 
 .step { display: flex; flex-direction: column; gap: 14px; }
 
-/* ============================================================
-   Поля
-   ============================================================ */
 .fields-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -764,9 +728,6 @@ function close() {
   }
 }
 
-/* ============================================================
-   Кнопка загрузки
-   ============================================================ */
 .upload-btn {
   display: flex;
   align-items: center;
@@ -806,9 +767,7 @@ function close() {
 .upload-title { font-size: 15px; font-weight: 700; }
 .upload-sub { font-size: 11.5px; color: var(--muted); }
 
-/* ============================================================
-   ✅ Превью с разметкой обрезки
-   ============================================================ */
+/* Превью */
 .preview-block {
   display: flex;
   flex-direction: column;
@@ -859,7 +818,6 @@ function close() {
 
 @keyframes spin { to { transform: rotate(360deg); } }
 
-/* Контейнер с изображением и разметкой */
 .preview-image-wrapper {
   position: relative;
   border-radius: 12px;
@@ -877,7 +835,6 @@ function close() {
   }
 }
 
-/* Затемнение верхней части */
 .preview-overlay-top {
   position: absolute;
   top: 0;
@@ -906,7 +863,6 @@ function close() {
   }
 }
 
-/* Красная линия */
 .preview-crop-line {
   position: absolute;
   left: 0;
@@ -931,9 +887,7 @@ function close() {
   }
 }
 
-/* ============================================================
-   Распознавание
-   ============================================================ */
+/* Распознавание */
 .recognize {
   display: flex;
   flex-direction: column;
@@ -976,9 +930,7 @@ function close() {
   color: var(--muted);
 }
 
-/* ============================================================
-   Даты
-   ============================================================ */
+/* Даты */
 .dates-bar {
   display: flex;
   flex-direction: column;
@@ -1116,46 +1068,7 @@ function close() {
   &:active { transform: scale(0.97); }
 }
 
-/* ============================================================
-   Массовые действия
-   ============================================================ */
-.bulk-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding: 4px 0;
-}
-
-.bulk-mini {
-  padding: 5px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: #f8fafc;
-  color: var(--text);
-  font-family: inherit;
-  font-size: 11.5px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s;
-
-  &:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: rgba(56, 189, 248, 0.08);
-  }
-}
-
-.bulk-counter {
-  margin-left: auto;
-  font-size: 11.5px;
-  color: var(--muted);
-  font-weight: 700;
-}
-
-/* ============================================================
-   ✅ Список операций — сетка
-   ============================================================ */
+/* Список операций — сетка */
 .items-list {
   display: flex;
   flex-direction: column;
@@ -1283,9 +1196,6 @@ function close() {
   font-weight: 600;
 }
 
-/* ============================================================
-   Кнопки
-   ============================================================ */
 .btn-cancel, .btn-save {
   padding: 10px 20px;
   border-radius: 10px;
@@ -1310,9 +1220,7 @@ function close() {
   &:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 }
 
-/* ============================================================
-   Мобильный
-   ============================================================ */
+/* Мобильный */
 @media (max-width: 700px) {
   .fields-row {
     grid-template-columns: 1fr;
@@ -1320,7 +1228,7 @@ function close() {
   }
 
   .item-row {
-    grid-template-columns: auto 46px 1fr auto;
+    grid-template-columns: auto 46px 1fr auto auto;
     gap: 8px;
     padding: 10px;
   }
@@ -1334,15 +1242,6 @@ function close() {
   }
 
   .item-type {
-    display: none; /* Скрываем кнопку типа — переключать можно кликом по сумме? Нет — оставим */
-  }
-
-  .item-row {
-    grid-template-columns: auto 46px 1fr auto auto;
-  }
-
-  .item-type {
-    display: inline-flex;
     width: 24px;
     height: 24px;
     font-size: 12px;
@@ -1356,94 +1255,6 @@ function close() {
   .preview-image-wrapper {
     max-height: 36vh;
     .preview-image { max-height: 36vh; }
-  }
-}
-/* ✅ Анимация «магического сканирования» */
-.preview-image-wrapper.is-scanning .preview-image {
-  filter: brightness(0.7) contrast(1.1);
-  transition: filter 0.3s ease;
-}
-
-.scan-beam {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-  z-index: 3;
-  border-radius: 12px;
-}
-
-.scan-beam-line {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 3px;
-  background: linear-gradient(90deg,
-    transparent 0%,
-    rgba(56, 189, 248, 0.4) 20%,
-    rgba(139, 92, 246, 0.9) 50%,
-    rgba(56, 189, 248, 0.4) 80%,
-    transparent 100%);
-  box-shadow:
-    0 0 12px rgba(56, 189, 248, 0.9),
-    0 0 30px rgba(139, 92, 246, 0.6);
-  animation: scanBeamMove 1s cubic-bezier(.45,.05,.55,.95) infinite;
-}
-
-.scan-beam-glow {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 80px;
-  background: linear-gradient(180deg,
-    transparent 0%,
-    rgba(56, 189, 248, 0.15) 40%,
-    rgba(139, 92, 246, 0.25) 50%,
-    rgba(56, 189, 248, 0.15) 60%,
-    transparent 100%);
-  animation: scanBeamMove 1s cubic-bezier(.45,.05,.55,.95) infinite;
-  margin-top: -40px;
-}
-
-@keyframes scanBeamMove {
-  0%   { top: -15%;  opacity: 0; }
-  15%  { opacity: 1; }
-  85%  { opacity: 1; }
-  100% { top: 115%;  opacity: 0; }
-}
-
-/* Пульсирующая рамка вокруг превью */
-.preview-image-wrapper.is-scanning::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  border: 2px solid rgba(56, 189, 248, 0.6);
-  border-radius: 12px;
-  pointer-events: none;
-  animation: scanPulse 1.8s ease-in-out infinite;
-  z-index: 4;
-}
-
-@keyframes scanPulse {
-  0%, 100% {
-    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.5),
-                inset 0 0 20px rgba(56, 189, 248, 0.15);
-  }
-  50% {
-    box-shadow: 0 0 20px 4px rgba(139, 92, 246, 0.4),
-                inset 0 0 30px rgba(139, 92, 246, 0.25);
-  }
-}
-
-/* Отключаем анимации для prefers-reduced-motion */
-@media (prefers-reduced-motion: reduce) {
-  .scan-beam-line,
-  .scan-beam-glow,
-  .preview-image-wrapper.is-scanning::after {
-    animation: none;
-  }
-  .scan-beam-glow {
-    background: rgba(56, 189, 248, 0.1);
   }
 }
 </style>
