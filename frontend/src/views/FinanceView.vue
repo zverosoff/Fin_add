@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, onUnmounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useAccountsStore } from '@/stores/accounts';
@@ -8,7 +8,6 @@ import { useToast } from '@/composables/useToast';
 import { notifySaved, notifyError } from '@/composables/useDataStatus';
 
 import PageHero from '@/components/ui/PageHero.vue';
-import AppTabs from '@/components/ui/AppTabs.vue';
 import AccountsBlock from '@/components/accounts/AccountsBlock.vue';
 import ReconcileBanner from '@/components/accounts/ReconcileBanner.vue';
 import ReconcileModal from '@/components/accounts/ReconcileModal.vue';
@@ -18,7 +17,6 @@ import TransactionList from '@/components/transactions/TransactionList.vue';
 import ManualModal from '@/components/transactions/ManualModal.vue';
 import ScanModal from '@/components/scan/ScanModal.vue';
 import PdfImportModal from '@/components/scan/PdfImportModal.vue';
-import FabMenu from '@/components/ui/FabMenu.vue';
 import UserMenuModal from '@/components/user/UserMenuModal.vue';
 
 const router = useRouter();
@@ -45,6 +43,12 @@ onMounted(async () => {
     toast.error('Не удалось загрузить данные');
     console.error(e);
   }
+
+  window.addEventListener('open-scan-modal', openScan);
+});
+
+onUnmounted(() => {
+  window.removeEventListener('open-scan-modal', openScan);
 });
 
 async function handleLogout() {
@@ -62,10 +66,8 @@ function onReconcileUser(userDiff) {
   if (acc) onReconcile(acc);
 }
 
-// ✅ FAB сразу открывает сканер
 function openScan() { scanOpen.value = true; }
 
-// ✅ Переключения из ScanModal
 function switchToManual() {
   scanOpen.value = false;
   manualOpen.value = true;
@@ -85,8 +87,6 @@ function onUserMenu(owner) {
   <div class="finance-page">
     <PageHero title="Финансы PRO+" />
 
-    <AppTabs />
-
     <div class="finance-grid">
       <aside class="finance-side">
         <AccountsBlock
@@ -102,9 +102,6 @@ function onUserMenu(owner) {
         <TransactionList />
       </main>
     </div>
-
-    <!-- ✅ FAB теперь открывает сразу сканер -->
-    <FabMenu @scan="openScan" />
 
     <ManualModal v-model="manualOpen" />
     <ReconcileModal v-model="reconcileOpen" :account="reconcileAccount" />
@@ -125,7 +122,7 @@ function onUserMenu(owner) {
 <style scoped lang="scss">
 .finance-page {
   min-height: 100vh;
-  padding: 20px 20px 100px;
+  padding: 20px 20px 20px;
 }
 
 .finance-grid {
@@ -158,12 +155,11 @@ function onUserMenu(owner) {
     gap: 14px;
     max-width: 900px;
   }
-
   .finance-side { position: static; }
 }
 
 @media (max-width: 700px) {
-  .finance-page { padding: 16px 12px 100px; }
+  .finance-page { padding: 16px 12px 20px; }
   .finance-grid { gap: 10px; }
   .finance-side,
   .finance-main { gap: 10px; }

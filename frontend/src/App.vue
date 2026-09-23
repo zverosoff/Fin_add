@@ -1,68 +1,71 @@
 <script setup>
-import { ref, onMounted } from 'vue';
-import { useRouter } from 'vue-router';
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useAccountsStore } from '@/stores/accounts';
 import { useWebSocket } from '@/composables/useWebSocket';
 import WelcomeOverlay from '@/components/ui/WelcomeOverlay.vue';
 import ToastContainer from '@/components/ui/ToastContainer.vue';
+import BottomNav from '@/components/ui/BottomNav.vue';
 
 const auth = useAuthStore();
 const accounts = useAccountsStore();
 const router = useRouter();
+const route = useRoute();
 const { connect } = useWebSocket();
 
-// ✅ Оверлей показывается при каждом открытии приложения
 const booting = ref(false);
 const percent = ref(0);
 const stage = ref('Запуск…');
 const done = ref(false);
 
+// Показывать BottomNav на всех страницах, кроме /login
+const showBottomNav = computed(() => route.name !== 'login');
+
+function openScan() {
+  window.dispatchEvent(new CustomEvent('open-scan-modal'));
+}
+
 onMounted(async () => {
-  // Если пользователь не залогинен — без оверлея на /login
+  if (route.name !== 'login') {
+    document.body.classList.add('app-has-bottom-nav');
+  }
+
   const hasSessionHint = auth.isAuthenticated || !!auth.user;
   if (!hasSessionHint) {
     router.push('/login');
     return;
   }
 
-  // ✅ Показываем приветствие ВСЕГДА при открытии с валидной сессией
   booting.value = true;
   done.value = false;
   percent.value = 0;
   stage.value = 'Приветствие…';
 
-  // Небольшая пауза, чтобы пользователь увидел анимацию появления
   await new Promise(r => setTimeout(r, 250));
 
   try {
-    // ─── Этап 1: проверка сессии ───
     stage.value = 'Проверка сессии…';
     percent.value = 10;
 
     const valid = await auth.checkSession();
 
     if (valid === false) {
-      // 401 — точно невалидна
       await auth.logout();
       booting.value = false;
       router.push('/login');
       return;
     }
 
-    // valid === null → сеть недоступна. Не разлогиниваем,
-    // продолжаем с тем, что есть в кэше.
     if (valid === null) {
       stage.value = 'Сервер недоступен, работаем офлайн…';
     }
 
-    // ─── Этап 2: загрузка состояния ───
     stage.value = 'Загрузка данных…';
     percent.value = 30;
 
     try {
       await accounts.load((p, s) => {
-        // p: 0..100 → мапим в 30..90
         percent.value = 30 + p * 0.6;
         stage.value = s;
       });
@@ -71,32 +74,39 @@ onMounted(async () => {
       stage.value = 'Данные недоступны';
     }
 
-    // ─── Этап 3: финализация ───
     stage.value = 'Подключение…';
     percent.value = 95;
 
     connect();
 
-    // ─── Готово ───
     percent.value = 100;
     stage.value = 'Готово!';
     done.value = true;
 
-    // Анимация исчезновения
     setTimeout(() => {
       booting.value = false;
     }, 900);
-
   } catch (e) {
     console.error('[app] bootstrap error:', e);
     stage.value = 'Ошибка загрузки';
     setTimeout(() => { booting.value = false; }, 1500);
   }
 });
+
+// Управление классом body при смене маршрута
+watch(() => route.name, (name) => {
+  document.body.classList.toggle('app-has-bottom-nav', name !== 'login');
+});
+
+onUnmounted(() => {
+  document.body.classList.remove('app-has-bottom-nav');
+});
 </script>
 
 <template>
   <router-view />
+
+  <BottomNav v-if="showBottomNav" @open-scan="openScan" />
 
   <WelcomeOverlay
     :visible="booting"

@@ -9,7 +9,6 @@ import { notifySaved, notifyError } from '@/composables/useDataStatus';
 import { fmt } from '@/composables/useFormat';
 
 import PageHero from '@/components/ui/PageHero.vue';
-import AppTabs from '@/components/ui/AppTabs.vue';
 import PeriodSelector from '@/components/analytics/PeriodSelector.vue';
 import MetricCard from '@/components/analytics/MetricCard.vue';
 import ComparisonCard from '@/components/analytics/ComparisonCard.vue';
@@ -108,9 +107,7 @@ function openEditContrib({ goal, user }) {
   <div class="analytics-page">
     <PageHero title="📊 Аналитика" />
 
-    <AppTabs />
-
-    <div class="analytics-grid">
+      <div class="analytics-grid">
       <!-- ЛЕВАЯ КОЛОНКА -->
       <div class="an-col an-col-left">
         <!-- Метрики (4 в ряд) -->
