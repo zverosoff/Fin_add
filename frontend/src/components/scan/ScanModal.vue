@@ -28,15 +28,21 @@ const statusText = ref('');
 const items = ref([]);
 const selectedIndices = ref(new Set());
 
+// ✅ Фильтр по датам (кнопки сверху)
+const dateFilters = ref([]);        // [{ key, date, label, count, active }]
+
+// ✅ Своя дата (перезапись)
+const manualDate = ref(new Date().toISOString().split('T')[0]);
+const showManualDate = ref(false);
+
 const user = ref(auth.user || 'Сергей');
 const accountId = ref('');
-const manualDate = ref(new Date().toISOString().split('T')[0]);
 
 const error = ref('');
 const saving = ref(false);
 
 // ============================================================
-// Переключатель режима
+// Переключение режима
 // ============================================================
 function switchToManual() {
   emit('update:modelValue', false);
@@ -66,9 +72,11 @@ function reset() {
   statusText.value = '';
   items.value = [];
   selectedIndices.value = new Set();
+  dateFilters.value = [];
   user.value = auth.user || 'Сергей';
   accountId.value = userAccounts.value[0]?.id || '';
   manualDate.value = new Date().toISOString().split('T')[0];
+  showManualDate.value = false;
   error.value = '';
   saving.value = false;
 }
@@ -97,6 +105,47 @@ function onFileSelected(e) {
 
 function triggerFileInput() {
   document.getElementById('scanFileInput')?.click();
+}
+
+// ============================================================
+// Группировка дат для фильтра
+// ============================================================
+function buildDateFilters(parsedItems) {
+  const map = new Map();
+
+  for (const it of parsedItems) {
+    const d = new Date(it.date);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    if (!map.has(key)) {
+      map.set(key, {
+        key,
+        date: d,
+        label: formatDateLabel(d),
+        count: 0,
+        active: true,
+      });
+    }
+    map.get(key).count++;
+  }
+
+  return Array.from(map.values()).sort((a, b) => b.date - a.date);
+}
+
+function formatDateLabel(d) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const cmp = new Date(d);
+  cmp.setHours(0, 0, 0, 0);
+
+  const diffDays = Math.round((today - cmp) / (24 * 60 * 60 * 1000));
+
+  const dd = String(d.getDate()).padStart(2, '0');
+  const mm = String(d.getMonth() + 1).padStart(2, '0');
+
+  if (diffDays === 0) return `Сегодня ${dd}.${mm}`;
+  if (diffDays === 1) return `Вчера ${dd}.${mm}`;
+  if (diffDays === 2) return `Позавчера ${dd}.${mm}`;
+  return `${dd}.${mm}`;
 }
 
 // ============================================================
@@ -133,13 +182,13 @@ async function recognize() {
       throw new Error('Не найдено операций в чеке');
     }
 
-    const dateObj = new Date(manualDate.value + 'T12:00:00');
-    for (const it of parsed) {
-      it.date = dateObj.toISOString();
-    }
-
+    // ✅ Даты уже распознаны парсером (Сегодня/Вчера/цифры).
+    // НЕ перезаписываем их — оставляем как есть.
     items.value = parsed;
     selectedIndices.value = new Set(parsed.map((_, i) => i));
+
+    // ✅ Собираем фильтры по датам
+    dateFilters.value = buildDateFilters(parsed);
 
     step.value = 'preview';
     toast.success(`📸 Найдено ${parsed.length} операций`);
@@ -148,6 +197,50 @@ async function recognize() {
     error.value = e.message || 'Ошибка распознавания';
     step.value = 'upload';
   }
+}
+
+// ============================================================
+// Фильтр по датам
+// ============================================================
+function toggleDateFilter(key) {
+  const f = dateFilters.value.find(x => x.key === key);
+  if (!f) return;
+  f.active = !f.active;
+  dateFilters.value = [...dateFilters.value];
+}
+
+/** Включить все даты */
+function enableAllDates() {
+  dateFilters.value.forEach(f => { f.active = true; });
+  dateFilters.value = [...dateFilters.value];
+}
+
+/** Выключить все даты */
+function disableAllDates() {
+  dateFilters.value.forEach(f => { f.active = false; });
+  dateFilters.value = [...dateFilters.value];
+}
+
+// ============================================================
+// Своя дата (перезапись всех операций)
+// ============================================================
+function applyManualDate() {
+  const d = new Date(manualDate.value + 'T12:00:00');
+  if (isNaN(d.getTime())) {
+    error.value = 'Некорректная дата';
+    return;
+  }
+
+  for (const it of items.value) {
+    it.date = d.toISOString();
+  }
+  items.value = [...items.value];
+
+  // Пересобираем фильтры — теперь одна дата
+  dateFilters.value = buildDateFilters(items.value);
+
+  showManualDate.value = false;
+  toast.info('📅 Дата применена ко всем операциям');
 }
 
 // ============================================================
@@ -184,25 +277,63 @@ function toggleType(i) {
   items.value = [...items.value];
 }
 
-function applyDateToAll() {
-  const dateObj = new Date(manualDate.value + 'T12:00:00');
-  for (const it of items.value) {
-    it.date = dateObj.toISOString();
-  }
-  items.value = [...items.value];
-  toast.info('📅 Дата применена ко всем');
-}
-
 function formatDate(iso) {
   const d = new Date(iso);
   return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
 // ============================================================
+// Видимые операции (с учётом фильтра по датам)
+// ============================================================
+const visibleItems = computed(() => {
+  const activeKeys = new Set(
+    dateFilters.value.filter(f => f.active).map(f => f.key)
+  );
+
+  return items.value
+    .map((it, i) => ({ ...it, index: i }))
+    .filter(it => {
+      const d = new Date(it.date);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      return activeKeys.has(key);
+    });
+});
+
+// Сколько всего выбрано для сохранения (учитывая фильтр)
+const selectedCount = computed(() =>
+  visibleItems.value.filter(it => selectedIndices.value.has(it.index)).length
+);
+
+// Выбрать все видимые
+function selectAllVisible() {
+  const set = new Set(selectedIndices.value);
+  for (const it of visibleItems.value) set.add(it.index);
+  selectedIndices.value = set;
+}
+
+// Снять все видимые
+function deselectAllVisible() {
+  const set = new Set(selectedIndices.value);
+  for (const it of visibleItems.value) set.delete(it.index);
+  selectedIndices.value = set;
+}
+
+// ============================================================
 // Сохранение
 // ============================================================
 async function save() {
-  const toSave = items.value.filter((_, i) => selectedIndices.value.has(i));
+  // Сохраняем ТОЛЬКО выбранные И активные по фильтру
+  const activeKeys = new Set(
+    dateFilters.value.filter(f => f.active).map(f => f.key)
+  );
+
+  const toSave = items.value.filter((it, i) => {
+    if (!selectedIndices.value.has(i)) return false;
+    const d = new Date(it.date);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    return activeKeys.has(key);
+  });
+
   if (!toSave.length) {
     error.value = 'Ничего не выбрано';
     return;
@@ -257,17 +388,11 @@ function close() {
     title="📸 Сканирование чека"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <!-- ✅ Переключатель режима — всегда сверху, чтобы можно было перескочить -->
+    <!-- ✅ Переключатель режима -->
     <div class="mode-switch">
-      <button type="button" class="mode active" disabled>
-        📸 Чек
-      </button>
-      <button type="button" class="mode" @click="switchToManual">
-        ✏️ Вручную
-      </button>
-      <button type="button" class="mode" @click="switchToPdf">
-        📄 PDF
-      </button>
+      <button type="button" class="mode active" disabled>📸 Чек</button>
+      <button type="button" class="mode" @click="switchToManual">✏️ Вручную</button>
+      <button type="button" class="mode" @click="switchToPdf">📄 PDF</button>
     </div>
 
     <!-- ШАГ 1. Загрузка -->
@@ -290,12 +415,7 @@ function close() {
       </div>
 
       <div class="field">
-        <label>📅 Дата (по умолчанию)</label>
-        <input v-model="manualDate" type="date" />
-      </div>
-
-      <div class="field">
-        <label>📷 Фото чека</label>
+        <label>📷 Фото чека / скриншот</label>
         <input
           id="scanFileInput"
           type="file"
@@ -306,8 +426,8 @@ function close() {
         <button class="upload-btn" type="button" @click="triggerFileInput">
           <span class="upload-icon">📷</span>
           <span class="upload-text">
-            <span class="upload-title">Выбрать фото</span>
-            <span class="upload-sub">JPG, PNG · или сделать снимок</span>
+            <span class="upload-title">Выбрать файл</span>
+            <span class="upload-sub">JPG, PNG · скриншот или фото</span>
           </span>
         </button>
       </div>
@@ -333,30 +453,84 @@ function close() {
 
     <!-- ШАГ 3. Предпросмотр -->
     <div v-else-if="step === 'preview'" class="step">
-      <div class="bulk-bar">
-        <label>📅 Применить дату:</label>
-        <input v-model="manualDate" type="date" class="bulk-input" />
-        <button class="bulk-btn" @click="applyDateToAll">Применить</button>
+      <!-- ✅ Фильтр по датам -->
+      <div v-if="dateFilters.length > 0" class="dates-bar">
+        <div class="dates-label">
+          <span>📅 Даты:</span>
+          <button
+            type="button"
+            class="dates-toggle-mini"
+            @click="dateFilters.every(f => f.active) ? disableAllDates() : enableAllDates()"
+          >
+            {{ dateFilters.every(f => f.active) ? 'Снять все' : 'Выбрать все' }}
+          </button>
+        </div>
+
+        <div class="dates-chips">
+          <button
+            v-for="f in dateFilters"
+            :key="f.key"
+            type="button"
+            class="date-chip"
+            :class="{ active: f.active }"
+            @click="toggleDateFilter(f.key)"
+          >
+            <span class="date-chip-label">{{ f.label }}</span>
+            <span class="date-chip-count">{{ f.count }}</span>
+          </button>
+
+          <!-- ✅ Кнопка «Своя дата» -->
+          <button
+            type="button"
+            class="date-chip manual"
+            :class="{ active: showManualDate }"
+            @click="showManualDate = !showManualDate"
+          >
+            📅 Своя дата
+          </button>
+        </div>
+
+        <!-- ✅ Инпут своей даты -->
+        <div v-if="showManualDate" class="manual-date-row">
+          <input v-model="manualDate" type="date" class="manual-date-input" />
+          <button type="button" class="manual-date-apply" @click="applyManualDate">
+            Применить ко всем
+          </button>
+        </div>
       </div>
 
+      <!-- Массовые действия -->
+      <div class="bulk-actions">
+        <button type="button" class="bulk-mini" @click="selectAllVisible">
+          ✅ Выбрать видимые
+        </button>
+        <button type="button" class="bulk-mini" @click="deselectAllVisible">
+          ⬜ Снять видимые
+        </button>
+        <span class="bulk-counter">
+          Выбрано: {{ selectedCount }} из {{ visibleItems.length }}
+        </span>
+      </div>
+
+      <!-- Список операций -->
       <div class="items-list">
         <div
-          v-for="(it, i) in items"
-          :key="i"
+          v-for="it in visibleItems"
+          :key="it.index"
           class="item-row"
-          :class="{ selected: selectedIndices.has(i) }"
+          :class="{ selected: selectedIndices.has(it.index) }"
         >
           <input
             type="checkbox"
-            :checked="selectedIndices.has(i)"
-            @change="toggleItem(i)"
+            :checked="selectedIndices.has(it.index)"
+            @change="toggleItem(it.index)"
           />
 
           <div class="item-desc">
-            <span class="date" @click="applyDateToAll">{{ formatDate(it.date) }}</span>
+            <span class="date">{{ formatDate(it.date) }}</span>
             <span
               class="name"
-              @click="editDescription(i)"
+              @click="editDescription(it.index)"
               :title="it.description"
             >{{ it.description }}</span>
           </div>
@@ -364,14 +538,18 @@ function close() {
           <div
             class="type-badge"
             :class="it.type"
-            @click="toggleType(i)"
+            @click="toggleType(it.index)"
           >
             {{ it.type === 'income' ? '📈' : '📉' }}
           </div>
 
-          <div class="amount" :class="it.type" @click="editAmount(i)">
+          <div class="amount" :class="it.type" @click="editAmount(it.index)">
             {{ it.type === 'income' ? '+' : '−' }} {{ fmt(it.amount) }} ₽
           </div>
+        </div>
+
+        <div v-if="visibleItems.length === 0" class="empty-filter">
+          Нет операций с выбранными датами
         </div>
       </div>
 
@@ -392,8 +570,12 @@ function close() {
 
       <template v-else-if="step === 'preview'">
         <button class="btn-cancel" @click="step = 'upload'">← Назад</button>
-        <button class="btn-save" :disabled="saving" @click="save">
-          {{ saving ? 'Сохранение…' : '✅ Добавить выбранные' }}
+        <button
+          class="btn-save"
+          :disabled="saving || selectedCount === 0"
+          @click="save"
+        >
+          {{ saving ? 'Сохранение…' : `✅ Добавить (${selectedCount})` }}
         </button>
       </template>
     </template>
@@ -436,9 +618,7 @@ function close() {
       cursor: default;
     }
 
-    &:disabled {
-      cursor: default;
-    }
+    &:disabled { cursor: default; }
   }
 }
 
@@ -574,38 +754,179 @@ function close() {
   color: var(--muted);
 }
 
-.bulk-bar {
+/* ✅ Фильтр по датам */
+.dates-bar {
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 8px;
   padding: 10px 12px;
-  border-radius: 10px;
+  border-radius: 12px;
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(139, 92, 246, 0.06));
   border: 1px solid rgba(56, 189, 248, 0.25);
-  flex-wrap: wrap;
-
-  label { font-size: 12px; font-weight: 700; color: var(--accent); }
 }
 
-.bulk-input {
-  padding: 6px 10px;
-  border: 1px solid var(--border);
-  border-radius: 8px;
+.dates-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dates-toggle-mini {
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  background: transparent;
+  color: var(--accent);
   font-family: inherit;
-  font-size: 13px;
-  flex: 1;
-  min-width: 100px;
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    background: rgba(56, 189, 248, 0.15);
+  }
 }
 
-.bulk-btn {
-  padding: 6px 14px;
-  border-radius: 8px;
-  border: none;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  color: #fff;
+.dates-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.date-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #f8fafc;
+  color: var(--muted);
+  font-family: inherit;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+
+  &:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  &.active {
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 4px 12px -4px rgba(59, 130, 246, 0.6);
+  }
+
+  &.manual {
+    border-style: dashed;
+    color: var(--muted);
+
+    &.active {
+      border-style: solid;
+      background: linear-gradient(135deg, #f59e0b, #f97316);
+      color: #fff;
+    }
+  }
+}
+
+.date-chip-count {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.3);
+  font-size: 10.5px;
+  font-weight: 800;
+
+  .date-chip:not(.active) & {
+    background: rgba(148, 163, 184, 0.2);
+  }
+}
+
+.manual-date-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding-top: 4px;
+}
+
+.manual-date-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 13px;
+  background: #fff;
+  color: var(--text);
+  outline: none;
+
+  &:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+  }
+}
+
+.manual-date-apply {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  color: #fff;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 6px 16px -6px rgba(245, 158, 11, 0.6);
+  transition: all 0.15s;
+
+  &:hover { transform: translateY(-1px); }
+  &:active { transform: scale(0.97); }
+}
+
+/* ✅ Массовые действия */
+.bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 6px 0;
+}
+
+.bulk-mini {
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #f8fafc;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(56, 189, 248, 0.08);
+  }
+}
+
+.bulk-counter {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--muted);
+  font-weight: 700;
 }
 
 .items-list {
@@ -641,7 +962,6 @@ function close() {
     font-size: 10.5px;
     color: var(--accent);
     font-weight: 700;
-    cursor: pointer;
     text-transform: uppercase;
   }
 
@@ -678,6 +998,15 @@ function close() {
 
   &.income { color: #16a34a; }
   &.expense { color: #dc2626; }
+}
+
+.empty-filter {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
 }
 
 .error-msg {
