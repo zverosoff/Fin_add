@@ -55,7 +55,7 @@ export function preprocessImage(file) {
 function splitLines(lines) {
   const result = [];
   const DATE_START_RE = /(\d{1,2}\s+(?:январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)[а-яё]*)/gi;
-  const AMOUNT_START_RE = /([+\-−]\s*\d[\d\s]*(?:[.,]\d{1,2})?\s*(?:₽|p|руб\.?))/gi;
+  const AMOUNT_START_RE = /([+\-−]\s*\d[\d\s]*(?:[.,]\d{1,2})?\s*(?:[₽рРPp]|руб\.?))/gi;
 
   for (const rawLine of lines) {
     let line = String(rawLine).trim();
@@ -194,8 +194,10 @@ function detectCategoryFromLine(line) {
   if (!line) return 'Прочее';
   const low = line.toLowerCase().trim();
 
+  // Полное совпадение
   if (CATEGORY_MAP[low]) return CATEGORY_MAP[low];
 
+  // Начинается с категории
   for (const key of Object.keys(CATEGORY_MAP)) {
     if (low.startsWith(key)) return CATEGORY_MAP[key];
   }
@@ -205,7 +207,7 @@ function detectCategoryFromLine(line) {
   if (/yandex|яндекс|такси|uber|ситимобил/i.test(low)) return 'Такси';
   if (/azs|азс|газпромнефт|лукойл|роснефт|бензин/i.test(low)) return 'Бензин';
   if (/мтс|билайн|мегафон|теле2|ростелеком/i.test(low)) return 'Интернет и связь';
-  if (/medcentr|медцентр|smc\s+dobryj|доктор|клиник|zdorove/i.test(low)) return 'Здоровье';
+  if (/medcentr|медцентр|smc\s+dobryj|доктор|клиник|zdorove|медицина/i.test(low)) return 'Здоровье';
   if (/аптек|aptek|gorzdrav/i.test(low)) return 'Аптека';
   if (/netflix|spotify|яндекс\s*плюс|ivi|okko|подписк/i.test(low)) return 'Подписки';
   if (/ozon|озон|wildberries|вайлдберриз|avito/i.test(low)) return 'Покупки';
@@ -214,12 +216,42 @@ function detectCategoryFromLine(line) {
 }
 
 /**
+ * Проверка: строка похожа на метаданные (категория / карта), а не на название операции.
+ */
+function isMetadataLine(line) {
+  if (!line) return false;
+  const low = line.toLowerCase().trim();
+
+  // Просто «Дебетовая карта», «Кредитная карта»
+  if (/^(дебетовая|кредитная|виртуальная|зарплатная|детская)\s+карта$/i.test(low)) return true;
+
+  // Строка начинается с известной категории + «карта»/«счёт»
+  const words = low.split(/\s+/);
+  if (words.length >= 2 && words.length <= 4) {
+    const first = words[0];
+    if (CATEGORY_MAP[first]) {
+      // «Супермаркеты Дебетовая карта», «Медицина Дебетовая карта» и т.п.
+      const rest = words.slice(1).join(' ');
+      if (/карта|счёт|счет/i.test(rest)) return true;
+    }
+  }
+
+  return false;
+}
+
+/**
  * Парсер распознанных строк.
  */
 export function parseReceipt(lines) {
   const items = [];
 
-  const AMOUNT_RE = /([+\-−]?\s*\d[\d\s]*(?:[.,]\d{1,2})?)\s*(?:₽|p|P|р|Р|руб\.?)?[\s\\|*`~^\[\]{}]*$/;
+  // ✅ Символ рубля может быть: ₽, Р (русская), P (латинская), р (русская маленькая), p (латинская маленькая), L (ошибка OCR)
+  const ROUBLE_CLASS = '[₽рРPpL]';
+
+  // ✅ Сумма: число в конце строки, валюта — опционально (может быть L, ©, ‘ и т.п.)
+  const AMOUNT_RE = new RegExp(
+    `([+\\-−]?\\s*\\d[\\d\\s]*(?:[.,]\\d{1,2})?)\\s*(?:${ROUBLE_CLASS}|руб\\.?|©|‘|’|')?[\\s\\\\|*\`~^\\[\\]{}.,;:!?]*$`
+  );
   const DATE_RU_RE = /(\d{1,2})\s*(январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)[а-яё]*\s*(\d{4})?/i;
   const DATE_NUM_RE = /(\d{1,2})[.\/-](\d{1,2})(?:[.\/-](\d{2,4}))?/;
 
@@ -234,29 +266,39 @@ export function parseReceipt(lines) {
 
   const FILTER_RE = /^(все|доходы|расходы|счета|карты|без\s+переводов|переводы|траты|пополнения|покупки|перевести|платежи|кэшбэк\s+и\s+бонусы|аналитика|кредиты|настройки|профиль|операции|операция|сентябрь|октябрь|ноябрь|декабрь|январь|февраль|март|апрель|май|июнь|июль|август)$/i;
 
-  const SUMMARY_RE = /^\s*[+\-−]?\s*\d[\d\s]*[.,]?\d*\s*(₽|p|руб\.?)(\s+[+\-−]?\s*\d[\d\s]*[.,]?\d*\s*(₽|p|руб\.?))?\s*(траты|доходы|расходы|пополнения|итого|баланс|переводы|покупки)?\s*$/i;
+  // Сводка с «₽» или «Р»: «117 085 ₽», «-3 104 ₽», «117 085 ₽ 106 515 ₽»
+  const SUMMARY_RE = new RegExp(
+    `^\\s*[+\\-−]?\\s*\\d[\\d\\s]*[.,]?\\d*\\s*${ROUBLE_CLASS}(\\s+[+\\-−]?\\s*\\d[\\d\\s]*[.,]?\\d*\\s*${ROUBLE_CLASS})?\\s*(траты|доходы|расходы|пополнения|итого|баланс|переводы|покупки)?\\s*$`,
+    'i'
+  );
 
-  const ONLY_AMOUNT_RE = /^[+\-−]?\s*\d[\d\s]*(?:[.,]\d{1,2})?\s*(?:₽|p|руб\.?)?$/i;
+  const ONLY_AMOUNT_RE = new RegExp(`^[+\\-−]?\\s*\\d[\\d\\s]*(?:[.,]\\d{1,2})?\\s*(?:${ROUBLE_CLASS}|руб\\.?)?$`, 'i');
+
+  // ✅ Две «валюты» в строке — сводка (учитываем и Р, и ₽)
+  const MULTI_AMOUNT_RE = new RegExp(
+    `^[\\s\\-−+]*\\d[\\d\\s]*[.,]?\\d*\\s*${ROUBLE_CLASS}[\\s\\-−+]*\\d[\\d\\s]*[.,]?\\d*\\s*${ROUBLE_CLASS}`
+  );
+
   const TIME_RE = /^\d{1,2}:\d{2}\s/;
   const GARBAGE_RE = /^\d{1,2}:\d{2}\s+\d+\s*%/;
-  const MULTI_AMOUNT_RE = /^[\s\-−+]*\d[\d\s]*[.,]?\d*\s*₽[\s\-−+]*\d[\d\s]*[.,]?\d*\s*₽/;
-  const CARD_TYPE_RE = /^(дебетовая\s+карта|кредитная\s+карта|виртуальная\s+карта|зарплатная\s+карта|детская\s+карта|black|premium|black\s+edition)$/i;
+  const CARD_TYPE_RE = /^(дебетовая|кредитная|виртуальная|зарплатная|детская)\s+карта$/i;
   const RASROCHKA_RE = /^(рассрочки|рассрочка|общий\s+платёж|общий\s+платеж|к\s+оплате)/i;
   const BONUS_RE = /^\+\d{1,3}\s/;
   const JUNK_RE = /^[\d:]+\s*№?\s*\d*\s*[a-zA-Zа-яА-Я]?\s*[\/\\]?\s*\d*\s*\d*\s*\d*\s*\)?$/;
 
+  // ✅ Относительная дата — без \b (он не работает на кириллице)
   function extractRelativeDate(line) {
     const t = line.trim().toLowerCase();
     const today = new Date();
     today.setHours(12, 0, 0, 0);
 
-    if (/^сегодня\b/.test(t)) return new Date(today);
-    if (/^вчера\b/.test(t)) {
+    if (/^сегодня(\s|$)/.test(t)) return new Date(today);
+    if (/^вчера(\s|$)/.test(t)) {
       const d = new Date(today);
       d.setDate(d.getDate() - 1);
       return d;
     }
-    if (/^позавчера\b/.test(t)) {
+    if (/^позавчера(\s|$)/.test(t)) {
       const d = new Date(today);
       d.setDate(d.getDate() - 2);
       return d;
@@ -314,7 +356,7 @@ export function parseReceipt(lines) {
     let line = lines[i];
     if (!line || line.length < 2) continue;
 
-    // ✅ НОРМАЛИЗАЦИЯ: убираем невидимые символы
+    // ✅ НОРМАЛИЗАЦИЯ
     line = line
       .replace(/[\u200B-\u200D\uFEFF]/g, '')
       .replace(/\u00A0/g, ' ')
@@ -325,30 +367,30 @@ export function parseReceipt(lines) {
 
     if (line.length < 2) continue;
 
-    // ✅ ОТЛАДКА (потом уберём)
-    console.log(`[scan] i=${i} line=${JSON.stringify(line)} len=${line.length}`);
-
     // ─── Пропуски ───
-    if (FILTER_RE.test(line)) { console.log('  → FILTER'); continue; }
-    if (TIME_RE.test(line)) { console.log('  → TIME'); continue; }
-    if (GARBAGE_RE.test(line)) { console.log('  → GARBAGE'); continue; }
-    if (JUNK_RE.test(line)) { console.log('  → JUNK'); continue; }
-    if (MULTI_AMOUNT_RE.test(line)) { console.log('  → MULTI'); continue; }
-    if (CARD_TYPE_RE.test(line)) { console.log('  → CARD_TYPE'); continue; }
-    if (BONUS_RE.test(line)) { console.log('  → BONUS'); continue; }
-    if (RASROCHKA_RE.test(line)) { console.log('  → RASROCHKA'); continue; }
-    if (SUMMARY_RE.test(line)) { console.log('  → SUMMARY'); continue; }
+    if (FILTER_RE.test(line)) continue;
+    if (TIME_RE.test(line)) continue;
+    if (GARBAGE_RE.test(line)) continue;
+    if (JUNK_RE.test(line)) continue;
+    if (CARD_TYPE_RE.test(line)) continue;
+    if (BONUS_RE.test(line)) continue;
+    if (RASROCHKA_RE.test(line)) continue;
 
-    const roubleCount = (line.match(/₽/g) || []).length;
-    console.log('  → roubleCount:', roubleCount);
+    // ✅ Сводки (учитываем и ₽, и Р)
+    const roubleMatches = line.match(new RegExp(ROUBLE_CLASS, 'g')) || [];
+    const roubleCount = roubleMatches.length;
+
+    if (MULTI_AMOUNT_RE.test(line)) continue;
+    if (SUMMARY_RE.test(line)) continue;
+
+    // Если в строке 2+ «валюты» — сводка, но только если там нет описания
+    // (защита: «Перевод 100 ₽ → 200 ₽» — не бывает, но на всякий)
     if (roubleCount >= 2) continue;
 
     // ─── Относительная дата ───
     const rel = extractRelativeDate(line);
-    if (rel) console.log('  → REL:', rel.toISOString());
     if (rel && line.length < 30) {
       currentDate = rel;
-      console.log('  → SET currentDate:', currentDate.toISOString());
       continue;
     }
 
@@ -356,33 +398,39 @@ export function parseReceipt(lines) {
     const d = extractDate(line);
     if (d && line.length < 30) {
       currentDate = d;
-      console.log('  → SET currentDate (abs):', currentDate.toISOString());
       continue;
     }
 
     // ─── Сумма ───
     const amt = extractAmount(line);
-    console.log('  → amt:', amt);
     if (!amt) continue;
-    if (ONLY_AMOUNT_RE.test(line)) { console.log('  → ONLY_AMOUNT'); continue; }
+    if (ONLY_AMOUNT_RE.test(line)) continue;
 
     let title = amt.rest;
 
-    if (!title || title.length < 2) {
+    // ✅ Если название пустое или это метаданные — берём предыдущую строку,
+    // но НЕ метаданные и НЕ категорию
+    const titleIsBad = !title || title.length < 2 || isMetadataLine(title);
+
+    if (titleIsBad) {
       const prev = i > 0 ? lines[i - 1] : '';
-      if (prev
+      const prevIsGood = prev
+        && !isMetadataLine(prev)
         && !FILTER_RE.test(prev)
         && !SUMMARY_RE.test(prev)
         && !TIME_RE.test(prev)
         && !ONLY_AMOUNT_RE.test(prev)
         && prev.length > 2
         && prev.length < 80
-        && !extractAmount(prev)) {
+        && !extractAmount(prev);
+
+      if (prevIsGood) {
         title = prev;
       }
     }
 
-    if (!title || title.length < 2) continue;
+    // Если так и не нашли нормальный заголовок — пропускаем
+    if (!title || title.length < 2 || isMetadataLine(title)) continue;
 
     title = title
       .replace(/[\-\+\—–_\\|*`~^\[\]{}]+\s*$/, '')
@@ -392,6 +440,7 @@ export function parseReceipt(lines) {
 
     if (TIME_RE.test(title) || /^\d+\s*%/.test(title)) continue;
 
+    // ─── Категория ───
     let category = 'Прочее';
     const nextLine = i + 1 < lines.length ? lines[i + 1] : '';
 
@@ -410,8 +459,6 @@ export function parseReceipt(lines) {
     }
 
     const type = amt.sign === '+' ? 'income' : 'expense';
-
-    console.log('  ✅ PUSH:', { title, amount: amt.amount, type, category, date: currentDate.toISOString() });
 
     items.push({
       date: currentDate.toISOString(),
