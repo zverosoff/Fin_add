@@ -10,15 +10,33 @@ const auth = useAuthStore();
 
 const userName = computed(() => auth.user || 'Сергей');
 const userEmoji = computed(() => userName.value === 'Сергей' ? '👨' : '👩');
-const totalBalance = computed(() => accounts.total);
 
-const owners = computed(() => Object.keys(accounts.byOwner || {}));
+// ✅ Баланс залогиненного пользователя
+const userBalance = computed(() => {
+  const owner = userName.value;
+  return accounts.totalByOwner?.[owner] || 0;
+});
+
+// ✅ Список владельцев — активный первым
+const ownersSorted = computed(() => {
+  const all = Object.keys(accounts.byOwner || {});
+  const me = userName.value;
+  return all.sort((a, b) => {
+    if (a === me) return -1;
+    if (b === me) return 1;
+    return a.localeCompare(b, 'ru');
+  });
+});
 
 function bankLogo(id) {
   if (!id) return null;
   if (id.startsWith('sber')) return '/img/sber.png';
   if (id.startsWith('tbank')) return '/img/tbank.png';
   return null;
+}
+
+function isMe(owner) {
+  return owner === userName.value;
 }
 </script>
 
@@ -28,18 +46,27 @@ function bankLogo(id) {
       <!-- Верх: баланс + аватар -->
       <div class="bc-top">
         <div class="bc-balance">
-          <div class="bc-label">Общий баланс</div>
-          <div class="bc-amount">{{ fmt(totalBalance) }} ₽</div>
+          <div class="bc-label">
+            <span class="bc-label-emoji">{{ userEmoji }}</span>
+            <span>{{ userName }}</span>
+          </div>
+          <div class="bc-amount">{{ fmt(userBalance) }} ₽</div>
+          <div class="bc-sub">Баланс на сегодня</div>
         </div>
-        <div class="bc-avatar">{{ userEmoji }}</div>
+
+        <!-- ✅ Аватар на белом фоне -->
+        <div class="bc-avatar">
+          <div class="bc-avatar-inner">{{ userEmoji }}</div>
+        </div>
       </div>
 
       <!-- Низ: счета по владельцам -->
       <div class="bc-accounts">
         <div
-          v-for="owner in owners"
+          v-for="owner in ownersSorted"
           :key="owner"
           class="bc-owner-row"
+          :class="{ 'is-me': isMe(owner) }"
         >
           <button
             class="bc-owner-name"
@@ -48,6 +75,7 @@ function bankLogo(id) {
           >
             <span class="bc-owner-emoji">{{ owner === 'Сергей' ? '👨' : '👩' }}</span>
             <span class="bc-owner-text">{{ owner }}</span>
+            <span v-if="isMe(owner)" class="bc-owner-you">вы</span>
           </button>
 
           <div class="bc-chips">
@@ -90,15 +118,26 @@ function bankLogo(id) {
   position: relative;
   border-radius: 22px;
   overflow: hidden;
+
+  /* ✅ Анимированный градиент */
   background:
     radial-gradient(circle at 15% 0%, rgba(255, 255, 255, 0.18), transparent 55%),
     radial-gradient(circle at 95% 100%, rgba(255, 255, 255, 0.14), transparent 60%),
-    linear-gradient(135deg, #06b6d4 0%, #3b82f6 45%, #7c3aed 100%);
+    linear-gradient(135deg, #06b6d4 0%, #3b82f6 30%, #7c3aed 60%, #06b6d4 100%);
+  background-size: 100% 100%, 100% 100%, 300% 300%;
+  animation: gradientShift 12s ease-in-out infinite;
+
   color: #ffffff;
   box-shadow:
     0 20px 40px -18px rgba(59, 130, 246, 0.6),
     0 10px 20px -10px rgba(124, 58, 237, 0.4);
   padding: 22px 22px 18px;
+}
+
+@keyframes gradientShift {
+  0%   { background-position: 0% 0%, 100% 100%, 0% 50%; }
+  50%  { background-position: 0% 0%, 100% 100%, 100% 50%; }
+  100% { background-position: 0% 0%, 100% 100%, 0% 50%; }
 }
 
 .bc-top {
@@ -112,11 +151,18 @@ function bankLogo(id) {
 .bc-balance { min-width: 0; flex: 1; }
 
 .bc-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   font-size: 11px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  opacity: 0.78;
+  opacity: 0.85;
+}
+
+.bc-label-emoji {
+  font-size: 14px;
 }
 
 .bc-amount {
@@ -124,7 +170,7 @@ function bankLogo(id) {
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.1;
-  margin-top: 4px;
+  margin-top: 6px;
   font-family: var(--mono);
   white-space: nowrap;
   overflow: hidden;
@@ -132,20 +178,37 @@ function bankLogo(id) {
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
+.bc-sub {
+  font-size: 11.5px;
+  font-weight: 600;
+  opacity: 0.75;
+  margin-top: 4px;
+}
+
+/* ✅ Аватар — на белом фоне */
 .bc-avatar {
-  width: 58px;
-  height: 58px;
+  width: 62px;
+  height: 62px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.22);
-  border: 2px solid rgba(255, 255, 255, 0.55);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: #ffffff;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 30px;
   flex-shrink: 0;
-  box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.35);
+  box-shadow:
+    0 10px 24px -8px rgba(0, 0, 0, 0.35),
+    0 0 0 3px rgba(255, 255, 255, 0.35);
+}
+
+.bc-avatar-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  background: linear-gradient(135deg, #f0f9ff 0%, #f5f3ff 100%);
 }
 
 /* ============================================================
@@ -165,6 +228,14 @@ function bankLogo(id) {
   gap: 8px;
   min-width: 0;
   flex-wrap: wrap;
+  padding: 4px;
+  border-radius: 10px;
+  transition: background 0.25s;
+
+  /* ✅ Активный пользователь — выделен */
+  &.is-me {
+    background: rgba(255, 255, 255, 0.12);
+  }
 }
 
 .bc-owner-name {
@@ -189,10 +260,29 @@ function bankLogo(id) {
     background: rgba(255, 255, 255, 0.28);
     transform: translateY(-1px);
   }
+
+  .is-me & {
+    background: #ffffff;
+    color: #4f46e5;
+    border-color: #ffffff;
+    box-shadow: 0 4px 12px -4px rgba(255, 255, 255, 0.6);
+  }
 }
 
 .bc-owner-emoji { font-size: 13px; }
 .bc-owner-text { line-height: 1; }
+
+.bc-owner-you {
+  margin-left: 4px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(79, 70, 229, 0.15);
+  color: #4f46e5;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
 
 .bc-chips {
   display: flex;
@@ -275,17 +365,18 @@ function bankLogo(id) {
   .bc-top { margin-bottom: 14px; gap: 10px; }
 
   .bc-label { font-size: 10px; }
-  .bc-amount { font-size: 30px; }
+  .bc-amount { font-size: 30px; margin-top: 4px; }
+  .bc-sub { font-size: 11px; }
 
   .bc-avatar {
-    width: 50px;
-    height: 50px;
-    font-size: 26px;
+    width: 54px;
+    height: 54px;
   }
+  .bc-avatar-inner { font-size: 28px; }
 
   .bc-accounts { gap: 8px; padding-top: 12px; }
 
-  .bc-owner-row { gap: 6px; }
+  .bc-owner-row { gap: 6px; padding: 3px; }
   .bc-owner-name { font-size: 11px; padding: 2px 8px 2px 4px; }
   .bc-owner-emoji { font-size: 12px; }
 

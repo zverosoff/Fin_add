@@ -738,8 +738,8 @@ const byUser = computed(() => {
 
 .dt-row {
   display: grid;
-  grid-template-columns: 1fr 100px auto;
-  gap: 6px;
+  grid-template-columns: 1fr 90px auto;
+  gap: 5px;
   align-items: center;
 
   &.locked .dt-name,
@@ -753,11 +753,11 @@ const byUser = computed(() => {
 
 .dt-name,
 .dt-value {
-  padding: 8px 12px;
+  padding: 6px 10px;
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 8px;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 11.5px;
   font-weight: 600;
   color: var(--text);
   outline: none;
@@ -775,19 +775,20 @@ const byUser = computed(() => {
 .dt-value {
   text-align: right;
   font-family: var(--mono);
-  font-weight: 800;
+  font-weight: 700;
+  font-size: 11.5px;
 }
 
 .dt-del,
 .dt-lock {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
   border: 1px solid var(--border);
   background: transparent;
   color: var(--muted);
   cursor: pointer;
-  font-size: 12px;
+  font-size: 11px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -803,7 +804,7 @@ const byUser = computed(() => {
 
 .dt-lock {
   border: none;
-  font-size: 14px;
+  font-size: 12px;
   cursor: default;
   background: transparent;
 
