@@ -4,26 +4,41 @@ import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useAccountsStore } from '@/stores/accounts';
 import { useWebSocket } from '@/composables/useWebSocket';
+import { useScanStore } from '@/stores/scan';
 import WelcomeOverlay from '@/components/ui/WelcomeOverlay.vue';
 import ToastContainer from '@/components/ui/ToastContainer.vue';
 import BottomNav from '@/components/ui/BottomNav.vue';
+import ScanModal from '@/components/scan/ScanModal.vue';
+import ManualModal from '@/components/transactions/ManualModal.vue';
+import PdfImportModal from '@/components/scan/PdfImportModal.vue';
 
 const auth = useAuthStore();
 const accounts = useAccountsStore();
 const router = useRouter();
 const route = useRoute();
 const { connect } = useWebSocket();
+const scanStore = useScanStore();
 
 const booting = ref(false);
 const percent = ref(0);
 const stage = ref('Запуск…');
 const done = ref(false);
 
-// Показывать BottomNav на всех страницах, кроме /login
+// Модалки, управляемые из App.vue
+const manualOpen = ref(false);
+const pdfOpen = ref(false);
+
 const showBottomNav = computed(() => route.name !== 'login');
 
-function openScan() {
-  window.dispatchEvent(new CustomEvent('open-scan-modal'));
+// ✅ Переключения из ScanModal
+function switchToManual() {
+  scanStore.close();
+  manualOpen.value = true;
+}
+
+function switchToPdf() {
+  scanStore.close();
+  pdfOpen.value = true;
 }
 
 onMounted(async () => {
@@ -77,6 +92,7 @@ onMounted(async () => {
     stage.value = 'Подключение…';
     percent.value = 95;
 
+    // ✅ WebSocket подключается ГЛОБАЛЬНО — один раз
     connect();
 
     percent.value = 100;
@@ -93,7 +109,6 @@ onMounted(async () => {
   }
 });
 
-// Управление классом body при смене маршрута
 watch(() => route.name, (name) => {
   document.body.classList.toggle('app-has-bottom-nav', name !== 'login');
 });
@@ -106,7 +121,17 @@ onUnmounted(() => {
 <template>
   <router-view />
 
-  <BottomNav v-if="showBottomNav" @open-scan="openScan" />
+  <BottomNav v-if="showBottomNav" />
+
+  <!-- ✅ ScanModal теперь глобальный — открывается с любой вкладки -->
+  <ScanModal
+    v-model="scanStore.isOpen"
+    @switch-to-manual="switchToManual"
+    @switch-to-pdf="switchToPdf"
+  />
+
+  <ManualModal v-model="manualOpen" />
+  <PdfImportModal v-model="pdfOpen" />
 
   <WelcomeOverlay
     :visible="booting"

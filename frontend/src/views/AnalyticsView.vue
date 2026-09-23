@@ -3,7 +3,6 @@ import { onMounted, computed, ref } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
 import { useAnalyticsStore } from '@/stores/analytics';
 import { useGoalsStore } from '@/stores/goals';
-import { useWebSocket } from '@/composables/useWebSocket';
 import { useToast } from '@/composables/useToast';
 import { notifySaved, notifyError } from '@/composables/useDataStatus';
 import { fmt } from '@/composables/useFormat';
@@ -23,7 +22,6 @@ const accounts = useAccountsStore();
 const analytics = useAnalyticsStore();
 const goalsStore = useGoalsStore();
 const toast = useToast();
-const { connect } = useWebSocket();
 
 const goalModalOpen = ref(false);
 const goalToEdit = ref(null);
@@ -39,7 +37,6 @@ onMounted(async () => {
   try {
     if (!accounts.loaded) await accounts.load();
     notifySaved('готово');
-    connect();
   } catch (e) {
     notifyError(e.message || 'Не удалось загрузить данные');
     toast.error('Не удалось загрузить данные');
@@ -107,10 +104,8 @@ function openEditContrib({ goal, user }) {
   <div class="analytics-page">
     <PageHero title="📊 Аналитика" />
 
-      <div class="analytics-grid">
-      <!-- ЛЕВАЯ КОЛОНКА -->
+    <div class="analytics-grid">
       <div class="an-col an-col-left">
-        <!-- Метрики (4 в ряд) -->
         <div class="metrics-grid">
           <MetricCard
             icon="💰"
@@ -140,16 +135,13 @@ function openEditContrib({ goal, user }) {
           />
         </div>
 
-        <!-- Период -->
         <PeriodSelector />
 
-        <!-- Сравнение с прошлым периодом -->
         <section class="card">
           <h2 class="card-title">🔀 Сравнение с прошлым периодом</h2>
           <ComparisonCard />
         </section>
 
-        <!-- Графики -->
         <section class="card">
           <h2 class="card-title">📊 Доходы и расходы по месяцам</h2>
           <BarChart :data="analytics.monthlyData" />
@@ -161,9 +153,7 @@ function openEditContrib({ goal, user }) {
         </section>
       </div>
 
-      <!-- ПРАВАЯ КОЛОНКА -->
       <div class="an-col an-col-right">
-        <!-- Цели -->
         <section class="card">
           <div class="card-head">
             <h2 class="card-title">🎯 Цели накоплений и желаемые покупки</h2>
@@ -193,12 +183,9 @@ function openEditContrib({ goal, user }) {
 <style scoped lang="scss">
 .analytics-page {
   min-height: 100vh;
-  padding: 20px 20px 60px;
+  padding: 20px 20px 20px;
 }
 
-/* ============================================================
-   ДЕСКТОП — 2 колонки
-   ============================================================ */
 .analytics-grid {
   max-width: 1400px;
   margin: 0 auto;
@@ -274,46 +261,27 @@ function openEditContrib({ goal, user }) {
   }
 }
 
-/* ============================================================
-   ПЛАНШЕТ
-   ============================================================ */
 @media (max-width: 1100px) {
   .analytics-grid {
     grid-template-columns: 1fr;
     max-width: 900px;
   }
-
-  .an-col-right {
-    position: static;
-  }
-
+  .an-col-right { position: static; }
   .metrics-grid {
     grid-template-columns: 1fr 1fr;
     gap: 8px;
-
     & > :first-child { grid-column: 1 / -1; }
   }
 }
 
-/* ============================================================
-   МОБИЛЬНЫЙ
-   ============================================================ */
 @media (max-width: 700px) {
-  .analytics-page { padding: 12px 12px 40px; }
+  .analytics-page { padding: 12px 12px 20px; }
   .analytics-grid { gap: 10px; }
-
   .an-col { gap: 10px; }
-
   .card { padding: 12px 14px; border-radius: 14px; }
-
   .card-title { font-size: 11px; letter-spacing: 0.06em; }
-
   .card-head { margin-bottom: 10px; gap: 6px; }
-
-  .btn-add-goal {
-    padding: 6px 12px;
-    font-size: 11px;
-  }
+  .btn-add-goal { padding: 6px 12px; font-size: 11px; }
 }
 
 @media (max-width: 380px) {

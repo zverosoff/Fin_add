@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, onUnmounted, ref } from 'vue';
+import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useAccountsStore } from '@/stores/accounts';
@@ -14,22 +14,15 @@ import ReconcileModal from '@/components/accounts/ReconcileModal.vue';
 import MonthNav from '@/components/transactions/MonthNav.vue';
 import SummaryCompact from '@/components/transactions/SummaryCompact.vue';
 import TransactionList from '@/components/transactions/TransactionList.vue';
-import ManualModal from '@/components/transactions/ManualModal.vue';
-import ScanModal from '@/components/scan/ScanModal.vue';
-import PdfImportModal from '@/components/scan/PdfImportModal.vue';
 import UserMenuModal from '@/components/user/UserMenuModal.vue';
 
 const router = useRouter();
 const auth = useAuthStore();
 const accounts = useAccountsStore();
 const toast = useToast();
-const { connect } = useWebSocket();
 
-const manualOpen = ref(false);
 const reconcileOpen = ref(false);
 const reconcileAccount = ref(null);
-const scanOpen = ref(false);
-const pdfOpen = ref(false);
 const userMenuOpen = ref(false);
 const userMenuOwner = ref('');
 
@@ -37,18 +30,11 @@ onMounted(async () => {
   try {
     if (!accounts.loaded) await accounts.load();
     notifySaved('готово');
-    connect();
   } catch (e) {
     notifyError(e.message || 'Не удалось загрузить данные');
     toast.error('Не удалось загрузить данные');
     console.error(e);
   }
-
-  window.addEventListener('open-scan-modal', openScan);
-});
-
-onUnmounted(() => {
-  window.removeEventListener('open-scan-modal', openScan);
 });
 
 async function handleLogout() {
@@ -64,17 +50,6 @@ function onReconcile(acc) {
 function onReconcileUser(userDiff) {
   const acc = userDiff.accounts.find(a => accounts.diffByAccount?.[a.id]?.hasDiff);
   if (acc) onReconcile(acc);
-}
-
-function openScan() { scanOpen.value = true; }
-
-function switchToManual() {
-  scanOpen.value = false;
-  manualOpen.value = true;
-}
-function switchToPdf() {
-  scanOpen.value = false;
-  pdfOpen.value = true;
 }
 
 function onUserMenu(owner) {
@@ -103,14 +78,7 @@ function onUserMenu(owner) {
       </main>
     </div>
 
-    <ManualModal v-model="manualOpen" />
     <ReconcileModal v-model="reconcileOpen" :account="reconcileAccount" />
-    <ScanModal
-      v-model="scanOpen"
-      @switch-to-manual="switchToManual"
-      @switch-to-pdf="switchToPdf"
-    />
-    <PdfImportModal v-model="pdfOpen" />
     <UserMenuModal
       v-model="userMenuOpen"
       :owner="userMenuOwner"

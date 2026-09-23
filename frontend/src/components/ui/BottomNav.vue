@@ -3,34 +3,31 @@ import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useWebSocket } from '@/composables/useWebSocket';
 import { useAccountsStore } from '@/stores/accounts';
+import { useScanStore } from '@/stores/scan';
 
 const route = useRoute();
 const router = useRouter();
 const { connected } = useWebSocket();
 const accounts = useAccountsStore();
-
-const emit = defineEmits(['open-scan']);
+const scanStore = useScanStore();
 
 // Статус сервера
-// 'loading' — идёт загрузка
-// 'ok' — всё хорошо
-// 'error' — нет соединения
 const serverStatus = computed(() => {
   if (!accounts.loaded) return 'loading';
   if (!connected.value) return 'error';
   return 'ok';
 });
 
-// ✅ Левая часть — Финансы
+// Левая часть — 2 таба
 const navLeft = [
-  { to: '/finance', icon: '💳', label: 'Финансы' },
+  { to: '/finance',   icon: '💳', label: 'Финансы' },
+  { to: '/analytics', icon: '📊', label: 'Анализ' },
 ];
 
-// ✅ Правая часть — Анализ, Вклады, Профиль
+// Правая часть — 2 таба
 const navRight = [
-  { to: '/analytics', icon: '📊', label: 'Анализ' },
-  { to: '/deposits',  icon: '💎', label: 'Вклады' },
-  { to: '/profile',   icon: '👤', label: 'Профиль' },
+  { to: '/deposits', icon: '💎', label: 'Вклады' },
+  { to: '/profile',  icon: '👤', label: 'Профиль' },
 ];
 
 function isActive(item) {
@@ -42,14 +39,17 @@ function go(item) {
 }
 
 function handleFabClick() {
-  if (serverStatus.value === 'error') return;
-  emit('open-scan');
+  // ✅ FAB всегда открывает ScanModal, независимо от статуса
+  // Если нужна блокировка при ошибке — раскомментируйте
+  // if (serverStatus.value === 'error') return;
+
+  scanStore.open();
 }
 </script>
 
 <template>
   <nav class="bottom-nav">
-    <!-- Финансы -->
+    <!-- Финансы, Анализ -->
     <button
       v-for="item in navLeft"
       :key="item.to"
@@ -62,13 +62,12 @@ function handleFabClick() {
       <span class="bn-label">{{ item.label }}</span>
     </button>
 
-    <!-- FAB по центру -->
+    <!-- FAB по центру (3-я позиция из 5) -->
     <div class="bn-fab-wrapper">
       <button
         type="button"
         class="bn-fab"
         :class="'is-' + serverStatus"
-        :disabled="serverStatus === 'error'"
         @click="handleFabClick"
         aria-label="Сканировать чек"
       >
@@ -89,7 +88,7 @@ function handleFabClick() {
       </button>
     </div>
 
-    <!-- Анализ, Вклады, Профиль -->
+    <!-- Вклады, Профиль -->
     <button
       v-for="item in navRight"
       :key="item.to"
@@ -115,7 +114,7 @@ function handleFabClick() {
   right: 0;
   z-index: 900;
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: 1fr 1fr auto 1fr 1fr;
   align-items: end;
   max-width: 500px;
   margin: 0 auto;
@@ -147,7 +146,7 @@ function handleFabClick() {
   font-size: 10.5px;
   font-weight: 600;
   cursor: pointer;
-  transition: color 0.18s, transform 0.18s;
+  transition: color 0.18s, transform 0.18s, background 0.18s;
   border-radius: 12px;
   min-width: 0;
 
@@ -155,11 +154,19 @@ function handleFabClick() {
 
   &:active { transform: scale(0.94); }
 
+  /* ✅ Активная вкладка — фиолетовый цвет + фоновая плашка */
   &.active {
     color: #4f46e5;
+    background: rgba(99, 102, 241, 0.08);
 
     .bn-icon {
       transform: translateY(-2px) scale(1.1);
+      filter: drop-shadow(0 2px 6px rgba(99, 102, 241, 0.4));
+    }
+
+    .bn-label {
+      font-weight: 800;
+      color: #4f46e5;
     }
   }
 }
@@ -177,6 +184,7 @@ function handleFabClick() {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+  transition: color 0.18s;
 }
 
 /* ============================================================
@@ -186,7 +194,7 @@ function handleFabClick() {
   display: flex;
   justify-content: center;
   align-items: flex-end;
-  padding-bottom: 4px;
+  padding: 0 6px 4px;
   position: relative;
 }
 
@@ -208,9 +216,8 @@ function handleFabClick() {
   position: relative;
   z-index: 2;
 
-  &:active:not(:disabled) { transform: scale(0.94); }
+  &:active { transform: scale(0.94); }
 
-  /* Loading */
   &.is-loading {
     background: linear-gradient(135deg, #3b82f6, #8b5cf6);
     box-shadow:
@@ -219,7 +226,6 @@ function handleFabClick() {
     cursor: wait;
   }
 
-  /* OK */
   &.is-ok {
     background: linear-gradient(135deg, #3b82f6, #8b5cf6);
     box-shadow:
@@ -227,13 +233,11 @@ function handleFabClick() {
       0 0 0 4px rgba(255, 255, 255, 0.7);
   }
 
-  /* Error */
   &.is-error {
     background: linear-gradient(135deg, #ef4444, #dc2626);
     box-shadow:
       0 8px 24px -8px rgba(239, 68, 68, 0.7),
       0 0 0 4px rgba(255, 255, 255, 0.7);
-    cursor: not-allowed;
   }
 }
 

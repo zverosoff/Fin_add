@@ -8,34 +8,24 @@ const props = defineProps({
 
 const hidden = ref(false);
 const statusText = ref('Подключение к серверу…');
-const statusType = ref(''); // '' | 'saved' | 'dirty' | 'error'
-const freshness = ref('');
-const freshnessType = ref('');
+const statusType = ref('');
 
 const API_HOST = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 let hideTimer = null;
-let freshTimer = null;
 let fallbackTimer = null;
 let scrollRaf = null;
-let lastUpdate = 0;
 let unsubscribe = null;
 
 onMounted(() => {
-  // Скрытие hero через 5 сек
   hideTimer = setTimeout(() => {
     hidden.value = true;
   }, 5000);
 
-  // Тикер свежести
-  freshTimer = setInterval(updateFreshness, 30000);
-
-  // Подписка на события статуса
   unsubscribe = onDataStatus((detail) => {
     handleStatusUpdate(detail);
   });
 
-  // Fallback: если через 3 сек статус всё ещё «Подключение…» — значит ошибка
   fallbackTimer = setTimeout(() => {
     if (statusType.value === '') {
       statusType.value = 'dirty';
@@ -43,7 +33,6 @@ onMounted(() => {
     }
   }, 3000);
 
-  // Скролл
   window.addEventListener('scroll', onScroll, { passive: true });
   window.addEventListener('online', onOnlineChange);
   window.addEventListener('offline', onOnlineChange);
@@ -51,7 +40,6 @@ onMounted(() => {
 
 onUnmounted(() => {
   clearTimeout(hideTimer);
-  clearInterval(freshTimer);
   clearTimeout(fallbackTimer);
   if (unsubscribe) unsubscribe();
   window.removeEventListener('scroll', onScroll);
@@ -61,7 +49,6 @@ onUnmounted(() => {
 
 function handleStatusUpdate(detail) {
   clearTimeout(fallbackTimer);
-  lastUpdate = Date.now();
 
   const type = detail?.type || 'saved';
   statusType.value = type;
@@ -81,8 +68,6 @@ function handleStatusUpdate(detail) {
       }
     }, 5000);
   }
-
-  updateFreshness();
 }
 
 function onScroll() {
@@ -94,32 +79,14 @@ function onScroll() {
 }
 
 function onOnlineChange() {
-  updateFreshness();
-}
-
-function updateFreshness() {
-  if (!lastUpdate) {
-    freshnessType.value = '';
-    freshness.value = '—';
-    return;
-  }
-
+  // Обновление статуса от внешнего события
   if (!navigator.onLine) {
-    freshnessType.value = 'offline';
-    freshness.value = 'офлайн';
-    return;
+    statusType.value = 'error';
+    statusText.value = 'Офлайн';
+  } else {
+    statusType.value = 'saved';
+    statusText.value = 'Соединение восстановлено';
   }
-
-  const age = Date.now() - lastUpdate;
-  if (age < 60_000) freshnessType.value = 'fresh';
-  else if (age < 30 * 60_000) freshnessType.value = 'stale';
-  else freshnessType.value = 'old';
-
-  const sec = Math.floor(age / 1000);
-  if (sec < 10) freshness.value = 'только что';
-  else if (sec < 60) freshness.value = `${sec} сек назад`;
-  else if (sec < 3600) freshness.value = `${Math.floor(sec / 60)} мин назад`;
-  else freshness.value = `${Math.floor(sec / 3600)} ч назад`;
 }
 </script>
 
@@ -132,11 +99,7 @@ function updateFreshness() {
       <span class="status-text">{{ statusText }}</span>
     </div>
   </div>
-
-  <div class="freshness-indicator" :class="freshnessType">
-    <span class="fi-dot"></span>
-    <span>{{ freshness }}</span>
-  </div>
+  <!-- ✅ freshness-indicator убран — статус показывает FAB -->
 </template>
 
 <style scoped lang="scss">
@@ -248,69 +211,6 @@ h1 {
   50%      { opacity: 0.6; transform: scale(1.15); }
 }
 
-/* ============================================================
-   ✅ ИНДИКАТОР СВЕЖЕСТИ — переехал в ЛЕВЫЙ НИЖНИЙ УГОЛ,
-   чтобы не мешать FAB (который справа снизу)
-   ============================================================ */
-.freshness-indicator {
-  position: fixed;
-  bottom: 12px;
-  left: 12px;                 /* ← было right: 12px */
-  z-index: 999;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  font-size: 11px;
-  font-weight: 600;
-  color: var(--muted);
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid var(--border);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  opacity: 0.8;
-  transition: opacity 0.2s, color 0.25s, border-color 0.25s;
-  cursor: help;
-  white-space: nowrap;
-  pointer-events: none;       /* ← не перехватывает клики */
-
-  &:hover { opacity: 1; }
-
-  .fi-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: var(--muted);
-    flex-shrink: 0;
-    transition: all 0.25s;
-  }
-
-  &.fresh .fi-dot {
-    background: #22c55e;
-    box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
-  }
-
-  &.stale .fi-dot {
-    background: #f59e0b;
-    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.2);
-  }
-
-  &.old .fi-dot {
-    background: #ef4444;
-    box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.2);
-  }
-
-  &.offline {
-    color: var(--danger);
-    border-color: rgba(239, 68, 68, 0.4);
-    .fi-dot {
-      background: #ef4444;
-      box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25);
-    }
-  }
-}
-
 @media (max-width: 700px) {
   .hero-block {
     margin: 0 0 14px;
@@ -333,14 +233,6 @@ h1 {
   .file-status .dot {
     width: 7px;
     height: 7px;
-  }
-
-  /* ✅ На мобильном — тоже слева снизу, с учётом safe-area */
-  .freshness-indicator {
-    bottom: calc(12px + env(safe-area-inset-bottom, 0));
-    left: 12px;
-    font-size: 10px;
-    padding: 3px 8px;
   }
 }
 </style>
