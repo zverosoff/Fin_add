@@ -30,6 +30,24 @@ const pdfOpen = ref(false);
 
 const showBottomNav = computed(() => route.name !== 'login');
 
+// ✅ Порядок табов для определения направления перехода
+const TAB_ORDER = ['finance', 'analytics', 'deposits', 'profile'];
+
+const transitionName = ref('slide-left');
+
+watch(() => route.name, (newName, oldName) => {
+  const newIdx = TAB_ORDER.indexOf(newName);
+  const oldIdx = TAB_ORDER.indexOf(oldName);
+
+  // Если оба в списке табов — определяем направление
+  if (newIdx >= 0 && oldIdx >= 0) {
+    transitionName.value = newIdx > oldIdx ? 'slide-left' : 'slide-right';
+  } else {
+    // Для login и др — простой фейд
+    transitionName.value = 'fade-page';
+  }
+});
+
 function switchToManual() {
   scanStore.close();
   manualOpen.value = true;
@@ -92,8 +110,6 @@ onMounted(async () => {
     percent.value = 95;
 
     connect();
-
-    // ✅ Уведомляем PageHero, что всё готово
     notifySaved('готово');
 
     percent.value = 100;
@@ -120,7 +136,12 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <router-view />
+  <!-- ✅ Анимация переходов между страницами -->
+  <router-view v-slot="{ Component, route: r }">
+    <Transition :name="transitionName" mode="out-in">
+      <component :is="Component" :key="r.path" />
+    </Transition>
+  </router-view>
 
   <BottomNav v-if="showBottomNav" />
 
@@ -143,3 +164,47 @@ onUnmounted(() => {
 
   <ToastContainer />
 </template>
+
+<style>
+/* ============================================================
+   ✅ Анимация страниц
+   ============================================================ */
+
+/* Slide left (переход «вправо» по табам) */
+.slide-left-enter-active,
+.slide-left-leave-active {
+  transition: transform 0.28s cubic-bezier(.22,.61,.36,1), opacity 0.28s;
+}
+.slide-left-enter-from {
+  transform: translateX(30px);
+  opacity: 0;
+}
+.slide-left-leave-to {
+  transform: translateX(-30px);
+  opacity: 0;
+}
+
+/* Slide right (переход «влево») */
+.slide-right-enter-active,
+.slide-right-leave-active {
+  transition: transform 0.28s cubic-bezier(.22,.61,.36,1), opacity 0.28s;
+}
+.slide-right-enter-from {
+  transform: translateX(-30px);
+  opacity: 0;
+}
+.slide-right-leave-to {
+  transform: translateX(30px);
+  opacity: 0;
+}
+
+/* Простой фейд для login и других */
+.fade-page-enter-active,
+.fade-page-leave-active {
+  transition: opacity 0.25s ease;
+}
+.fade-page-enter-from,
+.fade-page-leave-to {
+  opacity: 0;
+}
+</style>

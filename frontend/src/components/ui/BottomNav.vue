@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch, onMounted } from 'vue';
+import { computed, ref, onMounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useWebSocket } from '@/composables/useWebSocket';
 import { useAccountsStore } from '@/stores/accounts';
@@ -11,7 +11,6 @@ const { connected } = useWebSocket();
 const accounts = useAccountsStore();
 const scanStore = useScanStore();
 
-// ✅ FAB: показать спиннер 2-3 сек после приветствия
 const fabBooting = ref(true);
 onMounted(() => {
   setTimeout(() => {
@@ -19,7 +18,6 @@ onMounted(() => {
   }, 2500);
 });
 
-// Статус сервера
 const serverStatus = computed(() => {
   if (fabBooting.value) return 'loading';
   if (!accounts.loaded) return 'loading';
@@ -27,19 +25,16 @@ const serverStatus = computed(() => {
   return 'ok';
 });
 
-// 2 таба слева
 const navLeft = [
   { to: '/finance',   icon: '💳', label: 'Финансы' },
   { to: '/analytics', icon: '📊', label: 'Анализ' },
 ];
 
-// 2 таба справа
 const navRight = [
   { to: '/deposits', icon: '💎', label: 'Вклады' },
   { to: '/profile',  icon: '👤', label: 'Профиль' },
 ];
 
-// ✅ Все табы для расчёта позиции индикатора
 const allTabs = [...navLeft, ...navRight];
 
 const activeIndex = computed(() => {
@@ -52,12 +47,11 @@ const activeIndex = computed(() => {
   return -1;
 });
 
-// Позиция индикатора: слева = index, справа = index + 3 (пропуская FAB)
+// ✅ Индикатор: 5 колонок, но индикатор по сетке (внутри padding)
 const indicatorStyle = computed(() => {
   const idx = activeIndex.value;
   if (idx < 0) return { opacity: 0 };
 
-  // Колонки: [0=Финансы] [1=Анализ] [2=FAB] [3=Вклады] [4=Профиль]
   const colIndex = idx < 2 ? idx : idx + 1;
   const columns = 5;
   const widthPercent = 100 / columns;
@@ -85,60 +79,62 @@ function handleFabClick() {
 
 <template>
   <nav class="bottom-nav">
-    <!-- ✅ Переезжающий индикатор -->
-    <div
-      class="bn-indicator"
-      :style="indicatorStyle"
-    ></div>
+    <div class="bn-inner">
+      <!-- Индикатор -->
+      <div
+        class="bn-indicator"
+        :style="indicatorStyle"
+      ></div>
 
-    <!-- Финансы, Анализ -->
-    <button
-      v-for="item in navLeft"
-      :key="item.to"
-      type="button"
-      class="bn-item"
-      :class="{ active: isActive(item) }"
-      @click="go(item)"
-    >
-      <span class="bn-icon">{{ item.icon }}</span>
-      <span class="bn-label">{{ item.label }}</span>
-    </button>
-
-    <!-- FAB -->
-    <div class="bn-fab-wrapper">
+      <!-- Финансы, Анализ -->
       <button
+        v-for="item in navLeft"
+        :key="item.to"
         type="button"
-        class="bn-fab"
-        :class="'is-' + serverStatus"
-        @click="handleFabClick"
-        aria-label="Сканировать чек"
+        class="bn-item"
+        :class="{ active: isActive(item) }"
+        @click="go(item)"
       >
-        <svg v-if="serverStatus === 'loading'" class="bn-fab-spinner" viewBox="0 0 50 50">
-          <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
-        </svg>
+        <span class="bn-icon">{{ item.icon }}</span>
+        <span class="bn-label">{{ item.label }}</span>
+      </button>
 
-        <svg v-else-if="serverStatus === 'ok'" class="bn-fab-icon" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M9 3 7.17 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.17L15 3H9zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
-        </svg>
+      <!-- FAB -->
+      <div class="bn-fab-wrapper">
+        <button
+          type="button"
+          class="bn-fab"
+          :class="'is-' + serverStatus"
+          @click="handleFabClick"
+          aria-label="Сканировать чек"
+        >
+          <svg v-if="serverStatus === 'loading'" class="bn-fab-spinner" viewBox="0 0 50 50">
+            <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
+          </svg>
 
-        <svg v-else class="bn-fab-icon" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M12 2 1 21h22L12 2zm1 16h-2v-2h2v2zm0-4h-2V9h2v5z"/>
-        </svg>
+          <svg v-else-if="serverStatus === 'ok'" class="bn-fab-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M9 3 7.17 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.17L15 3H9zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
+          </svg>
+
+          <svg v-else class="bn-fab-icon" viewBox="0 0 24 24" fill="currentColor">
+            <path d="M12 2 1 21h22L12 2zm1 16h-2v-2h2v2zm0-4h-2V9h2v5z"/>
+          </svg>
+        </button>
+      </div>
+
+      <!-- Вклады, Профиль -->
+      <button
+        v-for="item in navRight"
+        :key="item.to"
+        type="button"
+        class="bn-item"
+        :class="{ active: isActive(item) }"
+        @click="go(item)"
+      >
+        <span class="bn-icon">{{ item.icon }}</span>
+        <span class="bn-label">{{ item.label }}</span>
       </button>
     </div>
-
-    <!-- Вклады, Профиль -->
-    <button
-      v-for="item in navRight"
-      :key="item.to"
-      type="button"
-      class="bn-item"
-      :class="{ active: isActive(item) }"
-      @click="go(item)"
-    >
-      <span class="bn-icon">{{ item.icon }}</span>
-      <span class="bn-label">{{ item.label }}</span>
-    </button>
   </nav>
 </template>
 
@@ -149,9 +145,6 @@ function handleFabClick() {
   left: 0;
   right: 0;
   z-index: 900;
-  display: grid;
-  grid-template-columns: 1fr 1fr auto 1fr 1fr;
-  align-items: end;
   max-width: 500px;
   margin: 0 auto;
   padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0));
@@ -165,20 +158,29 @@ function handleFabClick() {
     0 -2px 8px -4px rgba(15, 23, 42, 0.06);
 }
 
-/* ✅ Переезжающий индикатор */
+/* ✅ Внутренний контейнер без padding — сетка внутри */
+.bn-inner {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr auto 1fr 1fr;
+  align-items: end;
+  width: 100%;
+}
+
+/* ✅ Индикатор — теперь точно под табами */
 .bn-indicator {
   position: absolute;
-  top: 4px;
+  top: 0;
   bottom: 4px;
   border-radius: 16px;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.08));
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.14), rgba(139, 92, 246, 0.1));
   pointer-events: none;
   transition:
-    left 0.35s cubic-bezier(.34,1.56,.64,1),
-    width 0.35s cubic-bezier(.34,1.56,.64,1),
+    left 0.4s cubic-bezier(.34,1.56,.64,1),
+    width 0.4s cubic-bezier(.34,1.56,.64,1),
     opacity 0.25s ease;
   z-index: 1;
-  margin: 0 4px;
+  margin: 0 2px;
 }
 
 .bn-item {
@@ -189,7 +191,7 @@ function handleFabClick() {
   align-items: center;
   justify-content: center;
   gap: 3px;
-  padding: 6px 4px;
+  padding: 8px 4px;
   border: none;
   background: transparent;
   color: #94a3b8;

@@ -8,17 +8,11 @@ const emit = defineEmits(['reconcile', 'user-menu']);
 const accounts = useAccountsStore();
 const auth = useAuthStore();
 
-// ── Данные для карточки ──
 const userName = computed(() => auth.user || 'Сергей');
 const userEmoji = computed(() => userName.value === 'Сергей' ? '👨' : '👩');
 const totalBalance = computed(() => accounts.total);
 
-// ── Счета по владельцу ──
 const owners = computed(() => Object.keys(accounts.byOwner || {}));
-
-function ownerTotal(list) {
-  return list.reduce((s, a) => s + (Number(a.value) || 0), 0);
-}
 
 function bankLogo(id) {
   if (!id) return null;
@@ -30,59 +24,53 @@ function bankLogo(id) {
 
 <template>
   <section class="accounts-block">
-    <!-- ✅ Банковская карта — только баланс + имя + аватар -->
     <div class="bank-card">
+      <!-- Верх: баланс + аватар -->
       <div class="bc-top">
         <div class="bc-balance">
           <div class="bc-label">Общий баланс</div>
           <div class="bc-amount">{{ fmt(totalBalance) }} ₽</div>
-          <div class="bc-sub">{{ userName }}, ваш баланс на сегодня</div>
         </div>
         <div class="bc-avatar">{{ userEmoji }}</div>
       </div>
-    </div>
 
-    <!-- ✅ Компактные счета — по владельцу, чипы -->
-    <div class="owners">
-      <div
-        v-for="owner in owners"
-        :key="owner"
-        class="owner-row"
-      >
-        <button
-          class="owner-name"
-          type="button"
-          :title="`Открыть меню: ${owner}`"
-          @click="emit('user-menu', owner)"
+      <!-- Низ: счета по владельцам -->
+      <div class="bc-accounts">
+        <div
+          v-for="owner in owners"
+          :key="owner"
+          class="bc-owner-row"
         >
-          <span class="owner-emoji">{{ owner === 'Сергей' ? '👨' : '👩' }}</span>
-          <span class="owner-text">{{ owner }}</span>
-        </button>
-
-        <div class="owner-chips">
           <button
-            v-for="acc in accounts.byOwner[owner]"
-            :key="acc.id"
+            class="bc-owner-name"
             type="button"
-            class="acct-chip"
-            :class="acc.id.startsWith('sber') ? 'sber' : 'tbank'"
-            :title="`Сверить: ${acc.name}`"
-            @click="emit('reconcile', acc)"
+            @click="emit('user-menu', owner)"
           >
-            <img
-              v-if="bankLogo(acc.id)"
-              :src="bankLogo(acc.id)"
-              class="chip-logo"
-              :alt="acc.name"
-            />
-            <span v-else class="chip-logo-fallback">
-              {{ acc.id.startsWith('sber') ? 'С' : 'Т' }}
-            </span>
-            <span class="chip-value">{{ fmt(acc.value) }} ₽</span>
+            <span class="bc-owner-emoji">{{ owner === 'Сергей' ? '👨' : '👩' }}</span>
+            <span class="bc-owner-text">{{ owner }}</span>
           </button>
-        </div>
 
-        <div class="owner-total">{{ fmt(ownerTotal(accounts.byOwner[owner])) }} ₽</div>
+          <div class="bc-chips">
+            <button
+              v-for="acc in accounts.byOwner[owner]"
+              :key="acc.id"
+              type="button"
+              class="bc-chip"
+              @click="emit('reconcile', acc)"
+            >
+              <img
+                v-if="bankLogo(acc.id)"
+                :src="bankLogo(acc.id)"
+                class="bc-chip-logo"
+                :alt="acc.name"
+              />
+              <span v-else class="bc-chip-logo-fallback">
+                {{ acc.id.startsWith('sber') ? 'С' : 'Т' }}
+              </span>
+              <span class="bc-chip-value">{{ fmt(acc.value) }} ₽</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </section>
@@ -110,8 +98,7 @@ function bankLogo(id) {
   box-shadow:
     0 20px 40px -18px rgba(59, 130, 246, 0.6),
     0 10px 20px -10px rgba(124, 58, 237, 0.4);
-  padding: 22px 22px;
-  min-height: 150px;
+  padding: 22px 22px 18px;
 }
 
 .bc-top {
@@ -119,6 +106,7 @@ function bankLogo(id) {
   justify-content: space-between;
   align-items: flex-start;
   gap: 14px;
+  margin-bottom: 18px;
 }
 
 .bc-balance { min-width: 0; flex: 1; }
@@ -128,7 +116,7 @@ function bankLogo(id) {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.1em;
-  opacity: 0.75;
+  opacity: 0.78;
 }
 
 .bc-amount {
@@ -136,7 +124,7 @@ function bankLogo(id) {
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.1;
-  margin: 6px 0 8px;
+  margin-top: 4px;
   font-family: var(--mono);
   white-space: nowrap;
   overflow: hidden;
@@ -144,16 +132,9 @@ function bankLogo(id) {
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-.bc-sub {
-  font-size: 12.5px;
-  font-weight: 600;
-  opacity: 0.85;
-  line-height: 1.3;
-}
-
 .bc-avatar {
-  width: 60px;
-  height: 60px;
+  width: 58px;
+  height: 58px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.22);
   border: 2px solid rgba(255, 255, 255, 0.55);
@@ -162,126 +143,111 @@ function bankLogo(id) {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 32px;
+  font-size: 30px;
   flex-shrink: 0;
   box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.35);
 }
 
 /* ============================================================
-   КОМПАКТНЫЕ СЧЕТА
+   СЧЕТА ВНУТРИ КАРТОЧКИ
    ============================================================ */
-.owners {
+.bc-accounts {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: var(--shadow-sm);
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
 
-.owner-row {
+.bc-owner-row {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
+  flex-wrap: wrap;
 }
 
-.owner-name {
+.bc-owner-name {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 8px 3px 4px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  color: var(--text);
+  padding: 3px 10px 3px 5px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 700;
   cursor: pointer;
   flex-shrink: 0;
   transition: all 0.15s;
   white-space: nowrap;
+  backdrop-filter: blur(6px);
 
   &:hover {
-    background: rgba(56, 189, 248, 0.12);
-    color: var(--accent);
+    background: rgba(255, 255, 255, 0.28);
+    transform: translateY(-1px);
   }
 }
 
-.owner-emoji { font-size: 13px; }
-.owner-text { line-height: 1; }
+.bc-owner-emoji { font-size: 13px; }
+.bc-owner-text { line-height: 1; }
 
-.owner-chips {
+.bc-chips {
   display: flex;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
   flex: 1;
   min-width: 0;
+  justify-content: flex-end;
 }
 
-.acct-chip {
+.bc-chip {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 4px 10px 4px 4px;
+  gap: 6px;
+  padding: 5px 12px 5px 5px;
   border-radius: 999px;
-  border: 1px solid transparent;
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
   font-family: inherit;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s;
   white-space: nowrap;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 
-  &:hover { transform: translateY(-1px); }
+  &:hover {
+    background: rgba(255, 255, 255, 0.35);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.35);
+  }
+
   &:active { transform: scale(0.96); }
-
-  &.sber {
-    background: rgba(33, 160, 56, 0.12);
-    border-color: rgba(33, 160, 56, 0.32);
-
-    .chip-value { color: #15803d; }
-
-    &:hover {
-      background: rgba(33, 160, 56, 0.2);
-      box-shadow: 0 4px 12px -4px rgba(33, 160, 56, 0.5);
-    }
-  }
-
-  &.tbank {
-    background: rgba(255, 221, 45, 0.22);
-    border-color: rgba(255, 191, 36, 0.45);
-
-    .chip-value { color: #b45309; }
-
-    &:hover {
-      background: rgba(255, 221, 45, 0.35);
-      box-shadow: 0 4px 12px -4px rgba(255, 191, 36, 0.6);
-    }
-  }
 }
 
-.chip-logo {
+.bc-chip-logo {
   width: 18px;
   height: 18px;
   border-radius: 50%;
   object-fit: contain;
-  background: #fff;
+  background: #ffffff;
   padding: 1px;
   box-sizing: border-box;
   flex-shrink: 0;
 }
 
-.chip-logo-fallback {
+.bc-chip-logo-fallback {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #16a34a;
-  color: #fff;
+  background: #ffffff;
+  color: #4f46e5;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -290,24 +256,11 @@ function bankLogo(id) {
   flex-shrink: 0;
 }
 
-.chip-value {
+.bc-chip-value {
   font-family: var(--mono);
   font-size: 12px;
   font-weight: 800;
-}
-
-.owner-total {
-  margin-left: auto;
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 800;
-  color: var(--accent);
-  white-space: nowrap;
-  flex-shrink: 0;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(139, 92, 246, 0.08));
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  letter-spacing: -0.02em;
 }
 
 /* ============================================================
@@ -315,44 +268,36 @@ function bankLogo(id) {
    ============================================================ */
 @media (max-width: 700px) {
   .bank-card {
-    padding: 18px 18px;
-    min-height: 130px;
+    padding: 18px 18px 14px;
     border-radius: 20px;
   }
 
+  .bc-top { margin-bottom: 14px; gap: 10px; }
+
   .bc-label { font-size: 10px; }
-  .bc-amount { font-size: 30px; margin: 4px 0 6px; }
-  .bc-sub { font-size: 11.5px; }
+  .bc-amount { font-size: 30px; }
 
   .bc-avatar {
-    width: 52px;
-    height: 52px;
-    font-size: 28px;
+    width: 50px;
+    height: 50px;
+    font-size: 26px;
   }
 
-  .owners {
-    padding: 10px 12px;
-    border-radius: 14px;
-    gap: 6px;
-  }
+  .bc-accounts { gap: 8px; padding-top: 12px; }
 
-  .owner-row { gap: 6px; }
-  .owner-name { font-size: 11px; padding: 2px 6px 2px 3px; }
-  .owner-emoji { font-size: 12px; }
+  .bc-owner-row { gap: 6px; }
+  .bc-owner-name { font-size: 11px; padding: 2px 8px 2px 4px; }
+  .bc-owner-emoji { font-size: 12px; }
 
-  .acct-chip { font-size: 11px; padding: 3px 9px 3px 3px; gap: 4px; }
-  .chip-logo, .chip-logo-fallback { width: 16px; height: 16px; }
-  .chip-value { font-size: 11px; }
-
-  .owner-total {
-    font-size: 11px;
-    padding: 2px 8px;
-  }
+  .bc-chip { font-size: 11px; padding: 4px 10px 4px 4px; gap: 5px; }
+  .bc-chip-logo,
+  .bc-chip-logo-fallback { width: 16px; height: 16px; }
+  .bc-chip-value { font-size: 11px; }
 }
 
 @media (max-width: 380px) {
   .bc-amount { font-size: 26px; }
-  .owner-chips { gap: 4px; }
-  .acct-chip { font-size: 10px; }
+  .bc-chips { gap: 4px; }
+  .bc-chip { font-size: 10px; }
 }
 </style>
