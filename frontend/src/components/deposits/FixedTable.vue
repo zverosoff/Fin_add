@@ -137,9 +137,7 @@ const byUser = computed(() => {
 <template>
   <div class="fixed-wrap">
 
-    <!-- ============================================================
-         КАРТА-ШАПКА: доход в месяц + итог
-         ============================================================ -->
+    <!-- КАРТА-ШАПКА -->
     <div class="summary-card">
       <div class="sc-top">
         <div class="sc-main">
@@ -166,9 +164,7 @@ const byUser = computed(() => {
       </div>
     </div>
 
-    <!-- ============================================================
-         ТАБЛИЦА ПРОЦЕНТОВ
-         ============================================================ -->
+    <!-- ТАБЛИЦА ПРОЦЕНТОВ -->
     <div class="card">
       <h2 class="card-title">💎 Таблица прибыли от процента</h2>
 
@@ -208,9 +204,7 @@ const byUser = computed(() => {
       </div>
     </div>
 
-    <!-- ============================================================
-         ДОХОДЫ И РАСХОДЫ
-         ============================================================ -->
+    <!-- ДОХОДЫ И РАСХОДЫ -->
     <div class="card">
       <div class="card-head">
         <h2 class="card-title">📊 Доходы и расходы</h2>
@@ -321,14 +315,11 @@ const byUser = computed(() => {
       </div>
     </div>
 
-    <!-- ============================================================
-         ОТЧЁТ ПО ПОЛЬЗОВАТЕЛЯМ
-         ============================================================ -->
+    <!-- ОТЧЁТ ПО ПОЛЬЗОВАТЕЛЯМ -->
     <div class="user-report">
       <h3 class="report-title">👥 Отчёт по пользователям</h3>
 
       <div class="user-report-grid">
-        <!-- Сергей -->
         <div class="user-card sergey">
           <div class="uc-head">
             <div class="uc-avatar">👨</div>
@@ -359,7 +350,6 @@ const byUser = computed(() => {
           </div>
         </div>
 
-        <!-- Саша -->
         <div class="user-card sasha">
           <div class="uc-head">
             <div class="uc-avatar">👩</div>
@@ -424,7 +414,7 @@ const byUser = computed(() => {
   justify-content: space-between;
   align-items: flex-start;
   gap: 14px;
-  padding: 22px 22px 18px;
+  padding: 20px 20px 16px;
 }
 
 .sc-main { min-width: 0; flex: 1; }
@@ -437,8 +427,9 @@ const byUser = computed(() => {
   opacity: 0.75;
 }
 
+/* ✅ Уменьшен: 34 → 22 */
 .sc-amount {
-  font-size: 34px;
+  font-size: 22px;
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.1;
@@ -450,7 +441,7 @@ const byUser = computed(() => {
 }
 
 .sc-sub {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
   opacity: 0.85;
   line-height: 1.35;
@@ -461,8 +452,9 @@ const byUser = computed(() => {
   flex-shrink: 0;
 }
 
+/* ✅ Уменьшен: 20 → 15 */
 .sc-graph-value {
-  font-size: 20px;
+  font-size: 15px;
   font-weight: 800;
   font-family: var(--mono);
   letter-spacing: -0.02em;
@@ -480,7 +472,7 @@ const byUser = computed(() => {
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   gap: 12px;
-  padding: 14px 22px 18px;
+  padding: 12px 20px 16px;
   background: rgba(0, 0, 0, 0.15);
   backdrop-filter: blur(10px);
 }
@@ -496,8 +488,9 @@ const byUser = computed(() => {
   opacity: 0.75;
 }
 
+/* ✅ Уменьшен: 17 → 14 */
 .sc-cell-value {
-  font-size: 17px;
+  font-size: 14px;
   font-weight: 800;
   font-family: var(--mono);
   letter-spacing: -0.02em;
@@ -512,7 +505,7 @@ const byUser = computed(() => {
 
 .sc-divider {
   width: 1px;
-  height: 32px;
+  height: 28px;
   background: rgba(255, 255, 255, 0.25);
 }
 
@@ -612,13 +605,13 @@ const byUser = computed(() => {
   }
 
   input {
-    padding: 12px 40px 12px 14px;
+    padding: 11px 36px 11px 14px;
     border: 1px solid var(--border);
     border-radius: 12px;
     background: #ffffff;
     color: var(--text);
     font-family: var(--mono);
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 700;
     outline: none;
     width: 100%;
@@ -633,9 +626,9 @@ const byUser = computed(() => {
   .percent-suffix {
     position: absolute;
     right: 14px;
-    bottom: 14px;
+    bottom: 13px;
     font-family: var(--mono);
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 700;
     color: var(--muted);
     pointer-events: none;
@@ -649,7 +642,7 @@ const byUser = computed(() => {
 }
 
 .percent-result {
-  padding: 14px 16px;
+  padding: 12px 14px;
   border-radius: 14px;
   background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(139, 92, 246, 0.05));
   border: 1px solid rgba(56, 189, 248, 0.2);
@@ -673,9 +666,10 @@ const byUser = computed(() => {
   color: var(--muted);
 }
 
+/* ✅ Уменьшен: 20 → 15 */
 .pr-value {
   font-family: var(--mono);
-  font-size: 20px;
+  font-size: 15px;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: var(--text);
@@ -707,17 +701,6 @@ const byUser = computed(() => {
   gap: 8px;
   padding: 8px 12px;
   border-radius: 12px;
-  font-size: 12px;
-  font-weight: 800;
-
-  &.income-bg {
-    background: rgba(34, 197, 94, 0.1);
-  }
-
-  .dt-col-icon.income { color: #16a34a; }
-}
-
-.dt-col-head {
   background: rgba(148, 163, 184, 0.08);
 }
 
@@ -751,6 +734,7 @@ const byUser = computed(() => {
   }
 }
 
+/* ✅ Уже уменьшены до 11.5px */
 .dt-name,
 .dt-value {
   padding: 6px 10px;
@@ -828,14 +812,14 @@ const byUser = computed(() => {
 .dt-col-total {
   padding: 10px 14px;
   border-radius: 12px;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 700;
   text-align: right;
   margin-top: 4px;
 
   strong {
     font-family: var(--mono);
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 800;
     margin-left: 6px;
   }
@@ -860,7 +844,7 @@ const byUser = computed(() => {
 /* Итоговая разница */
 .grand-total {
   margin-top: 16px;
-  padding: 14px 18px;
+  padding: 12px 16px;
   border-radius: 14px;
   display: flex;
   justify-content: space-between;
@@ -885,15 +869,16 @@ const byUser = computed(() => {
 }
 
 .gt-label {
-  font-size: 12.5px;
+  font-size: 12px;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
+/* ✅ Уменьшен: 22 → 16 */
 .gt-value {
   font-family: var(--mono);
-  font-size: 22px;
+  font-size: 16px;
   font-weight: 800;
   letter-spacing: -0.02em;
 }
@@ -954,13 +939,13 @@ const byUser = computed(() => {
 }
 
 .uc-avatar {
-  width: 44px;
-  height: 44px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 22px;
+  font-size: 20px;
   flex-shrink: 0;
 
   .sergey & {
@@ -976,8 +961,9 @@ const byUser = computed(() => {
 
 .uc-info { min-width: 0; flex: 1; }
 
+/* ✅ Уменьшен: 15 → 14 */
 .uc-name {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 800;
   color: var(--text);
 }
@@ -1032,7 +1018,7 @@ const byUser = computed(() => {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 12px 14px;
+  padding: 10px 14px;
   border-radius: 12px;
 
   &.positive {
@@ -1054,9 +1040,10 @@ const byUser = computed(() => {
   letter-spacing: 0.05em;
 }
 
+/* ✅ Уменьшен: 18 → 15 */
 .uc-total-value {
   font-family: var(--mono);
-  font-size: 18px;
+  font-size: 15px;
   font-weight: 800;
   letter-spacing: -0.02em;
 }
@@ -1065,30 +1052,30 @@ const byUser = computed(() => {
    МОБИЛЬНЫЙ
    ============================================================ */
 @media (max-width: 700px) {
-  .sc-top { padding: 18px 18px 14px; gap: 10px; }
-  .sc-amount { font-size: 28px; }
+  .sc-top { padding: 16px 16px 12px; gap: 10px; }
+  .sc-amount { font-size: 20px; }
   .sc-sub { font-size: 11px; }
-  .sc-graph-value { font-size: 16px; }
+  .sc-graph-value { font-size: 14px; }
   .sc-graph-label { font-size: 9.5px; }
-  .sc-bottom { padding: 12px 18px 14px; gap: 8px; }
-  .sc-cell-value { font-size: 15px; }
+  .sc-bottom { padding: 10px 16px 12px; gap: 8px; }
+  .sc-cell-value { font-size: 13px; }
 
   .card { padding: 14px 16px; border-radius: 16px; }
 
   .percent-grid { grid-template-columns: 1fr; gap: 10px; }
   .percent-results { grid-template-columns: 1fr 1fr; gap: 10px; }
-  .pr-value { font-size: 17px; }
+  .pr-value { font-size: 14px; }
 
   .dt-grid { grid-template-columns: 1fr; gap: 14px; }
-  .dt-row { grid-template-columns: 1fr 90px auto; }
+  .dt-row { grid-template-columns: 1fr 80px auto; }
 
   .user-report-grid { grid-template-columns: 1fr; }
-  .uc-total-value { font-size: 16px; }
-  .gt-value { font-size: 18px; }
+  .uc-total-value { font-size: 14px; }
+  .gt-value { font-size: 14px; }
 }
 
 @media (max-width: 400px) {
-  .dt-row { grid-template-columns: 1fr 80px auto; }
-  .sc-amount { font-size: 24px; }
+  .dt-row { grid-template-columns: 1fr 70px auto; }
+  .sc-amount { font-size: 18px; }
 }
 </style>

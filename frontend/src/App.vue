@@ -172,13 +172,20 @@ onUnmounted(() => {
   min-height: 100vh;
   width: 100%;
   overflow-x: hidden;
+
+  /* ✅ Отступ снизу под BottomNav — здесь, чтобы покрыть ВСЕ страницы */
+  padding-bottom: calc(90px + env(safe-area-inset-bottom, 0));
+}
+
+@media (max-width: 700px) {
+  .page-transition-wrap {
+    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0));
+  }
 }
 
 /* ============================================================
    Анимации
    ============================================================ */
-
-/* Slide left */
 .slide-left-enter-active,
 .slide-right-enter-active {
   transition: transform 0.28s cubic-bezier(.22,.61,.36,1), opacity 0.28s;
@@ -192,7 +199,6 @@ onUnmounted(() => {
   opacity: 0;
 }
 
-/* Уходящая — absolute */
 .slide-left-leave-active,
 .slide-right-leave-active {
   position: absolute;
@@ -212,7 +218,6 @@ onUnmounted(() => {
   opacity: 0;
 }
 
-/* Фейд */
 .fade-page-enter-active,
 .fade-page-leave-active {
   transition: opacity 0.25s ease;

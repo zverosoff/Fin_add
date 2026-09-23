@@ -42,6 +42,11 @@ body {
   100% { background-position: 0% 50%; }
 }
 
+/* ✅ Убираем padding-bottom у #app — теперь он в .page-transition-wrap */
+body.app-has-bottom-nav #app {
+  /* пусто — управляется через .page-transition-wrap */
+}
+
 /* ============================================================
    СКРОЛЛБАР
    ============================================================ */
@@ -99,10 +104,15 @@ input, select, textarea {
 }
 
 /* ============================================================
-   LEGACY: самописные модалки (.tx-modal-overlay / .tx-modal)
-   Для ManualModal, ScanModal, PdfImportModal, ReconcileModal и т.д.
+   Скрываем старый AppTabs
    ============================================================ */
+.app-tabs {
+  display: none !important;
+}
 
+/* ============================================================
+   LEGACY: самописные модалки (.tx-modal-overlay / .tx-modal)
+   ============================================================ */
 .tx-modal-overlay {
   position: fixed;
   inset: 0;
@@ -144,7 +154,6 @@ input, select, textarea {
   opacity: 1;
 }
 
-/* Мобильная версия legacy-модалок */
 @media (max-width: 700px) {
   .tx-modal-overlay {
     padding: 0;
@@ -164,39 +173,4 @@ input, select, textarea {
   .tx-modal-overlay.show .tx-modal {
     transform: translateY(0);
   }
-}
-/* ============================================================
-   ✅ Отступ под BottomNav
-   ============================================================ */
-body.app-has-bottom-nav #app {
-  padding-bottom: calc(90px + env(safe-area-inset-bottom, 0));
-}
-
-@media (max-width: 700px) {
-  body.app-has-bottom-nav #app {
-    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0));
-  }
-}
-
-/* ✅ Скрываем старый AppTabs, если он где-то остался */
-.app-tabs {
-  display: none !important;
-}
-
-/* ============================================================
-   ✅ Отступ под BottomNav
-   ============================================================ */
-body.app-has-bottom-nav #app {
-  padding-bottom: calc(90px + env(safe-area-inset-bottom, 0));
-}
-
-@media (max-width: 700px) {
-  body.app-has-bottom-nav #app {
-    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0));
-  }
-}
-
-/* ✅ Скрываем старый AppTabs (не используется) */
-.app-tabs {
-  display: none !important;
 }
