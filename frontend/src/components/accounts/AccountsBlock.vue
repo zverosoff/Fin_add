@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
 import { useAuthStore } from '@/stores/auth';
 import { fmt } from '@/composables/useFormat';
@@ -25,6 +25,21 @@ const ownersSorted = computed(() => {
   });
 });
 
+// ✅ Состояние раскрытия по каждому владельцу
+// true = показаны счета (чипы), false = показан общий баланс
+const expandedOwners = ref({});
+
+function isExpanded(owner) {
+  return !!expandedOwners.value[owner];
+}
+
+function toggleOwner(owner) {
+  expandedOwners.value = {
+    ...expandedOwners.value,
+    [owner]: !expandedOwners.value[owner],
+  };
+}
+
 function ownerTotal(list) {
   return list.reduce((s, a) => s + (Number(a.value) || 0), 0);
 }
@@ -38,11 +53,6 @@ function bankLogo(id) {
 
 function isMe(owner) {
   return owner === userName.value;
-}
-
-function onOwnerClick(owner) {
-  if (isMe(owner)) return;
-  emit('user-menu', owner);
 }
 </script>
 
@@ -67,21 +77,25 @@ function onOwnerClick(owner) {
           v-for="owner in ownersSorted"
           :key="owner"
           class="bc-owner-row"
-          :class="{ 'is-me': isMe(owner) }"
+          :class="{ 'is-me': isMe(owner), 'is-expanded': isExpanded(owner) }"
         >
+          <!-- Имя владельца — клик переключает режим -->
           <button
             class="bc-owner-name"
-            :class="{ 'is-clickable': !isMe(owner) }"
             type="button"
-            :disabled="isMe(owner)"
-            @click="onOwnerClick(owner)"
+            @click="toggleOwner(owner)"
+            :aria-expanded="isExpanded(owner)"
           >
             <span class="bc-owner-emoji">{{ owner === 'Сергей' ? '👨' : '👩' }}</span>
             <span class="bc-owner-text">{{ owner }}</span>
             <span v-if="isMe(owner)" class="bc-owner-you">вы</span>
+            <svg class="bc-owner-chev" :class="{ open: isExpanded(owner) }" viewBox="0 0 24 24">
+              <path d="M7 10l5 5 5-5z" fill="currentColor"/>
+            </svg>
           </button>
 
-          <div class="bc-chips">
+          <!-- ✅ Чипы счетов (раскрыто) -->
+          <div v-if="isExpanded(owner)" class="bc-chips">
             <button
               v-for="acc in accounts.byOwner[owner]"
               :key="acc.id"
@@ -102,8 +116,8 @@ function onOwnerClick(owner) {
             </button>
           </div>
 
-          <!-- ✅ Итог по владельцу справа -->
-          <div class="bc-owner-total">
+          <!-- ✅ Общий баланс владельца (свёрнуто) -->
+          <div v-else class="bc-owner-total">
             {{ fmt(ownerTotal(accounts.byOwner[owner])) }} ₽
           </div>
         </div>
@@ -178,7 +192,6 @@ function onOwnerClick(owner) {
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
-/* Аватар на белом фоне */
 .bc-avatar {
   width: 62px;
   height: 62px;
@@ -210,7 +223,7 @@ function onOwnerClick(owner) {
 .bc-accounts {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
   padding-top: 14px;
   border-top: 1px solid rgba(255, 255, 255, 0.2);
 }
@@ -220,55 +233,51 @@ function onOwnerClick(owner) {
   align-items: center;
   gap: 8px;
   min-width: 0;
-  flex-wrap: wrap;
   padding: 4px;
   border-radius: 10px;
   transition: background 0.25s;
 
+  /* ✅ Подсветка активного — убрана белая подложка,
+     оставим только тонкую границу, чтобы выделить своего */
   &.is-me {
-    background: rgba(255, 255, 255, 0.12);
+    background: transparent;
   }
 }
 
-/* Имя владельца — pill */
+/* ✅ Имя владельца — без белой подложки, компактная pill */
 .bc-owner-name {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 10px 3px 5px;
+  padding: 4px 8px 4px 6px;
   border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.08);
   color: #ffffff;
   font-family: inherit;
   font-size: 11.5px;
   font-weight: 700;
-  cursor: default;
+  cursor: pointer;
   flex-shrink: 0;
   transition: all 0.15s;
   white-space: nowrap;
   backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 
-  /* ✅ Кликабельно только если НЕ вы */
-  &.is-clickable {
-    cursor: pointer;
-
-    &:hover {
-      background: rgba(255, 255, 255, 0.28);
-      transform: translateY(-1px);
-    }
+  &:hover {
+    background: rgba(255, 255, 255, 0.18);
+    transform: translateY(-1px);
   }
 
-  &:disabled {
-    opacity: 1;
-    cursor: default;
-  }
+  &:active { transform: scale(0.97); }
 
+  /* ✅ Активный пользователь — жирный текст, без белой подложки */
   .is-me & {
-    background: #ffffff;
-    color: #4f46e5;
-    border-color: #ffffff;
-    box-shadow: 0 4px 12px -4px rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.5);
+    color: #ffffff;
+    font-weight: 800;
+    box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.35);
   }
 }
 
@@ -279,7 +288,7 @@ function onOwnerClick(owner) {
   margin-left: 4px;
   padding: 1px 6px;
   border-radius: 999px;
-  background: rgba(79, 70, 229, 0.15);
+  background: rgba(255, 255, 255, 0.95);
   color: #4f46e5;
   font-size: 9px;
   font-weight: 800;
@@ -287,7 +296,18 @@ function onOwnerClick(owner) {
   letter-spacing: 0.05em;
 }
 
-/* Чипы счетов */
+/* ✅ Стрелка раскрытия */
+.bc-owner-chev {
+  width: 14px;
+  height: 14px;
+  margin-left: 2px;
+  color: rgba(255, 255, 255, 0.7);
+  transition: transform 0.25s cubic-bezier(.34,1.56,.64,1);
+
+  &.open { transform: rotate(180deg); }
+}
+
+/* ✅ Чипы счетов (раскрыто) */
 .bc-chips {
   display: flex;
   align-items: center;
@@ -296,6 +316,12 @@ function onOwnerClick(owner) {
   flex: 1;
   min-width: 0;
   justify-content: flex-end;
+  animation: chipsIn 0.25s ease;
+}
+
+@keyframes chipsIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .bc-chip {
@@ -357,19 +383,21 @@ function onOwnerClick(owner) {
   letter-spacing: -0.02em;
 }
 
-/* ✅ Итог по владельцу — pill справа */
+/* ✅ Итог по владельцу (свёрнуто) */
 .bc-owner-total {
-  padding: 3px 10px;
+  margin-left: auto;
+  padding: 4px 12px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.9);
   color: #4f46e5;
   font-family: var(--mono);
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 800;
   letter-spacing: -0.02em;
   white-space: nowrap;
   flex-shrink: 0;
   box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.25);
+  animation: chipsIn 0.25s ease;
 }
 
 /* ============================================================
@@ -392,11 +420,12 @@ function onOwnerClick(owner) {
   }
   .bc-avatar-inner { font-size: 28px; }
 
-  .bc-accounts { gap: 8px; padding-top: 12px; }
+  .bc-accounts { gap: 6px; padding-top: 12px; }
 
   .bc-owner-row { gap: 6px; padding: 3px; }
-  .bc-owner-name { font-size: 11px; padding: 2px 8px 2px 4px; }
+  .bc-owner-name { font-size: 11px; padding: 3px 7px 3px 5px; }
   .bc-owner-emoji { font-size: 12px; }
+  .bc-owner-chev { width: 12px; height: 12px; }
 
   .bc-chip { font-size: 11px; padding: 4px 10px 4px 4px; gap: 5px; }
   .bc-chip-logo,
@@ -405,7 +434,7 @@ function onOwnerClick(owner) {
 
   .bc-owner-total {
     font-size: 11px;
-    padding: 2px 8px;
+    padding: 3px 10px;
   }
 }
 
