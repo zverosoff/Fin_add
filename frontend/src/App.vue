@@ -165,19 +165,26 @@ onUnmounted(() => {
 
 <style>
 /* ============================================================
-   ✅ Обёртка для страницы — position: relative,
-   чтобы absolute-уходящая страница не влияла на layout
+   ✅ Обёртка страницы — гарантированная высота,
+   чтобы body не схлопывалось при slide-анимации
    ============================================================ */
 .page-transition-wrap {
   position: relative;
-  min-height: 100vh;
+  min-height: calc(100vh - 100px);
+  width: 100%;
+}
+
+@media (max-width: 700px) {
+  .page-transition-wrap {
+    min-height: calc(100vh - 90px);
+  }
 }
 
 /* ============================================================
-   Анимации переходов
+   Анимации
    ============================================================ */
 
-/* Slide left (переход «вправо») */
+/* Slide left */
 .slide-left-enter-active,
 .slide-right-enter-active {
   transition: transform 0.28s cubic-bezier(.22,.61,.36,1), opacity 0.28s;
@@ -191,13 +198,16 @@ onUnmounted(() => {
   opacity: 0;
 }
 
-/* ✅ Уходящая страница — absolute, чтобы не сдвигала layout */
+/* ✅ Уходящая — absolute, но НЕ выходит за границы (учитывает min-height) */
 .slide-left-leave-active,
 .slide-right-leave-active {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
   width: 100%;
   transition: transform 0.28s cubic-bezier(.22,.61,.36,1), opacity 0.28s;
+  pointer-events: none;
 }
 .slide-left-leave-to {
   transform: translateX(-30px);
@@ -215,8 +225,11 @@ onUnmounted(() => {
 }
 .fade-page-leave-active {
   position: absolute;
-  inset: 0;
+  top: 0;
+  left: 0;
+  right: 0;
   width: 100%;
+  pointer-events: none;
 }
 .fade-page-enter-from,
 .fade-page-leave-to {
