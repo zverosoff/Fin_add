@@ -39,7 +39,8 @@ router.get('/', requireAuth, (req, res) => {
 
 // ============================================================
 // POST /api/state — частичное обновление
-// body: { accountStart?, rate?, incomes?, expenses?, accounts?, goals?, flat? }
+// body: { accountStart?, rate?, incomes?, expenses?, accounts?,
+//         goals?, replaceGoals?, flat? }
 // ============================================================
 router.post('/', requireAuth, (req, res) => {
   const incoming = req.body ?? {};
@@ -50,13 +51,20 @@ router.post('/', requireAuth, (req, res) => {
     if (key in incoming) current[key] = incoming[key];
   }
 
-  // Цели — мёржим по id
+  // ✅ Цели: либо ПОЛНАЯ замена (если replaceGoals === true),
+  //         либо мёрж по id (для частичных обновлений).
   if ('goals' in incoming && Array.isArray(incoming.goals)) {
-    const map = new Map((current.goals ?? []).map(g => [g.id, g]));
-    for (const g of incoming.goals) {
-      if (g?.id) map.set(g.id, g);
+    if (incoming.replaceGoals === true) {
+      // Полная замена — так работает удаление целей
+      current.goals = incoming.goals;
+    } else {
+      // Мёрж по id
+      const map = new Map((current.goals ?? []).map(g => [g.id, g]));
+      for (const g of incoming.goals) {
+        if (g?.id) map.set(g.id, g);
+      }
+      current.goals = [...map.values()];
     }
-    current.goals = [...map.values()];
   }
 
   // Квартира — заменяем целиком

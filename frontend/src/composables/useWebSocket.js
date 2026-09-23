@@ -13,17 +13,25 @@ export function useWebSocket() {
   function connect() {
     if (socket) return;
 
+    // VITE_WS_URL — если задан, подключаемся к нему.
+    // Если не задан — к текущему origin (в dev проксируется на :3000).
     const wsUrl = import.meta.env.VITE_WS_URL || undefined;
 
     socket = io(wsUrl, {
-      auth: { token: auth.token },
-      transports: ['websocket'],
+      // ✅ Cookie-only: никакого auth.token. Cookie пойдёт автоматически.
       withCredentials: true,
+      // Разрешаем и polling, и websocket — для надёжности передачи cookie
+      transports: ['polling', 'websocket'],
+      // Не переподключаться автоматически бесконечно — Socket.IO сам умеет
+      reconnection: true,
+      reconnectionAttempts: Infinity,
+      reconnectionDelay: 1000,
+      reconnectionDelayMax: 5000,
     });
 
     socket.on('connect', () => {
       connected.value = true;
-      console.log('[ws] подключились');
+      console.log('[ws] подключились, id:', socket.id);
     });
 
     socket.on('state', (state) => {
@@ -37,7 +45,7 @@ export function useWebSocket() {
     });
 
     socket.on('connect_error', (err) => {
-      console.warn('[ws] ошибка:', err.message);
+      console.warn('[ws] ошибка подключения:', err.message);
     });
   }
 

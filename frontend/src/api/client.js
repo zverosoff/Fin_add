@@ -8,30 +8,20 @@ export const api = axios.create({
   timeout: 15000,
 });
 
-// ✅ Добавляем Authorization: Bearer <token>
-api.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('auth_token');
-    if (token) {
-      config.headers = config.headers || {};
-      config.headers.Authorization = 'Bearer ' + token;
-    }
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
+// ✅ Никаких Authorization-заголовков — только httpOnly-cookie.
+// axios с withCredentials: true автоматически шлёт cookie.
 
-// ✅ 401 → logout
+// ✅ 401 → logout (кроме login/me)
 api.interceptors.response.use(
   response => response,
   error => {
+    const url = error.config?.url || '';
     if (
       error.response?.status === 401 &&
-      !error.config.url.includes('/auth/login') &&
-      !error.config.url.includes('/auth/me')
+      !url.includes('/auth/login') &&
+      !url.includes('/auth/me')
     ) {
       localStorage.removeItem('auth_user');
-      localStorage.removeItem('auth_token');
       if (window.location.pathname !== '/login') {
         window.location.href = '/login';
       }

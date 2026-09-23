@@ -52,7 +52,6 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     const { start, end } = dateRange.value;
     const map = new Map();
 
-    // Заполняем все месяцы в диапазоне (даже пустые)
     const cursor = new Date(start);
     cursor.setDate(1);
     while (cursor <= end) {
@@ -69,7 +68,6 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       cursor.setMonth(cursor.getMonth() + 1);
     }
 
-    // Считаем суммы
     for (const t of periodTransactions.value) {
       const d = new Date(t.date);
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -80,7 +78,6 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       bucket.count++;
     }
 
-    // Накопительный баланс
     let cumulative = 0;
     const result = Array.from(map.values()).sort((a, b) => {
       if (a.year !== b.year) return a.year - b.year;
@@ -119,13 +116,14 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     const saveRate = income > 0 ? (save / income) * 100 : 0;
     const accountsTotal = accountsStore.accounts.reduce((s, a) => s + (Number(a.value) || 0), 0);
 
-    // Подушка: сколько месяцев проживём на текущих сбережениях
-    const avgExpense = monthlyData.value.length > 0
-      ? monthlyData.value.reduce((s, m) => s + m.expense, 0) / monthlyData.value.filter(m => m.count > 0).length
+    // ✅ Средний расход по НЕПУСТЫМ месяцам (защита от NaN)
+    const nonEmpty = monthlyData.value.filter(m => m.count > 0);
+    const avgExpense = nonEmpty.length
+      ? nonEmpty.reduce((s, m) => s + m.expense, 0) / nonEmpty.length
       : 0;
+
     const runway = avgExpense > 0 ? accountsTotal / avgExpense : 0;
 
-    // Средний расход в день
     const dayOfMonth = now.getDate();
     const dailyAvg = dayOfMonth > 0 ? expense / dayOfMonth : 0;
 

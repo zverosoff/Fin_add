@@ -36,8 +36,25 @@ const router = createRouter({
 
 router.beforeEach((to) => {
   const auth = useAuthStore();
-  if (!to.meta.public && !auth.token) return { name: 'login' };
-  if (to.name === 'login' && auth.token) return { name: 'finance' };
+
+  // Публичные страницы — пускаем всегда
+  if (to.meta.public) {
+    // Если уже залогинен и идёт на /login — редирект на /finance
+    if (to.name === 'login' && auth.isAuthenticated) {
+      return { name: 'finance' };
+    }
+    return true;
+  }
+
+  // Закрытые страницы — нужна сессия.
+  // Проверяем флаг (он выставляется App.vue при bootstrap).
+  // Если флага нет, но есть имя пользователя — считаем, что сессия есть,
+  // и App.vue проверит её через /auth/me.
+  if (!auth.isAuthenticated && !auth.user) {
+    return { name: 'login' };
+  }
+
+  return true;
 });
 
 export default router;

@@ -25,7 +25,7 @@ const isDone = computed(() => props.done || props.percent >= 100);
 
         <!-- Приветствие -->
         <div class="welcome-text">
-          Добро пожаловать, <span class="welcome-name">{{ userName }}</span>!
+          Добро пожаловать<span v-if="userName">, <span class="welcome-name">{{ userName }}</span></span>!
         </div>
 
         <!-- Прогресс-бар -->
@@ -76,6 +76,10 @@ const isDone = computed(() => props.done || props.percent >= 100);
   animation: welcomeGradient 4s ease-in-out infinite;
 
   pointer-events: auto;
+
+  /* ✅ Fullscreen-безопасность: учитываем safe-area */
+  padding-top: calc(24px + env(safe-area-inset-top, 0));
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0));
 }
 
 @keyframes welcomeGradient {
@@ -294,24 +298,28 @@ const isDone = computed(() => props.done || props.percent >= 100);
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ─── Анимации появления / исчезновения ─── */
+/* ============================================================
+   ✅ АНИМАЦИЯ ПОЯВЛЕНИЯ / ИСЧЕЗНОВЕНИЯ
+   ============================================================ */
 .welcome-enter-active {
   transition:
-    opacity 0.4s cubic-bezier(.22,.61,.36,1),
-    transform 0.4s cubic-bezier(.22,.61,.36,1);
+    opacity 0.45s cubic-bezier(.22,.61,.36,1),
+    transform 0.45s cubic-bezier(.22,.61,.36,1);
 }
 .welcome-leave-active {
   transition:
-    opacity 0.5s cubic-bezier(.22,.61,.36,1),
-    transform 0.5s cubic-bezier(.22,.61,.36,1);
+    opacity 0.7s cubic-bezier(.4,0,.2,1),
+    transform 0.7s cubic-bezier(.4,0,.2,1),
+    filter 0.7s ease;
 }
 .welcome-enter-from {
   opacity: 0;
-  transform: translateY(30px);
+  transform: translateY(30px) scale(0.96);
 }
 .welcome-leave-to {
   opacity: 0;
-  transform: translateY(-30px);
+  transform: scale(1.1);
+  filter: blur(14px);
 }
 
 /* ─── Мобильная ─── */
@@ -332,5 +340,7 @@ const isDone = computed(() => props.done || props.percent >= 100);
   .welcome-name,
   .wp-fill,
   .welcome-status-spinner { animation: none; }
+  .welcome-leave-active { transition: opacity 0.2s ease; }
+  .welcome-leave-to { filter: none; transform: none; }
 }
 </style>

@@ -2,12 +2,10 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
-import { useAccountsStore } from '@/stores/accounts';
 import WelcomeOverlay from '@/components/ui/WelcomeOverlay.vue';
 
 const router = useRouter();
 const auth = useAuthStore();
-const accounts = useAccountsStore();
 
 const selectedUser = ref('');
 const pin = ref('');
@@ -55,45 +53,24 @@ async function submit() {
   error.value = '';
   loading.value = true;
 
-  // Сразу показываем оверлей с прогрессом
   welcomeUser.value = selectedUser.value;
-  welcomePercent.value = 5;
+  welcomePercent.value = 15;
   welcomeStage.value = 'Авторизация…';
   welcomeDone.value = false;
   showWelcome.value = true;
 
   try {
-    // ─── Этап 1: логин ───
     await auth.login(selectedUser.value, pin.value);
-    welcomePercent.value = 30;
-    welcomeStage.value = 'Загрузка данных…';
 
-    // Небольшая задержка, чтобы пользователь увидел этап
-    await new Promise(r => setTimeout(r, 250));
-
-    // ─── Этап 2: загрузка состояния ───
-    await accounts.load((percent, stage) => {
-      // Мапим 10-100 на 30-90 (чтобы не перескакивать)
-      welcomePercent.value = 30 + (percent * 0.6);
-      welcomeStage.value = stage;
-    });
-
-    // ─── Этап 3: финализация ───
-    welcomePercent.value = 95;
-    welcomeStage.value = 'Синхронизация…';
-    await new Promise(r => setTimeout(r, 300));
-
-    welcomePercent.value = 100;
-    welcomeStage.value = 'Готово!';
+    welcomePercent.value = 60;
+    welcomeStage.value = 'Успешно! Переход…';
     welcomeDone.value = true;
 
-    // ─── Редирект через 700 мс после финала ───
+    // ✅ Редирект на /finance — App.vue подхватит bootstrap
     setTimeout(() => {
       router.push('/finance');
-    }, 700);
-
+    }, 500);
   } catch (e) {
-    // Ошибка — закрываем оверлей, показываем ошибку
     showWelcome.value = false;
     loading.value = false;
     error.value = e.response?.data?.error || e.message || 'Ошибка входа';
@@ -114,6 +91,8 @@ async function submit() {
   }
 }
 </script>
+
+<!-- template и style — БЕЗ ИЗМЕНЕНИЙ, оставьте как есть -->
 
 <template>
   <div class="login-page">

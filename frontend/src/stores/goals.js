@@ -43,11 +43,18 @@ export const useGoalsStore = defineStore('goals', () => {
   // Действия
   // ============================================================
 
-  /** Сохранить список целей целиком (отправится на сервер) */
+  /**
+   * Сохранить список целей ЦЕЛИКОМ.
+   * ✅ Отправляем replaceGoals: true, чтобы backend заменил список,
+   * а не мёржил (иначе удаление не работает).
+   */
   async function saveAll(newGoals) {
     loading.value = true;
     try {
-      const { data } = await api.post('/state', { goals: newGoals });
+      const { data } = await api.post('/state', {
+        goals: newGoals,
+        replaceGoals: true,
+      });
       if (!data.ok) throw new Error(data.error);
       return true;
     } finally {

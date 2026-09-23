@@ -38,3 +38,6 @@ npm-debug.log*
 
 # Старое (на всякий случай)
 venv/
+
+# PWA
+dev-dist/
