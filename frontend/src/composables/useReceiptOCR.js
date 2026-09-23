@@ -234,17 +234,40 @@ function isMetadataLine(line) {
 }
 
 /**
+ * Найти ПОСЛЕДНЕЕ число в строке.
+ * Возвращает { amount, sign, rest } или null.
+ */
+function findLastNumber(line) {
+  // Ищем все числа: возможно с минусом, с пробелами (тысячи) и с запятой/точкой (копейки)
+  const numberRe = /(-?)\s*(\d[\d\s]*(?:[.,]\d{1,2})?)/g;
+
+  let last = null;
+  let m;
+  while ((m = numberRe.exec(line)) !== null) {
+    last = {
+      sign: m[1] || null,
+      raw: m[0],
+      num: m[2],
+      index: m.index,
+    };
+  }
+  if (!last) return null;
+
+  const clean = last.num.replace(/\s+/g, '').replace(',', '.');
+  const amount = parseFloat(clean);
+  if (!isFinite(amount) || amount <= 0 || amount > 10_000_000) return null;
+
+  const rest = line.slice(0, last.index).trim();
+  return { amount, sign: last.sign, rest };
+}
+
+/**
  * Парсер распознанных строк.
  */
 export function parseReceipt(lines) {
   const items = [];
 
   const ROUBLE_CLASS = '[₽рРPpL]';
-
-  // ✅ САМЫЙ МЯГКИЙ AMOUNT_RE:
-  // находим последнее число в строке, всё после него — неважно
-  const AMOUNT_RE = /([+\-−]?\s*\d[\d\s]*(?:[.,]\d{1,2})?)[^\d]*$/;
-
   const DATE_RU_RE = /(\d{1,2})\s*(январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)[а-яё]*\s*(\d{4})?/i;
   const DATE_NUM_RE = /(\d{1,2})[.\/-](\d{1,2})(?:[.\/-](\d{2,4}))?/;
 
@@ -324,21 +347,6 @@ export function parseReceipt(lines) {
     return null;
   }
 
-  function extractAmount(line) {
-    const m = line.match(AMOUNT_RE);
-    if (!m) return null;
-
-    const raw = m[1];
-    const clean = raw.replace(/\s+/g, '').replace(',', '.').replace(/[+\-−]/g, '');
-    const amount = parseFloat(clean);
-
-    if (!isFinite(amount) || amount <= 0 || amount > 10_000_000) return null;
-
-    const sign = /^[+\-−]/.test(raw.trim()) ? raw.trim()[0] : null;
-    const rest = line.slice(0, line.lastIndexOf(raw)).trim();
-    return { amount, sign, rest };
-  }
-
   for (let i = 0; i < lines.length; i++) {
     let line = lines[i];
     if (!line || line.length < 2) continue;
@@ -378,11 +386,14 @@ export function parseReceipt(lines) {
       continue;
     }
 
-    const amt = extractAmount(line);
-    if (!amt) continue;
+    // ✅ Ищем последнее число в строке
+    const found = findLastNumber(line);
+    if (!found) continue;
+
+    // Если строка — только сумма (сводка), пропускаем
     if (ONLY_AMOUNT_RE.test(line)) continue;
 
-    let title = amt.rest;
+    let title = found.rest;
 
     const titleIsBad = !title || title.length < 2 || isMetadataLine(title);
 
@@ -396,7 +407,7 @@ export function parseReceipt(lines) {
         && !ONLY_AMOUNT_RE.test(prev)
         && prev.length > 2
         && prev.length < 80
-        && !extractAmount(prev);
+        && !findLastNumber(prev);
 
       if (prevIsGood) {
         title = prev;
@@ -432,12 +443,12 @@ export function parseReceipt(lines) {
       category = detectCategoryFromLine(title);
     }
 
-    const type = amt.sign === '+' ? 'income' : 'expense';
+    const type = found.sign === '+' ? 'income' : 'expense';
 
     items.push({
       date: currentDate.toISOString(),
       description: title,
-      amount: amt.amount,
+      amount: found.amount,
       type,
       category,
     });
