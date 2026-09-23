@@ -2,6 +2,7 @@
  * OCR-обработка чеков и скриншотов банковских приложений через Tesseract.js
  * Портировано из рабочего scan.js (чистый JS).
  * ✅ Округление сумм до целого (игнорируем копейки).
+ * ✅ Отладка extractAmount.
  */
 
 export function preprocessImage(file) {
@@ -413,7 +414,7 @@ export function parseReceipt(textLines) {
     return {
       date: date.toISOString(),
       description: cleanTitle.slice(0, 80),
-      amount: amt.amount, // ✅ уже округлено
+      amount: amt.amount,
       type,
       category: finalCategory,
     };
@@ -423,6 +424,9 @@ export function parseReceipt(textLines) {
   while (i < lines.length) {
     const cur = lines[i];
     const curText = cur.text;
+
+    // ✅ ДИАГНОСТИКА — показываем каждую строку
+    console.log(`[scan][dbg] i=${i} text=${JSON.stringify(curText)}`);
 
     // 1. Дата?
     if (isDateLine(curText)) {
@@ -444,6 +448,17 @@ export function parseReceipt(textLines) {
 
     // 3. Сумма?
     const amt = extractAmount(curText);
+
+    // ✅ ДИАГНОСТИКА — extractAmount для конкретных строк
+    if (
+      curText.includes('Красное') ||
+      curText.includes('Fix') ||
+      curText.includes('Магнит') ||
+      curText.includes('Р ') ||
+      curText.includes('₽')
+    ) {
+      console.log(`[scan][TARGET] text=${JSON.stringify(curText)} → amt=${JSON.stringify(amt)}`);
+    }
 
     if (amt) {
       let title = '';
