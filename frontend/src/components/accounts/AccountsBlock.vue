@@ -1,68 +1,23 @@
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { computed } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
+import { useAuthStore } from '@/stores/auth';
 import { fmt } from '@/composables/useFormat';
 
 const emit = defineEmits(['reconcile', 'user-menu']);
 const accounts = useAccountsStore();
+const auth = useAuthStore();
 
-// ── Состояние 1: раскрыта ли вся секция ──
-const LS_KEY_SECTION = 'financeProAccountsSection_v1';
-const sectionOpen = ref(false);
+// ── Данные для карточки ──
+const userName = computed(() => auth.user || 'Сергей');
+const userEmoji = computed(() => userName.value === 'Сергей' ? '👨' : '👩');
+const totalBalance = computed(() => accounts.total);
 
-// ── Состояние 2: раскрыты ли чипы владельца ──
-const LS_KEY_CHIPS = 'financeProAccountsExpanded_v1';
-const expandedByOwner = ref({});
-
-onMounted(() => {
-  try {
-    if (localStorage.getItem(LS_KEY_SECTION) === '1') sectionOpen.value = true;
-    const raw = localStorage.getItem(LS_KEY_CHIPS);
-    expandedByOwner.value = raw ? JSON.parse(raw) : {};
-  } catch (e) {}
-});
-
-watch(sectionOpen, (val) => {
-  try { localStorage.setItem(LS_KEY_SECTION, val ? '1' : '0'); } catch (e) {}
-});
-
-watch(expandedByOwner, (val) => {
-  try { localStorage.setItem(LS_KEY_CHIPS, JSON.stringify(val)); } catch (e) {}
-}, { deep: true });
-
-function toggleSection() {
-  sectionOpen.value = !sectionOpen.value;
-}
-
-function toggleOwnerChips(owner, e) {
-  e.stopPropagation();
-  expandedByOwner.value = {
-    ...expandedByOwner.value,
-    [owner]: !expandedByOwner.value[owner],
-  };
-}
-
-function isChipsOpen(owner) {
-  return !!expandedByOwner.value[owner];
-}
+// ── Счета по владельцу ──
+const owners = computed(() => Object.keys(accounts.byOwner || {}));
 
 function ownerTotal(list) {
   return list.reduce((s, a) => s + (Number(a.value) || 0), 0);
-}
-
-function diffText(id) {
-  const d = accounts.diffByAccount?.[id];
-  if (!d) return '—';
-  if (!d.hasDiff) return '✅ сходится';
-  const sign = d.diff > 0 ? '+' : '−';
-  return `⚠️ ${sign}${fmt(Math.abs(d.diff))} ₽`;
-}
-
-function diffClass(id) {
-  const d = accounts.diffByAccount?.[id];
-  if (!d) return '';
-  if (!d.hasDiff) return 'ok';
-  return d.diff > 0 ? 'pos' : 'neg';
 }
 
 function bankLogo(id) {
@@ -74,123 +29,60 @@ function bankLogo(id) {
 </script>
 
 <template>
-  <section class="accounts-block" :class="{ 'section-open': sectionOpen }">
-    <!-- Заголовок: раскрывает всю секцию -->
-    <header class="ab-head" @click="toggleSection">
-      <h3>💳 Наши счета</h3>
-      <div class="ab-total">{{ fmt(accounts.total) }} ₽</div>
-      <button
-        class="ab-section-arrow"
-        type="button"
-        :aria-label="sectionOpen ? 'Свернуть счета' : 'Развернуть счета'"
-      >
-        <svg viewBox="0 0 24 24" class="chev">
-          <path d="M7 10l5 5 5-5z"/>
-        </svg>
-      </button>
-    </header>
+  <section class="accounts-block">
+    <!-- ✅ Банковская карта — только баланс + имя + аватар -->
+    <div class="bank-card">
+      <div class="bc-top">
+        <div class="bc-balance">
+          <div class="bc-label">Общий баланс</div>
+          <div class="bc-amount">{{ fmt(totalBalance) }} ₽</div>
+          <div class="bc-sub">{{ userName }}, ваш баланс на сегодня</div>
+        </div>
+        <div class="bc-avatar">{{ userEmoji }}</div>
+      </div>
+    </div>
 
-    <!-- Компактные строки владельцев -->
-    <div class="ab-rows">
+    <!-- ✅ Компактные счета — по владельцу, чипы -->
+    <div class="owners">
       <div
-        v-for="(list, owner) in accounts.byOwner"
+        v-for="owner in owners"
         :key="owner"
-        class="ab-row"
-        :class="{
-          open: isChipsOpen(owner),
-          sergey: owner === 'Сергей',
-          sasha: owner === 'Саша',
-        }"
+        class="owner-row"
       >
-        <!-- Имя владельца — клик открывает контекстное меню -->
-        <span
-          class="ab-row-owner"
+        <button
+          class="owner-name"
+          type="button"
           :title="`Открыть меню: ${owner}`"
-          @click.stop="emit('user-menu', owner)"
+          @click="emit('user-menu', owner)"
         >
-          <span class="emoji">{{ owner === 'Сергей' ? '👨' : '👩' }}</span>
-          {{ owner }}
-        </span>
+          <span class="owner-emoji">{{ owner === 'Сергей' ? '👨' : '👩' }}</span>
+          <span class="owner-text">{{ owner }}</span>
+        </button>
 
-        <!-- Чипы (раскрываются по стрелке) -->
-        <span class="ab-row-chips">
-          <span
-            v-for="acc in list"
+        <div class="owner-chips">
+          <button
+            v-for="acc in accounts.byOwner[owner]"
             :key="acc.id"
-            class="ab-chip"
+            type="button"
+            class="acct-chip"
             :class="acc.id.startsWith('sber') ? 'sber' : 'tbank'"
+            :title="`Сверить: ${acc.name}`"
+            @click="emit('reconcile', acc)"
           >
             <img
               v-if="bankLogo(acc.id)"
               :src="bankLogo(acc.id)"
-              class="ab-chip-logo"
+              class="chip-logo"
               :alt="acc.name"
             />
-            <span class="ab-chip-sum">{{ fmt(acc.value) }} ₽</span>
-          </span>
-        </span>
-
-        <span class="ab-row-total">{{ fmt(ownerTotal(list)) }} ₽</span>
-
-        <button
-          class="ab-row-arrow"
-          type="button"
-          :aria-label="isChipsOpen(owner) ? 'Свернуть' : 'Развернуть'"
-          @click="toggleOwnerChips(owner, $event)"
-        >
-          <svg viewBox="0 0 24 24">
-            <path d="M15.41 7.41 14 6l-6 6 6 6 1.41-1.41L10.83 12z"/>
-          </svg>
-        </button>
-      </div>
-    </div>
-
-    <!-- Развёрнутая секция -->
-    <div class="ab-expanded">
-      <div v-for="(list, owner) in accounts.byOwner" :key="owner" class="ab-group">
-        <div class="ab-group-title">
-          <span class="emoji">{{ owner === 'Сергей' ? '👨' : '👩' }}</span>
-          {{ owner }}
+            <span v-else class="chip-logo-fallback">
+              {{ acc.id.startsWith('sber') ? 'С' : 'Т' }}
+            </span>
+            <span class="chip-value">{{ fmt(acc.value) }} ₽</span>
+          </button>
         </div>
 
-        <div class="ab-cards">
-          <div
-            v-for="acc in list"
-            :key="acc.id"
-            class="account-card"
-            :class="acc.id.startsWith('sber') ? 'sber' : 'tbank'"
-          >
-            <div class="acc-head">
-              <img
-                v-if="bankLogo(acc.id)"
-                :src="bankLogo(acc.id)"
-                class="account-logo-img"
-                :alt="acc.name"
-              />
-              <span v-else class="account-logo-fallback">
-                {{ acc.id.startsWith('sber') ? 'С' : 'Т' }}
-              </span>
-              <span class="account-name-text">{{ acc.name }}</span>
-            </div>
-
-            <div class="acc-balance">
-              <span class="label">Текущий:</span>
-              <span class="value">{{ fmt(acc.value) }} ₽</span>
-            </div>
-
-            <div class="acc-diff" :class="diffClass(acc.id)">
-              {{ diffText(acc.id) }}
-            </div>
-
-            <button
-              class="acc-reconcile-btn"
-              @click.stop="emit('reconcile', acc)"
-              type="button"
-            >
-              ⚖️ Сверить
-            </button>
-          </div>
-        </div>
+        <div class="owner-total">{{ fmt(ownerTotal(accounts.byOwner[owner])) }} ₽</div>
       </div>
     </div>
   </section>
@@ -198,184 +90,182 @@ function bankLogo(id) {
 
 <style scoped lang="scss">
 .accounts-block {
-  padding: 14px 16px;
-  background:
-    linear-gradient(180deg, rgba(56, 189, 248, 0.06), transparent 60%),
-    rgba(255, 255, 255, 0.9);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: var(--shadow-md);
-  transition: padding 0.25s ease, box-shadow 0.25s;
-
-  &:hover { box-shadow: var(--shadow-lg); }
-  &:not(.section-open) { padding-bottom: 14px; }
-}
-
-/* ─── Заголовок ─── */
-.ab-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-  margin-bottom: 10px;
-  cursor: pointer;
-  user-select: none;
-
-  h3 {
-    font-size: 12px;
-    color: var(--accent);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    margin: 0;
-    font-weight: 700;
-    flex-shrink: 0;
-  }
-}
-
-.ab-total {
-  padding: 4px 12px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.14), rgba(139, 92, 246, 0.1));
-  border: 1px solid rgba(56, 189, 248, 0.28);
-  font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--accent);
-  white-space: nowrap;
-  margin-left: auto;
-
-  &::before {
-    content: "💰 ";
-    font-size: 12px;
-  }
-}
-
-.ab-section-arrow {
-  background: #f1f5f9;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  color: var(--muted);
-  width: 28px;
-  height: 28px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  flex-shrink: 0;
-  transition: all 0.15s;
-
-  &:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-
-  .chev {
-    width: 14px;
-    height: 14px;
-    fill: currentColor;
-    transform: rotate(180deg);
-    transition: transform 0.3s cubic-bezier(.34,1.56,.64,1);
-  }
-}
-
-.accounts-block.section-open .ab-section-arrow .chev {
-  transform: rotate(0deg);
-}
-
-/* ─── Строки владельцев ─── */
-.ab-rows {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 12px;
 }
 
-.ab-row {
+/* ============================================================
+   БАНКОВСКАЯ КАРТА
+   ============================================================ */
+.bank-card {
+  position: relative;
+  border-radius: 22px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 15% 0%, rgba(255, 255, 255, 0.18), transparent 55%),
+    radial-gradient(circle at 95% 100%, rgba(255, 255, 255, 0.14), transparent 60%),
+    linear-gradient(135deg, #06b6d4 0%, #3b82f6 45%, #7c3aed 100%);
+  color: #ffffff;
+  box-shadow:
+    0 20px 40px -18px rgba(59, 130, 246, 0.6),
+    0 10px 20px -10px rgba(124, 58, 237, 0.4);
+  padding: 22px 22px;
+  min-height: 150px;
+}
+
+.bc-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.bc-balance { min-width: 0; flex: 1; }
+
+.bc-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.75;
+}
+
+.bc-amount {
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: 6px 0 8px;
+  font-family: var(--mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.bc-sub {
+  font-size: 12.5px;
+  font-weight: 600;
+  opacity: 0.85;
+  line-height: 1.3;
+}
+
+.bc-avatar {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.22);
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 32px;
+  flex-shrink: 0;
+  box-shadow: 0 8px 20px -8px rgba(0, 0, 0, 0.35);
+}
+
+/* ============================================================
+   КОМПАКТНЫЕ СЧЕТА
+   ============================================================ */
+.owners {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: var(--shadow-sm);
+}
+
+.owner-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 8px;
-  margin: 0 -8px;
-  border-radius: 10px;
   min-width: 0;
-  transition: background 0.2s ease;
-
-  &.sergey.open, &.sasha.open {
-    background: linear-gradient(90deg, rgba(56, 189, 248, 0.14), rgba(139, 92, 246, 0.06) 60%, transparent 100%);
-  }
 }
 
-.ab-row-owner {
+.owner-name {
   display: inline-flex;
   align-items: center;
   gap: 5px;
+  padding: 3px 8px 3px 4px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font-family: inherit;
   font-size: 12px;
   font-weight: 700;
-  color: var(--text);
-  white-space: nowrap;
-  flex-shrink: 0;
-  min-width: 54px;
   cursor: pointer;
-  padding: 2px 6px;
-  margin-left: -6px;
-  border-radius: 6px;
-  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+  transition: all 0.15s;
+  white-space: nowrap;
 
   &:hover {
     background: rgba(56, 189, 248, 0.12);
     color: var(--accent);
   }
-
-  .emoji { font-size: 13px; }
 }
 
-.ab-row-chips {
-  display: inline-flex;
+.owner-emoji { font-size: 13px; }
+.owner-text { line-height: 1; }
+
+.owner-chips {
+  display: flex;
   align-items: center;
-  gap: 5px;
-  margin-left: 8px;
-  margin-right: auto;
+  gap: 6px;
+  flex-wrap: wrap;
+  flex: 1;
   min-width: 0;
-  max-width: 0;
-  opacity: 0;
-  overflow: hidden;
-  pointer-events: none;
-  flex-shrink: 0;
-  transition:
-    max-width 0.3s cubic-bezier(.22,.61,.36,1),
-    opacity 0.22s ease;
 }
 
-.ab-row.open .ab-row-chips {
-  max-width: 500px;
-  opacity: 1;
-  pointer-events: auto;
-}
-
-.ab-chip {
+.acct-chip {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 3px 10px 3px 4px;
+  padding: 4px 10px 4px 4px;
   border-radius: 999px;
   border: 1px solid transparent;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
   white-space: nowrap;
-  flex-shrink: 0;
+
+  &:hover { transform: translateY(-1px); }
+  &:active { transform: scale(0.96); }
 
   &.sber {
-    background: rgba(33, 160, 56, 0.14);
-    border-color: rgba(33, 160, 56, 0.35);
-    .ab-chip-sum { color: #15803d; }
+    background: rgba(33, 160, 56, 0.12);
+    border-color: rgba(33, 160, 56, 0.32);
+
+    .chip-value { color: #15803d; }
+
+    &:hover {
+      background: rgba(33, 160, 56, 0.2);
+      box-shadow: 0 4px 12px -4px rgba(33, 160, 56, 0.5);
+    }
   }
 
   &.tbank {
     background: rgba(255, 221, 45, 0.22);
     border-color: rgba(255, 191, 36, 0.45);
-    .ab-chip-sum { color: #b45309; }
+
+    .chip-value { color: #b45309; }
+
+    &:hover {
+      background: rgba(255, 221, 45, 0.35);
+      box-shadow: 0 4px 12px -4px rgba(255, 191, 36, 0.6);
+    }
   }
 }
 
-.ab-chip-logo {
+.chip-logo {
   width: 18px;
   height: 18px;
   border-radius: 50%;
@@ -383,312 +273,86 @@ function bankLogo(id) {
   background: #fff;
   padding: 1px;
   box-sizing: border-box;
+  flex-shrink: 0;
 }
 
-.ab-chip-sum {
+.chip-logo-fallback {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #16a34a;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.chip-value {
   font-family: var(--mono);
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
 }
 
-.ab-row-total {
+.owner-total {
   margin-left: auto;
-  margin-right: 4px;
-  padding: 3px 10px;
-  border-radius: 999px;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.14), rgba(139, 92, 246, 0.1));
-  border: 1px solid rgba(56, 189, 248, 0.28);
   font-family: var(--mono);
   font-size: 12px;
   font-weight: 800;
   color: var(--accent);
   white-space: nowrap;
   flex-shrink: 0;
-  transition:
-    max-width 0.3s cubic-bezier(.22,.61,.36,1),
-    opacity 0.22s ease,
-    padding 0.3s cubic-bezier(.22,.61,.36,1),
-    margin 0.3s cubic-bezier(.22,.61,.36,1),
-    border-width 0.3s;
-}
-
-.ab-row.open .ab-row-total {
-  max-width: 0;
-  opacity: 0;
-  padding-left: 0;
-  padding-right: 0;
-  margin-left: 0;
-  margin-right: 0;
-  border-width: 0;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.ab-row-arrow {
-  flex-shrink: 0;
-  width: 22px;
-  height: 22px;
-  padding: 0;
-  border-radius: 6px;
-  border: 1px solid var(--border);
-  background: #f8fafc;
-  color: var(--muted);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.15s;
-
-  svg {
-    width: 12px;
-    height: 12px;
-    fill: currentColor;
-    transform: rotate(180deg);
-    transition: transform 0.3s cubic-bezier(.34,1.56,.64,1);
-  }
-
-  &:hover {
-    color: var(--accent);
-    border-color: var(--accent);
-    background: rgba(56, 189, 248, 0.1);
-  }
-}
-
-.ab-row.open .ab-row-arrow svg {
-  transform: rotate(0deg);
-}
-
-/* ─── Развёрнутая секция ─── */
-.ab-expanded {
-  max-height: 0;
-  overflow: hidden;
-  opacity: 0;
-  margin-top: 0;
-  transition:
-    max-height 0.4s ease,
-    opacity 0.3s ease,
-    margin 0.3s ease;
-}
-
-.accounts-block.section-open .ab-expanded {
-  max-height: 2000px;
-  opacity: 1;
-  margin-top: 14px;
-}
-
-.ab-group {
-  margin-bottom: 14px;
-  &:last-child { margin-bottom: 0; }
-}
-
-.ab-group-title {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  font-weight: 700;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: 6px;
-
-  .emoji { font-size: 13px; }
-}
-
-.ab-cards {
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-}
-
-/* ─── Карточка счёта ─── */
-.account-card {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  padding: 12px 14px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: #fff;
-  transition: transform 0.15s, box-shadow 0.15s;
-
-  &:hover {
-    transform: translateY(-1px);
-    box-shadow: var(--shadow-md);
-  }
-}
-
-.acc-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.account-logo-img {
-  width: 28px;
-  height: 28px;
-  object-fit: contain;
-  border-radius: 6px;
-  background: #fff;
-  padding: 2px;
-  box-sizing: border-box;
-}
-
-.account-logo-fallback {
-  width: 28px;
-  height: 28px;
-  border-radius: 6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 13px;
-  font-weight: 800;
-  color: #fff;
-  background: #21a038;
-}
-
-.account-name-text {
-  font-weight: 700;
-  font-size: 13px;
-  color: var(--text);
-}
-
-.acc-balance {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  font-size: 13px;
-
-  .label { color: var(--muted); font-weight: 500; }
-  .value {
-    font-family: var(--mono);
-    font-weight: 800;
-    font-size: 15px;
-    color: var(--text);
-    letter-spacing: -0.02em;
-  }
-}
-
-.acc-diff {
-  font-size: 11.5px;
-  font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 8px;
-  width: fit-content;
-
-  &.ok  { background: rgba(34, 197, 94, 0.12); color: #16a34a; }
-  &.pos { background: rgba(34, 197, 94, 0.12); color: #16a34a; }
-  &.neg { background: rgba(239, 68, 68, 0.12); color: #dc2626; }
-}
-
-.acc-reconcile-btn {
-  padding: 8px 12px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: #f8fafc;
-  color: var(--text);
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s;
-
-  &:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-    background: rgba(56, 189, 248, 0.08);
-  }
-
-  &:active { transform: scale(0.97); }
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(139, 92, 246, 0.08));
+  border: 1px solid rgba(56, 189, 248, 0.25);
 }
 
 /* ============================================================
    МОБИЛЬНЫЙ
    ============================================================ */
 @media (max-width: 700px) {
-  .accounts-block {
-    padding: 12px 14px;
-    border-radius: 14px;
+  .bank-card {
+    padding: 18px 18px;
+    min-height: 130px;
+    border-radius: 20px;
   }
 
-  .ab-head h3 { font-size: 11px; }
+  .bc-label { font-size: 10px; }
+  .bc-amount { font-size: 30px; margin: 4px 0 6px; }
+  .bc-sub { font-size: 11.5px; }
 
-  .ab-total {
-    font-size: 12px;
-    padding: 3px 10px;
+  .bc-avatar {
+    width: 52px;
+    height: 52px;
+    font-size: 28px;
   }
 
-  .ab-section-arrow {
-    width: 26px;
-    height: 26px;
-  }
-
-  .ab-row {
-    gap: 6px;
-    padding: 5px 6px;
-    margin: 0 -6px;
-  }
-
-  .ab-row-owner {
-    font-size: 11px;
-    min-width: 48px;
-    gap: 4px;
-  }
-
-  .ab-row-owner .emoji { font-size: 12px; }
-
-  .ab-chip {
-    padding: 2px 8px 2px 3px;
-    gap: 4px;
-  }
-
-  .ab-chip-logo {
-    width: 16px;
-    height: 16px;
-  }
-
-  .ab-chip-sum { font-size: 11px; }
-
-  .ab-row-total {
-    font-size: 11px;
-    padding: 3px 9px;
-    margin-right: 3px;
-  }
-
-  .ab-row-arrow {
-    width: 20px;
-    height: 20px;
-
-    svg { width: 11px; height: 11px; }
-  }
-
-  .ab-group-title { font-size: 10px; }
-
-  .account-card {
+  .owners {
     padding: 10px 12px;
+    border-radius: 14px;
     gap: 6px;
   }
 
-  .account-logo-img,
-  .account-logo-fallback {
-    width: 24px;
-    height: 24px;
-    font-size: 12px;
+  .owner-row { gap: 6px; }
+  .owner-name { font-size: 11px; padding: 2px 6px 2px 3px; }
+  .owner-emoji { font-size: 12px; }
+
+  .acct-chip { font-size: 11px; padding: 3px 9px 3px 3px; gap: 4px; }
+  .chip-logo, .chip-logo-fallback { width: 16px; height: 16px; }
+  .chip-value { font-size: 11px; }
+
+  .owner-total {
+    font-size: 11px;
+    padding: 2px 8px;
   }
+}
 
-  .account-name-text { font-size: 12px; }
-
-  .acc-balance .value { font-size: 14px; }
-
-  .acc-diff {
-    font-size: 10.5px;
-    padding: 3px 8px;
-  }
-
-  .acc-reconcile-btn {
-    padding: 9px 12px;
-    font-size: 12px;
-    min-height: 36px;
-  }
+@media (max-width: 380px) {
+  .bc-amount { font-size: 26px; }
+  .owner-chips { gap: 4px; }
+  .acct-chip { font-size: 10px; }
 }
 </style>
