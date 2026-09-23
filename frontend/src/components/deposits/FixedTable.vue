@@ -136,166 +136,257 @@ const byUser = computed(() => {
 
 <template>
   <div class="fixed-wrap">
-    <!-- Таблица процентов -->
-    <div class="card">
-      <h2>Таблица прибыли от процента</h2>
-      <table>
-        <tbody>
-          <tr>
-            <td class="label">На счету</td>
-            <td class="value">
-              <input v-model.number="accountStart" type="number" step="0.01" />
-            </td>
-          </tr>
-          <tr>
-            <td class="label">Текущий процент</td>
-            <td class="value">
-              <input v-model.number="rate" type="number" step="0.1" />
-            </td>
-          </tr>
-          <tr class="highlight">
-            <td class="label">Доход в год</td>
-            <td class="value">{{ fmt(incomeYearCredit) }} ₽</td>
-          </tr>
-          <tr>
-            <td class="label">Доход в месяц</td>
-            <td class="value">{{ fmt(incomeMonthCredit) }} ₽</td>
-          </tr>
-        </tbody>
-      </table>
+
+    <!-- ============================================================
+         КАРТА-ШАПКА: доход в месяц + итог
+         ============================================================ -->
+    <div class="summary-card">
+      <div class="sc-top">
+        <div class="sc-main">
+          <div class="sc-label">Доход в месяц</div>
+          <div class="sc-amount">{{ fmt(incomeMonthCredit) }} ₽</div>
+          <div class="sc-sub">При ставке {{ rate.toFixed(1) }}% на {{ fmt(accountStart) }} ₽</div>
+        </div>
+        <div class="sc-graph">
+          <div class="sc-graph-value">+{{ fmt(netIncome) }} ₽</div>
+          <div class="sc-graph-label">Итого в месяц</div>
+        </div>
+      </div>
+
+      <div class="sc-bottom">
+        <div class="sc-cell">
+          <div class="sc-cell-label">📈 Доходы</div>
+          <div class="sc-cell-value income">+{{ fmt(totalIncome) }} ₽</div>
+        </div>
+        <div class="sc-divider"></div>
+        <div class="sc-cell">
+          <div class="sc-cell-label">📉 Расходы</div>
+          <div class="sc-cell-value expense">−{{ fmt(totalExpense) }} ₽</div>
+        </div>
+      </div>
     </div>
 
-    <!-- Доходы и расходы -->
+    <!-- ============================================================
+         ТАБЛИЦА ПРОЦЕНТОВ
+         ============================================================ -->
+    <div class="card">
+      <h2 class="card-title">💎 Таблица прибыли от процента</h2>
+
+      <div class="percent-grid">
+        <div class="percent-field">
+          <label>На счету</label>
+          <input
+            v-model.number="accountStart"
+            type="number"
+            step="0.01"
+            inputmode="decimal"
+          />
+          <span class="percent-suffix">₽</span>
+        </div>
+
+        <div class="percent-field">
+          <label>Текущий процент</label>
+          <input
+            v-model.number="rate"
+            type="number"
+            step="0.1"
+            inputmode="decimal"
+          />
+          <span class="percent-suffix">%</span>
+        </div>
+      </div>
+
+      <div class="percent-results">
+        <div class="percent-result">
+          <div class="pr-label">Доход в год</div>
+          <div class="pr-value">{{ fmt(incomeYearCredit) }} ₽</div>
+        </div>
+        <div class="percent-result accent">
+          <div class="pr-label">Доход в месяц</div>
+          <div class="pr-value">{{ fmt(incomeMonthCredit) }} ₽</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============================================================
+         ДОХОДЫ И РАСХОДЫ
+         ============================================================ -->
     <div class="card">
       <div class="card-head">
-        <h2>Доходы и расходы</h2>
+        <h2 class="card-title">📊 Доходы и расходы</h2>
         <div class="card-actions">
-          <button class="btn-add-mini" @click="addIncome" type="button">+ доход</button>
-          <button class="btn-add-mini" @click="addExpense" type="button">+ расход</button>
+          <button class="btn-add-mini income" @click="addIncome" type="button">
+            + доход
+          </button>
+          <button class="btn-add-mini expense" @click="addExpense" type="button">
+            + расход
+          </button>
         </div>
       </div>
 
       <div class="dt-grid">
         <!-- Доходы -->
-        <div class="dt-col income-col">
-          <div class="dt-col-title">📈 Доходы</div>
-          <div
-            v-for="(item, idx) in incomes"
-            :key="item.id"
-            class="dt-row"
-            :class="{ locked: isLocked(item) }"
-          >
-            <input
-              v-model="item.name"
-              type="text"
-              class="dt-name"
-              :readonly="isLocked(item)"
-              :disabled="isLocked(item)"
-              @input="scheduleSave"
-            />
-            <input
-              v-model.number="item.value"
-              type="number"
-              class="dt-value"
-              :readonly="isLocked(item)"
-              :disabled="isLocked(item)"
-              @input="scheduleSave"
-            />
-            <button
-              v-if="!isLocked(item)"
-              class="btn-del-mini"
-              @click="removeIncome(idx)"
-              type="button"
-            >✕</button>
-            <span v-else class="lock-icon" title="Автоматически из вклада">🔒</span>
+        <div class="dt-col">
+          <div class="dt-col-head">
+            <span class="dt-col-icon income">📈</span>
+            <span class="dt-col-title">Доходы</span>
           </div>
-          <div class="dt-total">Итого доходов: <strong>{{ fmt(totalIncome) }} ₽</strong></div>
+          <div class="dt-col-body">
+            <div
+              v-for="(item, idx) in incomes"
+              :key="item.id"
+              class="dt-row"
+              :class="{ locked: isLocked(item) }"
+            >
+              <input
+                v-model="item.name"
+                type="text"
+                class="dt-name"
+                :readonly="isLocked(item)"
+                :disabled="isLocked(item)"
+                @input="scheduleSave"
+              />
+              <input
+                v-model.number="item.value"
+                type="number"
+                class="dt-value"
+                :readonly="isLocked(item)"
+                :disabled="isLocked(item)"
+                @input="scheduleSave"
+              />
+              <button
+                v-if="!isLocked(item)"
+                class="dt-del"
+                @click="removeIncome(idx)"
+                type="button"
+                aria-label="Удалить"
+              >✕</button>
+              <span v-else class="dt-lock" title="Автоматически из вклада">🔒</span>
+            </div>
+            <div v-if="incomes.length === 0" class="dt-empty">
+              Нет доходов — добавьте кнопкой «+ доход»
+            </div>
+          </div>
+          <div class="dt-col-total income">
+            Итого: <strong>+{{ fmt(totalIncome) }} ₽</strong>
+          </div>
         </div>
 
         <!-- Расходы -->
-        <div class="dt-col expense-col">
-          <div class="dt-col-title">📉 Расходы</div>
-          <div
-            v-for="(item, idx) in expenses"
-            :key="item.id"
-            class="dt-row"
-          >
-            <input
-              v-model="item.name"
-              type="text"
-              class="dt-name"
-              @input="scheduleSave"
-            />
-            <input
-              v-model.number="item.value"
-              type="number"
-              class="dt-value"
-              @input="scheduleSave"
-            />
-            <button
-              class="btn-del-mini"
-              @click="removeExpense(idx)"
-              type="button"
-            >✕</button>
+        <div class="dt-col">
+          <div class="dt-col-head">
+            <span class="dt-col-icon expense">📉</span>
+            <span class="dt-col-title">Расходы</span>
           </div>
-          <div class="dt-total">Итого расходов: <strong>{{ fmt(totalExpense) }} ₽</strong></div>
+          <div class="dt-col-body">
+            <div
+              v-for="(item, idx) in expenses"
+              :key="item.id"
+              class="dt-row"
+            >
+              <input
+                v-model="item.name"
+                type="text"
+                class="dt-name"
+                @input="scheduleSave"
+              />
+              <input
+                v-model.number="item.value"
+                type="number"
+                class="dt-value"
+                @input="scheduleSave"
+              />
+              <button
+                class="dt-del"
+                @click="removeExpense(idx)"
+                type="button"
+                aria-label="Удалить"
+              >✕</button>
+            </div>
+            <div v-if="expenses.length === 0" class="dt-empty">
+              Нет расходов — добавьте кнопкой «+ расход»
+            </div>
+          </div>
+          <div class="dt-col-total expense">
+            Итого: <strong>−{{ fmt(totalExpense) }} ₽</strong>
+          </div>
         </div>
       </div>
 
       <div class="grand-total" :class="netIncome >= 0 ? 'positive' : 'negative'">
-        <span>Итого разница (доходы − расходы):</span>
-        <strong>{{ fmt(netIncome) }} ₽</strong>
+        <span class="gt-label">Разница (доходы − расходы)</span>
+        <span class="gt-value">
+          {{ netIncome >= 0 ? '+' : '−' }}{{ fmt(Math.abs(netIncome)) }} ₽
+        </span>
       </div>
     </div>
 
-    <!-- Отчёт по пользователям -->
+    <!-- ============================================================
+         ОТЧЁТ ПО ПОЛЬЗОВАТЕЛЯМ
+         ============================================================ -->
     <div class="user-report">
-      <h3>Краткий отчёт по пользователям</h3>
+      <h3 class="report-title">👥 Отчёт по пользователям</h3>
 
       <div class="user-report-grid">
-        <div class="user-report-card sergey">
-          <div class="ur-head">
-            <span class="ur-avatar">👨</span>
-            <span class="ur-name">Сергей</span>
+        <!-- Сергей -->
+        <div class="user-card sergey">
+          <div class="uc-head">
+            <div class="uc-avatar">👨</div>
+            <div class="uc-info">
+              <div class="uc-name">Сергей</div>
+              <div class="uc-tag" :class="byUser.sergey.balance >= 0 ? 'positive' : 'negative'">
+                {{ byUser.sergey.balance >= 0 ? 'Профицит' : 'Дефицит' }}
+              </div>
+            </div>
           </div>
-          <div class="ur-rows">
-            <div class="ur-row">
+
+          <div class="uc-rows">
+            <div class="uc-row">
               <span class="k">📈 Доходы</span>
               <span class="v income">+{{ fmt(byUser.sergey.income) }} ₽</span>
             </div>
-            <div class="ur-row">
+            <div class="uc-row">
               <span class="k">📉 Расходы</span>
               <span class="v expense">−{{ fmt(byUser.sergey.expense) }} ₽</span>
             </div>
-            <div class="ur-row total">
-              <span class="k">💰 Итого</span>
-              <span class="v" :class="byUser.sergey.balance >= 0 ? 'positive' : 'negative'">
-                {{ fmt(byUser.sergey.balance) }} ₽
-              </span>
-            </div>
+          </div>
+
+          <div class="uc-total" :class="byUser.sergey.balance >= 0 ? 'positive' : 'negative'">
+            <span class="uc-total-label">Итого</span>
+            <span class="uc-total-value">
+              {{ byUser.sergey.balance >= 0 ? '+' : '−' }}{{ fmt(Math.abs(byUser.sergey.balance)) }} ₽
+            </span>
           </div>
         </div>
 
-        <div class="user-report-card sasha">
-          <div class="ur-head">
-            <span class="ur-avatar">👩</span>
-            <span class="ur-name">Саша</span>
+        <!-- Саша -->
+        <div class="user-card sasha">
+          <div class="uc-head">
+            <div class="uc-avatar">👩</div>
+            <div class="uc-info">
+              <div class="uc-name">Саша</div>
+              <div class="uc-tag" :class="byUser.sasha.balance >= 0 ? 'positive' : 'negative'">
+                {{ byUser.sasha.balance >= 0 ? 'Профицит' : 'Дефицит' }}
+              </div>
+            </div>
           </div>
-          <div class="ur-rows">
-            <div class="ur-row">
+
+          <div class="uc-rows">
+            <div class="uc-row">
               <span class="k">📈 Доходы</span>
               <span class="v income">+{{ fmt(byUser.sasha.income) }} ₽</span>
             </div>
-            <div class="ur-row">
+            <div class="uc-row">
               <span class="k">📉 Расходы</span>
               <span class="v expense">−{{ fmt(byUser.sasha.expense) }} ₽</span>
             </div>
-            <div class="ur-row total">
-              <span class="k">💰 Итого</span>
-              <span class="v" :class="byUser.sasha.balance >= 0 ? 'positive' : 'negative'">
-                {{ fmt(byUser.sasha.balance) }} ₽
-              </span>
-            </div>
+          </div>
+
+          <div class="uc-total" :class="byUser.sasha.balance >= 0 ? 'positive' : 'negative'">
+            <span class="uc-total-label">Итого</span>
+            <span class="uc-total-value">
+              {{ byUser.sasha.balance >= 0 ? '+' : '−' }}{{ fmt(Math.abs(byUser.sasha.balance)) }} ₽
+            </span>
           </div>
         </div>
       </div>
@@ -312,11 +403,127 @@ const byUser = computed(() => {
   min-width: 0;
 }
 
+/* ============================================================
+   КАРТА-ШАПКА
+   ============================================================ */
+.summary-card {
+  border-radius: 22px;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 15% 0%, rgba(255, 255, 255, 0.18), transparent 55%),
+    radial-gradient(circle at 95% 100%, rgba(255, 255, 255, 0.14), transparent 60%),
+    linear-gradient(135deg, #06b6d4 0%, #3b82f6 45%, #7c3aed 100%);
+  color: #fff;
+  box-shadow:
+    0 20px 40px -18px rgba(59, 130, 246, 0.6),
+    0 10px 20px -10px rgba(124, 58, 237, 0.4);
+}
+
+.sc-top {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 22px 22px 18px;
+}
+
+.sc-main { min-width: 0; flex: 1; }
+
+.sc-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  opacity: 0.75;
+}
+
+.sc-amount {
+  font-size: 34px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: 4px 0 6px;
+  font-family: var(--mono);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sc-sub {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.85;
+  line-height: 1.35;
+}
+
+.sc-graph {
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.sc-graph-value {
+  font-size: 20px;
+  font-weight: 800;
+  font-family: var(--mono);
+  letter-spacing: -0.02em;
+}
+
+.sc-graph-label {
+  font-size: 10.5px;
+  font-weight: 600;
+  opacity: 0.75;
+  margin-top: 2px;
+}
+
+.sc-bottom {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 22px 18px;
+  background: rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(10px);
+}
+
+.sc-cell { min-width: 0; }
+.sc-cell:last-child { text-align: right; }
+
+.sc-cell-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.75;
+}
+
+.sc-cell-value {
+  font-size: 17px;
+  font-weight: 800;
+  font-family: var(--mono);
+  letter-spacing: -0.02em;
+  margin-top: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+
+  &.income { color: #86efac; }
+  &.expense { color: #fca5a5; }
+}
+
+.sc-divider {
+  width: 1px;
+  height: 32px;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* ============================================================
+   КАРТОЧКИ
+   ============================================================ */
 .card {
-  padding: 20px;
+  padding: 18px 20px;
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: 18px;
   box-shadow: var(--shadow-md);
   min-width: 0;
 }
@@ -328,16 +535,9 @@ const byUser = computed(() => {
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 14px;
-
-  h2 { margin: 0; }
 }
 
-.card-actions {
-  display: flex;
-  gap: 6px;
-}
-
-h2 {
+.card-title {
   font-size: 12px;
   color: var(--accent);
   text-transform: uppercase;
@@ -346,87 +546,205 @@ h2 {
   margin: 0;
 }
 
-table {
-  width: 100%;
-  border-collapse: collapse;
-}
+.card-head .card-title { margin-bottom: 0; }
 
-td {
-  padding: 10px 12px;
-  border-bottom: 1px solid var(--border);
-  font-size: 14px;
-
-  &.label {
-    color: var(--muted);
-    font-weight: 500;
-  }
-
-  &.value {
-    text-align: right;
-    font-family: var(--mono);
-    font-weight: 700;
-
-    input {
-      width: 140px;
-      max-width: 100%;
-      padding: 6px 10px;
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      text-align: right;
-      font-family: var(--mono);
-      font-size: 14px;
-      outline: none;
-
-      &:focus { border-color: var(--accent); }
-    }
-  }
-}
-
-tr.highlight td {
-  background: rgba(56, 189, 248, 0.08);
-
-  &.label { color: var(--accent); font-weight: 700; }
-  &.value { color: var(--accent); font-size: 16px; }
+.card-actions {
+  display: flex;
+  gap: 6px;
 }
 
 .btn-add-mini {
   padding: 5px 12px;
   border-radius: 999px;
-  border: 1px solid var(--accent);
-  background: rgba(56, 189, 248, 0.1);
-  color: var(--accent);
+  border: 1px solid transparent;
+  font-family: inherit;
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
 
-  &:hover { background: var(--accent); color: #fff; }
+  &.income {
+    background: rgba(34, 197, 94, 0.12);
+    border-color: rgba(34, 197, 94, 0.35);
+    color: #16a34a;
+
+    &:hover {
+      background: rgba(34, 197, 94, 0.22);
+      transform: translateY(-1px);
+    }
+  }
+
+  &.expense {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.32);
+    color: #dc2626;
+
+    &:hover {
+      background: rgba(239, 68, 68, 0.2);
+      transform: translateY(-1px);
+    }
+  }
 }
 
+/* ============================================================
+   ТАБЛИЦА ПРОЦЕНТОВ
+   ============================================================ */
+.percent-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.percent-field {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+
+  label {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  input {
+    padding: 12px 40px 12px 14px;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: #ffffff;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 16px;
+    font-weight: 700;
+    outline: none;
+    width: 100%;
+    transition: border-color 0.15s, box-shadow 0.15s;
+
+    &:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+    }
+  }
+
+  .percent-suffix {
+    position: absolute;
+    right: 14px;
+    bottom: 14px;
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--muted);
+    pointer-events: none;
+  }
+}
+
+.percent-results {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.percent-result {
+  padding: 14px 16px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(139, 92, 246, 0.05));
+  border: 1px solid rgba(56, 189, 248, 0.2);
+
+  &.accent {
+    background: linear-gradient(135deg, #3b82f6, #7c3aed);
+    border-color: transparent;
+    color: #fff;
+    box-shadow: 0 8px 20px -8px rgba(59, 130, 246, 0.6);
+
+    .pr-label { color: rgba(255, 255, 255, 0.85); }
+    .pr-value { color: #fff; }
+  }
+}
+
+.pr-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--muted);
+}
+
+.pr-value {
+  font-family: var(--mono);
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--text);
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ============================================================
+   ДОХОДЫ И РАСХОДЫ
+   ============================================================ */
 .dt-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 16px;
+  gap: 14px;
 }
 
+.dt-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.dt-col-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 800;
+
+  &.income-bg {
+    background: rgba(34, 197, 94, 0.1);
+  }
+
+  .dt-col-icon.income { color: #16a34a; }
+}
+
+.dt-col-head {
+  background: rgba(148, 163, 184, 0.08);
+}
+
+.dt-col-icon { font-size: 14px; }
 .dt-col-title {
   font-size: 12px;
   font-weight: 800;
-  margin-bottom: 8px;
+  color: var(--text);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
 
-  .income-col & { color: #16a34a; }
-  .expense-col & { color: #dc2626; }
+.dt-col-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .dt-row {
   display: grid;
-  grid-template-columns: 1fr 120px auto;
+  grid-template-columns: 1fr 100px auto;
   gap: 6px;
   align-items: center;
-  margin-bottom: 6px;
 
   &.locked .dt-name,
   &.locked .dt-value {
-    background: rgba(148, 163, 184, 0.1);
+    background: rgba(148, 163, 184, 0.08);
     color: var(--muted);
     cursor: not-allowed;
     border-style: dashed;
@@ -435,29 +753,36 @@ tr.highlight td {
 
 .dt-name,
 .dt-value {
-  padding: 6px 10px;
+  padding: 8px 12px;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 10px;
   font-family: inherit;
   font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
   outline: none;
   min-width: 0;
   width: 100%;
+  background: #ffffff;
+  transition: border-color 0.15s, box-shadow 0.15s;
 
-  &:focus { border-color: var(--accent); }
+  &:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+  }
 }
 
 .dt-value {
   text-align: right;
   font-family: var(--mono);
-  font-weight: 700;
+  font-weight: 800;
 }
 
-.btn-del-mini,
-.lock-icon {
-  width: 26px;
-  height: 26px;
-  border-radius: 6px;
+.dt-del,
+.dt-lock {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
   border: 1px solid var(--border);
   background: transparent;
   color: var(--muted);
@@ -467,76 +792,128 @@ tr.highlight td {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  transition: all 0.15s;
+
+  &:hover {
+    border-color: var(--danger);
+    color: var(--danger);
+    background: rgba(239, 68, 68, 0.08);
+  }
 }
 
-.lock-icon {
+.dt-lock {
   border: none;
   font-size: 14px;
-  cursor: not-allowed;
+  cursor: default;
+  background: transparent;
+
+  &:hover {
+    border: none;
+    color: var(--muted);
+    background: transparent;
+  }
 }
 
-.dt-total {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--border);
-  font-size: 13px;
+.dt-empty {
+  padding: 14px;
+  text-align: center;
+  font-size: 12px;
   color: var(--muted);
+  background: rgba(148, 163, 184, 0.06);
+  border-radius: 10px;
+  border: 1px dashed var(--border);
+}
+
+.dt-col-total {
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 12.5px;
+  font-weight: 700;
   text-align: right;
+  margin-top: 4px;
 
   strong {
     font-family: var(--mono);
     font-size: 15px;
-    color: var(--text);
+    font-weight: 800;
+    margin-left: 6px;
   }
-}
 
-.grand-total {
-  margin-top: 16px;
-  padding: 12px 16px;
-  border-radius: 12px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  font-size: 14px;
-  font-weight: 700;
-  flex-wrap: wrap;
-  gap: 8px;
-
-  &.positive {
+  &.income {
     background: rgba(34, 197, 94, 0.1);
-    border: 1px solid rgba(34, 197, 94, 0.3);
-    color: #16a34a;
+    border: 1px solid rgba(34, 197, 94, 0.25);
+    color: #15803d;
 
     strong { color: #15803d; }
   }
 
-  &.negative {
-    background: rgba(239, 68, 68, 0.1);
-    border: 1px solid rgba(239, 68, 68, 0.3);
+  &.expense {
+    background: rgba(239, 68, 68, 0.08);
+    border: 1px solid rgba(239, 68, 68, 0.25);
     color: #dc2626;
 
     strong { color: #b91c1c; }
   }
+}
 
-  strong {
-    font-family: var(--mono);
-    font-size: 18px;
+/* Итоговая разница */
+.grand-total {
+  margin-top: 16px;
+  padding: 14px 18px;
+  border-radius: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-weight: 700;
+
+  &.positive {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(34, 197, 94, 0.06));
+    border: 1px solid rgba(34, 197, 94, 0.3);
+
+    .gt-value { color: #16a34a; }
+  }
+
+  &.negative {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(239, 68, 68, 0.06));
+    border: 1px solid rgba(239, 68, 68, 0.3);
+
+    .gt-value { color: #dc2626; }
   }
 }
 
+.gt-label {
+  font-size: 12.5px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.gt-value {
+  font-family: var(--mono);
+  font-size: 22px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+/* ============================================================
+   ОТЧЁТ ПО ПОЛЬЗОВАТЕЛЯМ
+   ============================================================ */
 .user-report {
   display: flex;
   flex-direction: column;
   gap: 12px;
+}
 
-  h3 {
-    font-size: 12px;
-    color: var(--accent);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-weight: 700;
-    margin: 0;
-  }
+.report-title {
+  font-size: 12px;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-weight: 700;
+  margin: 0;
+  padding: 0 4px;
 }
 
 .user-report-grid {
@@ -545,95 +922,172 @@ tr.highlight td {
   gap: 12px;
 }
 
-.user-report-card {
-  padding: 14px 16px;
-  border-radius: 14px;
+.user-card {
+  padding: 16px 18px;
+  border-radius: 18px;
   border: 1px solid var(--border);
   background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
 
   &.sergey {
-    background: linear-gradient(135deg, rgba(59, 130, 246, 0.06), transparent 60%), #ffffff;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(59, 130, 246, 0.08), transparent 60%),
+      #ffffff;
+    border-color: rgba(59, 130, 246, 0.2);
   }
 
   &.sasha {
-    background: linear-gradient(135deg, rgba(236, 72, 153, 0.06), transparent 60%), #ffffff;
+    background:
+      radial-gradient(circle at 15% 0%, rgba(236, 72, 153, 0.08), transparent 60%),
+      #ffffff;
+    border-color: rgba(236, 72, 153, 0.2);
   }
 }
 
-.ur-head {
+.uc-head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 800;
-  font-size: 15px;
-  margin-bottom: 10px;
+  gap: 10px;
 }
 
-.ur-avatar { font-size: 20px; }
+.uc-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
 
-.ur-row {
+  .sergey & {
+    background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(139, 92, 246, 0.15));
+    border: 1.5px solid rgba(59, 130, 246, 0.35);
+  }
+
+  .sasha & {
+    background: linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(245, 158, 11, 0.15));
+    border: 1.5px solid rgba(236, 72, 153, 0.35);
+  }
+}
+
+.uc-info { min-width: 0; flex: 1; }
+
+.uc-name {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.uc-tag {
+  display: inline-block;
+  margin-top: 2px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+
+  &.positive {
+    background: rgba(34, 197, 94, 0.15);
+    color: #16a34a;
+  }
+  &.negative {
+    background: rgba(239, 68, 68, 0.12);
+    color: #dc2626;
+  }
+}
+
+.uc-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.uc-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 4px 0;
-  font-size: 13px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(148, 163, 184, 0.06);
+  font-size: 12.5px;
 
-  .k { color: var(--muted); }
+  .k { color: var(--muted); font-weight: 600; }
+
   .v {
     font-family: var(--mono);
-    font-weight: 700;
+    font-weight: 800;
 
     &.income { color: #16a34a; }
     &.expense { color: #dc2626; }
-    &.positive { color: #16a34a; }
-    &.negative { color: #dc2626; }
+  }
+}
+
+.uc-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 14px;
+  border-radius: 12px;
+
+  &.positive {
+    background: linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(34, 197, 94, 0.06));
+    .uc-total-value { color: #16a34a; }
   }
 
-  &.total {
-    border-top: 1px dashed var(--border);
-    margin-top: 4px;
-    padding-top: 8px;
-
-    .k { color: var(--text); font-weight: 700; }
+  &.negative {
+    background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(239, 68, 68, 0.06));
+    .uc-total-value { color: #dc2626; }
   }
+}
+
+.uc-total-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.uc-total-value {
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
 }
 
 /* ============================================================
    МОБИЛЬНЫЙ
    ============================================================ */
 @media (max-width: 700px) {
-  .card { padding: 14px; }
+  .sc-top { padding: 18px 18px 14px; gap: 10px; }
+  .sc-amount { font-size: 28px; }
+  .sc-sub { font-size: 11px; }
+  .sc-graph-value { font-size: 16px; }
+  .sc-graph-label { font-size: 9.5px; }
+  .sc-bottom { padding: 12px 18px 14px; gap: 8px; }
+  .sc-cell-value { font-size: 15px; }
 
-  .dt-grid {
-    grid-template-columns: 1fr;
-    gap: 14px;
-  }
+  .card { padding: 14px 16px; border-radius: 16px; }
 
-  .dt-row {
-    grid-template-columns: 1fr 100px auto;
-  }
+  .percent-grid { grid-template-columns: 1fr; gap: 10px; }
+  .percent-results { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .pr-value { font-size: 17px; }
 
-  .user-report-grid {
-    grid-template-columns: 1fr;
-  }
+  .dt-grid { grid-template-columns: 1fr; gap: 14px; }
+  .dt-row { grid-template-columns: 1fr 90px auto; }
 
-  .grand-total {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 6px;
-
-    strong { font-size: 16px; }
-  }
-
-  td.value input {
-    width: 100px;
-    font-size: 13px;
-  }
+  .user-report-grid { grid-template-columns: 1fr; }
+  .uc-total-value { font-size: 16px; }
+  .gt-value { font-size: 18px; }
 }
 
 @media (max-width: 400px) {
-  .dt-row {
-    grid-template-columns: 1fr 80px auto;
-  }
+  .dt-row { grid-template-columns: 1fr 80px auto; }
+  .sc-amount { font-size: 24px; }
 }
 </style>
