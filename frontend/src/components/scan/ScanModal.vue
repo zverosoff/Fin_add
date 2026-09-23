@@ -23,7 +23,6 @@ const txStore = useTransactionsStore();
 const auth = useAuthStore();
 const toast = useToast();
 
-// Шаги: 'upload' → 'recognizing' → 'preview'
 const step = ref('upload');
 const file = ref(null);
 const filePreview = ref('');
@@ -32,18 +31,18 @@ const statusText = ref('');
 
 const items = ref([]);
 const selectedIndices = ref(new Set());
-
-// ✅ Фильтр по датам
 const dateFilters = ref([]);
 
-// ✅ Своя дата
 const manualDate = ref(new Date().toISOString().split('T')[0]);
 const showManualDate = ref(false);
 
-// ✅ Y-координата обрезки (в исходном изображении)
-const cropY = ref(null);           // null | number
-const cropYPercent = ref(null);    // для CSS-разметки (0-100)
-const originalImageSize = ref({ w: 0, h: 0 });
+// ✅ Обрезка
+const cropYPercent = ref(null);
+const previewLoading = ref(false);
+
+// ✅ Кэш результатов OCR — чтобы не делать его дважды
+const prefetchedLines = ref(null);       // результат первого OCR
+const prefetchedCropY = ref(null);       // Y-координата (в исходном масштабе)
 
 const user = ref(auth.user || 'Сергей');
 const accountId = ref('');
@@ -64,9 +63,6 @@ function switchToPdf() {
   emit('switch-to-pdf');
 }
 
-// ============================================================
-// Счета выбранного пользователя
-// ============================================================
 const userAccounts = computed(() =>
   accounts.accounts.filter(a => (a.owner || 'Сергей') === user.value)
 );
@@ -89,9 +85,10 @@ function reset() {
   showManualDate.value = false;
   error.value = '';
   saving.value = false;
-  cropY.value = null;
   cropYPercent.value = null;
-  originalImageSize.value = { w: 0, h: 0 };
+  previewLoading.value = false;
+  prefetchedLines.value = null;
+  prefetchedCropY.value = null;
 }
 
 watch(() => props.modelValue, (open) => {
@@ -106,21 +103,50 @@ watch(user, () => {
 });
 
 // ============================================================
-// Загрузка файла
+// ✅ Загрузка файла + АВТО-OCR
 // ============================================================
-function onFileSelected(e) {
+async function onFileSelected(e) {
   const f = e.target.files?.[0];
   if (!f) return;
+
   file.value = f;
   filePreview.value = URL.createObjectURL(f);
   error.value = '';
+  cropYPercent.value = null;
+  prefetchedLines.value = null;
+  prefetchedCropY.value = null;
 
-  // Запоминаем размеры исходного изображения
-  const img = new Image();
-  img.onload = () => {
-    originalImageSize.value = { w: img.width, h: img.height };
-  };
-  img.src = filePreview.value;
+  previewLoading.value = true;
+
+  try {
+    // Размеры исходного изображения
+    const img = new Image();
+    await new Promise((res, rej) => {
+      img.onload = res;
+      img.onerror = rej;
+      img.src = filePreview.value;
+    });
+    const originalH = img.height;
+
+    // ✅ Один раз делаем OCR
+    const processed = await preprocessImage(f);
+    const result = await recognizeText(processed, () => {});
+
+    prefetchedLines.value = result.lines;
+
+    // Ищем Y первой даты
+    const firstY = findFirstDateY(result.lines);
+    if (firstY !== null && originalH > 0) {
+      const y = firstY / 2; // scale=2 в preprocessImage
+      prefetchedCropY.value = y;
+      cropYPercent.value = Math.min(95, Math.max(5, (y / originalH) * 100));
+      console.log('[scan] линия обрезки:', cropYPercent.value + '%');
+    }
+  } catch (e) {
+    console.warn('[scan] автопоиск линии не удался:', e);
+  } finally {
+    previewLoading.value = false;
+  }
 }
 
 function triggerFileInput() {
@@ -128,7 +154,7 @@ function triggerFileInput() {
 }
 
 // ============================================================
-// Группировка дат для фильтра
+// Даты
 // ============================================================
 function buildDateFilters(parsedItems) {
   const map = new Map();
@@ -169,7 +195,7 @@ function formatDateLabel(d) {
 }
 
 // ============================================================
-// Распознавание
+// ✅ Переход к следующему шагу — без повторного OCR
 // ============================================================
 async function recognize() {
   if (!file.value) {
@@ -177,61 +203,61 @@ async function recognize() {
     return;
   }
 
-  step.value = 'recognizing';
-  progress.value = 0;
-  statusText.value = 'Подготовка изображения…';
   error.value = '';
 
-  try {
-    const processed = await preprocessImage(file.value);
-    statusText.value = 'Загрузка модели OCR…';
-    progress.value = 5;
+  // ✅ Если OCR уже был при выборе файла — переиспользуем
+  let textLines = prefetchedLines.value;
 
-    // ✅ recognizeText теперь возвращает { lines, imageWidth, imageHeight }
-    const result = await recognizeText(processed, (pct) => {
-      progress.value = pct;
-      statusText.value = `Распознавание: ${pct}%`;
-    });
+  if (!textLines) {
+    // Fallback: делаем OCR сейчас (если автопоиск упал или ещё идёт)
+    step.value = 'recognizing';
+    progress.value = 0;
+    statusText.value = 'Подготовка изображения…';
 
-    const textLines = result.lines;
+    try {
+      const processed = await preprocessImage(file.value);
+      statusText.value = 'Загрузка модели OCR…';
+      progress.value = 5;
 
-    if (!textLines.length) {
-      throw new Error('Не удалось распознать текст на фото');
+      const result = await recognizeText(processed, (pct) => {
+        progress.value = pct;
+        statusText.value = `Распознавание: ${pct}%`;
+      });
+
+      textLines = result.lines;
+      prefetchedLines.value = textLines;
+    } catch (e) {
+      console.error('[scan] ошибка OCR:', e);
+      error.value = e.message || 'Ошибка распознавания';
+      step.value = 'upload';
+      return;
     }
-
-    // ✅ Ищем Y первой даты для визуальной разметки
-    const firstDateY = findFirstDateY(textLines);
-    if (firstDateY !== null && originalImageSize.value.h > 0) {
-      // bbox в исходном изображении был в 2x масштабе (scale = 2 в preprocessImage)
-      const y = firstDateY / 2;
-      cropY.value = y;
-      cropYPercent.value = (y / originalImageSize.value.h) * 100;
-    } else {
-      cropY.value = null;
-      cropYPercent.value = null;
-    }
-
-    const parsed = parseReceipt(textLines);
-
-    if (!parsed.length) {
-      throw new Error('Не найдено операций в чеке');
-    }
-
-    items.value = parsed;
-    selectedIndices.value = new Set(parsed.map((_, i) => i));
-    dateFilters.value = buildDateFilters(parsed);
-
-    step.value = 'preview';
-    toast.success(`📸 Найдено ${parsed.length} операций`);
-  } catch (e) {
-    console.error('[scan] ошибка:', e);
-    error.value = e.message || 'Ошибка распознавания';
-    step.value = 'upload';
   }
+
+  if (!textLines.length) {
+    error.value = 'Не удалось распознать текст на фото';
+    step.value = 'upload';
+    return;
+  }
+
+  const parsed = parseReceipt(textLines);
+
+  if (!parsed.length) {
+    error.value = 'Не найдено операций в чеке';
+    step.value = 'upload';
+    return;
+  }
+
+  items.value = parsed;
+  selectedIndices.value = new Set(parsed.map((_, i) => i));
+  dateFilters.value = buildDateFilters(parsed);
+
+  step.value = 'preview';
+  toast.success(`📸 Найдено ${parsed.length} операций`);
 }
 
 // ============================================================
-// Фильтр по датам
+// Даты фильтры
 // ============================================================
 function toggleDateFilter(key) {
   const f = dateFilters.value.find(x => x.key === key);
@@ -261,9 +287,7 @@ function applyManualDate() {
     it.date = d.toISOString();
   }
   items.value = [...items.value];
-
   dateFilters.value = buildDateFilters(items.value);
-
   showManualDate.value = false;
   toast.info('📅 Дата применена ко всем операциям');
 }
@@ -304,7 +328,7 @@ function toggleType(i) {
 
 function formatDate(iso) {
   const d = new Date(iso);
-  return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
 }
 
 const visibleItems = computed(() => {
@@ -415,21 +439,22 @@ function close() {
 
     <!-- ШАГ 1. Загрузка -->
     <div v-if="step === 'upload'" class="step">
-      <div class="field">
-        <label>👤 Кто вносит</label>
-        <select v-model="user">
-          <option value="Сергей">👨 Сергей</option>
-          <option value="Саша">👩 Саша</option>
-        </select>
-      </div>
-
-      <div class="field">
-        <label>💳 Счёт</label>
-        <select v-model="accountId">
-          <option v-for="acc in userAccounts" :key="acc.id" :value="acc.id">
-            {{ acc.name }}
-          </option>
-        </select>
+      <div class="fields-row">
+        <div class="field">
+          <label>👤 Кто вносит</label>
+          <select v-model="user">
+            <option value="Сергей">👨 Сергей</option>
+            <option value="Саша">👩 Саша</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>💳 Счёт</label>
+          <select v-model="accountId">
+            <option v-for="acc in userAccounts" :key="acc.id" :value="acc.id">
+              {{ acc.name }}
+            </option>
+          </select>
+        </div>
       </div>
 
       <div class="field">
@@ -448,30 +473,57 @@ function close() {
             <span class="upload-sub">JPG, PNG · скриншот или фото</span>
           </span>
         </button>
-        <div class="hint">
-          💡 Совет: обрежьте скриншот так, чтобы в кадр попал только список операций
-        </div>
       </div>
 
-      <div v-if="filePreview" class="preview-wrapper">
-        <div class="preview">
-          <img :src="filePreview" alt="preview" />
+      <!-- ✅ Превью с разметкой -->
+      <div v-if="filePreview" class="preview-block">
+        <div class="preview-header">
+          <span class="preview-title">📸 Превью распознавания</span>
+          <span v-if="previewLoading" class="preview-status loading">
+            <span class="spinner-mini"></span> Анализ…
+          </span>
+          <span v-else-if="prefetchedLines" class="preview-status ok">
+            ✅ Готово к распознаванию
+          </span>
+          <span v-else class="preview-status hint">
+            ℹ️ Готово
+          </span>
+        </div>
 
-          <!-- ✅ Красная линия — граница обрезки (если определена) -->
+        <div class="preview-image-wrapper">
+          <img :src="filePreview" alt="preview" class="preview-image" />
+
           <div
             v-if="cropYPercent !== null"
-            class="crop-line"
-            :style="{ top: cropYPercent + '%' }"
+            class="preview-overlay-top"
+            :style="{ height: cropYPercent + '%' }"
           >
-            <span class="crop-line-label">До этой линии — распознаётся</span>
+            <div class="preview-overlay-label">
+              Шапка · не распознаётся
+            </div>
           </div>
+
+          <div
+            v-if="cropYPercent !== null"
+            class="preview-crop-line"
+            :style="{ top: cropYPercent + '%' }"
+          ></div>
+        </div>
+
+        <div class="preview-footer">
+          <span v-if="cropYPercent !== null">
+            ✂️ Отсекается <strong>{{ Math.round(cropYPercent) }}%</strong> сверху
+          </span>
+          <span v-else>
+            Все операции будут распознаны
+          </span>
         </div>
       </div>
 
       <div v-if="error" class="error-msg">{{ error }}</div>
     </div>
 
-    <!-- ШАГ 2. Распознавание -->
+    <!-- ШАГ 2. Распознавание (только если OCR ещё не был) -->
     <div v-else-if="step === 'recognizing'" class="step">
       <div class="recognize">
         <div class="spinner"></div>
@@ -485,14 +537,6 @@ function close() {
 
     <!-- ШАГ 3. Предпросмотр -->
     <div v-else-if="step === 'preview'" class="step">
-      <!-- ✅ Мини-превью с линией обрезки -->
-      <div v-if="filePreview && cropYPercent !== null" class="mini-preview">
-        <img :src="filePreview" alt="cropped" />
-        <div class="mini-crop-line" :style="{ top: cropYPercent + '%' }"></div>
-        <div class="mini-crop-label">↑ Шапка отсечена, ниже — операции</div>
-      </div>
-
-      <!-- Фильтр по датам -->
       <div v-if="dateFilters.length > 0" class="dates-bar">
         <div class="dates-label">
           <span>📅 Даты:</span>
@@ -557,30 +601,31 @@ function close() {
         >
           <input
             type="checkbox"
+            class="item-check"
             :checked="selectedIndices.has(it.index)"
             @change="toggleItem(it.index)"
           />
 
-          <div class="item-desc">
-            <span class="date">{{ formatDate(it.date) }}</span>
-            <span
-              class="name"
-              @click="editDescription(it.index)"
-              :title="it.description"
-            >{{ it.description }}</span>
-          </div>
+          <span class="item-date">{{ formatDate(it.date) }}</span>
 
-          <div
-            class="type-badge"
+          <span
+            class="item-name"
+            @click="editDescription(it.index)"
+            :title="it.description"
+          >{{ it.description }}</span>
+
+          <button
+            class="item-type"
             :class="it.type"
             @click="toggleType(it.index)"
+            :title="it.type === 'income' ? 'Доход' : 'Расход'"
           >
             {{ it.type === 'income' ? '📈' : '📉' }}
-          </div>
+          </button>
 
-          <div class="amount" :class="it.type" @click="editAmount(it.index)">
+          <span class="item-amount" :class="it.type" @click="editAmount(it.index)">
             {{ it.type === 'income' ? '+' : '−' }} {{ fmt(it.amount) }} ₽
-          </div>
+          </span>
         </div>
 
         <div v-if="visibleItems.length === 0" class="empty-filter">
@@ -594,8 +639,17 @@ function close() {
     <template #footer>
       <template v-if="step === 'upload'">
         <button class="btn-cancel" @click="close">Отмена</button>
-        <button class="btn-save" :disabled="!file" @click="recognize">
-          🔍 Распознать
+        <button
+          class="btn-save"
+          :disabled="!file || previewLoading"
+          @click="recognize"
+        >
+          <template v-if="previewLoading">
+            ⏳ Анализ…
+          </template>
+          <template v-else>
+            👁 Показать операции
+          </template>
         </button>
       </template>
 
@@ -618,12 +672,14 @@ function close() {
 </template>
 
 <style scoped lang="scss">
-/* ... оставляем всё как было, добавляем только новые стили ... */
+/* ============================================================
+   Переключатель режима
+   ============================================================ */
 .mode-switch {
   display: flex;
   gap: 4px;
   padding: 4px;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
   background: #f1f5f9;
   border-radius: 12px;
 
@@ -657,7 +713,16 @@ function close() {
   }
 }
 
-.step { display: flex; flex-direction: column; gap: 12px; }
+.step { display: flex; flex-direction: column; gap: 14px; }
+
+/* ============================================================
+   Поля
+   ============================================================ */
+.fields-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
 
 .field {
   display: flex;
@@ -690,16 +755,9 @@ function close() {
   }
 }
 
-.hint {
-  font-size: 11.5px;
-  color: var(--muted);
-  padding: 6px 10px;
-  border-radius: 8px;
-  background: rgba(148, 163, 184, 0.08);
-  text-align: center;
-  line-height: 1.4;
-}
-
+/* ============================================================
+   Кнопка загрузки
+   ============================================================ */
 .upload-btn {
   display: flex;
   align-items: center;
@@ -718,6 +776,7 @@ function close() {
   &:hover {
     border-color: var(--accent);
     background: linear-gradient(135deg, rgba(56, 189, 248, 0.14), rgba(139, 92, 246, 0.1));
+    transform: translateY(-1px);
   }
 }
 
@@ -738,91 +797,556 @@ function close() {
 .upload-title { font-size: 15px; font-weight: 700; }
 .upload-sub { font-size: 11.5px; color: var(--muted); }
 
-/* ✅ Обёртка для превью с линией обрезки */
-.preview-wrapper {
-  margin-top: 8px;
+/* ============================================================
+   ✅ Превью с разметкой обрезки
+   ============================================================ */
+.preview-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(56, 189, 248, 0.04), transparent 60%), #ffffff;
+  border: 1px solid var(--border);
 }
 
-.preview {
+.preview-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.preview-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.preview-status {
+  font-size: 11px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+
+  &.loading { color: #d97706; }
+  &.ok { color: #16a34a; }
+  &.hint { color: var(--muted); }
+}
+
+.spinner-mini {
+  width: 12px;
+  height: 12px;
+  border: 2px solid rgba(217, 119, 6, 0.25);
+  border-top-color: #d97706;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+  display: inline-block;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* Контейнер с изображением и разметкой */
+.preview-image-wrapper {
   position: relative;
   border-radius: 12px;
   overflow: hidden;
-  border: 1px solid var(--border);
-  max-height: 30vh;
+  background: #0f172a;
   display: flex;
   justify-content: center;
-  background: #f8fafc;
+  max-height: 42vh;
 
-  img {
+  .preview-image {
     max-width: 100%;
-    max-height: 30vh;
+    max-height: 42vh;
     object-fit: contain;
+    display: block;
   }
 }
 
-/* ✅ Красная линия обрезки */
-.crop-line {
+/* Затемнение верхней части */
+.preview-overlay-top {
   position: absolute;
+  top: 0;
   left: 0;
   right: 0;
-  height: 0;
-  border-top: 2px dashed #dc2626;
+  background: rgba(15, 23, 42, 0.72);
+  backdrop-filter: grayscale(1) blur(1px);
+  -webkit-backdrop-filter: grayscale(1) blur(1px);
   pointer-events: none;
-  z-index: 10;
+  transition: height 0.35s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px;
 
-  .crop-line-label {
-    position: absolute;
-    top: -18px;
-    left: 8px;
-    padding: 2px 8px;
-    border-radius: 4px;
-    background: #dc2626;
+  .preview-overlay-label {
     color: #fff;
-    font-size: 9px;
+    font-size: 11px;
     font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    background: rgba(0, 0, 0, 0.5);
+    padding: 4px 10px;
+    border-radius: 6px;
     white-space: nowrap;
   }
 }
 
-/* ✅ Мини-превью с линией */
-.mini-preview {
-  position: relative;
-  border-radius: 12px;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  max-height: 120px;
-  background: #f8fafc;
+/* Красная линия */
+.preview-crop-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 0;
+  border-top: 2px dashed #ef4444;
+  pointer-events: none;
+  z-index: 5;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.6);
+  transition: top 0.35s ease;
+}
 
-  img {
-    max-width: 100%;
-    max-height: 120px;
-    object-fit: contain;
-    display: block;
-    opacity: 0.5;
-  }
+.preview-footer {
+  font-size: 11.5px;
+  color: var(--muted);
+  text-align: center;
+  line-height: 1.4;
 
-  .mini-crop-line {
-    position: absolute;
-    left: 0;
-    right: 0;
-    height: 0;
-    border-top: 2px dashed #dc2626;
-    pointer-events: none;
-    z-index: 10;
-  }
-
-  .mini-crop-label {
-    position: absolute;
-    bottom: 4px;
-    right: 6px;
-    padding: 2px 6px;
-    border-radius: 4px;
-    background: rgba(0, 0, 0, 0.7);
-    color: #fff;
-    font-size: 9px;
-    font-weight: 600;
+  strong {
+    color: var(--accent);
+    font-family: var(--mono);
   }
 }
 
-/* ... остальные стили (recognize, progress, dates-bar, items-list и т.д.) — без изменений ... */
+/* ============================================================
+   Распознавание
+   ============================================================ */
+.recognize {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  padding: 40px 20px;
+  text-align: center;
+}
+
+.spinner {
+  width: 44px;
+  height: 44px;
+  border: 4px solid rgba(56, 189, 248, 0.2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+.status { font-size: 14px; color: var(--text); font-weight: 600; }
+
+.progress {
+  width: 100%;
+  max-width: 300px;
+  height: 8px;
+  border-radius: 4px;
+  background: rgba(148, 163, 184, 0.15);
+  overflow: hidden;
+}
+
+.progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #38bdf8, #8b5cf6);
+  border-radius: 4px;
+  transition: width 0.3s;
+}
+
+.progress-pct {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+/* ============================================================
+   Даты
+   ============================================================ */
+.dates-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(139, 92, 246, 0.06));
+  border: 1px solid rgba(56, 189, 248, 0.25);
+}
+
+.dates-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--accent);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.dates-toggle-mini {
+  padding: 3px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  background: transparent;
+  color: var(--accent);
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover { background: rgba(56, 189, 248, 0.15); }
+}
+
+.dates-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.date-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #f8fafc;
+  color: var(--muted);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+
+  &:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+
+  &.active {
+    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    color: #fff;
+    border-color: transparent;
+    box-shadow: 0 4px 12px -4px rgba(59, 130, 246, 0.6);
+  }
+
+  &.manual {
+    border-style: dashed;
+    color: var(--muted);
+
+    &.active {
+      border-style: solid;
+      background: linear-gradient(135deg, #f59e0b, #f97316);
+      color: #fff;
+    }
+  }
+}
+
+.date-chip-count {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.3);
+  font-size: 10.5px;
+  font-weight: 800;
+
+  .date-chip:not(.active) & {
+    background: rgba(148, 163, 184, 0.2);
+  }
+}
+
+.manual-date-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding-top: 4px;
+}
+
+.manual-date-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 13px;
+  background: #fff;
+  color: var(--text);
+  outline: none;
+
+  &:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+  }
+}
+
+.manual-date-apply {
+  padding: 8px 14px;
+  border-radius: 10px;
+  border: none;
+  background: linear-gradient(135deg, #f59e0b, #f97316);
+  color: #fff;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  box-shadow: 0 6px 16px -6px rgba(245, 158, 11, 0.6);
+  transition: all 0.15s;
+
+  &:hover { transform: translateY(-1px); }
+  &:active { transform: scale(0.97); }
+}
+
+/* ============================================================
+   Массовые действия
+   ============================================================ */
+.bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 4px 0;
+}
+
+.bulk-mini {
+  padding: 5px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: #f8fafc;
+  color: var(--text);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(56, 189, 248, 0.08);
+  }
+}
+
+.bulk-counter {
+  margin-left: auto;
+  font-size: 11.5px;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+/* ============================================================
+   ✅ Список операций — сетка
+   ============================================================ */
+.items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 45vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.item-row {
+  display: grid;
+  grid-template-columns: auto 52px 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: #ffffff;
+  transition: all 0.15s;
+
+  &.selected {
+    border-color: var(--accent);
+    background: rgba(56, 189, 248, 0.03);
+  }
+
+  &:hover {
+    border-color: rgba(56, 189, 248, 0.4);
+  }
+}
+
+.item-check {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  accent-color: var(--accent);
+}
+
+.item-date {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  white-space: nowrap;
+}
+
+.item-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 6px;
+  transition: background 0.15s;
+
+  &:hover {
+    background: rgba(56, 189, 248, 0.08);
+    color: var(--accent);
+  }
+}
+
+.item-type {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  font-size: 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  padding: 0;
+  font-family: inherit;
+
+  &.income {
+    background: rgba(34, 197, 94, 0.12);
+    border-color: rgba(34, 197, 94, 0.3);
+  }
+  &.expense {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+
+  &:hover { transform: scale(1.08); }
+}
+
+.item-amount {
+  font-family: var(--mono);
+  font-size: 13.5px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+  padding: 2px 6px;
+  border-radius: 6px;
+  transition: background 0.15s;
+
+  &.income { color: #16a34a; }
+  &.expense { color: #dc2626; }
+
+  &:hover {
+    background: rgba(56, 189, 248, 0.1);
+  }
+}
+
+.empty-filter {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--muted);
+  font-size: 13px;
+  border: 1px dashed var(--border);
+  border-radius: 10px;
+}
+
+.error-msg {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: var(--danger);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+/* ============================================================
+   Кнопки
+   ============================================================ */
+.btn-cancel, .btn-save {
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+
+.btn-cancel {
+  background: #f1f5f9;
+  color: var(--text);
+  border-color: var(--border);
+}
+
+.btn-save {
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  color: #fff;
+  box-shadow: 0 10px 24px -10px rgba(59, 130, 246, 0.7);
+
+  &:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+}
+
+/* ============================================================
+   Мобильный
+   ============================================================ */
+@media (max-width: 700px) {
+  .fields-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .item-row {
+    grid-template-columns: auto 46px 1fr auto;
+    gap: 8px;
+    padding: 10px;
+  }
+
+  .item-date {
+    font-size: 10px;
+  }
+
+  .item-name {
+    font-size: 12.5px;
+  }
+
+  .item-type {
+    display: none; /* Скрываем кнопку типа — переключать можно кликом по сумме? Нет — оставим */
+  }
+
+  .item-row {
+    grid-template-columns: auto 46px 1fr auto auto;
+  }
+
+  .item-type {
+    display: inline-flex;
+    width: 24px;
+    height: 24px;
+    font-size: 12px;
+  }
+
+  .item-amount {
+    font-size: 12.5px;
+    padding: 2px 4px;
+  }
+
+  .preview-image-wrapper {
+    max-height: 36vh;
+    .preview-image { max-height: 36vh; }
+  }
+}
 </style>
