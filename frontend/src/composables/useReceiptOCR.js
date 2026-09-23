@@ -1,7 +1,8 @@
 /**
  * OCR-обработка чеков и скриншотов банковских приложений через Tesseract.js
  * Портировано из рабочего scan.js (чистый JS).
- * ✅ Округление сумм до целого (игнорируем копейки).
+ * ✅ Округление сумм до целого.
+ * ✅ Поддержка всех видов минусов (−, –, —, -).
  * ✅ Отладка extractAmount.
  */
 
@@ -52,9 +53,6 @@ export function preprocessImage(file) {
   });
 }
 
-/**
- * Распознать текст через Tesseract, вернуть массив строк (data.lines).
- */
 export async function recognizeText(file, onProgress) {
   if (!window.Tesseract) {
     throw new Error('Tesseract.js не загрузился');
@@ -169,17 +167,17 @@ function detectCategory(line) {
 }
 
 /* ============================================================
-   ПАРСЕР (портирован из scan.js)
+   ПАРСЕР
    ============================================================ */
 
-// ✅ Сумма: последнее число в строке, всё после — мусор
-const AMOUNT_RE = /([+\-]?\s*\d[\d\s]*(?:[.,]\d{1,2})?)[^\d]*$/;
+// ✅ Сумма: последнее число, поддерживаем все виды минусов
+const AMOUNT_RE = /([+\-−–—]?\s*\d[\d\s]*(?:[.,]\d{1,2})?)[^\d]*$/;
 
 const MONTHS_RU = '(январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)';
 const DATE_LINE_RE = new RegExp(
   '^\\s*(\\d{1,2})\\s*' + MONTHS_RU + '[а-яё]*' +
   '(?:\\s+(\\d{4}))?' +
-  '(?:\\s*[\\.…\\-–—]+\\s*[+\\-]?[\\d\\s,.]+(?:[₽pPрРгГ]|руб)?)?\\s*$',
+  '(?:\\s*[\\.…\\-–—]+\\s*[+\\-−]?[\\d\\s,.]+(?:[₽pPрРгГ]|руб)?)?\\s*$',
   'i'
 );
 const DATE_NUM_RE = /^(\d{1,2})[.\/-](\d{1,2})(?:[.\/-](\d{2,4}))?\s*$/;
@@ -269,6 +267,7 @@ function extractDate(s) {
 
 /**
  * Извлечь сумму. ✅ ОКРУГЛЯЕМ ДО ЦЕЛОГО.
+ * ✅ Поддерживаем все виды минусов: - − – —
  */
 function extractAmount(s) {
   if (!s) return null;
@@ -279,21 +278,20 @@ function extractAmount(s) {
   let sign = null;
   let amountStr = raw;
 
-  if (raw.trim().startsWith('+')) {
+  // ✅ Универсальная проверка знака
+  if (/^[+＋]/.test(raw.trim())) {
     sign = '+';
-    amountStr = raw.replace('+', '').trim();
-  } else if (raw.trim().startsWith('-')) {
+    amountStr = raw.replace(/^[+＋]/, '').trim();
+  } else if (/^[\-−–—]/.test(raw.trim())) {
     sign = '-';
-    amountStr = raw.replace('-', '').trim();
+    amountStr = raw.replace(/^[\-−–—]/, '').trim();
   }
 
-  // ✅ Убираем пробелы, заменяем запятую на точку
   const clean = amountStr.replace(/\s+/g, '').replace(',', '.');
   const parsed = parseFloat(clean);
 
   if (!isFinite(parsed) || parsed <= 0) return null;
 
-  // ✅ ОКРУГЛЯЕМ ДО ЦЕЛОГО
   const amount = Math.round(parsed);
 
   if (amount <= 0 || amount > 10000000) return null;
@@ -328,7 +326,7 @@ function looksLikeCategory(s) {
 
 function isAmountLine(s) {
   if (!s) return false;
-  return /^[+\-\s]*\d[\d\s.,]*\s*(?:[₽pPрРгГ]|руб\.?)?$/.test(s.trim());
+  return /^[+\-−–—\s]*\d[\d\s.,]*\s*(?:[₽pPрРгГ]|руб\.?)?$/.test(s.trim());
 }
 
 const CARD_TYPES = /^(дебетовая|кредитная|виртуальная|зарплатная|детская)\s+карта$/i;
@@ -354,8 +352,6 @@ function isMetadataLine(s) {
 
 /**
  * Главная функция.
- * @param {Array<{text: string, bbox: object|null}>} textLines
- * @returns {Array<{date, description, amount, type, category}>}
  */
 export function parseReceipt(textLines) {
   const lines = [];
@@ -425,9 +421,6 @@ export function parseReceipt(textLines) {
     const cur = lines[i];
     const curText = cur.text;
 
-    // ✅ ДИАГНОСТИКА — показываем каждую строку
-    console.log(`[scan][dbg] i=${i} text=${JSON.stringify(curText)}`);
-
     // 1. Дата?
     if (isDateLine(curText)) {
       const d = extractDate(curText);
@@ -440,7 +433,6 @@ export function parseReceipt(textLines) {
     if (isMetadataLine(curText)) { i++; continue; }
     if (looksLikeFilterLine(curText)) { i++; continue; }
 
-    // ✅ Сводки с 2+ рублями
     const roubles = (curText.match(/[₽рРPpL]/g) || []).length;
     if (roubles >= 2) { i++; continue; }
 
@@ -448,17 +440,6 @@ export function parseReceipt(textLines) {
 
     // 3. Сумма?
     const amt = extractAmount(curText);
-
-    // ✅ ДИАГНОСТИКА — extractAmount для конкретных строк
-    if (
-      curText.includes('Красное') ||
-      curText.includes('Fix') ||
-      curText.includes('Магнит') ||
-      curText.includes('Р ') ||
-      curText.includes('₽')
-    ) {
-      console.log(`[scan][TARGET] text=${JSON.stringify(curText)} → amt=${JSON.stringify(amt)}`);
-    }
 
     if (amt) {
       let title = '';
