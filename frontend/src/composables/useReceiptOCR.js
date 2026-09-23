@@ -1,9 +1,8 @@
 /**
  * OCR-обработка чеков и скриншотов банковских приложений через Tesseract.js
- * Портировано из рабочего scan.js (чистый JS).
- * ✅ Округление сумм до целого.
- * ✅ Поддержка всех видов минусов (−, –, —, -).
- * ✅ Отладка extractAmount.
+ * ✅ Полностью портировано из рабочего scan.js (чистый JS).
+ * ✅ Округление до целого.
+ * ✅ Не блокируем строки метаданных — просто пропускаем.
  */
 
 export function preprocessImage(file) {
@@ -141,6 +140,8 @@ const CATEGORY_MAP = {
   'возврат': 'Возврат',
   'проценты': 'Проценты по вкладу',
   'услуги': 'Прочее',
+  'цифровые товары': 'Покупки',
+  'переводы': 'Перевод между счетами',
 };
 
 function detectCategory(line) {
@@ -162,15 +163,16 @@ function detectCategory(line) {
   if (/аптек|aptek|gorzdrav/i.test(low)) return 'Аптека';
   if (/netflix|spotify|яндекс\s*плюс|ivi|okko|подписк/i.test(low)) return 'Подписки';
   if (/ozon|озон|wildberries|вайлдберриз|avito/i.test(low)) return 'Покупки';
+  if (/piter\s*smoke|pitersmoke|табач|smoke|вейп|vape|сигарет/i.test(low)) return 'Покупки';
 
   return 'Прочее';
 }
 
 /* ============================================================
-   ПАРСЕР
+   ПАРСЕР (полностью из scan.js)
    ============================================================ */
 
-// ✅ Сумма: последнее число, поддерживаем все виды минусов
+// ✅ Сумма: последнее число, поддержка всех минусов, пробелы в тысячах, копейки
 const AMOUNT_RE = /([+\-−–—]?\s*\d[\d\s]*(?:[.,]\d{1,2})?)[^\d]*$/;
 
 const MONTHS_RU = '(январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)';
@@ -190,29 +192,26 @@ const MONTH_INDEX = {
   'август': 7, 'сентябр': 8, 'октябр': 9, 'ноябр': 10, 'декабр': 11,
 };
 
-function looksLikeFilterLine(s) {
-  if (!s) return false;
-  if (/[▾▼▲]/.test(s)) return true;
-  const words = s.split(/\s+/);
-  if (words.length >= 2 && words.length <= 4 &&
-      !/\d/.test(s) && !/[₽]/.test(s) &&
-      /^(все|доходы|расходы|счета|карты|без|переводов|сентябр|октябр|ноябр|декабр|январ|феврал|март|апрел|ма|июн|июл|август)/i.test(s)) {
-    return true;
-  }
-  return false;
-}
-
+// ✅ Многострочная проверка на дату (как в scan.js)
 function isDateLine(s) {
   if (!s) return false;
   const lower = s.toLowerCase().trim();
+
   if (/^[вb][чc][её]?ра[\s,.:;\-—–0-9₽pPрРгГ]*$/i.test(lower)) return true;
   if (/^[вb][чc][её]ра\b/i.test(lower)) return true;
   if (/^поза[вb][чc][её]ра[\s,.:;\-—–0-9₽pPрРгГ]*$/i.test(lower)) return true;
   if (/поза[вb][чc][её]ра/i.test(lower)) return true;
   if (/^[сc][её]годня[\s,.:;\-—–0-9₽pPрРгГ]*$/i.test(lower)) return true;
   if (/^[сc][её]годня\b/i.test(lower)) return true;
+
   if (DATE_LINE_RE.test(s)) return true;
   if (DATE_NUM_RE.test(s)) return true;
+
+  // ✅ «20 сентября» — день + месяц
+  if (/^\d{1,2}\s+(январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)/i.test(lower)) {
+    return true;
+  }
+
   return false;
 }
 
@@ -265,10 +264,6 @@ function extractDate(s) {
   return null;
 }
 
-/**
- * Извлечь сумму. ✅ ОКРУГЛЯЕМ ДО ЦЕЛОГО.
- * ✅ Поддерживаем все виды минусов: - − – —
- */
 function extractAmount(s) {
   if (!s) return null;
   const m = s.match(AMOUNT_RE);
@@ -278,7 +273,6 @@ function extractAmount(s) {
   let sign = null;
   let amountStr = raw;
 
-  // ✅ Универсальная проверка знака
   if (/^[+＋]/.test(raw.trim())) {
     sign = '+';
     amountStr = raw.replace(/^[+＋]/, '').trim();
@@ -302,25 +296,23 @@ function extractAmount(s) {
   return { amount, sign, raw, rest };
 }
 
+// ✅ Как в scan.js
 function looksLikeTitle(s) {
   if (!s) return false;
   const t = s.trim();
   if (t.length < 2) return false;
   if (!/[\u0400-\u04FFa-zA-Z]/.test(t)) return false;
   if (SUMMARY_LINE_RE.test(t)) return false;
-  if (looksLikeFilterLine(t)) return false;
   return true;
 }
 
 function looksLikeCategory(s) {
   if (!s) return false;
   const t = s.trim();
-  if (t.length < 3 || t.length > 40) return false;
-  if (/\d/.test(t)) return false;
-  if (!/^[А-ЯA-ZЁ]/.test(t)) return false;
+  if (t.length < 3 || t.length > 50) return false;
+  // ✅ Категория может содержать `+число`, `Black`, `Дебетовая карта` — убираем их
+  if (!/^[А-ЯA-ZЁа-яa-z+\d\s]+$/.test(t)) return false;
   if (SUMMARY_LINE_RE.test(t)) return false;
-  if (looksLikeFilterLine(t)) return false;
-  if (t.split(/\s+/).length > 3) return false;
   return true;
 }
 
@@ -329,46 +321,54 @@ function isAmountLine(s) {
   return /^[+\-−–—\s]*\d[\d\s.,]*\s*(?:[₽pPрРгГ]|руб\.?)?$/.test(s.trim());
 }
 
-const CARD_TYPES = /^(дебетовая|кредитная|виртуальная|зарплатная|детская)\s+карта$/i;
-
-function isMetadataLine(s) {
-  if (!s) return false;
-  const low = s.toLowerCase().trim();
-
-  if (CARD_TYPES.test(low)) return true;
-
-  const cleaned = low
-    .replace(/(дебетовая|кредитная|виртуальная|зарплатная|детская)/g, '')
-    .replace(/(карта|счёт|счет)/g, '')
+/**
+ * Очистить строку от мусора.
+ */
+function cleanLine(s) {
+  if (!s) return '';
+  return s
+    .replace(/^[\\|*`~^\[\]{}]+/g, ' ')
+    .replace(/[\\|*`~^\[\]{}]+$/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
-
-  if (!cleaned) return true;
-
-  if (CATEGORY_MAP[cleaned]) return true;
-
-  return false;
 }
 
 /**
- * Главная функция.
+ * Очистить название от бонусов и типа карты.
  */
+function cleanTitle(raw) {
+  return (raw || '')
+    .replace(/\s+\+\d{1,3}\s*$/g, '')                 // +22, +5 в конце
+    .replace(/\s+Дебетовая\s+карта\s*/gi, ' ')
+    .replace(/\s+Кредитная\s+карта\s*/gi, ' ')
+    .replace(/\s+Black\s*/gi, ' ')
+    .replace(/[\-\+\—–_\\|*`~^\[\]{}]+\s*$/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+/**
+ * Очистить категорию от бонусов и типа карты.
+ */
+function cleanCategory(raw) {
+  return (raw || '')
+    .replace(/^\+\d{1,3}\s*/g, '')                     // +22 в начале
+    .replace(/\s+\+\d{1,3}\s*$/g, '')
+    .replace(/\s+Дебетовая\s+карта\s*/gi, ' ')
+    .replace(/\s+Кредитная\s+карта\s*/gi, ' ')
+    .replace(/\s+Black\s*/gi, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
 export function parseReceipt(textLines) {
   const lines = [];
   for (let idx = 0; idx < textLines.length; idx++) {
     const li = textLines[idx];
-    const t = (li.text || '').trim();
+    const t = cleanLine(li.text || '');
     if (!t) continue;
     lines.push({ text: t, order: idx });
   }
-
-  lines.forEach(l => {
-    l.text = l.text
-      .replace(/^[\\|*`~^\[\]{}]+/g, ' ')
-      .replace(/[\\|*`~^\[\]{}]+$/g, ' ')
-      .replace(/\s+/g, ' ')
-      .trim();
-  });
 
   const items = [];
 
@@ -380,36 +380,12 @@ export function parseReceipt(textLines) {
     if (amt.sign === '+') type = 'income';
     else if (amt.sign === '-') type = 'expense';
 
-    const rawTitle = (title || '').trim();
-    const cleanTitle = rawTitle
-      .replace(/\s+[оиcсОИCС]\s+Black\s*$/gi, '')
-      .replace(/\s+Black\s*$/gi, '')
-      .replace(/[\-\+\—–_\\|*`~^\[\]{}]+\s*$/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-
-    let finalCategory = 'Прочее';
-
-    if (category) {
-      const clean = category
-        .replace(/\s+[оиcсОИCС]\s+Black\s*/gi, ' ')
-        .replace(/\s+Black\s*/gi, ' ')
-        .replace(/\s+Дебетовая\s+карта\s*/gi, ' ')
-        .replace(/\s+Кредитная\s+карта\s*/gi, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-      if (clean) {
-        finalCategory = detectCategory(clean);
-      }
-    }
-
-    if (finalCategory === 'Прочее') {
-      finalCategory = detectCategory(cleanTitle);
-    }
+    const finalTitle = cleanTitle(title);
+    const finalCategory = detectCategory(cleanCategory(category) || finalTitle);
 
     return {
       date: date.toISOString(),
-      description: cleanTitle.slice(0, 80),
+      description: finalTitle.slice(0, 80) || 'Операция',
       amount: amt.amount,
       type,
       category: finalCategory,
@@ -418,8 +394,7 @@ export function parseReceipt(textLines) {
 
   let i = 0;
   while (i < lines.length) {
-    const cur = lines[i];
-    const curText = cur.text;
+    const curText = lines[i].text;
 
     // 1. Дата?
     if (isDateLine(curText)) {
@@ -429,25 +404,18 @@ export function parseReceipt(textLines) {
       continue;
     }
 
-    // 2. Метаданные / фильтры / сводки
-    if (isMetadataLine(curText)) { i++; continue; }
-    if (looksLikeFilterLine(curText)) { i++; continue; }
-
-    const roubles = (curText.match(/[₽рРPpL]/g) || []).length;
-    if (roubles >= 2) { i++; continue; }
-
-    if (SUMMARY_LINE_RE.test(curText) && !extractAmount(curText)) { i++; continue; }
-
-    // 3. Сумма?
+    // 2. Сумма?
     const amt = extractAmount(curText);
 
     if (amt) {
       let title = '';
       let category = '';
 
+      // 2a. Есть title в той же строке
       if (amt.rest && looksLikeTitle(amt.rest)) {
         title = amt.rest;
 
+        // Следующая строка — категория?
         if (i + 1 < lines.length) {
           const next = lines[i + 1];
           if (looksLikeCategory(next.text)) {
@@ -463,6 +431,7 @@ export function parseReceipt(textLines) {
         continue;
       }
 
+      // 2b. Title в предыдущей строке
       if (i - 1 >= 0) {
         const prev = lines[i - 1];
 
