@@ -1,5 +1,6 @@
 /**
  * OCR-обработка чеков и скриншотов банковских приложений через Tesseract.js
+ * Портировано из рабочего scan.js (чистый JS).
  */
 
 export function preprocessImage(file) {
@@ -49,66 +50,9 @@ export function preprocessImage(file) {
   });
 }
 
-function splitLines(lines) {
-  const result = [];
-  const DATE_START_RE = /(\d{1,2}\s+(?:январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)[а-яё]*)/gi;
-  const AMOUNT_START_RE = /([+\-−]\s*\d[\d\s]*(?:[.,]\d{1,2})?\s*(?:[₽рРPp]|руб\.?))/gi;
-
-  for (const rawLine of lines) {
-    let line = String(rawLine).trim();
-    if (!line) continue;
-
-    let parts = line
-      .split(/\s*[·•]\s*/g)
-      .flatMap(p => p.split(/\s*\|\s*/g))
-      .map(p => p.trim())
-      .filter(Boolean);
-
-    const expanded = [];
-    for (const part of parts) {
-      let fragments = [part];
-
-      fragments = fragments.flatMap(frag => {
-        const matches = [...frag.matchAll(DATE_START_RE)];
-        if (matches.length <= 1) return [frag];
-        const cuts = matches.map(m => m.index).filter(idx => idx > 0);
-        if (!cuts.length) return [frag];
-        const pieces = [];
-        let last = 0;
-        for (const cut of cuts) {
-          pieces.push(frag.slice(last, cut).trim());
-          last = cut;
-        }
-        pieces.push(frag.slice(last).trim());
-        return pieces.filter(Boolean);
-      });
-
-      fragments = fragments.flatMap(frag => {
-        const matches = [...frag.matchAll(AMOUNT_START_RE)];
-        if (matches.length <= 1) return [frag];
-        const cuts = matches
-          .map(m => m.index)
-          .filter(idx => idx > 0 && idx < frag.length - 15);
-        if (!cuts.length) return [frag];
-        const pieces = [];
-        let last = 0;
-        for (const cut of cuts) {
-          pieces.push(frag.slice(last, cut).trim());
-          last = cut;
-        }
-        pieces.push(frag.slice(last).trim());
-        return pieces.filter(Boolean);
-      });
-
-      expanded.push(...fragments);
-    }
-
-    result.push(...expanded.filter(p => p && p.length > 1));
-  }
-
-  return result;
-}
-
+/**
+ * Распознать текст через Tesseract, вернуть массив строк (data.lines).
+ */
 export async function recognizeText(file, onProgress) {
   if (!window.Tesseract) {
     throw new Error('Tesseract.js не загрузился');
@@ -126,18 +70,35 @@ export async function recognizeText(file, onProgress) {
   const { data } = await worker.recognize(file);
   await worker.terminate();
 
-  const rawLines = (data.text || '')
-    .split('\n')
-    .map(l => l.trim())
-    .filter(Boolean);
+  // ✅ Используем data.lines — как в рабочей версии
+  const textLines = [];
+  if (data.lines && Array.isArray(data.lines)) {
+    for (const line of data.lines) {
+      const t = (line.text || '').trim();
+      if (!t) continue;
+      textLines.push({
+        text: t,
+        bbox: line.bbox || null,
+      });
+    }
+  } else {
+    // fallback
+    const lines = (data.text || '').split('\n');
+    for (const l of lines) {
+      const t = l.trim();
+      if (!t) continue;
+      textLines.push({ text: t, bbox: null });
+    }
+  }
 
-  const lines = splitLines(rawLines);
+  console.log('[scan] OCR lines:', textLines);
 
-  console.log('[scan] после splitLines:', lines);
-
-  return lines;
+  return textLines;
 }
 
+/* ============================================================
+   КАТЕГОРИИ (маппинг T-Bank/Сбер → наши)
+   ============================================================ */
 const CATEGORY_MAP = {
   'супермаркеты': 'Продукты',
   'продукты': 'Продукты',
@@ -184,7 +145,7 @@ const CATEGORY_MAP = {
   'услуги': 'Прочее',
 };
 
-function detectCategoryFromLine(line) {
+function detectCategory(line) {
   if (!line) return 'Прочее';
   const low = line.toLowerCase().trim();
 
@@ -207,239 +168,338 @@ function detectCategoryFromLine(line) {
   return 'Прочее';
 }
 
-function isMetadataLine(line) {
-  if (!line) return false;
-  const low = line.toLowerCase().trim();
+/* ============================================================
+   ПАРСЕР
+   Портировано из scan.js (чистый JS) — работает на скриншотах Т-Банка
+   ============================================================ */
 
-  if (/^(дебетовая|кредитная|виртуальная|зарплатная|детская)\s+карта$/i.test(low)) return true;
+// ✅ Как в scan.js
+const AMOUNT_RE = /([+\-]?\s*\d[\d\s]*(?:[.,]\d{1,2})?)\s*(?:[₽pPрРгГ]|руб\.?)?[\s\\|*`~^\[\]{}]*$/;
 
+const MONTHS_RU = '(январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)';
+const DATE_LINE_RE = new RegExp(
+  '^\\s*(\\d{1,2})\\s*' + MONTHS_RU + '[а-яё]*' +
+  '(?:\\s+(\\d{4}))?' +
+  '(?:\\s*[\\.…\\-–—]+\\s*[+\\-]?[\\d\\s,.]+(?:[₽pPрРгГ]|руб)?)?\\s*$',
+  'i'
+);
+const DATE_NUM_RE = /^(\d{1,2})[.\/-](\d{1,2})(?:[.\/-](\d{2,4}))?\s*$/;
+
+const SUMMARY_LINE_RE = /^(итого|итог|баланс|всего|траты|доходы|расходы|сумма|выписка|операции|сентябрь|октябрь|ноябрь|декабрь|январь|февраль|март|апрель|май|июнь|июль|август)\b/i;
+
+const MONTH_INDEX = {
+  'январ': 0, 'феврал': 1, 'март': 2, 'апрел': 3,
+  'май': 4, 'мая': 4, 'июн': 5, 'июл': 6,
+  'август': 7, 'сентябр': 8, 'октябр': 9, 'ноябр': 10, 'декабр': 11,
+};
+
+// ✅ Как в scan.js
+function looksLikeFilterLine(s) {
+  if (!s) return false;
+  if (/[▾▼▲]/.test(s)) return true;
+  const words = s.split(/\s+/);
+  if (words.length >= 2 && words.length <= 4 &&
+      !/\d/.test(s) && !/[₽]/.test(s) &&
+      /^(все|доходы|расходы|счета|карты|без|переводов|сентябр|октябр|ноябр|декабр|январ|феврал|март|апрел|ма|июн|июл|август)/i.test(s)) {
+    return true;
+  }
+  return false;
+}
+
+function isDateLine(s) {
+  if (!s) return false;
+  const lower = s.toLowerCase().trim();
+  if (/^[вb][чc][её]?ра[\s,.:;\-—–0-9₽pPрРгГ]*$/i.test(lower)) return true;
+  if (/^[вb][чc][её]ра\b/i.test(lower)) return true;
+  if (/^поза[вb][чc][её]ра[\s,.:;\-—–0-9₽pPрРгГ]*$/i.test(lower)) return true;
+  if (/поза[вb][чc][её]ра/i.test(lower)) return true;
+  if (/^[сc][её]годня[\s,.:;\-—–0-9₽pPрРгГ]*$/i.test(lower)) return true;
+  if (/^[сc][её]годня\b/i.test(lower)) return true;
+  if (DATE_LINE_RE.test(s)) return true;
+  if (DATE_NUM_RE.test(s)) return true;
+  return false;
+}
+
+function extractDate(s) {
+  if (!s) return null;
+  const lower = s.toLowerCase().trim();
+
+  if (/поза[вb][чc][её]ра/i.test(lower)) {
+    const d = new Date();
+    d.setDate(d.getDate() - 2);
+    d.setHours(12, 0, 0, 0);
+    return d;
+  }
+  if (/[вb][чc][её]ра/i.test(lower)) {
+    const d = new Date();
+    d.setDate(d.getDate() - 1);
+    d.setHours(12, 0, 0, 0);
+    return d;
+  }
+  if (/[сc][её]годня/i.test(lower)) {
+    const d = new Date();
+    d.setHours(12, 0, 0, 0);
+    return d;
+  }
+
+  const mRu = lower.match(
+    new RegExp('(\\d{1,2})\\s*' + MONTHS_RU + '[а-яё]*(?:\\s+(\\d{4}))?', 'i')
+  );
+  if (mRu) {
+    const day = parseInt(mRu[1], 10);
+    const monthKey = Object.keys(MONTH_INDEX).find(k => mRu[0].includes(k));
+    const month = monthKey !== undefined ? MONTH_INDEX[monthKey] : null;
+    let year = mRu[2] ? parseInt(mRu[2], 10) : new Date().getFullYear();
+    if (month !== null && day >= 1 && day <= 31) {
+      return new Date(year, month, day, 12, 0, 0);
+    }
+  }
+
+  const mNum = s.match(/(\d{1,2})[.\/-](\d{1,2})[.\/-](\d{2,4})/);
+  if (mNum) {
+    const day = parseInt(mNum[1], 10);
+    const month = parseInt(mNum[2], 10) - 1;
+    let year = parseInt(mNum[3], 10);
+    if (year < 100) year += 2000;
+    if (day >= 1 && day <= 31 && month >= 0 && month <= 11) {
+      return new Date(year, month, day, 12, 0, 0);
+    }
+  }
+
+  return null;
+}
+
+function extractAmount(s) {
+  if (!s) return null;
+  const m = s.match(AMOUNT_RE);
+  if (!m) return null;
+
+  const raw = m[1];
+  let sign = null;
+  let amountStr = raw;
+
+  if (raw.trim().startsWith('+')) {
+    sign = '+';
+    amountStr = raw.replace('+', '').trim();
+  } else if (raw.trim().startsWith('-')) {
+    sign = '-';
+    amountStr = raw.replace('-', '').trim();
+  }
+
+  const clean = amountStr.replace(/\s+/g, '').replace(',', '.');
+  const amount = parseFloat(clean);
+
+  if (!isFinite(amount) || amount <= 0 || amount > 10000000) return null;
+
+  const mIdx = s.indexOf(raw, m.index || 0);
+  const rest = s.slice(0, mIdx >= 0 ? mIdx : 0).trim();
+
+  return { amount, sign, raw, rest };
+}
+
+function looksLikeTitle(s) {
+  if (!s) return false;
+  const t = s.trim();
+  if (t.length < 2) return false;
+  if (!/[\u0400-\u04FFa-zA-Z]/.test(t)) return false;
+  if (SUMMARY_LINE_RE.test(t)) return false;
+  if (looksLikeFilterLine(t)) return false;
+  return true;
+}
+
+function looksLikeCategory(s) {
+  if (!s) return false;
+  const t = s.trim();
+  if (t.length < 3 || t.length > 40) return false;
+  if (/\d/.test(t)) return false;
+  if (!/^[А-ЯA-ZЁ]/.test(t)) return false;
+  if (SUMMARY_LINE_RE.test(t)) return false;
+  if (looksLikeFilterLine(t)) return false;
+  if (t.split(/\s+/).length > 3) return false;
+  return true;
+}
+
+function isAmountLine(s) {
+  if (!s) return false;
+  return /^[+\-\s]*\d[\d\s.,]*\s*(?:[₽pPрРгГ]|руб\.?)?$/.test(s.trim());
+}
+
+const CARD_TYPES = /^(дебетовая|кредитная|виртуальная|зарплатная|детская)\s+карта$/i;
+
+/**
+ * Проверка на «Просто метаданные» (карта, категория) — не операция.
+ */
+function isMetadataLine(s) {
+  if (!s) return false;
+  const low = s.toLowerCase().trim();
+
+  if (CARD_TYPES.test(low)) return true;
+
+  // Убираем «карта» и тип карты
   const cleaned = low
-    .replace(/\b(дебетовая|кредитная|виртуальная|зарплатная|детская)\b/g, '')
-    .replace(/\b(карта|счёт|счет)\b/g, '')
+    .replace(/(дебетовая|кредитная|виртуальная|зарплатная|детская)/g, '')
+    .replace(/(карта|счёт|счет)/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 
+  if (!cleaned) return true; // было только «карта»
+
+  // Проверяем на точное совпадение с CATEGORY_MAP
   if (CATEGORY_MAP[cleaned]) return true;
 
   return false;
 }
 
-function findLastNumber(line) {
-  const numberRe = /(-?)\s*(\d[\d\s]*(?:[.,]\d{1,2})?)/g;
-
-  let last = null;
-  let m;
-  while ((m = numberRe.exec(line)) !== null) {
-    last = {
-      sign: m[1] || null,
-      raw: m[0],
-      num: m[2],
-      index: m.index,
-    };
+/**
+ * Главная функция парсинга.
+ * @param {Array<{text: string, bbox: object|null}>} textLines — строки из data.lines
+ * @returns {Array<{date, description, amount, type, category}>}
+ */
+export function parseReceipt(textLines) {
+  // Приводим к формату { text, order }
+  const lines = [];
+  for (let idx = 0; idx < textLines.length; idx++) {
+    const li = textLines[idx];
+    const t = (li.text || '').trim();
+    if (!t) continue;
+    lines.push({
+      text: t,
+      order: idx,
+    });
   }
-  if (!last) return null;
 
-  const clean = last.num.replace(/\s+/g, '').replace(',', '.');
-  const amount = parseFloat(clean);
-  if (!isFinite(amount) || amount <= 0 || amount > 10_000_000) return null;
+  // Чистим мусорные символы по краям
+  lines.forEach(l => {
+    l.text = l.text
+      .replace(/^[\\|*`~^\[\]{}]+/g, ' ')
+      .replace(/[\\|*`~^\[\]{}]+$/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  });
 
-  const rest = line.slice(0, last.index).trim();
-  return { amount, sign: last.sign, rest };
-}
-
-export function parseReceipt(lines) {
   const items = [];
-
-  const ROUBLE_CLASS = '[₽рРPpL]';
-  const DATE_RU_RE = /(\d{1,2})\s*(январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)[а-яё]*\s*(\d{4})?/i;
-  const DATE_NUM_RE = /(\d{1,2})[.\/-](\d{1,2})(?:[.\/-](\d{2,4}))?/;
 
   let currentDate = new Date();
   currentDate.setHours(12, 0, 0, 0);
 
-  const MONTH_INDEX = {
-    'январ': 0, 'феврал': 1, 'март': 2, 'апрел': 3,
-    'май': 4, 'мая': 4, 'июн': 5, 'июл': 6,
-    'август': 7, 'сентябр': 8, 'октябр': 9, 'ноябр': 10, 'декабр': 11,
-  };
+  function buildItem(title, category, amt, date) {
+    let type = 'expense';
+    if (amt.sign === '+') type = 'income';
+    else if (amt.sign === '-') type = 'expense';
 
-  const FILTER_RE = /^(все|доходы|расходы|счета|карты|без\s+переводов|переводы|траты|пополнения|покупки|перевести|платежи|кэшбэк\s+и\s+бонусы|аналитика|кредиты|настройки|профиль|операции|операция|сентябрь|октябрь|ноябрь|декабрь|январь|февраль|март|апрель|май|июнь|июль|август)$/i;
-
-  const SUMMARY_RE = new RegExp(
-    `^\\s*[+\\-−]?\\s*\\d[\\d\\s]*[.,]?\\d*\\s*${ROUBLE_CLASS}(\\s+[+\\-−]?\\s*\\d[\\d\\s]*[.,]?\\d*\\s*${ROUBLE_CLASS})?\\s*(траты|доходы|расходы|пополнения|итого|баланс|переводы|покупки)?\\s*$`,
-    'i'
-  );
-
-  const ONLY_AMOUNT_RE = new RegExp(`^[+\\-−]?\\s*\\d[\\d\\s]*(?:[.,]\\d{1,2})?\\s*(?:${ROUBLE_CLASS}|руб\\.?)?$`, 'i');
-
-  const MULTI_AMOUNT_RE = new RegExp(
-    `^[\\s\\-−+]*\\d[\\d\\s]*[.,]?\\d*\\s*${ROUBLE_CLASS}[\\s\\-−+]*\\d[\\d\\s]*[.,]?\\d*\\s*${ROUBLE_CLASS}`
-  );
-
-  const TIME_RE = /^\d{1,2}:\d{2}\s/;
-  const GARBAGE_RE = /^\d{1,2}:\d{2}\s+\d+\s*%/;
-  const CARD_TYPE_RE = /^(дебетовая|кредитная|виртуальная|зарплатная|детская)\s+карта$/i;
-  const RASROCHKA_RE = /^(рассрочки|рассрочка|общий\s+платёж|общий\s+платеж|к\s+оплате)/i;
-  const BONUS_RE = /^\+\d{1,3}\s/;
-  const JUNK_RE = /^[\d:]+\s*№?\s*\d*\s*[a-zA-Zа-яА-Я]?\s*[\/\\]?\s*\d*\s*\d*\s*\d*\s*\)?$/;
-
-  function extractRelativeDate(line) {
-    const t = line.trim().toLowerCase();
-    const today = new Date();
-    today.setHours(12, 0, 0, 0);
-
-    if (/^сегодня(\s|$)/.test(t)) return new Date(today);
-    if (/^вчера(\s|$)/.test(t)) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - 1);
-      return d;
-    }
-    if (/^позавчера(\s|$)/.test(t)) {
-      const d = new Date(today);
-      d.setDate(d.getDate() - 2);
-      return d;
-    }
-    return null;
-  }
-
-  function extractDate(line) {
-    const rel = extractRelativeDate(line);
-    if (rel) return rel;
-
-    const mRu = line.match(DATE_RU_RE);
-    if (mRu) {
-      const day = parseInt(mRu[1], 10);
-      const monthKey = Object.keys(MONTH_INDEX).find(k => mRu[2].toLowerCase().startsWith(k.slice(0, 4)));
-      const month = monthKey !== undefined ? MONTH_INDEX[monthKey] : null;
-      let year = mRu[3] ? parseInt(mRu[3], 10) : new Date().getFullYear();
-      if (month !== null && day >= 1 && day <= 31) {
-        return new Date(year, month, day, 12, 0, 0);
-      }
-    }
-
-    const mNum = line.match(DATE_NUM_RE);
-    if (mNum) {
-      const day = parseInt(mNum[1], 10);
-      const month = parseInt(mNum[2], 10) - 1;
-      let year = mNum[3] ? parseInt(mNum[3], 10) : new Date().getFullYear();
-      if (year < 100) year += 2000;
-      if (day >= 1 && day <= 31 && month >= 0 && month <= 11) {
-        return new Date(year, month, day, 12, 0, 0);
-      }
-    }
-    return null;
-  }
-
-  for (let i = 0; i < lines.length; i++) {
-    let line = lines[i];
-    if (!line || line.length < 2) continue;
-
-    line = line
-      .replace(/[\u200B-\u200D\uFEFF]/g, '')
-      .replace(/\u00A0/g, ' ')
-      .replace(/\s*[-·|]\s*(Операции|Q|S|X|w\/)\s*[\s\/]*$/i, '')
-      .replace(/\s+Операции\s+Q\s*\/?\s*$/i, '')
+    const rawTitle = (title || '').trim();
+    const cleanTitle = rawTitle
+      .replace(/\s+[оиcсОИCС]\s+Black\s*$/gi, '')
+      .replace(/\s+Black\s*$/gi, '')
+      .replace(/[\-\+\—–_\\|*`~^\[\]{}]+\s*$/g, '')
       .replace(/\s+/g, ' ')
       .trim();
 
-    if (line.length < 2) continue;
+    let finalCategory = 'Прочее';
 
-    if (FILTER_RE.test(line)) continue;
-    if (TIME_RE.test(line)) continue;
-    if (GARBAGE_RE.test(line)) continue;
-    if (JUNK_RE.test(line)) continue;
-    if (CARD_TYPE_RE.test(line)) continue;
-    if (BONUS_RE.test(line)) continue;
-    if (RASROCHKA_RE.test(line)) continue;
-
-    // ✅ Считаем рубли/символы валюты
-    const roubleMatches = line.match(new RegExp(ROUBLE_CLASS, 'g')) || [];
-    const roubleCount = roubleMatches.length;
-
-    // ✅ MULTI применяем ТОЛЬКО если в строке 2+ валюты
-    if (roubleCount >= 2 && MULTI_AMOUNT_RE.test(line)) continue;
-    if (SUMMARY_RE.test(line)) continue;
-    if (roubleCount >= 2) continue;
-
-    const rel = extractRelativeDate(line);
-    if (rel && line.length < 30) {
-      currentDate = rel;
-      continue;
-    }
-
-    const d = extractDate(line);
-    if (d && line.length < 30) {
-      currentDate = d;
-      continue;
-    }
-
-    const found = findLastNumber(line);
-    if (!found) continue;
-
-    if (ONLY_AMOUNT_RE.test(line)) continue;
-
-    let title = found.rest;
-
-    const titleIsBad = !title || title.length < 2 || isMetadataLine(title);
-
-    if (titleIsBad) {
-      const prev = i > 0 ? lines[i - 1] : '';
-      const prevIsGood = prev
-        && !isMetadataLine(prev)
-        && !FILTER_RE.test(prev)
-        && !SUMMARY_RE.test(prev)
-        && !TIME_RE.test(prev)
-        && !ONLY_AMOUNT_RE.test(prev)
-        && prev.length > 2
-        && prev.length < 80
-        && !findLastNumber(prev);
-
-      if (prevIsGood) {
-        title = prev;
-      }
-    }
-
-    if (!title || title.length < 2 || isMetadataLine(title)) {
-      title = 'Операция';
-    }
-
-    title = title
-      .replace(/[\-\+\—–_\\|*`~^\[\]{}]+\s*$/, '')
-      .replace(/\s+/g, ' ')
-      .trim()
-      .slice(0, 80);
-
-    if (TIME_RE.test(title) || /^\d+\s*%/.test(title)) continue;
-
-    let category = 'Прочее';
-    const nextLine = i + 1 < lines.length ? lines[i + 1] : '';
-
-    if (nextLine) {
-      const cleanedNext = nextLine
-        .replace(/(дебетовая|кредитная|виртуальная|зарплатная|детская)\s+карта/gi, '')
+    if (category) {
+      const clean = category
+        .replace(/\s+[оиcсОИCС]\s+Black\s*/gi, ' ')
+        .replace(/\s+Black\s*/gi, ' ')
+        .replace(/\s+Дебетовая\s+карта\s*/gi, ' ')
+        .replace(/\s+Кредитная\s+карта\s*/gi, ' ')
+        .replace(/\s+/g, ' ')
         .trim();
-      if (cleanedNext) {
-        const cat = detectCategoryFromLine(cleanedNext);
-        if (cat !== 'Прочее') category = cat;
+      if (clean) {
+        finalCategory = detectCategory(clean);
       }
     }
 
-    if (category === 'Прочее') {
-      category = detectCategoryFromLine(title);
+    if (finalCategory === 'Прочее') {
+      finalCategory = detectCategory(cleanTitle);
     }
 
-    const type = found.sign === '+' ? 'income' : 'expense';
-
-    items.push({
-      date: currentDate.toISOString(),
-      description: title,
-      amount: found.amount,
+    return {
+      date: date.toISOString(),
+      description: cleanTitle.slice(0, 80),
+      amount: amt.amount,
       type,
-      category,
-    });
+      category: finalCategory,
+    };
+  }
+
+  // ✅ Основной цикл — как в scan.js
+  let i = 0;
+  while (i < lines.length) {
+    const cur = lines[i];
+    const curText = cur.text;
+
+    // 1. Дата?
+    if (isDateLine(curText)) {
+      const d = extractDate(curText);
+      if (d) currentDate = d;
+      i++;
+      continue;
+    }
+
+    // 2. Метаданные / фильтры / категории — пропускаем
+    if (isMetadataLine(curText)) { i++; continue; }
+    if (looksLikeFilterLine(curText)) { i++; continue; }
+    if (SUMMARY_LINE_RE.test(curText) && !extractAmount(curText)) { i++; continue; }
+
+    // 3. Сумма?
+    const amt = extractAmount(curText);
+
+    if (amt) {
+      let title = '';
+      let category = '';
+
+      // 3a. Если сумма + title в одной строке
+      if (amt.rest && looksLikeTitle(amt.rest)) {
+        title = amt.rest;
+
+        // Следующая строка = категория?
+        if (i + 1 < lines.length) {
+          const next = lines[i + 1];
+          if (looksLikeCategory(next.text)) {
+            category = next.text;
+            items.push(buildItem(title, category, amt, currentDate));
+            i += 2;
+            continue;
+          }
+        }
+
+        items.push(buildItem(title, '', amt, currentDate));
+        i++;
+        continue;
+      }
+
+      // 3b. Иначе — берём title/category из соседних строк
+      if (i - 1 >= 0) {
+        const prev = lines[i - 1];
+
+        // Prev — категория? (для «Красное и белое / Супермаркеты / -104,97 ₽»)
+        if (looksLikeCategory(prev.text) && i - 2 >= 0) {
+          const prev2 = lines[i - 2];
+          if (looksLikeTitle(prev2.text) && !isAmountLine(prev2.text)) {
+            title = prev2.text;
+            category = prev.text;
+          }
+        }
+
+        if (!title && looksLikeTitle(prev.text) && !isAmountLine(prev.text)) {
+          title = prev.text;
+        }
+      }
+
+      if (title) {
+        items.push(buildItem(title, category, amt, currentDate));
+      }
+
+      i++;
+      continue;
+    }
+
+    i++;
   }
 
   console.log('[scan] ИТОГО операций:', items.length);
   console.log('[scan] разобранные операции:', items);
+
   return items;
 }
