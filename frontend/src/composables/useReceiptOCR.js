@@ -49,9 +49,6 @@ export function preprocessImage(file) {
   });
 }
 
-/**
- * Разбить «склеенные» строки на отдельные.
- */
 function splitLines(lines) {
   const result = [];
   const DATE_START_RE = /(\d{1,2}\s+(?:январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)[а-яё]*)/gi;
@@ -141,9 +138,6 @@ export async function recognizeText(file, onProgress) {
   return lines;
 }
 
-/**
- * Словарь категорий Т-Банка (или Сбера) → наши категории
- */
 const CATEGORY_MAP = {
   'супермаркеты': 'Продукты',
   'продукты': 'Продукты',
@@ -213,9 +207,6 @@ function detectCategoryFromLine(line) {
   return 'Прочее';
 }
 
-/**
- * Проверка: строка похожа на метаданные (категория / карта), а не на название операции.
- */
 function isMetadataLine(line) {
   if (!line) return false;
   const low = line.toLowerCase().trim();
@@ -233,12 +224,7 @@ function isMetadataLine(line) {
   return false;
 }
 
-/**
- * Найти ПОСЛЕДНЕЕ число в строке.
- * Возвращает { amount, sign, rest } или null.
- */
 function findLastNumber(line) {
-  // Ищем все числа: возможно с минусом, с пробелами (тысячи) и с запятой/точкой (копейки)
   const numberRe = /(-?)\s*(\d[\d\s]*(?:[.,]\d{1,2})?)/g;
 
   let last = null;
@@ -261,9 +247,6 @@ function findLastNumber(line) {
   return { amount, sign: last.sign, rest };
 }
 
-/**
- * Парсер распознанных строк.
- */
 export function parseReceipt(lines) {
   const items = [];
 
@@ -361,6 +344,27 @@ export function parseReceipt(lines) {
 
     if (line.length < 2) continue;
 
+    // ✅ ДИАГНОСТИКА
+    const dbg = {
+      i,
+      line: line.slice(0, 50),
+      FILTER: FILTER_RE.test(line),
+      TIME: TIME_RE.test(line),
+      GARBAGE: GARBAGE_RE.test(line),
+      JUNK: JUNK_RE.test(line),
+      CARD: CARD_TYPE_RE.test(line),
+      BONUS: BONUS_RE.test(line),
+      RASROCHKA: RASROCHKA_RE.test(line),
+      MULTI: MULTI_AMOUNT_RE.test(line),
+      SUMMARY: SUMMARY_RE.test(line),
+      roubleCount: (line.match(new RegExp(ROUBLE_CLASS, 'g')) || []).length,
+      rel: !!extractRelativeDate(line),
+      date: !!extractDate(line),
+      lastNum: findLastNumber(line),
+      onlyAmount: ONLY_AMOUNT_RE.test(line),
+    };
+    console.log('[scan][dbg]', JSON.stringify(dbg));
+
     if (FILTER_RE.test(line)) continue;
     if (TIME_RE.test(line)) continue;
     if (GARBAGE_RE.test(line)) continue;
@@ -386,11 +390,9 @@ export function parseReceipt(lines) {
       continue;
     }
 
-    // ✅ Ищем последнее число в строке
     const found = findLastNumber(line);
     if (!found) continue;
 
-    // Если строка — только сумма (сводка), пропускаем
     if (ONLY_AMOUNT_RE.test(line)) continue;
 
     let title = found.rest;
