@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, onMounted } from 'vue';
+import { computed, ref, onMounted, watch, nextTick } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useWebSocket } from '@/composables/useWebSocket';
 import { useAccountsStore } from '@/stores/accounts';
@@ -35,33 +35,53 @@ const navRight = [
   { to: '/profile',  icon: '👤', label: 'Профиль' },
 ];
 
-const allTabs = [...navLeft, ...navRight];
+// ✅ Ссылки на кнопки для точного расчёта позиции
+const tabRefs = ref({});
 
-const activeIndex = computed(() => {
-  for (let i = 0; i < allTabs.length; i++) {
-    const to = allTabs[i].to;
-    if (route.path === to || route.path.startsWith(to + '/')) {
-      return i;
+function setTabRef(to, el) {
+  if (el) tabRefs.value[to] = el;
+}
+
+// Индекс активной вкладки среди ВСЕХ (с учётом FAB)
+const activeTabTo = computed(() => {
+  const all = [...navLeft, ...navRight];
+  for (const item of all) {
+    if (route.path === item.to || route.path.startsWith(item.to + '/')) {
+      return item.to;
     }
   }
-  return -1;
+  return null;
 });
 
-// ✅ Индикатор: 5 колонок, но индикатор по сетке (внутри padding)
-const indicatorStyle = computed(() => {
-  const idx = activeIndex.value;
-  if (idx < 0) return { opacity: 0 };
+// ✅ Позиция индикатора через offsetLeft/offsetWidth (точная)
+const indicatorStyle = ref({ opacity: 0, left: '0px', width: '0px' });
 
-  const colIndex = idx < 2 ? idx : idx + 1;
-  const columns = 5;
-  const widthPercent = 100 / columns;
-  const leftPercent = colIndex * widthPercent;
+function updateIndicator() {
+  const to = activeTabTo.value;
+  if (!to) {
+    indicatorStyle.value = { opacity: 0, left: '0px', width: '0px' };
+    return;
+  }
+  const el = tabRefs.value[to];
+  if (!el) return;
 
-  return {
+  indicatorStyle.value = {
     opacity: 1,
-    left: leftPercent + '%',
-    width: widthPercent + '%',
+    left: el.offsetLeft + 'px',
+    width: el.offsetWidth + 'px',
   };
+}
+
+watch(activeTabTo, () => nextTick(updateIndicator), { immediate: true });
+
+onMounted(() => {
+  nextTick(updateIndicator);
+  window.addEventListener('resize', updateIndicator);
+});
+
+import { onUnmounted } from 'vue';
+onUnmounted(() => {
+  window.removeEventListener('resize', updateIndicator);
 });
 
 function isActive(item) {
@@ -90,6 +110,7 @@ function handleFabClick() {
       <button
         v-for="item in navLeft"
         :key="item.to"
+        :ref="(el) => setTabRef(item.to, el)"
         type="button"
         class="bn-item"
         :class="{ active: isActive(item) }"
@@ -126,6 +147,7 @@ function handleFabClick() {
       <button
         v-for="item in navRight"
         :key="item.to"
+        :ref="(el) => setTabRef(item.to, el)"
         type="button"
         class="bn-item"
         :class="{ active: isActive(item) }"
@@ -158,7 +180,6 @@ function handleFabClick() {
     0 -2px 8px -4px rgba(15, 23, 42, 0.06);
 }
 
-/* ✅ Внутренний контейнер без padding — сетка внутри */
 .bn-inner {
   position: relative;
   display: grid;
@@ -167,7 +188,7 @@ function handleFabClick() {
   width: 100%;
 }
 
-/* ✅ Индикатор — теперь точно под табами */
+/* ✅ Индикатор — точные пиксели */
 .bn-indicator {
   position: absolute;
   top: 0;
@@ -180,7 +201,6 @@ function handleFabClick() {
     width 0.4s cubic-bezier(.34,1.56,.64,1),
     opacity 0.25s ease;
   z-index: 1;
-  margin: 0 2px;
 }
 
 .bn-item {
@@ -246,9 +266,10 @@ function handleFabClick() {
   z-index: 2;
 }
 
+/* ✅ FAB увеличен: 68px */
 .bn-fab {
-  width: 58px;
-  height: 58px;
+  width: 68px;
+  height: 68px;
   border-radius: 50%;
   border: 4px solid #ffffff;
   display: flex;
@@ -256,7 +277,7 @@ function handleFabClick() {
   justify-content: center;
   cursor: pointer;
   color: #fff;
-  margin-top: -26px;
+  margin-top: -32px;
   transition:
     background 0.35s ease,
     box-shadow 0.35s ease,
@@ -269,29 +290,29 @@ function handleFabClick() {
   &.is-loading {
     background: linear-gradient(135deg, #3b82f6, #8b5cf6);
     box-shadow:
-      0 8px 24px -8px rgba(59, 130, 246, 0.7),
-      0 0 0 4px rgba(255, 255, 255, 0.7);
+      0 10px 28px -8px rgba(59, 130, 246, 0.75),
+      0 0 0 5px rgba(255, 255, 255, 0.75);
     cursor: wait;
   }
 
   &.is-ok {
     background: linear-gradient(135deg, #3b82f6, #8b5cf6);
     box-shadow:
-      0 8px 24px -8px rgba(59, 130, 246, 0.7),
-      0 0 0 4px rgba(255, 255, 255, 0.7);
+      0 10px 28px -8px rgba(59, 130, 246, 0.75),
+      0 0 0 5px rgba(255, 255, 255, 0.75);
   }
 
   &.is-error {
     background: linear-gradient(135deg, #ef4444, #dc2626);
     box-shadow:
-      0 8px 24px -8px rgba(239, 68, 68, 0.7),
-      0 0 0 4px rgba(255, 255, 255, 0.7);
+      0 10px 28px -8px rgba(239, 68, 68, 0.75),
+      0 0 0 5px rgba(255, 255, 255, 0.75);
   }
 }
 
 .bn-fab-spinner {
-  width: 26px;
-  height: 26px;
+  width: 30px;
+  height: 30px;
   animation: spinFab 1s linear infinite;
   color: #fff;
 
@@ -311,8 +332,8 @@ function handleFabClick() {
 }
 
 .bn-fab-icon {
-  width: 26px;
-  height: 26px;
+  width: 30px;
+  height: 30px;
 }
 
 @media (max-width: 700px) {
@@ -322,12 +343,14 @@ function handleFabClick() {
   }
   .bn-icon { font-size: 20px; }
   .bn-label { font-size: 10px; }
+
+  /* ✅ FAB на мобильном: 62px */
   .bn-fab {
-    width: 54px;
-    height: 54px;
-    margin-top: -24px;
+    width: 62px;
+    height: 62px;
+    margin-top: -28px;
   }
-  .bn-fab-icon { width: 24px; height: 24px; }
-  .bn-fab-spinner { width: 24px; height: 24px; }
+  .bn-fab-icon { width: 28px; height: 28px; }
+  .bn-fab-spinner { width: 28px; height: 28px; }
 }
 </style>

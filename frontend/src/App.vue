@@ -30,20 +30,17 @@ const pdfOpen = ref(false);
 
 const showBottomNav = computed(() => route.name !== 'login');
 
-// ✅ Порядок табов для определения направления перехода
 const TAB_ORDER = ['finance', 'analytics', 'deposits', 'profile'];
 
-const transitionName = ref('slide-left');
+const transitionName = ref('fade-page');
 
 watch(() => route.name, (newName, oldName) => {
   const newIdx = TAB_ORDER.indexOf(newName);
   const oldIdx = TAB_ORDER.indexOf(oldName);
 
-  // Если оба в списке табов — определяем направление
   if (newIdx >= 0 && oldIdx >= 0) {
     transitionName.value = newIdx > oldIdx ? 'slide-left' : 'slide-right';
   } else {
-    // Для login и др — простой фейд
     transitionName.value = 'fade-page';
   }
 });
@@ -136,12 +133,13 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <!-- ✅ Анимация переходов между страницами -->
-  <router-view v-slot="{ Component, route: r }">
-    <Transition :name="transitionName" mode="out-in">
-      <component :is="Component" :key="r.path" />
-    </Transition>
-  </router-view>
+  <div class="page-transition-wrap">
+    <router-view v-slot="{ Component, route: r }">
+      <Transition :name="transitionName" mode="out-in">
+        <component :is="Component" :key="r.path" />
+      </Transition>
+    </router-view>
+  </div>
 
   <BottomNav v-if="showBottomNav" />
 
@@ -167,29 +165,41 @@ onUnmounted(() => {
 
 <style>
 /* ============================================================
-   ✅ Анимация страниц
+   ✅ Обёртка для страницы — position: relative,
+   чтобы absolute-уходящая страница не влияла на layout
+   ============================================================ */
+.page-transition-wrap {
+  position: relative;
+  min-height: 100vh;
+}
+
+/* ============================================================
+   Анимации переходов
    ============================================================ */
 
-/* Slide left (переход «вправо» по табам) */
+/* Slide left (переход «вправо») */
 .slide-left-enter-active,
-.slide-left-leave-active {
+.slide-right-enter-active {
   transition: transform 0.28s cubic-bezier(.22,.61,.36,1), opacity 0.28s;
 }
 .slide-left-enter-from {
   transform: translateX(30px);
   opacity: 0;
 }
-.slide-left-leave-to {
+.slide-right-enter-from {
   transform: translateX(-30px);
   opacity: 0;
 }
 
-/* Slide right (переход «влево») */
-.slide-right-enter-active,
+/* ✅ Уходящая страница — absolute, чтобы не сдвигала layout */
+.slide-left-leave-active,
 .slide-right-leave-active {
+  position: absolute;
+  inset: 0;
+  width: 100%;
   transition: transform 0.28s cubic-bezier(.22,.61,.36,1), opacity 0.28s;
 }
-.slide-right-enter-from {
+.slide-left-leave-to {
   transform: translateX(-30px);
   opacity: 0;
 }
@@ -198,10 +208,15 @@ onUnmounted(() => {
   opacity: 0;
 }
 
-/* Простой фейд для login и других */
+/* Фейд */
 .fade-page-enter-active,
 .fade-page-leave-active {
   transition: opacity 0.25s ease;
+}
+.fade-page-leave-active {
+  position: absolute;
+  inset: 0;
+  width: 100%;
 }
 .fade-page-enter-from,
 .fade-page-leave-to {
