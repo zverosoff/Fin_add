@@ -470,12 +470,12 @@ function close() {
           <span class="upload-icon">📷</span>
           <span class="upload-text">
             <span class="upload-title">Выбрать файл</span>
-            <span class="upload-sub">JPG, PNG · скриншот или фото</span>
+            <span class="upload-sub">Скриншот Т-Банка, Сбера или фото чека</span>
           </span>
         </button>
       </div>
 
-      <!-- ✅ Превью с разметкой -->
+      <!-- ✅ Превью с анимацией сканирования -->
       <div v-if="filePreview" class="preview-block">
         <div class="preview-header">
           <span class="preview-title">📸 Превью распознавания</span>
@@ -490,11 +490,17 @@ function close() {
           </span>
         </div>
 
-        <div class="preview-image-wrapper">
+        <div class="preview-image-wrapper" :class="{ 'is-scanning': previewLoading }">
           <img :src="filePreview" alt="preview" class="preview-image" />
 
+          <!-- ✅ Магический луч -->
+          <div v-if="previewLoading" class="scan-beam">
+            <div class="scan-beam-glow"></div>
+            <div class="scan-beam-line"></div>
+          </div>
+
           <div
-            v-if="cropYPercent !== null"
+            v-if="cropYPercent !== null && !previewLoading"
             class="preview-overlay-top"
             :style="{ height: cropYPercent + '%' }"
           >
@@ -504,14 +510,17 @@ function close() {
           </div>
 
           <div
-            v-if="cropYPercent !== null"
+            v-if="cropYPercent !== null && !previewLoading"
             class="preview-crop-line"
             :style="{ top: cropYPercent + '%' }"
           ></div>
         </div>
 
         <div class="preview-footer">
-          <span v-if="cropYPercent !== null">
+          <span v-if="previewLoading">
+            🔮 Сканирую изображение…
+          </span>
+          <span v-else-if="cropYPercent !== null">
             ✂️ Отсекается <strong>{{ Math.round(cropYPercent) }}%</strong> сверху
           </span>
           <span v-else>
@@ -523,7 +532,7 @@ function close() {
       <div v-if="error" class="error-msg">{{ error }}</div>
     </div>
 
-    <!-- ШАГ 2. Распознавание (только если OCR ещё не был) -->
+    <!-- ШАГ 2. Распознавание -->
     <div v-else-if="step === 'recognizing'" class="step">
       <div class="recognize">
         <div class="spinner"></div>
@@ -1347,6 +1356,86 @@ function close() {
   .preview-image-wrapper {
     max-height: 36vh;
     .preview-image { max-height: 36vh; }
+  }
+}
+/* ✅ Анимация «магического сканирования» */
+.preview-image-wrapper.is-scanning .preview-image {
+  filter: brightness(0.7) contrast(1.1);
+  transition: filter 0.3s ease;
+}
+
+.scan-beam {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 3;
+  border-radius: 12px;
+}
+
+.scan-beam-line {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 3px;
+  background: linear-gradient(90deg,
+    transparent 0%,
+    rgba(56, 189, 248, 0.4) 20%,
+    rgba(139, 92, 246, 0.9) 50%,
+    rgba(56, 189, 248, 0.4) 80%,
+    transparent 100%);
+  box-shadow:
+    0 0 12px rgba(56, 189, 248, 0.9),
+    0 0 30px rgba(139, 92, 246, 0.6);
+  animation: scanBeamMove 1.8s cubic-bezier(.45,.05,.55,.95) infinite;
+}
+
+.scan-beam-glow {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 60px;
+  background: linear-gradient(180deg,
+    transparent 0%,
+    rgba(56, 189, 248, 0.15) 40%,
+    rgba(139, 92, 246, 0.2) 50%,
+    rgba(56, 189, 248, 0.15) 60%,
+    transparent 100%);
+  animation: scanBeamMove 1.8s cubic-bezier(.45,.05,.55,.95) infinite;
+}
+
+@keyframes scanBeamMove {
+  0%   { transform: translateY(-60px); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translateY(calc(100% + 60px)); opacity: 0; }
+}
+
+/* Пульсирующая рамка вокруг превью */
+.preview-image-wrapper.is-scanning::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 2px solid rgba(56, 189, 248, 0.6);
+  border-radius: 12px;
+  pointer-events: none;
+  animation: scanPulse 1.8s ease-in-out infinite;
+  z-index: 4;
+}
+
+@keyframes scanPulse {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.5),
+                inset 0 0 20px rgba(56, 189, 248, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 20px 4px rgba(139, 92, 246, 0.4),
+                inset 0 0 30px rgba(139, 92, 246, 0.25);
   }
 }
 </style>
