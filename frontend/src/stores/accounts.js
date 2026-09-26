@@ -1,4 +1,4 @@
-// src/stores/accounts.js
+// frontend/src/stores/accounts.js
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { api } from '@/api/client';
@@ -90,7 +90,7 @@ export const useAccountsStore = defineStore('accounts', () => {
   }
 
   // ============================================================
-  // Расхождения (по-прежнему только по банковским счетам)
+  // Расхождения
   // ============================================================
   const expectedByAccount = computed(() => {
     const map = {};
@@ -229,7 +229,6 @@ export const useAccountsStore = defineStore('accounts', () => {
     const { data } = await api.post('/transactions', tx);
     if (!data.ok) throw new Error(data.error || 'Ошибка сохранения');
 
-    // ✅ Обновляем локально и НЕ трогаем accounts
     transactions.value.push(data.transaction);
     cashBalances.value = {
       ...cashBalances.value,
