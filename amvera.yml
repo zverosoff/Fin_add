@@ -6,6 +6,10 @@ meta:
 
 build:
   additionalCommands: |
+    cd frontend
+    npm install
+    npm run build
+    cd ..
     npm install
     npm rebuild better-sqlite3
 
