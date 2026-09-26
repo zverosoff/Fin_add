@@ -6,12 +6,12 @@ meta:
     version: 22.12.0
 build:
   skip: false
-  additionalCommands: null
+  additionalCommands: npm run build
   artifacts:
     '*': /
 run:
   persistenceMount: /data
-  scriptName: null
+  scriptName: npm run build
   scriptArguments: null
   nodeArguments: null
   command: npm run start
