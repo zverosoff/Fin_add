@@ -4,11 +4,9 @@ meta:
   toolchain:
     name: npm
     version: 18
-
 build:
   additionalCommands: npm install --prefix backend
-
 run:
-  command: node backend/src/index.js
-  containerPort: 3000
   persistenceMount: /data
+  command: node backend/src/index.js
+  containerPort: 80
