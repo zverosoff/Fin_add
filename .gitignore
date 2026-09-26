@@ -9,3 +9,6 @@ data/
 .env.local
 .env.production
 .DS_Store
+data/*.db-shm
+data/*.db-wal
+data/*.db
