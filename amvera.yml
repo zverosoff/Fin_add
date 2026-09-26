@@ -11,10 +11,10 @@ build:
     '*': /
 run:
   persistenceMount: /data
-  scriptName: npm run build
+  scriptName: node src/index.js
   scriptArguments: null
   nodeArguments: null
-  command: npm run start
+  command: null
   containerPort: 80
   singleton: true
   zeroDowntime: false
