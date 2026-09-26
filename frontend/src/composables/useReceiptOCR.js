@@ -1,12 +1,3 @@
-/**
- * OCR-обработка чеков и скриншотов банковских приложений через Tesseract.js
- * ✅ Автоматически отрезает шапку/фильтры/сводки — парсит только список операций.
- * ✅ Округление до целого.
- * ✅ Поддержка всех видов минусов (−, –, —).
- * ✅ Поддержка Сбер-формата («20 сентября, сб 606 ₽»).
- * ✅ Защита от Invalid Date.
- */
-
 export function preprocessImage(file) {
   return new Promise((resolve) => {
     const img = new Image();
@@ -54,9 +45,6 @@ export function preprocessImage(file) {
   });
 }
 
-/**
- * Распознать текст через Tesseract, вернуть объект { lines, imageWidth, imageHeight }.
- */
 export async function recognizeText(file, onProgress) {
   if (!window.Tesseract) {
     throw new Error('Tesseract.js не загрузился');
@@ -79,10 +67,7 @@ export async function recognizeText(file, onProgress) {
     for (const line of data.lines) {
       const t = (line.text || '').trim();
       if (!t) continue;
-      textLines.push({
-        text: t,
-        bbox: line.bbox || null,
-      });
+      textLines.push({ text: t, bbox: line.bbox || null });
     }
   } else {
     const lines = (data.text || '').split('\n');
@@ -102,9 +87,6 @@ export async function recognizeText(file, onProgress) {
   };
 }
 
-/* ============================================================
-   КАТЕГОРИИ
-   ============================================================ */
 const CATEGORY_MAP = {
   'супермаркеты': 'Продукты',
   'продукты': 'Продукты',
@@ -178,12 +160,7 @@ function detectCategory(line) {
   return 'Прочее';
 }
 
-/* ============================================================
-   ПАРСЕР
-   ============================================================ */
-
 const AMOUNT_RE = /([+\-−–—]?\s*\d[\d\s]*(?:[.,]\d{1,2})?)[^\d]*$/;
-
 const MONTHS_RU = '(январ|феврал|март|апрел|ма[йя]|июн|июл|август|сентябр|октябр|ноябр|декабр)';
 const DATE_LINE_RE = new RegExp(
   '^\\s*(\\d{1,2})\\s*' + MONTHS_RU + '[а-яё]*' +
@@ -192,7 +169,6 @@ const DATE_LINE_RE = new RegExp(
   'i'
 );
 const DATE_NUM_RE = /^(\d{1,2})[.\/-](\d{1,2})(?:[.\/-](\d{2,4}))?\s*$/;
-
 const SUMMARY_LINE_RE = /^(итого|итог|баланс|всего|траты|доходы|расходы|сумма|выписка|операции)\b/i;
 
 const MONTH_INDEX = {
@@ -222,10 +198,6 @@ export function isDateLine(s) {
   return false;
 }
 
-/**
- * ✅ Найти Y-координату первой строки-даты.
- * @returns {number|null} — Y (в пикселях исходного изображения) или null
- */
 export function findFirstDateY(textLines) {
   for (const line of textLines) {
     if (!line.bbox) continue;
@@ -236,17 +208,11 @@ export function findFirstDateY(textLines) {
   return null;
 }
 
-/**
- * ✅ Метаданные Сбера — пропускаем
- */
 function isSberMetaLine(s) {
   if (!s) return false;
   return /выписка\s+по\s+счёту|выписки\s+и\s+справки|выписка\s+по\s+счету/i.test(s);
 }
 
-/**
- * ✅ Сбер-формат: '20 сентября, сб 606 ₽' — дата + день недели + сумма
- */
 function isSberDateWithSum(s) {
   if (!s) return false;
   const t = s.trim();
@@ -426,23 +392,25 @@ export function parseReceipt(textLines) {
   let currentDate = new Date();
   currentDate.setHours(12, 0, 0, 0);
 
+  // ✅ Гарантирует валидный type и amount
   function buildItem(title, category, amt, date) {
-    // ✅ Защита от Invalid Date
     const safeDate = (date instanceof Date && !isNaN(date.getTime()))
       ? date
       : new Date();
 
     let type = 'expense';
-    if (amt.sign === '+') type = 'income';
-    else if (amt.sign === '-') type = 'expense';
+    if (amt && amt.sign === '+') type = 'income';
+    else if (amt && amt.sign === '-') type = 'expense';
 
     const finalTitle = cleanTitle(title);
     const finalCategory = detectCategory(cleanCategory(category) || finalTitle);
 
+    const amount = Math.max(1, Math.round(Number(amt?.amount) || 0));
+
     return {
       date: safeDate.toISOString(),
       description: finalTitle.slice(0, 80) || 'Операция',
-      amount: amt.amount,
+      amount,
       type,
       category: finalCategory,
     };
@@ -452,10 +420,8 @@ export function parseReceipt(textLines) {
   while (i < trimmed.length) {
     const curText = trimmed[i].text;
 
-    // ✅ Сбер-метаданные — пропускаем
     if (isSberMetaLine(curText)) { i++; continue; }
 
-    // ✅ Сбер-формат «20 сентября, сб 606 ₽» — только дата
     if (isSberDateWithSum(curText)) {
       const d = extractDate(curText);
       if (d) currentDate = d;
@@ -463,7 +429,6 @@ export function parseReceipt(textLines) {
       continue;
     }
 
-    // Обычная дата?
     if (isDateLine(curText)) {
       const d = extractDate(curText);
       if (d) currentDate = d;

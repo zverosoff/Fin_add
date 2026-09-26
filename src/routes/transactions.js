@@ -4,7 +4,6 @@ import { requireAuth } from '../middleware/auth.js';
 
 const router = Router();
 
-// Подготовленные statements (для скорости)
 const upsertTx = db.prepare(`
   INSERT INTO transactions
     (id, name, amount, type, category, date, user, account_id, from_reconcile, fixed, payload)
@@ -40,52 +39,104 @@ function buildFullState() {
 }
 
 // ============================================================
-// POST /api/transactions — создать/обновить
+// Санитизация — защита от CHECK constraint и NaN
+// ============================================================
+const ALLOWED_TYPES = ['income', 'expense'];
+
+function normalizeType(raw) {
+  if (ALLOWED_TYPES.includes(raw)) return raw;
+  const s = String(raw ?? '').toLowerCase().trim();
+  if (s === 'income' || s === 'доход' || s === 'приход') return 'income';
+  return 'expense';
+}
+
+function normalizeAmount(raw) {
+  const n = Number(raw);
+  if (!isFinite(n) || n <= 0) return 0;
+  return Math.round(n * 100) / 100;
+}
+
+function normalizeString(raw, fallback = '') {
+  if (raw == null) return fallback;
+  const s = String(raw).trim();
+  return s.length ? s : fallback;
+}
+
+function normalizeDate(raw) {
+  const s = String(raw ?? '').trim();
+  if (!s) return new Date().toISOString();
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return new Date().toISOString();
+  return d.toISOString();
+}
+
+// ============================================================
+// POST /api/transactions
 // ============================================================
 router.post('/', requireAuth, (req, res) => {
-  const tx = { ...(req.body ?? {}) };
+  try {
+    const incoming = req.body ?? {};
 
-  if (!tx.id) {
-    tx.id = `tx_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+    const tx = {
+      id: normalizeString(incoming.id, `tx_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`),
+      name: normalizeString(incoming.name, 'Операция'),
+      amount: normalizeAmount(incoming.amount),
+      type: normalizeType(incoming.type),
+      category: normalizeString(incoming.category, 'Прочее'),
+      date: normalizeDate(incoming.date),
+      user: incoming.user ? String(incoming.user) : null,
+      accountId: incoming.accountId ? String(incoming.accountId) : null,
+      fromReconcile: incoming.fromReconcile ? 1 : 0,
+      fixed: incoming.fixed ? 1 : 0,
+    };
+
+    if (tx.amount <= 0) {
+      return res.status(400).json({ ok: false, error: 'amount должен быть > 0' });
+    }
+
+    upsertTx.run({
+      id: tx.id,
+      name: tx.name,
+      amount: tx.amount,
+      type: tx.type,
+      category: tx.category,
+      date: tx.date,
+      user: tx.user,
+      accountId: tx.accountId,
+      fromReconcile: tx.fromReconcile,
+      fixed: tx.fixed,
+      payload: JSON.stringify({ ...incoming, ...tx }),
+    });
+
+    const io = req.app.get('io');
+    if (io) io.emit('state', buildFullState());
+
+    res.json({ ok: true, transaction: tx });
+  } catch (err) {
+    console.error('[transactions] ошибка сохранения:', err.message);
+    console.error('[transactions] payload:', JSON.stringify(req.body));
+    res.status(500).json({ ok: false, error: err.message });
   }
-
-  if (!tx.name || !tx.type) {
-    return res.status(400).json({ ok: false, error: 'name и type обязательны' });
-  }
-
-  upsertTx.run({
-    id: tx.id,
-    name: tx.name,
-    amount: Number(tx.amount) || 0,
-    type: tx.type,
-    category: tx.category ?? 'Прочее',
-    date: tx.date ?? new Date().toISOString(),
-    user: tx.user ?? null,
-    accountId: tx.accountId ?? null,
-    fromReconcile: tx.fromReconcile ? 1 : 0,
-    fixed: tx.fixed ? 1 : 0,
-    payload: JSON.stringify(tx),
-  });
-
-  const io = req.app.get('io');
-  if (io) io.emit('state', buildFullState());
-
-  res.json({ ok: true, transaction: tx });
 });
 
 // ============================================================
 // DELETE /api/transactions?id=xxx
 // ============================================================
 router.delete('/', requireAuth, (req, res) => {
-  const { id } = req.query;
-  if (!id) return res.status(400).json({ ok: false, error: 'id обязателен' });
+  try {
+    const { id } = req.query;
+    if (!id) return res.status(400).json({ ok: false, error: 'id обязателен' });
 
-  const result = deleteTxStmt.run(id);
+    const result = deleteTxStmt.run(String(id));
 
-  const io = req.app.get('io');
-  if (io) io.emit('state', buildFullState());
+    const io = req.app.get('io');
+    if (io) io.emit('state', buildFullState());
 
-  res.json({ ok: true, deleted: result.changes });
+    res.json({ ok: true, deleted: result.changes });
+  } catch (err) {
+    console.error('[transactions] ошибка удаления:', err.message);
+    res.status(500).json({ ok: false, error: err.message });
+  }
 });
 
 export default router;
