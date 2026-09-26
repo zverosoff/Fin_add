@@ -2,12 +2,14 @@ meta:
   environment: node
   toolchain:
     name: npm
-    version: 18
+    version: 22
 
 build:
-  additionalCommands: npm install --prefix backend
+  additionalCommands: |
+    npm install
+    npm rebuild better-sqlite3
 
 run:
-  command: node backend/src/index.js
-  containerPort: 3000
+  scriptName: src/index.js
   persistenceMount: /data
+  containerPort: 80
