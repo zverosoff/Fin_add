@@ -59,12 +59,19 @@ const INITIAL_STATE = {
     { id: 'expMortgage', name: 'Ипотека', value: 36820, auto: false },
   ],
   users: ['Сергей', 'Саша'],
+  // ✅ Т-Банк первым
   accounts: [
-    { id: 'sber_sergey',  name: 'СберБанк', owner: 'Сергей', value: 0, openingBalance: 0 },
     { id: 'tbank_sergey', name: 'Т-Банк',   owner: 'Сергей', value: 0, openingBalance: 0 },
-    { id: 'sber_sasha',   name: 'СберБанк', owner: 'Саша',   value: 0, openingBalance: 0 },
+    { id: 'sber_sergey',  name: 'СберБанк', owner: 'Сергей', value: 0, openingBalance: 0 },
     { id: 'tbank_sasha',  name: 'Т-Банк',   owner: 'Саша',   value: 0, openingBalance: 0 },
+    { id: 'sber_sasha',   name: 'СберБанк', owner: 'Саша',   value: 0, openingBalance: 0 },
   ],
+  // ✅ Наличные
+  cash: {
+    total: 0,
+    contributions: {},
+    history: [],
+  },
   goals: [],
   flat: {},
 };
@@ -75,6 +82,18 @@ if (!row) {
     .run(JSON.stringify(INITIAL_STATE), new Date().toISOString());
   console.log('[db] создано начальное состояние');
 } else {
+  // ✅ Миграция: добавляем cash, если его нет в существующей базе
+  try {
+    const existing = JSON.parse(row.data || '{}');
+    if (!existing.cash) {
+      existing.cash = { total: 0, contributions: {}, history: [] };
+      db.prepare('UPDATE app_state SET data = ?, updated_at = ? WHERE id = 1')
+        .run(JSON.stringify(existing), new Date().toISOString());
+      console.log('[db] миграция: добавлено поле cash');
+    }
+  } catch (e) {
+    console.warn('[db] не удалось применить миграцию cash:', e.message);
+  }
   console.log('[db] состояние найдено');
 }
 

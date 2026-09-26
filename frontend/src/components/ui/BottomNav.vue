@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, onMounted, watch, nextTick } from 'vue';
+import { computed, ref, onMounted, watch, nextTick, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import { useWebSocket } from '@/composables/useWebSocket';
 import { useAccountsStore } from '@/stores/accounts';
@@ -11,13 +11,17 @@ const { connected } = useWebSocket();
 const accounts = useAccountsStore();
 const scanStore = useScanStore();
 
+// ✅ FAB: спиннер 8.5 сек после монтирования (2.5 + 6)
+const FAB_BOOT_DURATION = 8500;
 const fabBooting = ref(true);
+
 onMounted(() => {
   setTimeout(() => {
     fabBooting.value = false;
-  }, 2500);
+  }, FAB_BOOT_DURATION);
 });
 
+// Статус сервера
 const serverStatus = computed(() => {
   if (fabBooting.value) return 'loading';
   if (!accounts.loaded) return 'loading';
@@ -35,14 +39,13 @@ const navRight = [
   { to: '/profile',  icon: '👤', label: 'Профиль' },
 ];
 
-// ✅ Ссылки на кнопки для точного расчёта позиции
+// ✅ Ссылки на кнопки для точного расчёта позиции индикатора
 const tabRefs = ref({});
 
 function setTabRef(to, el) {
   if (el) tabRefs.value[to] = el;
 }
 
-// Индекс активной вкладки среди ВСЕХ (с учётом FAB)
 const activeTabTo = computed(() => {
   const all = [...navLeft, ...navRight];
   for (const item of all) {
@@ -53,7 +56,7 @@ const activeTabTo = computed(() => {
   return null;
 });
 
-// ✅ Позиция индикатора через offsetLeft/offsetWidth (точная)
+// ✅ Позиция индикатора через offsetLeft/offsetWidth
 const indicatorStyle = ref({ opacity: 0, left: '0px', width: '0px' });
 
 function updateIndicator() {
@@ -79,7 +82,6 @@ onMounted(() => {
   window.addEventListener('resize', updateIndicator);
 });
 
-import { onUnmounted } from 'vue';
 onUnmounted(() => {
   window.removeEventListener('resize', updateIndicator);
 });
@@ -188,7 +190,6 @@ function handleFabClick() {
   width: 100%;
 }
 
-/* ✅ Индикатор — точные пиксели */
 .bn-indicator {
   position: absolute;
   top: 0;
@@ -266,7 +267,6 @@ function handleFabClick() {
   z-index: 2;
 }
 
-/* ✅ FAB увеличен: 68px */
 .bn-fab {
   width: 68px;
   height: 68px;
@@ -344,7 +344,6 @@ function handleFabClick() {
   .bn-icon { font-size: 20px; }
   .bn-label { font-size: 10px; }
 
-  /* ✅ FAB на мобильном: 62px */
   .bn-fab {
     width: 62px;
     height: 62px;

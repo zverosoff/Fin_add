@@ -70,6 +70,7 @@ export default defineConfig({
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api/, /^\/socket\.io/],
 
+        
         // Не кэшируем API и WS
         runtimeCaching: [
           {
@@ -87,6 +88,7 @@ export default defineConfig({
         ],
       },
 
+      
       // В dev SW отключён, чтобы не мешал
       devOptions: {
         enabled: false,
