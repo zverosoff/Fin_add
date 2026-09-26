@@ -2,12 +2,13 @@ meta:
   environment: node
   toolchain:
     name: npm
-    version: "22.11"
+    version: "22.12"
 
 build:
   skip: no
   additionalCommands:
-    - cd frontend && npm install --include=dev && npm run build
+    - npm --prefix frontend install --include=dev
+    - npm --prefix frontend run build
 
 run:
   command: node src/index.js
