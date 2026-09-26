@@ -5,10 +5,7 @@ meta:
     version: "22.12"
 
 build:
-  skip: no
-  additionalCommands:
-    - npm --prefix frontend install --include=dev
-    - npm --prefix frontend run build
+  command: npm --prefix frontend install --include=dev && npm --prefix frontend run build
 
 run:
   command: node src/index.js

@@ -5,7 +5,9 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-const DATA_DIR = process.env.DATA_DIR || path.resolve(__dirname, '../../data');
+const DATA_DIR =
+  process.env.DATA_DIR ||
+  (fs.existsSync('/data') ? '/data' : path.resolve(__dirname, '../../data'));
 if (!fs.existsSync(DATA_DIR)) {
   fs.mkdirSync(DATA_DIR, { recursive: true });
   console.log(`[db] создана папка ${DATA_DIR}`);
