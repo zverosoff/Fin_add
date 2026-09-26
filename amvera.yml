@@ -5,7 +5,7 @@ meta:
     name: npm
     version: 18
 build:
-  additionalCommands: npm install --prefix backend
+  additionalCommands: npm run dev
 run:
   persistenceMount: /data
   command: node src/index.js
