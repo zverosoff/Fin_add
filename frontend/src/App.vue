@@ -71,7 +71,7 @@ onMounted(async () => {
   percent.value = 0;
   stage.value = 'Приветствие…';
 
-  await new Promise(r => setTimeout(r, 250));
+  await new Promise(r => setTimeout(r, 200));
 
   try {
     stage.value = 'Проверка сессии…';
@@ -113,13 +113,14 @@ onMounted(async () => {
     stage.value = 'Готово!';
     done.value = true;
 
+    // ✅ Было 900ms — теперь 400ms
     setTimeout(() => {
       booting.value = false;
-    }, 900);
+    }, 400);
   } catch (e) {
     console.error('[app] bootstrap error:', e);
     stage.value = 'Ошибка загрузки';
-    setTimeout(() => { booting.value = false; }, 1500);
+    setTimeout(() => { booting.value = false; }, 800);
   }
 });
 
@@ -164,16 +165,11 @@ onUnmounted(() => {
 </template>
 
 <style>
-/* ============================================================
-   Обёртка страницы
-   ============================================================ */
 .page-transition-wrap {
   position: relative;
   min-height: 100vh;
   width: 100%;
   overflow-x: hidden;
-
-  /* ✅ Отступ снизу под BottomNav — здесь, чтобы покрыть ВСЕ страницы */
   padding-bottom: calc(90px + env(safe-area-inset-bottom, 0));
 }
 
@@ -183,21 +179,12 @@ onUnmounted(() => {
   }
 }
 
-/* ============================================================
-   Анимации
-   ============================================================ */
 .slide-left-enter-active,
 .slide-right-enter-active {
   transition: transform 0.28s cubic-bezier(.22,.61,.36,1), opacity 0.28s;
 }
-.slide-left-enter-from {
-  transform: translateX(30px);
-  opacity: 0;
-}
-.slide-right-enter-from {
-  transform: translateX(-30px);
-  opacity: 0;
-}
+.slide-left-enter-from { transform: translateX(30px); opacity: 0; }
+.slide-right-enter-from { transform: translateX(-30px); opacity: 0; }
 
 .slide-left-leave-active,
 .slide-right-leave-active {
@@ -209,19 +196,11 @@ onUnmounted(() => {
   transition: transform 0.28s cubic-bezier(.22,.61,.36,1), opacity 0.28s;
   pointer-events: none;
 }
-.slide-left-leave-to {
-  transform: translateX(-30px);
-  opacity: 0;
-}
-.slide-right-leave-to {
-  transform: translateX(30px);
-  opacity: 0;
-}
+.slide-left-leave-to { transform: translateX(-30px); opacity: 0; }
+.slide-right-leave-to { transform: translateX(30px); opacity: 0; }
 
 .fade-page-enter-active,
-.fade-page-leave-active {
-  transition: opacity 0.25s ease;
-}
+.fade-page-leave-active { transition: opacity 0.25s ease; }
 .fade-page-leave-active {
   position: absolute;
   top: 0;
@@ -231,7 +210,5 @@ onUnmounted(() => {
   pointer-events: none;
 }
 .fade-page-enter-from,
-.fade-page-leave-to {
-  opacity: 0;
-}
+.fade-page-leave-to { opacity: 0; }
 </style>

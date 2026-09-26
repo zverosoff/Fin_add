@@ -9,26 +9,26 @@ const props = defineProps({
   done: { type: Boolean, default: false },
 });
 
-// Галочка появляется, когда done
 const isDone = computed(() => props.done || props.percent >= 100);
 </script>
 
 <template>
   <Transition name="welcome">
-    <div v-if="visible" class="welcome-overlay">
+    <div
+      v-if="visible"
+      class="welcome-overlay"
+      :class="{ 'is-done': isDone }"
+    >
       <div class="welcome-content">
-        <!-- Логотип -->
         <div class="welcome-logo">
           <span class="welcome-logo-star">★</span>
           <span class="welcome-logo-text">ФИНАНСЫ PRO+</span>
         </div>
 
-        <!-- Приветствие -->
         <div class="welcome-text">
           Добро пожаловать<span v-if="userName">, <span class="welcome-name">{{ userName }}</span></span>!
         </div>
 
-        <!-- Прогресс-бар -->
         <div class="welcome-progress">
           <div class="wp-track">
             <div
@@ -40,7 +40,6 @@ const isDone = computed(() => props.done || props.percent >= 100);
           <div class="wp-percent">{{ Math.round(percent) }}%</div>
         </div>
 
-        <!-- Статус -->
         <div class="welcome-status" :class="{ done: isDone }">
           <span v-if="!isDone" class="welcome-status-spinner"></span>
           <span v-else class="welcome-status-check">✓</span>
@@ -52,9 +51,6 @@ const isDone = computed(() => props.done || props.percent >= 100);
 </template>
 
 <style scoped lang="scss">
-/* ============================================================
-   ПОЛНОЭКРАННЫЙ ОВЕРЛЕЙ
-   ============================================================ */
 .welcome-overlay {
   position: fixed;
   inset: 0;
@@ -77,9 +73,13 @@ const isDone = computed(() => props.done || props.percent >= 100);
 
   pointer-events: auto;
 
-  /* ✅ Fullscreen-безопасность: учитываем safe-area */
   padding-top: calc(24px + env(safe-area-inset-top, 0));
   padding-bottom: calc(24px + env(safe-area-inset-bottom, 0));
+
+  /* ✅ Когда "done" — разрешаем клики сквозь оверлей */
+  &.is-done {
+    pointer-events: none;
+  }
 }
 
 @keyframes welcomeGradient {
@@ -103,7 +103,6 @@ const isDone = computed(() => props.done || props.percent >= 100);
   gap: 24px;
 }
 
-/* ─── Логотип ─── */
 .welcome-logo {
   display: inline-flex;
   align-items: center;
@@ -148,7 +147,6 @@ const isDone = computed(() => props.done || props.percent >= 100);
   50%      { transform: rotate(180deg) scale(1.15); }
 }
 
-/* ─── Текст ─── */
 .welcome-text {
   font-family: "Inter", -apple-system, sans-serif;
   font-size: clamp(22px, 5vw, 40px);
@@ -186,7 +184,6 @@ const isDone = computed(() => props.done || props.percent >= 100);
   50%      { background-position: 100% 50%; }
 }
 
-/* ─── Прогресс-бар ─── */
 .welcome-progress {
   width: 100%;
   max-width: 320px;
@@ -235,7 +232,6 @@ const isDone = computed(() => props.done || props.percent >= 100);
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
 }
 
-/* ─── Статус ─── */
 .welcome-status {
   display: inline-flex;
   align-items: center;
@@ -298,19 +294,17 @@ const isDone = computed(() => props.done || props.percent >= 100);
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ============================================================
-   ✅ АНИМАЦИЯ ПОЯВЛЕНИЯ / ИСЧЕЗНОВЕНИЯ
-   ============================================================ */
+/* ✅ Ускоренное исчезновение: было 0.7s */
 .welcome-enter-active {
   transition:
-    opacity 0.45s cubic-bezier(.22,.61,.36,1),
-    transform 0.45s cubic-bezier(.22,.61,.36,1);
+    opacity 0.35s cubic-bezier(.22,.61,.36,1),
+    transform 0.35s cubic-bezier(.22,.61,.36,1);
 }
 .welcome-leave-active {
   transition:
-    opacity 0.7s cubic-bezier(.4,0,.2,1),
-    transform 0.7s cubic-bezier(.4,0,.2,1),
-    filter 0.7s ease;
+    opacity 0.4s cubic-bezier(.4,0,.2,1),
+    transform 0.4s cubic-bezier(.4,0,.2,1),
+    filter 0.4s ease;
 }
 .welcome-enter-from {
   opacity: 0;
@@ -318,11 +312,10 @@ const isDone = computed(() => props.done || props.percent >= 100);
 }
 .welcome-leave-to {
   opacity: 0;
-  transform: scale(1.1);
-  filter: blur(14px);
+  transform: scale(1.08);
+  filter: blur(10px);
 }
 
-/* ─── Мобильная ─── */
 @media (max-width: 700px) {
   .welcome-logo { padding: 10px 20px; gap: 8px; }
   .welcome-logo-star { font-size: 22px; }
