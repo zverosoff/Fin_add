@@ -5,14 +5,9 @@ meta:
     version: 20
 
 build:
-  additionalCommands: |
-    npm ci
-    npm rebuild better-sqlite3
-    cd frontend
-    npm ci
-    npm run build
+  additionalCommands: npm run build:all
 
 run:
-  scriptName: src/index.js
+  scriptName: backend/src/index.js
   persistenceMount: /data
   containerPort: 80
