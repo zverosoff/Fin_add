@@ -1,3 +1,4 @@
+// backend/src/routes/state.js
 import { Router } from 'express';
 import db from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -31,6 +32,27 @@ const DEFAULT_ACCOUNTS = [
   { id: 'sber_sasha',   name: 'СберБанк', owner: 'Саша',   value: 0, openingBalance: 0 },
 ];
 
+// ✅ Дефолтные наличные
+const DEFAULT_CASH = {
+  Сергей: 0,
+  Саша: 0,
+};
+
+// ✅ Нормализация cash
+function normalizeCash(raw) {
+  const src = (raw && typeof raw === 'object') ? raw : {};
+  return {
+    Сергей: Number(src.Сергей) || 0,
+    Саша:   Number(src.Саша)   || 0,
+  };
+}
+
+// ✅ Убираем legacy-счета cash_* из accounts
+function stripLegacyCashAccounts(accounts) {
+  if (!Array.isArray(accounts)) return accounts;
+  return accounts.filter(a => a && typeof a.id === 'string' && !a.id.startsWith('cash_'));
+}
+
 function buildFullState() {
   const state = readAppState();
 
@@ -39,6 +61,23 @@ function buildFullState() {
     state.accounts = DEFAULT_ACCOUNTS.map(a => ({ ...a }));
     console.log('[state] восстановлены дефолтные счета (GET)');
     writeAppState(state);
+  } else {
+    // ✅ Убираем legacy-счета cash_*
+    const filtered = stripLegacyCashAccounts(state.accounts);
+    if (filtered.length !== state.accounts.length) {
+      state.accounts = filtered;
+      console.log('[state] удалены legacy-счета cash_* (GET)');
+      writeAppState(state);
+    }
+  }
+
+  // ✅ Защита: если cash потерян — восстанавливаем
+  if (!state.cash || typeof state.cash !== 'object') {
+    state.cash = { ...DEFAULT_CASH };
+    console.log('[state] восстановлены наличные (GET)');
+    writeAppState(state);
+  } else {
+    state.cash = normalizeCash(state.cash);
   }
 
   state.transactions = readTransactions();
@@ -46,7 +85,7 @@ function buildFullState() {
 }
 
 // ============================================================
-// GET /api/state — получить полное состояние
+// GET /api/state
 // ============================================================
 router.get('/', requireAuth, (req, res) => {
   const state = buildFullState();
@@ -66,6 +105,11 @@ router.post('/', requireAuth, (req, res) => {
     if (key in incoming && incoming[key] !== undefined && incoming[key] !== null) {
       current[key] = incoming[key];
     }
+  }
+
+  // ✅ НАЛИЧНЫЕ — отдельная обработка с нормализацией
+  if ('cash' in incoming && incoming.cash !== undefined && incoming.cash !== null) {
+    current.cash = normalizeCash(incoming.cash);
   }
 
   // Цели: полная замена или мёрж
@@ -90,6 +134,19 @@ router.post('/', requireAuth, (req, res) => {
   if (!current.accounts || !Array.isArray(current.accounts) || current.accounts.length === 0) {
     current.accounts = DEFAULT_ACCOUNTS.map(a => ({ ...a }));
     console.log('[state] восстановлены дефолтные счета (POST)');
+  } else {
+    // ✅ Убираем legacy-счета cash_*
+    const filtered = stripLegacyCashAccounts(current.accounts);
+    if (filtered.length !== current.accounts.length) {
+      current.accounts = filtered;
+      console.log('[state] удалены legacy-счета cash_* (POST)');
+    }
+  }
+
+  // ✅ Защита: если cash потерян — восстанавливаем
+  if (!current.cash || typeof current.cash !== 'object') {
+    current.cash = { ...DEFAULT_CASH };
+    console.log('[state] восстановлены наличные (POST)');
   }
 
   writeAppState(current);
