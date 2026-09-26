@@ -4,9 +4,13 @@ meta:
   toolchain:
     name: npm
     version: 22
+
 build:
-  additionalCommands: npm run dev
+  additionalCommands: |
+    npm install
+    npm rebuild better-sqlite3
+
 run:
+  scriptName: src/index.js
   persistenceMount: /data
-  command: node src/index.js
   containerPort: 80
