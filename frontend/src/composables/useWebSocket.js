@@ -13,16 +13,13 @@ export function useWebSocket() {
   function connect() {
     if (socket) return;
 
-    // VITE_WS_URL — если задан, подключаемся к нему.
-    // Если не задан — к текущему origin (в dev проксируется на :3000).
-    const wsUrl = import.meta.env.VITE_WS_URL || undefined;
+    // ✅ Если VITE_WS_URL не задан или '/' — подключаемся к текущему origin
+    const rawUrl = import.meta.env.VITE_WS_URL;
+    const wsUrl = (!rawUrl || rawUrl === '/') ? undefined : rawUrl;
 
     socket = io(wsUrl, {
-      // ✅ Cookie-only: никакого auth.token. Cookie пойдёт автоматически.
       withCredentials: true,
-      // Разрешаем и polling, и websocket — для надёжности передачи cookie
       transports: ['polling', 'websocket'],
-      // Не переподключаться автоматически бесконечно — Socket.IO сам умеет
       reconnection: true,
       reconnectionAttempts: Infinity,
       reconnectionDelay: 1000,

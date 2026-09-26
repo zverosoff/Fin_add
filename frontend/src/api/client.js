@@ -8,9 +8,6 @@ export const api = axios.create({
   timeout: 15000,
 });
 
-// ✅ Никаких Authorization-заголовков — только httpOnly-cookie.
-// axios с withCredentials: true автоматически шлёт cookie.
-
 // ✅ 401 → logout (кроме login/me)
 api.interceptors.response.use(
   response => response,

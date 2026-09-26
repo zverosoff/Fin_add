@@ -6,6 +6,8 @@ meta:
 
 build:
   skip: no
+  additionalCommands:
+    - cd frontend && npm install --include=dev && npm run build
 
 run:
   command: node src/index.js

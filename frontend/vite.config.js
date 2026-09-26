@@ -9,11 +9,8 @@ export default defineConfig({
 
     VitePWA({
       registerType: 'autoUpdate',
-
-      // Инлайним SW-регистрацию в HTML (убирает отдельный файл)
       injectRegister: 'auto',
 
-      // Все ассеты из public/ попадут в precache
       includeAssets: [
         'favicon.svg',
         'icons.svg',
@@ -22,7 +19,6 @@ export default defineConfig({
         'img/tbank.png',
       ],
 
-      // ─── Манифест PWA ───
       manifest: {
         name: 'Финансы PRO+',
         short_name: 'Финансы',
@@ -32,10 +28,7 @@ export default defineConfig({
         scope: '/',
         display: 'standalone',
         orientation: 'portrait-primary',
-
-        // Цвет фона приложения (совпадает с --bg-0)
         background_color: '#eef2f8',
-        // Цвет статус-бара в standalone
         theme_color: '#eef2f8',
 
         icons: [
@@ -60,18 +53,13 @@ export default defineConfig({
         ],
       },
 
-      // ─── Workbox (кэш оболочки) ───
       workbox: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
-        // Ограничение размера файла для precache
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
 
-        // Навигация SPA — отдавать index.html для всех неизвестных маршрутов
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api/, /^\/socket\.io/],
 
-        
-        // Не кэшируем API и WS
         runtimeCaching: [
           {
             urlPattern: /^\/api\//,
@@ -88,8 +76,6 @@ export default defineConfig({
         ],
       },
 
-      
-      // В dev SW отключён, чтобы не мешал
       devOptions: {
         enabled: false,
       },
