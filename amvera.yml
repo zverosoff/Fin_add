@@ -2,9 +2,12 @@ meta:
   environment: node
   toolchain:
     name: npm
-    version: "22.12.0"
+    version: 18
+
+build:
+  additionalCommands: npm install --prefix backend
 
 run:
-  command: node src/index.js
+  command: node backend/src/index.js
+  containerPort: 3000
   persistenceMount: /data
-  containerPort: 80
