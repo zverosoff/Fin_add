@@ -23,8 +23,24 @@ function readTransactions() {
   return rows.map(r => JSON.parse(r.payload));
 }
 
+// ✅ Дефолтные счета — на случай восстановления
+const DEFAULT_ACCOUNTS = [
+  { id: 'tbank_sergey', name: 'Т-Банк',   owner: 'Сергей', value: 0, openingBalance: 0 },
+  { id: 'sber_sergey',  name: 'СберБанк', owner: 'Сергей', value: 0, openingBalance: 0 },
+  { id: 'tbank_sasha',  name: 'Т-Банк',   owner: 'Саша',   value: 0, openingBalance: 0 },
+  { id: 'sber_sasha',   name: 'СберБанк', owner: 'Саша',   value: 0, openingBalance: 0 },
+];
+
 function buildFullState() {
   const state = readAppState();
+
+  // ✅ Защита: если accounts потеряны — восстанавливаем
+  if (!state.accounts || !Array.isArray(state.accounts) || state.accounts.length === 0) {
+    state.accounts = DEFAULT_ACCOUNTS.map(a => ({ ...a }));
+    console.log('[state] восстановлены дефолтные счета (GET)');
+    writeAppState(state);
+  }
+
   state.transactions = readTransactions();
   return state;
 }
@@ -39,20 +55,20 @@ router.get('/', requireAuth, (req, res) => {
 
 // ============================================================
 // POST /api/state — частичное обновление
-// body: { accountStart?, rate?, incomes?, expenses?, accounts?,
-//         goals?, replaceGoals?, cash?, flat? }
 // ============================================================
 router.post('/', requireAuth, (req, res) => {
   const incoming = req.body ?? {};
   const current = readAppState();
 
-  // Простые поля — заменяем целиком
+  // Простые поля — заменяем целиком, но только если значение пришло
+  // и оно НЕ undefined / null (защита от затирания)
   for (const key of ['accountStart', 'rate', 'incomes', 'expenses', 'accounts']) {
-    if (key in incoming) current[key] = incoming[key];
+    if (key in incoming && incoming[key] !== undefined && incoming[key] !== null) {
+      current[key] = incoming[key];
+    }
   }
 
-  // ✅ Цели: либо ПОЛНАЯ замена (если replaceGoals === true),
-  //         либо мёрж по id (для частичных обновлений).
+  // Цели: полная замена или мёрж
   if ('goals' in incoming && Array.isArray(incoming.goals)) {
     if (incoming.replaceGoals === true) {
       current.goals = incoming.goals;
@@ -65,24 +81,20 @@ router.post('/', requireAuth, (req, res) => {
     }
   }
 
-  // ✅ Наличные — заменяем целиком
-  if ('cash' in incoming && typeof incoming.cash === 'object' && incoming.cash !== null) {
-    current.cash = {
-      total: Number(incoming.cash.total) || 0,
-      contributions: incoming.cash.contributions || {},
-      history: Array.isArray(incoming.cash.history) ? incoming.cash.history.slice(0, 100) : [],
-    };
-  }
-
   // Квартира — заменяем целиком
   if ('flat' in incoming && typeof incoming.flat === 'object') {
     current.flat = incoming.flat;
   }
 
+  // ✅ Защита: если accounts потерялись — восстанавливаем
+  if (!current.accounts || !Array.isArray(current.accounts) || current.accounts.length === 0) {
+    current.accounts = DEFAULT_ACCOUNTS.map(a => ({ ...a }));
+    console.log('[state] восстановлены дефолтные счета (POST)');
+  }
+
   writeAppState(current);
   const full = buildFullState();
 
-  // Уведомляем всех подключённых по WebSocket
   const io = req.app.get('io');
   if (io) io.emit('state', full);
 
