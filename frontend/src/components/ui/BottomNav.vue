@@ -11,29 +11,25 @@ const { connected } = useWebSocket();
 const accounts = useAccountsStore();
 const scanStore = useScanStore();
 
-// ✅ Фазы FAB: 'loading' → 'success' → 'ok'/'error'
-const LOADING_MS = 2500;   // спиннер
-const SUCCESS_MS = 1500;   // галочка
-const fabPhase = ref('loading');  // 'loading' | 'success' | 'ready'
+const LOADING_MS = 2500;
+const SUCCESS_MS = 1500;
+const fabPhase = ref('loading');
 
 onMounted(() => {
-  // loading → success
   setTimeout(() => {
     fabPhase.value = 'success';
-    // success → ready
     setTimeout(() => {
       fabPhase.value = 'ready';
     }, SUCCESS_MS);
   }, LOADING_MS);
 });
 
-// ✅ Финальный статус FAB
+// ✅ Красный — только если данные не загрузились.
+// Отсутствие WebSocket больше не считается ошибкой.
 const serverStatus = computed(() => {
   if (fabPhase.value === 'loading') return 'loading';
   if (fabPhase.value === 'success') return 'success';
-  // ready
   if (!accounts.loaded) return 'loading';
-  if (!connected.value) return 'error';
   return 'ok';
 });
 
@@ -110,7 +106,6 @@ function handleFabClick() {
     <div class="bn-inner">
       <div class="bn-indicator" :style="indicatorStyle"></div>
 
-      <!-- Финансы, Анализ -->
       <button
         v-for="item in navLeft"
         :key="item.to"
@@ -124,7 +119,6 @@ function handleFabClick() {
         <span class="bn-label">{{ item.label }}</span>
       </button>
 
-      <!-- FAB -->
       <div class="bn-fab-wrapper">
         <button
           type="button"
@@ -133,29 +127,24 @@ function handleFabClick() {
           @click="handleFabClick"
           aria-label="Сканировать чек"
         >
-          <!-- Loading: спиннер -->
           <svg v-if="serverStatus === 'loading'" class="bn-fab-spinner" viewBox="0 0 50 50">
             <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
           </svg>
 
-          <!-- Success: зелёная галочка -->
           <svg v-else-if="serverStatus === 'success'" class="bn-fab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="20 6 9 17 4 12" />
           </svg>
 
-          <!-- OK: камера -->
           <svg v-else-if="serverStatus === 'ok'" class="bn-fab-icon" viewBox="0 0 24 24" fill="currentColor">
             <path d="M9 3 7.17 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.17L15 3H9zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
           </svg>
 
-          <!-- Error: восклицательный знак -->
           <svg v-else class="bn-fab-icon" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2 1 21h22L12 2zm1 16h-2v-2h2v2zm0-4h-2V9h2v5z"/>
           </svg>
         </button>
       </div>
 
-      <!-- Вклады, Профиль -->
       <button
         v-for="item in navRight"
         :key="item.to"
@@ -297,7 +286,6 @@ function handleFabClick() {
 
   &:active { transform: scale(0.94); }
 
-  /* Загрузка — сине-фиолетовая со спиннером */
   &.is-loading {
     background: linear-gradient(135deg, #3b82f6, #8b5cf6);
     box-shadow:
@@ -306,7 +294,6 @@ function handleFabClick() {
     cursor: wait;
   }
 
-  /* ✅ Успех — зелёная с галочкой */
   &.is-success {
     background: linear-gradient(135deg, #22c55e, #16a34a);
     box-shadow:
@@ -315,7 +302,6 @@ function handleFabClick() {
     animation: fabSuccessPop 0.35s cubic-bezier(.34,1.56,.64,1);
   }
 
-  /* Готов — сине-фиолетовая с камерой */
   &.is-ok {
     background: linear-gradient(135deg, #3b82f6, #8b5cf6);
     box-shadow:
@@ -323,7 +309,6 @@ function handleFabClick() {
       0 0 0 5px rgba(255, 255, 255, 0.75);
   }
 
-  /* Ошибка — красная */
   &.is-error {
     background: linear-gradient(135deg, #ef4444, #dc2626);
     box-shadow:
@@ -332,7 +317,6 @@ function handleFabClick() {
   }
 }
 
-/* Анимация появления галочки */
 @keyframes fabSuccessPop {
   0%   { transform: scale(0.85); }
   60%  { transform: scale(1.1); }
@@ -365,7 +349,6 @@ function handleFabClick() {
   height: 30px;
 }
 
-/* Галочка чуть крупнее */
 .bn-fab.is-success .bn-fab-icon {
   width: 34px;
   height: 34px;
@@ -373,14 +356,8 @@ function handleFabClick() {
 }
 
 @keyframes checkDraw {
-  from {
-    stroke-dasharray: 30;
-    stroke-dashoffset: 30;
-  }
-  to {
-    stroke-dasharray: 30;
-    stroke-dashoffset: 0;
-  }
+  from { stroke-dasharray: 30; stroke-dashoffset: 30; }
+  to   { stroke-dasharray: 30; stroke-dashoffset: 0; }
 }
 
 @media (max-width: 700px) {

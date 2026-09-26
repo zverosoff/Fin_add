@@ -11,11 +11,6 @@ export const useTransactionsStore = defineStore('transactions', () => {
   const loading = ref(false);
   const currentMonth = ref(new Date());
 
-  // ============================================================
-  // Вычисляемые
-  // ============================================================
-
-  /** Транзакции текущего месяца */
   const monthTransactions = computed(() => {
     const start = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth(), 1);
     const end = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth() + 1, 0, 23, 59, 59, 999);
@@ -26,7 +21,6 @@ export const useTransactionsStore = defineStore('transactions', () => {
     });
   });
 
-  /** Отфильтрованные транзакции */
   const filtered = computed(() => {
     let list = monthTransactions.value;
     const f = filtersStore.filters;
@@ -43,7 +37,6 @@ export const useTransactionsStore = defineStore('transactions', () => {
     return [...list].sort((a, b) => new Date(b.date) - new Date(a.date));
   });
 
-  /** Группировка по дням для рендера */
   const groupedByDay = computed(() => {
     const groups = {};
     for (const t of filtered.value) {
@@ -58,7 +51,6 @@ export const useTransactionsStore = defineStore('transactions', () => {
     return Object.values(groups).sort((a, b) => b.date - a.date);
   });
 
-  /** Сводка за месяц */
   const summary = computed(() => {
     let income = 0, expense = 0;
     for (const t of monthTransactions.value) {
@@ -69,7 +61,6 @@ export const useTransactionsStore = defineStore('transactions', () => {
     return { income, expense, balance: income - expense };
   });
 
-  /** Сводка по пользователям */
   const byUser = computed(() => {
     const result = {
       'Сергей': { income: 0, expense: 0 },
@@ -83,10 +74,6 @@ export const useTransactionsStore = defineStore('transactions', () => {
     }
     return result;
   });
-
-  // ============================================================
-  // Действия
-  // ============================================================
 
   function setMonth(date) { currentMonth.value = date; }
 
@@ -104,11 +91,29 @@ export const useTransactionsStore = defineStore('transactions', () => {
 
   function goToday() { currentMonth.value = new Date(); }
 
-  /** Создать или обновить */
+  // ✅ Нормализуем payload перед отправкой, чтобы 500 не возникал из-за CHECK/NOT NULL
   async function save(tx) {
     loading.value = true;
     try {
-      const { data } = await api.post('/transactions', tx);
+      const amountNum = Number(tx.amount);
+      const dateObj = new Date(tx.date);
+
+      const payload = {
+        ...tx,
+        name: String(tx.name ?? '').trim() || 'Операция',
+        amount: (isFinite(amountNum) && amountNum > 0) ? Math.round(amountNum * 100) / 100 : 0,
+        type: tx.type === 'income' ? 'income' : 'expense',
+        category: String(tx.category ?? '').trim() || 'Прочее',
+        date: isNaN(dateObj.getTime()) ? new Date().toISOString() : dateObj.toISOString(),
+        user: tx.user ? String(tx.user) : null,
+        accountId: tx.accountId ? String(tx.accountId) : null,
+      };
+
+      if (payload.amount <= 0) {
+        throw new Error('Сумма должна быть больше 0');
+      }
+
+      const { data } = await api.post('/transactions', payload);
       if (!data.ok) throw new Error(data.error);
       return data.transaction;
     } finally {
@@ -116,7 +121,6 @@ export const useTransactionsStore = defineStore('transactions', () => {
     }
   }
 
-  /** Удалить */
   async function remove(id) {
     loading.value = true;
     try {
@@ -127,15 +131,15 @@ export const useTransactionsStore = defineStore('transactions', () => {
       loading.value = false;
     }
   }
-  /** Восстановить удалённую (создать заново с тем же id) */
-async function restore(tx) {
-  return save(tx);
-}
 
-return {
-  loading, currentMonth,
-  monthTransactions, filtered, groupedByDay, summary, byUser,
-  setMonth, prevMonth, nextMonth, goToday,
-  save, remove, restore,   // ← добавили restore
-};
+  async function restore(tx) {
+    return save(tx);
+  }
+
+  return {
+    loading, currentMonth,
+    monthTransactions, filtered, groupedByDay, summary, byUser,
+    setMonth, prevMonth, nextMonth, goToday,
+    save, remove, restore,
+  };
 });
