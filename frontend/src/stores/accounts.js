@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { api } from '@/api/client';
+import { useCashStore } from './cash';
 import {
   computeDiff,
   computeExpectedBalance,
@@ -8,6 +9,8 @@ import {
 } from '@/composables/useBalance';
 
 export const useAccountsStore = defineStore('accounts', () => {
+  const cashStore = useCashStore();
+
   const accounts = ref([]);
   const transactions = ref([]);
   const goals = ref([]);
@@ -102,7 +105,6 @@ export const useAccountsStore = defineStore('accounts', () => {
     const { data } = await api.get('/state');
 
     onProgress?.(50, 'Обработка счетов…');
-    // ✅ Сортируем счета — Т-Банк первый
     accounts.value = sortAccounts(data.accounts ?? []);
 
     onProgress?.(70, 'Обработка операций…');
@@ -110,6 +112,9 @@ export const useAccountsStore = defineStore('accounts', () => {
 
     onProgress?.(85, 'Обработка целей…');
     goals.value = data.goals ?? [];
+
+    // ✅ Подтягиваем наличные
+    cashStore.applyFromState(data);
 
     loaded.value = true;
 
@@ -131,10 +136,11 @@ export const useAccountsStore = defineStore('accounts', () => {
   }
 
   function setFromWS(state) {
-    // ✅ Сортируем счета — Т-Банк первый
     accounts.value = sortAccounts(state.accounts ?? []);
     transactions.value = state.transactions ?? [];
     goals.value = state.goals ?? [];
+    // ✅ Синхронизация наличных по WebSocket
+    cashStore.applyFromState(state);
     recalculate();
   }
 

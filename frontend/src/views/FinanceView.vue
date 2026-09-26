@@ -9,6 +9,7 @@ import { notifySaved, notifyError } from '@/composables/useDataStatus';
 
 import PageHero from '@/components/ui/PageHero.vue';
 import AccountsBlock from '@/components/accounts/AccountsBlock.vue';
+import CashBlock from '@/components/cash/CashBlock.vue';
 import ReconcileBanner from '@/components/accounts/ReconcileBanner.vue';
 import ReconcileModal from '@/components/accounts/ReconcileModal.vue';
 import MonthNav from '@/components/transactions/MonthNav.vue';
@@ -20,6 +21,7 @@ const router = useRouter();
 const auth = useAuthStore();
 const accounts = useAccountsStore();
 const toast = useToast();
+const { connect } = useWebSocket();
 
 const reconcileOpen = ref(false);
 const reconcileAccount = ref(null);
@@ -30,6 +32,7 @@ onMounted(async () => {
   try {
     if (!accounts.loaded) await accounts.load();
     notifySaved('готово');
+    connect();
   } catch (e) {
     notifyError(e.message || 'Не удалось загрузить данные');
     toast.error('Не удалось загрузить данные');
@@ -68,6 +71,7 @@ function onUserMenu(owner) {
           @reconcile="onReconcile"
           @user-menu="onUserMenu"
         />
+        <CashBlock />
         <MonthNav />
         <SummaryCompact />
       </aside>
