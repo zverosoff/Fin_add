@@ -19,10 +19,6 @@ const emit = defineEmits(['edit', 'delete']);
 const accounts = useAccountsStore();
 const filters = useFiltersStore();
 
-// ============================================================
-// Вычисляемые данные
-// ============================================================
-
 const accountName = computed(() => accounts.getAccountName(props.tx.accountId));
 const bank = computed(() => accounts.getBank(props.tx.accountId));
 const bankLogoUrl = computed(() => bankLogo(props.tx.accountId));
@@ -38,21 +34,16 @@ const userClass = computed(() =>
   props.tx.user === 'Сергей' ? 'sergey' : 'sasha'
 );
 
-// ============================================================
-// Фильтры по клику
-// ============================================================
-
 function onFilter(key, value) {
   filters.toggle(key, value);
 }
 
 // ============================================================
-// Свайпы (мобильные)
+// Свайпы
 // ============================================================
-
 const el = ref(null);
 const offsetX = ref(0);
-const swipeState = ref(null); // null | 'left' | 'right'
+const swipeState = ref(null);
 
 let touchStartX = 0;
 let touchStartY = 0;
@@ -136,10 +127,10 @@ function itemStyle() {
     @touchmove.passive="onTouchMove"
     @touchend="onTouchEnd"
   >
-    <!-- Аватар: логотип банка или эмодзи -->
+    <!-- ✅ Аватар: логотип банка на белом фоне, либо эмодзи пользователя -->
     <div
-      class="tx-avatar bank-avatar"
-      :class="[bank, userClass]"
+      class="tx-avatar"
+      :class="bankLogoUrl ? 'has-bank' : ('user-' + userClass)"
     >
       <img
         v-if="bankLogoUrl"
@@ -149,7 +140,7 @@ function itemStyle() {
         loading="lazy"
         @error="(e) => (e.target.style.display = 'none')"
       />
-      <span v-else>{{ userEmoji(tx.user) }}</span>
+      <span v-else class="tx-avatar-emoji">{{ userEmoji(tx.user) }}</span>
     </div>
 
     <!-- Основная информация -->
@@ -235,9 +226,6 @@ function itemStyle() {
   }
 }
 
-/* ============================================================
-   Свайпы (мобильные)
-   ============================================================ */
 .tx-item.swipe-left {
   border-color: rgba(239, 68, 68, 0.5);
 }
@@ -246,7 +234,6 @@ function itemStyle() {
   border-color: rgba(59, 130, 246, 0.5);
 }
 
-/* Красный фон с корзиной при свайпе влево */
 .tx-item.swipe-left::before {
   content: "🗑";
   position: absolute;
@@ -266,7 +253,6 @@ function itemStyle() {
   pointer-events: none;
 }
 
-/* Синий фон с карандашом при свайпе вправо */
 .tx-item.swipe-right::before {
   content: "✏️";
   position: absolute;
@@ -292,7 +278,7 @@ function itemStyle() {
 }
 
 /* ============================================================
-   Аватар
+   ✅ АВАТАР
    ============================================================ */
 .tx-avatar {
   width: 40px;
@@ -301,37 +287,34 @@ function itemStyle() {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 20px;
   flex-shrink: 0;
   overflow: hidden;
+  transition: all 0.2s ease;
 
-  &.bank-avatar {
+  /* ✅ Если есть логотип банка — БЕЛЫЙ фон, тонкая граница */
+  &.has-bank {
     background: #ffffff;
-    border: 1px solid var(--border);
+    border: 1px solid rgba(15, 23, 42, 0.08);
+    box-shadow: 0 2px 6px -2px rgba(15, 23, 42, 0.12);
   }
 
-  &.sergey {
+  /* Fallback: эмодзи пользователя на градиенте */
+  &.user-sergey {
     background: linear-gradient(
       135deg,
-      rgba(59, 130, 246, 0.25),
-      rgba(139, 92, 246, 0.25)
+      rgba(59, 130, 246, 0.22),
+      rgba(139, 92, 246, 0.22)
     );
+    border: 1.5px solid rgba(59, 130, 246, 0.35);
   }
 
-  &.sasha {
+  &.user-sasha {
     background: linear-gradient(
       135deg,
-      rgba(236, 72, 153, 0.25),
-      rgba(245, 158, 11, 0.25)
+      rgba(236, 72, 153, 0.22),
+      rgba(245, 158, 11, 0.22)
     );
-  }
-
-  &.bank-avatar.sber {
-    border-color: rgba(33, 160, 56, 0.35);
-  }
-
-  &.bank-avatar.tbank {
-    border-color: rgba(255, 191, 36, 0.45);
+    border: 1.5px solid rgba(236, 72, 153, 0.35);
   }
 }
 
@@ -340,8 +323,12 @@ function itemStyle() {
   height: 100%;
   object-fit: contain;
   padding: 5px;
-  border-radius: 50%;
   box-sizing: border-box;
+}
+
+.tx-avatar-emoji {
+  font-size: 20px;
+  line-height: 1;
 }
 
 /* ============================================================
@@ -512,11 +499,14 @@ function itemStyle() {
   .tx-avatar {
     width: 36px;
     height: 36px;
-    font-size: 18px;
   }
 
   .tx-bank-logo {
     padding: 4px;
+  }
+
+  .tx-avatar-emoji {
+    font-size: 18px;
   }
 
   .tx-name {
@@ -527,10 +517,6 @@ function itemStyle() {
   .tx-meta {
     font-size: 11px;
     gap: 5px;
-  }
-
-  .tx-meta .who::after {
-    margin-left: 5px;
   }
 
   .tx-meta .cat {
@@ -547,7 +533,6 @@ function itemStyle() {
     font-size: 15px;
   }
 
-  /* Кнопки показываем всегда (нет hover) */
   .tx-actions {
     opacity: 1;
   }
