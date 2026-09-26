@@ -3,18 +3,12 @@ meta:
   environment: nodejs
   toolchain:
     name: npm
-    version: 22.12.0
+    version: 18
+
 build:
-  skip: false
-  additionalCommands: npm run build
-  artifacts:
-    '*': /
+  additionalCommands: npm install --prefix backend
+
 run:
+  command: node backend/src/index.js
+  containerPort: 3000
   persistenceMount: /data
-  scriptName: node src/index.js
-  scriptArguments: null
-  nodeArguments: null
-  command: null
-  containerPort: 80
-  singleton: true
-  zeroDowntime: false
