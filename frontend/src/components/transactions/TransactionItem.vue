@@ -6,6 +6,8 @@ import {
   fmt,
   categoryIcon,
   userEmoji,
+  bankLogo,
+  bankLabel,
 } from '@/composables/useFormat';
 
 const props = defineProps({
@@ -19,6 +21,7 @@ const filters = useFiltersStore();
 
 const accountName = computed(() => accounts.getAccountName(props.tx.accountId));
 const bank = computed(() => accounts.getBank(props.tx.accountId));
+const bankLogoUrl = computed(() => bankLogo(props.tx.accountId));
 
 const amountSign = computed(() => (props.tx.type === 'income' ? '+' : '−'));
 const amountClass = computed(() =>
@@ -124,29 +127,19 @@ function itemStyle() {
     @touchmove.passive="onTouchMove"
     @touchend="onTouchEnd"
   >
-    <!-- ✅ Аватар: CSS-круг банка, либо эмодзи пользователя -->
-    <div class="tx-avatar" :class="bank ? ('bank-' + bank) : ('user-' + userClass)">
-      <!-- Сбер: зелёный круг с галочкой -->
-      <svg
-        v-if="bank === 'sber'"
-        class="tx-bank-svg"
-        viewBox="0 0 32 32"
-        fill="none"
-      >
-        <circle cx="16" cy="16" r="15" fill="#21A038"/>
-        <path
-          d="M10 16.5 L14 20.5 L22 12"
-          stroke="#ffffff"
-          stroke-width="3"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-        />
-      </svg>
-
-      <!-- Т-Банк: жёлтый круг с чёрной «Т» -->
-      <span v-else-if="bank === 'tbank'" class="tx-bank-t">Т</span>
-
-      <!-- Fallback: эмодзи пользователя -->
+    <!-- ✅ Аватар: PNG-логотип банка на белом фоне, либо эмодзи -->
+    <div
+      class="tx-avatar"
+      :class="bankLogoUrl ? 'has-bank' : ('user-' + userClass)"
+    >
+      <img
+        v-if="bankLogoUrl"
+        :src="bankLogoUrl"
+        :alt="bankLabel(tx.accountId)"
+        class="tx-bank-logo"
+        loading="lazy"
+        @error="(e) => (e.target.style.display = 'none')"
+      />
       <span v-else class="tx-avatar-emoji">{{ userEmoji(tx.user) }}</span>
     </div>
 
@@ -285,7 +278,7 @@ function itemStyle() {
 }
 
 /* ============================================================
-   ✅ АВАТАР (круглый)
+   ✅ АВАТАР
    ============================================================ */
 .tx-avatar {
   width: 40px;
@@ -297,43 +290,16 @@ function itemStyle() {
   flex-shrink: 0;
   overflow: hidden;
   transition: all 0.2s ease;
-  position: relative;
 }
 
-/* ✅ Т-Банк — жёлтый круг с чёрной «Т» */
-.tx-avatar.bank-tbank {
-  background: #FFDD2D;
-  box-shadow:
-    0 2px 6px -2px rgba(255, 191, 36, 0.5),
-    0 0 0 1px rgba(0, 0, 0, 0.04) inset;
-}
-
-.tx-bank-t {
-  font-family: -apple-system, 'Inter', Arial, sans-serif;
-  font-size: 20px;
-  font-weight: 900;
-  color: #000000;
-  line-height: 1;
-  letter-spacing: -0.03em;
-  transform: translateY(-1px);
-  user-select: none;
-}
-
-/* ✅ Сбер — зелёный круг с белой галочкой (SVG) */
-.tx-avatar.bank-sber {
+/* ✅ Если есть логотип банка — БЕЛЫЙ фон, тонкая граница, лёгкая тень */
+.tx-avatar.has-bank {
   background: #ffffff;
-  box-shadow:
-    0 2px 6px -2px rgba(33, 160, 56, 0.35),
-    0 0 0 1px rgba(15, 23, 42, 0.06);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 2px 6px -2px rgba(15, 23, 42, 0.12);
 }
 
-.tx-bank-svg {
-  width: 100%;
-  height: 100%;
-  display: block;
-}
-
-/* Fallback: эмодзи пользователя */
+/* Fallback: эмодзи пользователя на градиенте */
 .tx-avatar.user-sergey {
   background: linear-gradient(
     135deg,
@@ -350,6 +316,14 @@ function itemStyle() {
     rgba(245, 158, 11, 0.22)
   );
   border: 1.5px solid rgba(236, 72, 153, 0.35);
+}
+
+.tx-bank-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 5px;
+  box-sizing: border-box;
 }
 
 .tx-avatar-emoji {
@@ -522,8 +496,8 @@ function itemStyle() {
     height: 36px;
   }
 
-  .tx-bank-t {
-    font-size: 18px;
+  .tx-bank-logo {
+    padding: 4px;
   }
 
   .tx-avatar-emoji {
