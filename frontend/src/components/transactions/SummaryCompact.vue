@@ -1,4 +1,4 @@
-<!-- src/components/transactions/SummaryCompact.vue -->
+<!-- frontend/src/components/transactions/SummaryCompact.vue -->
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useTransactionsStore } from '@/stores/transactions';

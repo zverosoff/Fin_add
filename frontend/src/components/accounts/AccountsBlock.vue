@@ -1,4 +1,4 @@
-<!-- src/components/accounts/AccountsBlock.vue -->
+<!-- frontend/src/components/accounts/AccountsBlock.vue -->
 <script setup>
 import { computed, ref } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
