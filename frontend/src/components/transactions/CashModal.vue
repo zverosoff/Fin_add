@@ -4,12 +4,12 @@ import { ref, computed, watch } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from '@/composables/useToast';
-import { fmt } from '@/composables/useFormat';
+import { fmt, fmtDateShort } from '@/composables/useFormat';
 import Modal from '@/components/ui/Modal.vue';
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  owner: { type: String, default: '' },      // если задан — только для него
+  owner: { type: String, default: '' },
 });
 
 const emit = defineEmits(['update:modelValue', 'saved']);
@@ -30,12 +30,16 @@ const saving = ref(false);
 
 const isOwnerLocked = computed(() => !!props.owner);
 
-const currentBalance = computed(() => {
-  const acc = accounts.getCashAccount(user.value);
-  return acc ? Number(acc.value) || 0 : 0;
-});
-
+const currentBalance = computed(() => accounts.getCash(user.value));
 const totalCash = computed(() => accounts.totalCash);
+
+// ✅ Последние 5 операций наличных этого пользователя
+const recentOps = computed(() => {
+  return (accounts.transactions || [])
+    .filter(t => t.accountId === 'cash' && t.user === user.value)
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 5);
+});
 
 const preview = computed(() => {
   const v = parseFloat(amount.value);
@@ -87,10 +91,10 @@ async function save() {
   try {
     if (mode.value === 'add') {
       await accounts.addCash(user.value, v, comment.value);
-      toast.success(`💵 +${fmt(v)} ₽ наличных (${user.value})`);
+      toast.success(`💵 +${fmt(v)} ₽ (${user.value})`);
     } else if (mode.value === 'withdraw') {
       await accounts.withdrawCash(user.value, v, comment.value);
-      toast.success(`💵 −${fmt(v)} ₽ наличных (${user.value})`);
+      toast.success(`💵 −${fmt(v)} ₽ (${user.value})`);
     } else {
       const res = await accounts.setCashBalance(user.value, v, comment.value);
       if (res?.unchanged) {
@@ -133,7 +137,7 @@ function close() {
         </div>
       </div>
 
-      <!-- Пользователь (если не заблокирован) -->
+      <!-- Пользователь -->
       <div v-if="!isOwnerLocked" class="field">
         <label>👤 Пользователь</label>
         <div class="chips-row">
@@ -174,9 +178,7 @@ function close() {
 
       <!-- Сумма -->
       <div class="field">
-        <label>
-          {{ mode === 'set' ? '💵 Новый баланс, ₽' : '💵 Сумма, ₽' }}
-        </label>
+        <label>{{ mode === 'set' ? '💵 Новый баланс, ₽' : '💵 Сумма, ₽' }}</label>
         <input
           v-model="amount"
           type="number"
@@ -198,13 +200,34 @@ function close() {
         />
       </div>
 
-      <!-- Превью нового баланса -->
+      <!-- Превью -->
       <div v-if="preview !== null" class="preview">
         <span class="pv-label">Станет:</span>
         <span class="pv-value" :class="preview < 0 ? 'negative' : 'positive'">
           {{ fmt(preview) }} ₽
         </span>
         <span v-if="preview < 0" class="pv-warn">⚠️ Отрицательный баланс</span>
+      </div>
+
+      <!-- ✅ Последние операции -->
+      <div v-if="recentOps.length > 0" class="recent">
+        <div class="recent-title">Последние операции {{ user }}</div>
+        <div class="recent-list">
+          <div
+            v-for="op in recentOps"
+            :key="op.id"
+            class="recent-row"
+          >
+            <span class="rr-date">{{ fmtDateShort(op.date) }}</span>
+            <span class="rr-name">{{ op.name }}</span>
+            <span
+              class="rr-amount"
+              :class="op.type === 'income' ? 'income' : 'expense'"
+            >
+              {{ op.type === 'income' ? '+' : '−' }}{{ fmt(op.amount) }} ₽
+            </span>
+          </div>
+        </div>
       </div>
 
       <div v-if="error" class="error-msg">{{ error }}</div>
@@ -382,6 +405,66 @@ function close() {
     font-size: 11.5px;
     color: #d97706;
     font-weight: 700;
+  }
+}
+
+/* ✅ Последние операции */
+.recent {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  background: rgba(148, 163, 184, 0.05);
+  border: 1px solid var(--border);
+}
+
+.recent-title {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.recent-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.recent-row {
+  display: grid;
+  grid-template-columns: 46px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  padding: 4px 0;
+
+  .rr-date {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--muted);
+    font-weight: 700;
+  }
+
+  .rr-name {
+    color: var(--text);
+    font-weight: 600;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+
+  .rr-amount {
+    font-family: var(--mono);
+    font-size: 12px;
+    font-weight: 800;
+    white-space: nowrap;
+
+    &.income { color: #16a34a; }
+    &.expense { color: #dc2626; }
   }
 }
 

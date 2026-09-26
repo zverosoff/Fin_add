@@ -1,3 +1,4 @@
+<!-- src/components/accounts/AccountsBlock.vue -->
 <script setup>
 import { computed, ref } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
@@ -11,10 +12,9 @@ const auth = useAuthStore();
 const userName = computed(() => auth.user || 'Сергей');
 const userEmoji = computed(() => userName.value === 'Сергей' ? '👨' : '👩');
 
-// ✅ Общий баланс (все счета всех пользователей)
 const totalBalance = computed(() => accounts.total);
+const totalCash = computed(() => accounts.totalCash);
 
-// ✅ Активный — первым
 const ownersSorted = computed(() => {
   const all = Object.keys(accounts.byOwner || {});
   const me = userName.value;
@@ -25,8 +25,6 @@ const ownersSorted = computed(() => {
   });
 });
 
-// ✅ Состояние раскрытия по каждому владельцу
-// true = показаны счета (чипы), false = показан общий баланс
 const expandedOwners = ref({});
 
 function isExpanded(owner) {
@@ -64,6 +62,13 @@ function isMe(owner) {
         <div class="bc-balance">
           <div class="bc-label">Ваш общий баланс</div>
           <div class="bc-amount">{{ fmt(totalBalance) }} ₽</div>
+
+          <!-- ✅ НАЛИЧНЫЕ — только общая сумма -->
+          <div class="bc-cash" :class="{ 'is-zero': totalCash === 0 }">
+            <span class="bc-cash-icon">💵</span>
+            <span class="bc-cash-label">Наличные</span>
+            <span class="bc-cash-value">{{ fmt(totalCash) }} ₽</span>
+          </div>
         </div>
 
         <div class="bc-avatar">
@@ -79,7 +84,6 @@ function isMe(owner) {
           class="bc-owner-row"
           :class="{ 'is-me': isMe(owner), 'is-expanded': isExpanded(owner) }"
         >
-          <!-- Имя владельца — клик переключает режим -->
           <button
             class="bc-owner-name"
             type="button"
@@ -94,7 +98,6 @@ function isMe(owner) {
             </svg>
           </button>
 
-          <!-- ✅ Чипы счетов (раскрыто) -->
           <div v-if="isExpanded(owner)" class="bc-chips">
             <button
               v-for="acc in accounts.byOwner[owner]"
@@ -116,7 +119,6 @@ function isMe(owner) {
             </button>
           </div>
 
-          <!-- ✅ Общий баланс владельца (свёрнуто) -->
           <div v-else class="bc-owner-total">
             {{ fmt(ownerTotal(accounts.byOwner[owner])) }} ₽
           </div>
@@ -133,9 +135,6 @@ function isMe(owner) {
   gap: 12px;
 }
 
-/* ============================================================
-   БАНКОВСКАЯ КАРТА
-   ============================================================ */
 .bank-card {
   position: relative;
   border-radius: 22px;
@@ -192,6 +191,47 @@ function isMe(owner) {
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
+/* ✅ НАЛИЧНЫЕ */
+.bc-cash {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  padding: 5px 12px 5px 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+  transition: opacity 0.2s;
+
+  &.is-zero {
+    opacity: 0.7;
+  }
+}
+
+.bc-cash-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.bc-cash-label {
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  opacity: 0.85;
+}
+
+.bc-cash-value {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+}
+
 .bc-avatar {
   width: 62px;
   height: 62px;
@@ -217,9 +257,6 @@ function isMe(owner) {
   background: linear-gradient(135deg, #f0f9ff 0%, #f5f3ff 100%);
 }
 
-/* ============================================================
-   СЧЕТА ВНУТРИ КАРТОЧКИ
-   ============================================================ */
 .bc-accounts {
   display: flex;
   flex-direction: column;
@@ -237,14 +274,11 @@ function isMe(owner) {
   border-radius: 10px;
   transition: background 0.25s;
 
-  /* ✅ Подсветка активного — убрана белая подложка,
-     оставим только тонкую границу, чтобы выделить своего */
   &.is-me {
     background: transparent;
   }
 }
 
-/* ✅ Имя владельца — без белой подложки, компактная pill */
 .bc-owner-name {
   display: inline-flex;
   align-items: center;
@@ -271,7 +305,6 @@ function isMe(owner) {
 
   &:active { transform: scale(0.97); }
 
-  /* ✅ Активный пользователь — жирный текст, без белой подложки */
   .is-me & {
     background: rgba(255, 255, 255, 0.08);
     border-color: rgba(255, 255, 255, 0.5);
@@ -296,7 +329,6 @@ function isMe(owner) {
   letter-spacing: 0.05em;
 }
 
-/* ✅ Стрелка раскрытия */
 .bc-owner-chev {
   width: 14px;
   height: 14px;
@@ -307,7 +339,6 @@ function isMe(owner) {
   &.open { transform: rotate(180deg); }
 }
 
-/* ✅ Чипы счетов (раскрыто) */
 .bc-chips {
   display: flex;
   align-items: center;
@@ -383,7 +414,6 @@ function isMe(owner) {
   letter-spacing: -0.02em;
 }
 
-/* ✅ Итог по владельцу (свёрнуто) */
 .bc-owner-total {
   margin-left: auto;
   padding: 4px 12px;
@@ -400,9 +430,6 @@ function isMe(owner) {
   animation: chipsIn 0.25s ease;
 }
 
-/* ============================================================
-   МОБИЛЬНЫЙ
-   ============================================================ */
 @media (max-width: 700px) {
   .bank-card {
     padding: 18px 18px 14px;
@@ -413,6 +440,15 @@ function isMe(owner) {
 
   .bc-label { font-size: 10px; }
   .bc-amount { font-size: 30px; margin-top: 4px; }
+
+  .bc-cash {
+    margin-top: 8px;
+    padding: 4px 10px 4px 7px;
+    gap: 5px;
+  }
+  .bc-cash-icon { font-size: 12px; }
+  .bc-cash-label { font-size: 9.5px; }
+  .bc-cash-value { font-size: 12px; }
 
   .bc-avatar {
     width: 54px;
