@@ -26,6 +26,13 @@ const deleteTxStmt = db.prepare('DELETE FROM transactions WHERE id = ?');
 
 function readAppState() {
   const row = db.prepare('SELECT data FROM app_state WHERE id = 1').get();
+  if (!row) {
+    // Восстанавливаем начальное состояние
+    const INITIAL_STATE = { version: 1, users: ['Сергей', 'Саша'], accounts: [], incomes: [], expenses: [], goals: [], flat: {} };
+    db.prepare('INSERT INTO app_state (id, data, updated_at) VALUES (1, ?, ?)')
+      .run(JSON.stringify(INITIAL_STATE), new Date().toISOString());
+    return INITIAL_STATE;
+  }
   return JSON.parse(row.data);
 }
 

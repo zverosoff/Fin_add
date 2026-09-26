@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const DATA_DIR =
+  (fs.existsSync('/data') && '/data') || 
   process.env.DATA_DIR ||
   (fs.existsSync('/data') ? '/data' : path.resolve(__dirname, '../../data'));
 if (!fs.existsSync(DATA_DIR)) {
@@ -20,6 +21,8 @@ const db = new Database(DB_PATH);
 
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
+db.pragma('busy_timeout = 5000');     // ← добавить
+db.pragma('synchronous = NORMAL');  
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS app_state (
