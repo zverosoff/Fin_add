@@ -11,19 +11,27 @@ const { connected } = useWebSocket();
 const accounts = useAccountsStore();
 const scanStore = useScanStore();
 
-// ✅ FAB: спиннер 8.5 сек после монтирования (2.5 + 6)
-const FAB_BOOT_DURATION = 8500;
-const fabBooting = ref(true);
+// ✅ Фазы FAB: 'loading' → 'success' → 'ok'/'error'
+const LOADING_MS = 2500;   // спиннер
+const SUCCESS_MS = 1500;   // галочка
+const fabPhase = ref('loading');  // 'loading' | 'success' | 'ready'
 
 onMounted(() => {
+  // loading → success
   setTimeout(() => {
-    fabBooting.value = false;
-  }, FAB_BOOT_DURATION);
+    fabPhase.value = 'success';
+    // success → ready
+    setTimeout(() => {
+      fabPhase.value = 'ready';
+    }, SUCCESS_MS);
+  }, LOADING_MS);
 });
 
-// Статус сервера
+// ✅ Финальный статус FAB
 const serverStatus = computed(() => {
-  if (fabBooting.value) return 'loading';
+  if (fabPhase.value === 'loading') return 'loading';
+  if (fabPhase.value === 'success') return 'success';
+  // ready
   if (!accounts.loaded) return 'loading';
   if (!connected.value) return 'error';
   return 'ok';
@@ -39,7 +47,6 @@ const navRight = [
   { to: '/profile',  icon: '👤', label: 'Профиль' },
 ];
 
-// ✅ Ссылки на кнопки для точного расчёта позиции индикатора
 const tabRefs = ref({});
 
 function setTabRef(to, el) {
@@ -56,7 +63,6 @@ const activeTabTo = computed(() => {
   return null;
 });
 
-// ✅ Позиция индикатора через offsetLeft/offsetWidth
 const indicatorStyle = ref({ opacity: 0, left: '0px', width: '0px' });
 
 function updateIndicator() {
@@ -102,11 +108,7 @@ function handleFabClick() {
 <template>
   <nav class="bottom-nav">
     <div class="bn-inner">
-      <!-- Индикатор -->
-      <div
-        class="bn-indicator"
-        :style="indicatorStyle"
-      ></div>
+      <div class="bn-indicator" :style="indicatorStyle"></div>
 
       <!-- Финансы, Анализ -->
       <button
@@ -131,14 +133,22 @@ function handleFabClick() {
           @click="handleFabClick"
           aria-label="Сканировать чек"
         >
+          <!-- Loading: спиннер -->
           <svg v-if="serverStatus === 'loading'" class="bn-fab-spinner" viewBox="0 0 50 50">
             <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
           </svg>
 
+          <!-- Success: зелёная галочка -->
+          <svg v-else-if="serverStatus === 'success'" class="bn-fab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
+
+          <!-- OK: камера -->
           <svg v-else-if="serverStatus === 'ok'" class="bn-fab-icon" viewBox="0 0 24 24" fill="currentColor">
             <path d="M9 3 7.17 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.17L15 3H9zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
           </svg>
 
+          <!-- Error: восклицательный знак -->
           <svg v-else class="bn-fab-icon" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2 1 21h22L12 2zm1 16h-2v-2h2v2zm0-4h-2V9h2v5z"/>
           </svg>
@@ -287,6 +297,7 @@ function handleFabClick() {
 
   &:active { transform: scale(0.94); }
 
+  /* Загрузка — сине-фиолетовая со спиннером */
   &.is-loading {
     background: linear-gradient(135deg, #3b82f6, #8b5cf6);
     box-shadow:
@@ -295,6 +306,16 @@ function handleFabClick() {
     cursor: wait;
   }
 
+  /* ✅ Успех — зелёная с галочкой */
+  &.is-success {
+    background: linear-gradient(135deg, #22c55e, #16a34a);
+    box-shadow:
+      0 10px 28px -8px rgba(34, 197, 94, 0.8),
+      0 0 0 5px rgba(255, 255, 255, 0.75);
+    animation: fabSuccessPop 0.35s cubic-bezier(.34,1.56,.64,1);
+  }
+
+  /* Готов — сине-фиолетовая с камерой */
   &.is-ok {
     background: linear-gradient(135deg, #3b82f6, #8b5cf6);
     box-shadow:
@@ -302,12 +323,20 @@ function handleFabClick() {
       0 0 0 5px rgba(255, 255, 255, 0.75);
   }
 
+  /* Ошибка — красная */
   &.is-error {
     background: linear-gradient(135deg, #ef4444, #dc2626);
     box-shadow:
       0 10px 28px -8px rgba(239, 68, 68, 0.75),
       0 0 0 5px rgba(255, 255, 255, 0.75);
   }
+}
+
+/* Анимация появления галочки */
+@keyframes fabSuccessPop {
+  0%   { transform: scale(0.85); }
+  60%  { transform: scale(1.1); }
+  100% { transform: scale(1); }
 }
 
 .bn-fab-spinner {
@@ -336,6 +365,24 @@ function handleFabClick() {
   height: 30px;
 }
 
+/* Галочка чуть крупнее */
+.bn-fab.is-success .bn-fab-icon {
+  width: 34px;
+  height: 34px;
+  animation: checkDraw 0.4s ease-out;
+}
+
+@keyframes checkDraw {
+  from {
+    stroke-dasharray: 30;
+    stroke-dashoffset: 30;
+  }
+  to {
+    stroke-dasharray: 30;
+    stroke-dashoffset: 0;
+  }
+}
+
 @media (max-width: 700px) {
   .bottom-nav {
     padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0));
@@ -351,5 +398,6 @@ function handleFabClick() {
   }
   .bn-fab-icon { width: 28px; height: 28px; }
   .bn-fab-spinner { width: 28px; height: 28px; }
+  .bn-fab.is-success .bn-fab-icon { width: 32px; height: 32px; }
 }
 </style>
