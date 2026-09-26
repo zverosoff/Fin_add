@@ -1,17 +1,26 @@
+<!-- src/components/transactions/SummaryCompact.vue -->
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue';
 import { useTransactionsStore } from '@/stores/transactions';
+import { useAccountsStore } from '@/stores/accounts';
 import { fmt } from '@/composables/useFormat';
+import CashModal from './CashModal.vue';
 
 const tx = useTransactionsStore();
+const accounts = useAccountsStore();
 
 const LS_KEY = 'financeProUsersCollapsed_v1';
 const collapsed = ref(true);
+
+const LS_CASH_KEY = 'financeProCashCollapsed_v1';
+const cashCollapsed = ref(false);
 
 onMounted(() => {
   try {
     const saved = localStorage.getItem(LS_KEY);
     if (saved !== null) collapsed.value = saved === '1';
+    const savedCash = localStorage.getItem(LS_CASH_KEY);
+    if (savedCash !== null) cashCollapsed.value = savedCash === '1';
   } catch (e) {}
 });
 
@@ -19,14 +28,46 @@ watch(collapsed, (val) => {
   try { localStorage.setItem(LS_KEY, val ? '1' : '0'); } catch (e) {}
 });
 
+watch(cashCollapsed, (val) => {
+  try { localStorage.setItem(LS_CASH_KEY, val ? '1' : '0'); } catch (e) {}
+});
+
 function toggle() {
   collapsed.value = !collapsed.value;
+}
+
+function toggleCash() {
+  cashCollapsed.value = !cashCollapsed.value;
 }
 
 const balanceClass = computed(() => {
   const b = tx.summary.balance;
   return b > 0 ? 'positive' : b < 0 ? 'negative' : '';
 });
+
+const totalCash = computed(() => accounts.totalCash);
+
+const cashOwners = computed(() => {
+  const result = [];
+  for (const owner of ['Сергей', 'Саша']) {
+    const acc = accounts.getCashAccount(owner);
+    result.push({
+      owner,
+      emoji: owner === 'Сергей' ? '👨' : '👩',
+      value: acc ? Number(acc.value) || 0 : 0,
+    });
+  }
+  return result;
+});
+
+// Модалка
+const cashModalOpen = ref(false);
+const cashModalOwner = ref('');
+
+function openCashModal(owner = '') {
+  cashModalOwner.value = owner;
+  cashModalOpen.value = true;
+}
 </script>
 
 <template>
@@ -51,6 +92,9 @@ const balanceClass = computed(() => {
       </div>
     </div>
 
+    <!-- ============================================================ -->
+    <!-- Блок «По пользователям» -->
+    <!-- ============================================================ -->
     <div class="sc-users-header" @click="toggle">
       <span class="sc-users-icon">👥</span>
       <span class="sc-users-title">По пользователям</span>
@@ -80,6 +124,53 @@ const balanceClass = computed(() => {
         </span>
       </div>
     </div>
+
+    <!-- ============================================================ -->
+    <!-- ✅ Блок «Наличные» -->
+    <!-- ============================================================ -->
+    <div class="sc-cash-header" @click="toggleCash">
+      <span class="sc-cash-icon">💵</span>
+      <span class="sc-cash-title">Наличные</span>
+      <span class="sc-cash-total">{{ fmt(totalCash) }} ₽</span>
+      <button class="sc-toggle" type="button" :aria-label="cashCollapsed ? 'Развернуть' : 'Свернуть'">
+        <svg viewBox="0 0 24 24" class="chev" :class="{ open: !cashCollapsed }">
+          <path d="M7 10l5 5 5-5z"/>
+        </svg>
+      </button>
+      <button
+        class="sc-cash-add"
+        type="button"
+        title="Добавить/изъять наличные"
+        @click.stop="openCashModal()"
+      >+</button>
+    </div>
+
+    <div class="sc-cash-body">
+      <div
+        v-for="item in cashOwners"
+        :key="item.owner"
+        class="sc-cash-row"
+        :class="item.owner === 'Сергей' ? 'sergey' : 'sasha'"
+        @click="openCashModal(item.owner)"
+        :title="`Изменить наличные ${item.owner}`"
+      >
+        <span class="sc-cash-avatar">{{ item.emoji }}</span>
+        <span class="sc-cash-name">{{ item.owner }}</span>
+        <span
+          class="sc-cash-value"
+          :class="item.value > 0 ? 'positive' : 'muted'"
+        >
+          {{ fmt(item.value) }} ₽
+        </span>
+      </div>
+
+      <div v-if="totalCash === 0" class="sc-cash-empty">
+        Наличных пока нет. Нажмите <strong>+</strong>, чтобы добавить.
+      </div>
+    </div>
+
+    <!-- Модалка -->
+    <CashModal v-model="cashModalOpen" :owner="cashModalOwner" />
   </div>
 </template>
 
@@ -141,6 +232,9 @@ const balanceClass = computed(() => {
   background: linear-gradient(180deg, transparent, var(--border), transparent);
 }
 
+/* ============================================================
+   По пользователям
+   ============================================================ */
 .sc-users-header {
   display: flex;
   align-items: center;
@@ -151,9 +245,7 @@ const balanceClass = computed(() => {
   cursor: pointer;
   user-select: none;
 
-  &:hover .sc-users-title {
-    color: var(--accent);
-  }
+  &:hover .sc-users-title { color: var(--accent); }
 }
 
 .sc-users-icon { font-size: 14px; flex-shrink: 0; }
@@ -196,7 +288,7 @@ const balanceClass = computed(() => {
   }
 }
 
-.summary-compact:not(.collapsed) .sc-toggle .chev {
+.summary-compact:not(.collapsed) .sc-toggle .chev:not(.open) {
   transform: rotate(180deg);
 }
 
@@ -267,7 +359,160 @@ const balanceClass = computed(() => {
 }
 
 /* ============================================================
-   МОБИЛЬНЫЙ
+   ✅ Наличные
+   ============================================================ */
+.sc-cash-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--border);
+  cursor: pointer;
+  user-select: none;
+
+  &:hover .sc-cash-title { color: #16a34a; }
+}
+
+.sc-cash-icon { font-size: 14px; flex-shrink: 0; }
+
+.sc-cash-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  transition: color 0.15s;
+}
+
+.sc-cash-total {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 800;
+  color: #16a34a;
+  margin-left: auto;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.1);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+  white-space: nowrap;
+}
+
+.sc-cash-add {
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  border: 1px solid rgba(34, 197, 94, 0.4);
+  background: rgba(34, 197, 94, 0.08);
+  color: #16a34a;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+  transition: all 0.15s;
+
+  &:hover {
+    background: #16a34a;
+    color: #fff;
+    transform: scale(1.05);
+  }
+  &:active { transform: scale(0.95); }
+}
+
+.sc-cash-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  max-height: 300px;
+  opacity: 1;
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.22s ease, margin 0.25s ease;
+}
+
+.sc-cash-body.collapsed,
+.summary-compact.cash-collapsed .sc-cash-body {
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0;
+}
+
+.sc-cash-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  margin: 0 -8px;
+  border-radius: 8px;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 0.15s;
+
+  &:hover {
+    background: rgba(34, 197, 94, 0.06);
+  }
+
+  &.sergey .sc-cash-avatar { background: rgba(59, 130, 246, 0.12); }
+  &.sasha  .sc-cash-avatar { background: rgba(236, 72, 153, 0.12); }
+}
+
+.sc-cash-avatar {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.sc-cash-name {
+  font-weight: 700;
+  color: var(--text);
+  min-width: 52px;
+}
+
+.sc-cash-value {
+  margin-left: auto;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 800;
+  white-space: nowrap;
+  padding: 2px 10px;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.08);
+  border: 1px solid rgba(34, 197, 94, 0.25);
+
+  &.positive { color: #16a34a; }
+  &.muted {
+    color: var(--muted);
+    background: rgba(148, 163, 184, 0.08);
+    border-color: var(--border);
+  }
+}
+
+.sc-cash-empty {
+  padding: 10px 12px;
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--muted);
+  background: rgba(148, 163, 184, 0.06);
+  border-radius: 8px;
+  border: 1px dashed var(--border);
+  line-height: 1.4;
+
+  strong { color: #16a34a; font-weight: 800; }
+}
+
+/* ============================================================
+   Мобильный
    ============================================================ */
 @media (max-width: 700px) {
   .summary-compact {
@@ -308,5 +553,27 @@ const balanceClass = computed(() => {
     font-size: 10px;
     padding: 1px 6px;
   }
+
+  /* Наличные */
+  .sc-cash-header {
+    margin-top: 10px;
+    padding-top: 8px;
+    gap: 6px;
+  }
+  .sc-cash-icon { font-size: 12px; }
+  .sc-cash-title { font-size: 10px; }
+  .sc-cash-total { font-size: 12px; padding: 2px 8px; }
+  .sc-cash-add { width: 24px; height: 24px; font-size: 15px; }
+
+  .sc-cash-row {
+    padding: 5px 6px;
+    margin: 0 -6px;
+    gap: 6px;
+  }
+  .sc-cash-avatar { width: 20px; height: 20px; font-size: 11px; }
+  .sc-cash-name { font-size: 11px; min-width: 44px; }
+  .sc-cash-value { font-size: 11px; padding: 1px 8px; }
+
+  .sc-cash-empty { font-size: 10.5px; padding: 8px 10px; }
 }
 </style>
