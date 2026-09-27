@@ -6,6 +6,8 @@ const STORAGE_KEY = 'finance-theme-v1';
 export const THEMES = [
   { id: 'light',    label: 'Светлая',   icon: '☀️',  bg: '#f2f2f7',  bgPattern: null },
   { id: 'dark',     label: 'Тёмная',    icon: '🌙',  bg: '#0f1419',  bgPattern: null },
+  { id: 'sunset',   label: 'Закат',     icon: '🌅',  bg: '#1a0f1f',  bgPattern: null },
+  { id: 'night',    label: 'Ночь',      icon: '🌌',  bg: '#070b14',  bgPattern: null },
   { id: 'auto',     label: 'Как в системе', icon: '⚙️', bg: null,     bgPattern: null },
 ];
 

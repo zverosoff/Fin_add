@@ -26,12 +26,12 @@ const text = ref('');
 const sending = ref(false);
 const scrollEl = ref(null);
 const inputEl = ref(null);
+const fileEl = ref(null);
 
 // Контекстное меню
 const menu = ref({ open: false, x: 0, y: 0, message: null });
 
-// Панели: настройки / emoji / "обычный" input
-// panel: 'keyboard' | 'emoji' | 'settings'
+// Панели
 const activePanel = ref('keyboard');
 
 // Режим редактирования
@@ -40,6 +40,12 @@ const editText = ref('');
 
 // Ответ
 const replyTo = ref(null);
+
+// ✅ Изображение к отправке
+const pendingImage = ref(null);
+
+// ✅ Fullscreen просмотр
+const fullscreenImage = ref(null);
 
 // Mobile viewport
 const panelHeight = ref('');
@@ -52,7 +58,10 @@ const loadingOlder = ref(false);
 const showScrollDown = ref(false);
 const newBelowCount = ref(0);
 
-// Emoji picker: категории
+// ✅ Swipe-to-reply
+const swipeState = ref({ id: null, startX: 0, startY: 0, dx: 0, active: false });
+
+// Emoji picker
 const EMOJI_CATEGORIES = [
   {
     id: 'smileys',
@@ -136,7 +145,7 @@ function autoResize() {
   const el = inputEl.value;
   if (!el) return;
   el.style.height = 'auto';
-  const maxH = 5 * 18 + 14; // 5 строк * line-height + padding
+  const maxH = 5 * 18 + 14;
   el.style.height = Math.min(el.scrollHeight, maxH) + 'px';
 }
 
@@ -144,6 +153,44 @@ function onInput() {
   autoResize();
   if (text.value.trim()) messages.notifyTypingStart(peer.value);
   else messages.notifyTypingStop(peer.value);
+}
+
+// ============================================================
+// Изображения
+// ============================================================
+function openFilePicker() {
+  fileEl.value?.click();
+}
+
+function onFileChange(e) {
+  const file = e.target.files?.[0];
+  if (!file) return;
+  if (!file.type.startsWith('image/')) {
+    toast.error('Только изображения');
+    return;
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    toast.error('Максимум 5MB');
+    return;
+  }
+  const reader = new FileReader();
+  reader.onload = () => {
+    pendingImage.value = reader.result;
+  };
+  reader.readAsDataURL(file);
+  e.target.value = '';
+}
+
+function cancelImage() {
+  pendingImage.value = null;
+}
+
+function openFullscreen(src) {
+  fullscreenImage.value = src;
+}
+
+function closeFullscreen() {
+  fullscreenImage.value = null;
 }
 
 // ============================================================
@@ -169,7 +216,6 @@ function insertEmoji(emoji) {
 }
 
 function onBackspace() {
-  // Удаляем последний символ (правильно работает с эмодзи)
   text.value = [...text.value].slice(0, -1).join('');
   nextTick(autoResize);
 }
@@ -266,6 +312,7 @@ async function toggle() {
     closeMenu();
     messages.notifyTypingStop(peer.value);
     activePanel.value = 'keyboard';
+    pendingImage.value = null;
   }
 }
 
@@ -283,16 +330,16 @@ function close() { if (open.value) toggle(); }
 // ============================================================
 async function send() {
   const clean = text.value.trim();
-  if (!clean || sending.value) return;
+  if ((!clean && !pendingImage.value) || sending.value) return;
   sending.value = true;
   try {
-    await messages.send(peer.value, clean, replyTo.value?.id || null);
+    await messages.send(peer.value, clean, replyTo.value?.id || null, pendingImage.value);
     text.value = '';
     replyTo.value = null;
+    pendingImage.value = null;
     await nextTick();
     autoResize();
     try { playOutgoingMessage(); } catch (e) {}
-    // ✅ Всегда докручиваем вниз при отправке
     await nextTick();
     scrollToBottom(true);
   } catch (e) {
@@ -306,7 +353,8 @@ async function send() {
 function onKeydown(e) {
   if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
   if (e.key === 'Escape') {
-    if (editing.value) editing.value = null;
+    if (fullscreenImage.value) fullscreenImage.value = null;
+    else if (editing.value) editing.value = null;
     else if (replyTo.value) replyTo.value = null;
     else close();
   }
@@ -370,7 +418,7 @@ function getQuoteText(id) {
   const m = messages.messageById(id);
   if (!m) return 'сообщение';
   const who = m.from === me.value ? 'Вы' : m.from;
-  const txt = (m.text || '').slice(0, 60);
+  const txt = (m.text || '').slice(0, 60) || (m.image ? '📷 Изображение' : '');
   return `${who}: ${txt}`;
 }
 
@@ -388,7 +436,7 @@ async function addReaction(msg, emoji) {
 async function copyMessage(msg) {
   closeMenu();
   try {
-    await navigator.clipboard.writeText(msg.text);
+    await navigator.clipboard.writeText(msg.text || '');
     toast.success('📋 Скопировано');
   } catch (e) { toast.error('Не удалось скопировать'); }
 }
@@ -439,11 +487,21 @@ const currentUserReactionOn = computed(() => {
 });
 
 // ============================================================
-// Long-press
+// Long-press + Swipe-to-reply
 // ============================================================
 function onTouchStart(e, msg) {
   if (window.innerWidth > 700) return;
   if (e.touches.length !== 1) return;
+
+  // Swipe-to-reply
+  swipeState.value = {
+    id: msg.id,
+    startX: e.touches[0].clientX,
+    startY: e.touches[0].clientY,
+    dx: 0,
+    active: true,
+  };
+
   longPressTriggered = false;
   pointerStillDown = true;
   longPressStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -462,15 +520,25 @@ function onTouchStart(e, msg) {
 }
 
 function onTouchMove(e) {
-  if (!longPressTimer || !longPressStart) return;
-  if (e.touches.length !== 1) return;
-  const dx = Math.abs(e.touches[0].clientX - longPressStart.x);
-  const dy = Math.abs(e.touches[0].clientY - longPressStart.y);
-  if (dx > 10 || dy > 10) {
-    clearTimeout(longPressTimer);
-    longPressTimer = null;
-    longPressStart = null;
-    pointerStillDown = false;
+  const s = swipeState.value;
+  if (!s.active || e.touches.length !== 1) return;
+  const dx = e.touches[0].clientX - s.startX;
+  const dy = e.touches[0].clientY - s.startY;
+
+  // Если свайп явно горизонтальный — гасим long-press
+  if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
+    s.dx = Math.max(0, dx);
+  } else if (Math.abs(dy) > 10) {
+    // Вертикальный скролл — сбрасываем свайп
+    s.dx = 0;
+    if (longPressTimer) {
+      clearTimeout(longPressTimer);
+      longPressTimer = null;
+    }
   }
 }
 
@@ -480,6 +548,16 @@ function onTouchEnd(e) {
     longPressTimer = null;
   }
   pointerStillDown = false;
+
+  const s = swipeState.value;
+  if (s.active && s.dx > 60) {
+    const msg = messages.messageById(s.id);
+    if (msg) startReply(msg);
+    if (e && e.cancelable) e.preventDefault();
+    e && e.stopPropagation();
+  }
+  swipeState.value = { id: null, startX: 0, startY: 0, dx: 0, active: false };
+
   if (longPressTriggered) {
     if (e && e.cancelable) e.preventDefault();
     e && e.stopPropagation();
@@ -561,9 +639,6 @@ function onBeforeUnload() {
 
 function onViewportResize() { updateViewport(); }
 
-// ============================================================
-// ✅ Скролл при новом сообщении — всегда видно полностью
-// ============================================================
 watch(history, async (newList, oldList) => {
   if (!open.value) return;
   const added = newList.length > (oldList?.length || 0);
@@ -572,11 +647,9 @@ watch(history, async (newList, oldList) => {
   const wasNearBottom = isNearBottom();
   await nextTick();
 
-  // Всегда скроллим, чтобы новое сообщение было видно полностью
   if (wasNearBottom) {
     scrollToBottom(true);
   } else {
-    // Пользователь наверху — увеличим счётчик и покажем кнопку
     newBelowCount.value += (newList.length - (oldList?.length || 0));
     showScrollDown.value = true;
   }
@@ -669,7 +742,6 @@ watch(open, (v) => { if (v) askNotifications(); });
           </div>
         </div>
 
-        <!-- ✅ Кнопка настроек (темы/фоны) -->
         <button
           class="chat-head-action"
           :class="{ active: activePanel === 'settings' }"
@@ -697,7 +769,7 @@ watch(open, (v) => { if (v) askNotifications(); });
             Закреплённое
             <span v-if="peerTyping" class="pinned-typing">· {{ peer }} печатает…</span>
           </div>
-          <div class="pinned-text">{{ pinnedLatest.text }}</div>
+          <div class="pinned-text">{{ pinnedLatest.text || '📷 Изображение' }}</div>
         </div>
         <button class="pinned-unpin" @click.stop="togglePin(pinnedLatest)">
           <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
@@ -734,7 +806,14 @@ watch(open, (v) => { if (v) askNotifications(); });
 
             <div
               class="chat-msg"
-              :class="m.from === me ? 'out' : 'in'"
+              :class="{
+                out: m.from === me,
+                in: m.from !== me,
+                swiping: swipeState.active && swipeState.id === m.id && swipeState.dx > 0,
+              }"
+              :style="swipeState.active && swipeState.id === m.id
+                ? { transform: `translateX(${Math.min(swipeState.dx, 80)}px)` }
+                : {}"
               :data-msg-id="m.id"
               @contextmenu="onContextMenu($event, m)"
               @touchstart="onTouchStart($event, m)"
@@ -754,7 +833,12 @@ watch(open, (v) => { if (v) askNotifications(); });
                   <div class="br-text">{{ getQuoteText(m.replyTo) }}</div>
                 </div>
 
-                <div class="chat-text" v-html="linkify(m.text)"></div>
+                <!-- ✅ Изображение -->
+                <div v-if="m.image" class="bubble-image" @click.stop="openFullscreen(m.image)">
+                  <img :src="m.image" alt="image" loading="lazy" />
+                </div>
+
+                <div v-if="m.text" class="chat-text" v-html="linkify(m.text)"></div>
 
                 <div class="chat-meta">
                   <span v-if="m.editedAt" class="chat-edited">изм.</span>
@@ -766,7 +850,7 @@ watch(open, (v) => { if (v) askNotifications(); });
                   >{{ m.readAt ? '✓✓' : '✓' }}</span>
                 </div>
 
-                <!-- ✅ Реакции — прижаты к левому низу bubble, абсолютно, не растягивают -->
+                <!-- ✅ Реакции — в потоке, не перекрывают -->
                 <div v-if="m.reactions?.length" class="bubble-reactions">
                   <button
                     v-for="r in m.reactions"
@@ -810,12 +894,18 @@ watch(open, (v) => { if (v) askNotifications(); });
         <div class="cep-icon">✏️</div>
         <div class="cep-body">
           <div class="cep-label">Редактирование</div>
-          <div class="cep-text">{{ editing.text }}</div>
+          <div class="cep-text">{{ editing.text || '📷 Изображение' }}</div>
         </div>
         <button class="cep-close" @click="cancelEdit">✕</button>
       </div>
 
-      <!-- ✅ Ввод: авторастущий + emoji + настройки -->
+      <!-- ✅ Превью изображения перед отправкой -->
+      <div v-if="pendingImage" class="chat-image-preview">
+        <img :src="pendingImage" alt="preview" />
+        <button class="cip-close" @click="cancelImage">✕</button>
+      </div>
+
+      <!-- Ввод -->
       <div class="chat-input-row">
         <template v-if="editing">
           <button class="chat-input-btn chat-input-btn-accept" @click="saveEdit">
@@ -835,7 +925,25 @@ watch(open, (v) => { if (v) askNotifications(); });
         </template>
 
         <template v-else>
-          <!-- Emoji button -->
+          <input
+            ref="fileEl"
+            type="file"
+            accept="image/*"
+            class="chat-file-input"
+            @change="onFileChange"
+          />
+
+          <!-- ✅ Прикрепить изображение -->
+          <button
+            class="chat-input-icon"
+            @click="openFilePicker"
+            title="Прикрепить изображение"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+              <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+
           <button
             class="chat-input-icon"
             :class="{ active: activePanel === 'emoji' }"
@@ -863,7 +971,11 @@ watch(open, (v) => { if (v) askNotifications(); });
             @focus="activePanel = 'keyboard'"
           />
 
-          <button class="chat-send" :disabled="!text.trim() || sending" @click="send">
+          <button
+            class="chat-send"
+            :disabled="(!text.trim() && !pendingImage) || sending"
+            @click="send"
+          >
             <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
               <path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/>
             </svg>
@@ -871,7 +983,7 @@ watch(open, (v) => { if (v) askNotifications(); });
         </template>
       </div>
 
-      <!-- ✅ Панель emoji -->
+      <!-- Emoji -->
       <Transition name="panel">
         <div v-if="activePanel === 'emoji'" class="chat-panel-bottom emoji-panel">
           <div class="emoji-cats">
@@ -901,7 +1013,7 @@ watch(open, (v) => { if (v) askNotifications(); });
         </div>
       </Transition>
 
-      <!-- ✅ Панель настроек: тема + фон -->
+      <!-- Настройки -->
       <Transition name="panel">
         <div v-if="activePanel === 'settings'" class="chat-panel-bottom settings-panel">
           <div class="settings-section">
@@ -940,7 +1052,7 @@ watch(open, (v) => { if (v) askNotifications(); });
     </div>
   </Transition>
 
-  <!-- Объединённое меню -->
+  <!-- Контекстное меню -->
   <Teleport to="body">
     <Transition name="ctx-menu">
       <div
@@ -987,6 +1099,16 @@ watch(open, (v) => { if (v) askNotifications(); });
       </div>
     </Transition>
   </Teleport>
+
+  <!-- ✅ Fullscreen image -->
+  <Teleport to="body">
+    <Transition name="fs">
+      <div v-if="fullscreenImage" class="fs-overlay" @click="closeFullscreen">
+        <img :src="fullscreenImage" alt="fullscreen" @click.stop />
+        <button class="fs-close" @click="closeFullscreen">✕</button>
+      </div>
+    </Transition>
+  </Teleport>
 </template>
 
 <style scoped lang="scss">
@@ -994,7 +1116,6 @@ $chat-font: 12px;
 $chat-font-sm: 10px;
 $chat-font-lg: 13px;
 
-/* ✅ Цвета через CSS-переменные — управляются темой */
 .chat-fab {
   position: fixed;
   right: 20px;
@@ -1220,7 +1341,6 @@ $chat-font-lg: 13px;
   position: relative;
 }
 
-/* Пагинация */
 .loading-older {
   display: flex; align-items: center; justify-content: center;
   gap: 6px; padding: 8px;
@@ -1291,6 +1411,9 @@ $chat-font-lg: 13px;
   max-width: 78%;
   -webkit-user-select: none;
   user-select: none;
+  transition: transform 0.15s ease;
+
+  &.swiping { transition: none; }
 
   &.in {
     align-self: flex-start;
@@ -1342,12 +1465,31 @@ $chat-font-lg: 13px;
   opacity: 0.75;
 }
 
+/* ✅ Изображение в bubble */
+.bubble-image {
+  margin: -2px -4px 4px;
+  border-radius: 10px;
+  overflow: hidden;
+  cursor: pointer;
+  max-width: 260px;
+
+  img {
+    display: block;
+    width: 100%;
+    height: auto;
+    max-height: 320px;
+    object-fit: cover;
+    transition: transform 0.2s;
+  }
+
+  &:hover img { transform: scale(1.02); }
+}
+
 .chat-text {
   white-space: pre-wrap;
   font-size: $chat-font;
 }
 
-/* Ссылки */
 .chat-text :deep(a.md-link),
 .chat-text :deep(a.md-phone) {
   color: inherit;
@@ -1404,20 +1546,17 @@ $chat-font-lg: 13px;
   font-weight: 500;
 }
 
-/* ✅ Реакции — прижаты к левому низу, абсолютно, не растягивают bubble */
+/* ✅ Реакции — В ПОТОКЕ, не перекрывают */
 .bubble-reactions {
-  position: absolute;
-  left: 6px;
-  bottom: -10px;
   display: inline-flex;
   gap: 3px;
+  margin-top: 4px;
   padding: 2px 6px;
   border-radius: 999px;
   background: var(--chat-menu-bg);
   border: 0.5px solid var(--chat-border);
   box-shadow: 0 2px 8px -2px rgba(15, 23, 42, 0.2);
-  z-index: 2;
-  pointer-events: auto;
+  width: fit-content;
 }
 
 .reaction-chip {
@@ -1442,7 +1581,7 @@ $chat-font-lg: 13px;
   opacity: 0.85;
 }
 
-/* Meta */
+/* Meta — без padding-left, т.к. реакции больше не absolute */
 .chat-meta {
   display: flex; align-items: center; justify-content: flex-end;
   gap: 3px;
@@ -1451,8 +1590,6 @@ $chat-font-lg: 13px;
   margin-top: 2px;
   line-height: 1;
   opacity: 0.65;
-  /* место под реакции слева снизу */
-  padding-left: 24px;
 }
 
 .chat-edited {
@@ -1522,7 +1659,7 @@ $chat-font-lg: 13px;
   transform: translateY(8px) scale(0.9);
 }
 
-/* Reply / Edit preview */
+/* Reply / Edit / Image preview */
 .chat-reply-preview,
 .chat-edit-preview {
   display: flex; align-items: center; gap: 8px;
@@ -1574,6 +1711,39 @@ $chat-font-lg: 13px;
   &:hover { background: rgba(255, 59, 48, 0.15); color: #ff3b30; }
 }
 
+/* ✅ Превью изображения */
+.chat-image-preview {
+  position: relative;
+  padding: 8px 12px;
+  background: var(--chat-header-bg);
+  border-top: 0.5px solid var(--chat-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  img {
+    max-width: 120px;
+    max-height: 120px;
+    border-radius: 10px;
+    object-fit: cover;
+    box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.25);
+  }
+}
+
+.cip-close {
+  position: absolute;
+  top: 12px;
+  right: 16px;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.55);
+  color: #fff;
+  cursor: pointer;
+  font-size: 12px;
+  display: flex; align-items: center; justify-content: center;
+}
+
 /* Input */
 .chat-input-row {
   display: flex;
@@ -1585,6 +1755,8 @@ $chat-font-lg: 13px;
   border-top: 0.5px solid var(--chat-border);
   flex-shrink: 0;
 }
+
+.chat-file-input { display: none; }
 
 .chat-input-icon {
   width: 34px;
@@ -1662,7 +1834,7 @@ $chat-font-lg: 13px;
   &:active { transform: scale(0.94); }
 }
 
-/* ✅ Панель снизу: emoji + settings */
+/* Панель снизу */
 .chat-panel-bottom {
   border-top: 0.5px solid var(--chat-border);
   background: var(--chat-header-bg);
@@ -1955,7 +2127,47 @@ $chat-font-lg: 13px;
 .ctx-menu-enter-from,
 .ctx-menu-leave-to { opacity: 0; transform: scale(0.9); }
 
-/* ✅ МОБИЛЬНЫЙ */
+/* ✅ Fullscreen image */
+.fs-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(0, 0, 0, 0.92);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  cursor: zoom-out;
+}
+
+.fs-overlay img {
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+  cursor: default;
+}
+
+.fs-close {
+  position: absolute;
+  top: calc(16px + env(safe-area-inset-top, 0));
+  right: 16px;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.fs-enter-active,
+.fs-leave-active { transition: opacity 0.2s ease; }
+.fs-enter-from,
+.fs-leave-to { opacity: 0; }
+
+/* Мобильный */
 @media (max-width: 700px) {
   .chat-fab {
     right: 16px;
