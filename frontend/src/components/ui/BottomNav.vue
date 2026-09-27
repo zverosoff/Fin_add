@@ -24,8 +24,6 @@ onMounted(() => {
   }, LOADING_MS);
 });
 
-// ✅ Красный — только если данные не загрузились.
-// Отсутствие WebSocket больше не считается ошибкой.
 const serverStatus = computed(() => {
   if (fabPhase.value === 'loading') return 'loading';
   if (fabPhase.value === 'success') return 'success';
@@ -162,23 +160,23 @@ function handleFabClick() {
 </template>
 
 <style scoped lang="scss">
+/* ============================================================
+   BASE — общий контейнер
+   ============================================================ */
 .bottom-nav {
   position: fixed;
+  left: 50%;
   bottom: 0;
-  left: 0;
-  right: 0;
+  transform: translateX(-50%);
   z-index: 900;
+  width: 100%;
   max-width: 500px;
-  margin: 0 auto;
-  padding: 8px 12px calc(8px + env(safe-area-inset-bottom, 0));
-  background: rgba(255, 255, 255, 0.97);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-top: 1px solid rgba(15, 23, 42, 0.08);
-  border-radius: 24px 24px 0 0;
-  box-shadow:
-    0 -8px 30px -10px rgba(15, 23, 42, 0.12),
-    0 -2px 8px -4px rgba(15, 23, 42, 0.06);
+
+  /* ✅ Открепляем от низа */
+  padding: 0 12px calc(12px + env(safe-area-inset-bottom, 0));
+
+  background: transparent;
+  pointer-events: none;
 }
 
 .bn-inner {
@@ -187,22 +185,63 @@ function handleFabClick() {
   grid-template-columns: 1fr 1fr auto 1fr 1fr;
   align-items: end;
   width: 100%;
+
+  /* ✅ Сама плашка — отдельный элемент с закруглением снизу */
+  padding: 8px 8px 6px;
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.95);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+
+  /* ✅ Современные тени */
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.6) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.08) inset,
+    0 12px 32px -8px rgba(15, 23, 42, 0.18),
+    0 4px 12px -4px rgba(15, 23, 42, 0.10),
+    0 24px 60px -20px rgba(99, 102, 241, 0.25);
+
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  pointer-events: auto;
 }
 
+/* ============================================================
+   ✅ Индикатор активной вкладки — сине-фиолетовый градиент
+   ============================================================ */
 .bn-indicator {
   position: absolute;
-  top: 0;
-  bottom: 4px;
-  border-radius: 16px;
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.14), rgba(139, 92, 246, 0.1));
+  top: 6px;
+  bottom: 6px;
+  border-radius: 18px;
   pointer-events: none;
-  transition:
-    left 0.4s cubic-bezier(.34,1.56,.64,1),
-    width 0.4s cubic-bezier(.34,1.56,.64,1),
-    opacity 0.25s ease;
   z-index: 1;
+
+  /* ✅ Градиент */
+  background: linear-gradient(120deg, #3b82f6 0%, #6366f1 40%, #8b5cf6 70%, #3b82f6 100%);
+  background-size: 300% 300%;
+  animation: indGradientShift 6s ease-in-out infinite;
+
+  /* ✅ Мягкая тень под цвет градиента */
+  box-shadow:
+    0 6px 18px -4px rgba(99, 102, 241, 0.55),
+    0 2px 6px -2px rgba(59, 130, 246, 0.4);
+
+  /* ✅ Плавный сдвиг между вкладками */
+  transition:
+    left 0.45s cubic-bezier(.34,1.56,.64,1),
+    width 0.45s cubic-bezier(.34,1.56,.64,1),
+    opacity 0.25s ease;
 }
 
+@keyframes indGradientShift {
+  0%   { background-position: 0% 50%; }
+  50%  { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* ============================================================
+   Пункты меню
+   ============================================================ */
 .bn-item {
   position: relative;
   z-index: 2;
@@ -220,23 +259,25 @@ function handleFabClick() {
   font-weight: 600;
   cursor: pointer;
   transition: color 0.25s, transform 0.18s;
-  border-radius: 12px;
+  border-radius: 14px;
   min-width: 0;
 
   &:hover { color: #64748b; }
   &:active { transform: scale(0.94); }
 
+  /* ✅ Активная вкладка — белый текст поверх градиента */
   &.active {
-    color: #4f46e5;
+    color: #ffffff;
 
     .bn-icon {
-      transform: translateY(-2px) scale(1.1);
-      filter: drop-shadow(0 2px 6px rgba(99, 102, 241, 0.4));
+      transform: translateY(-2px) scale(1.12);
+      filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
     }
 
     .bn-label {
       font-weight: 800;
-      color: #4f46e5;
+      color: #ffffff;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
     }
   }
 }
@@ -257,6 +298,9 @@ function handleFabClick() {
   transition: color 0.25s;
 }
 
+/* ============================================================
+   FAB (камера)
+   ============================================================ */
 .bn-fab-wrapper {
   display: flex;
   justify-content: center;
@@ -267,8 +311,8 @@ function handleFabClick() {
 }
 
 .bn-fab {
-  width: 68px;
-  height: 68px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
   border: 4px solid #ffffff;
   display: flex;
@@ -276,7 +320,7 @@ function handleFabClick() {
   justify-content: center;
   cursor: pointer;
   color: #fff;
-  margin-top: -32px;
+  margin-top: -30px;
   transition:
     background 0.35s ease,
     box-shadow 0.35s ease,
@@ -324,8 +368,8 @@ function handleFabClick() {
 }
 
 .bn-fab-spinner {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
   animation: spinFab 1s linear infinite;
   color: #fff;
 
@@ -345,13 +389,13 @@ function handleFabClick() {
 }
 
 .bn-fab-icon {
-  width: 30px;
-  height: 30px;
+  width: 28px;
+  height: 28px;
 }
 
 .bn-fab.is-success .bn-fab-icon {
-  width: 34px;
-  height: 34px;
+  width: 32px;
+  height: 32px;
   animation: checkDraw 0.4s ease-out;
 }
 
@@ -360,21 +404,82 @@ function handleFabClick() {
   to   { stroke-dasharray: 30; stroke-dashoffset: 0; }
 }
 
+/* ============================================================
+   ✅ ДЕСКТОП — увеличиваем, центрируем, отступ снизу больше
+   ============================================================ */
+@media (min-width: 701px) {
+  .bottom-nav {
+    max-width: 640px;
+    padding: 0 24px 24px;
+  }
+
+  .bn-inner {
+    padding: 10px 12px 8px;
+    border-radius: 28px;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.6) inset,
+      0 -1px 0 rgba(148, 163, 184, 0.08) inset,
+      0 18px 40px -10px rgba(15, 23, 42, 0.20),
+      0 6px 16px -4px rgba(15, 23, 42, 0.10),
+      0 30px 80px -30px rgba(99, 102, 241, 0.35);
+  }
+
+  .bn-item {
+    padding: 10px 6px;
+    font-size: 12px;
+    gap: 4px;
+
+    .bn-icon { font-size: 26px; }
+    .bn-label { font-size: 12px; }
+  }
+
+  .bn-fab-wrapper { padding: 0 12px 6px; }
+
+  .bn-fab {
+    width: 76px;
+    height: 76px;
+    border-width: 5px;
+    margin-top: -38px;
+  }
+
+  .bn-fab-icon { width: 34px; height: 34px; }
+  .bn-fab-spinner { width: 34px; height: 34px; }
+  .bn-fab.is-success .bn-fab-icon { width: 38px; height: 38px; }
+
+  .bn-indicator { border-radius: 20px; top: 8px; bottom: 8px; }
+}
+
+/* ============================================================
+   ✅ МОБИЛЬНЫЙ
+   ============================================================ */
 @media (max-width: 700px) {
   .bottom-nav {
-    padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0));
-    border-radius: 20px 20px 0 0;
+    max-width: 100%;
+    padding: 0 8px calc(8px + env(safe-area-inset-bottom, 0));
   }
+
+  .bn-inner {
+    padding: 6px 6px 4px;
+    border-radius: 22px;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.5) inset,
+      0 10px 28px -8px rgba(15, 23, 42, 0.18),
+      0 4px 10px -4px rgba(15, 23, 42, 0.10),
+      0 20px 50px -20px rgba(99, 102, 241, 0.22);
+  }
+
   .bn-icon { font-size: 20px; }
   .bn-label { font-size: 10px; }
 
   .bn-fab {
-    width: 62px;
-    height: 62px;
-    margin-top: -28px;
+    width: 60px;
+    height: 60px;
+    margin-top: -26px;
   }
-  .bn-fab-icon { width: 28px; height: 28px; }
-  .bn-fab-spinner { width: 28px; height: 28px; }
-  .bn-fab.is-success .bn-fab-icon { width: 32px; height: 32px; }
+  .bn-fab-icon { width: 26px; height: 26px; }
+  .bn-fab-spinner { width: 26px; height: 26px; }
+  .bn-fab.is-success .bn-fab-icon { width: 30px; height: 30px; }
+
+  .bn-indicator { border-radius: 16px; top: 4px; bottom: 4px; }
 }
 </style>

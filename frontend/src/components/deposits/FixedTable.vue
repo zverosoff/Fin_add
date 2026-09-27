@@ -22,6 +22,7 @@ async function loadFromServer() {
     incomes.value = Array.isArray(data.incomes) ? data.incomes : [];
     expenses.value = Array.isArray(data.expenses) ? data.expenses : [];
     ensureLockedIncome();
+    ensureDueDays();
   } catch (e) {
     notifyError(e.message);
   }
@@ -39,6 +40,16 @@ function ensureLockedIncome() {
   } else if (idx !== 0) {
     const [item] = incomes.value.splice(idx, 1);
     incomes.value.unshift(item);
+  }
+}
+
+// ✅ Проставляем dueDay: null по умолчанию
+function ensureDueDays() {
+  for (const it of expenses.value) {
+    if (!('dueDay' in it)) it.dueDay = null;
+  }
+  for (const it of incomes.value) {
+    if (!('dueDay' in it)) it.dueDay = null;
   }
 }
 
@@ -87,12 +98,22 @@ const totalExpense = computed(() =>
 const netIncome = computed(() => totalIncome.value - totalExpense.value);
 
 function addIncome() {
-  incomes.value.push({ id: 'row_' + Date.now(), name: 'Новый доход', value: 0 });
+  incomes.value.push({
+    id: 'row_' + Date.now(),
+    name: 'Новый доход',
+    value: 0,
+    dueDay: null,
+  });
   scheduleSave();
 }
 
 function addExpense() {
-  expenses.value.push({ id: 'row_' + Date.now(), name: 'Новый расход', value: 0 });
+  expenses.value.push({
+    id: 'row_' + Date.now(),
+    name: 'Новый расход',
+    value: 0,
+    dueDay: null,
+  });
   scheduleSave();
 }
 
@@ -114,6 +135,56 @@ function isLocked(item) {
 function isSasha(name) {
   return name && /саш/i.test(name);
 }
+
+// ============================================================
+// ✅ Платежи по дням
+// ============================================================
+function daysUntilDue(dueDay) {
+  if (!dueDay || dueDay < 1 || dueDay > 31) return null;
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  let due = new Date(now.getFullYear(), now.getMonth(), dueDay);
+  if (due < today) {
+    due = new Date(now.getFullYear(), now.getMonth() + 1, dueDay);
+  }
+  const diffMs = due.getTime() - today.getTime();
+  const diffDays = Math.round(diffMs / (24 * 60 * 60 * 1000));
+  return diffDays;
+}
+
+function dueBadge(item) {
+  const d = daysUntilDue(item.dueDay);
+  if (d === null) return null;
+  if (d === 0) return { text: 'сегодня', cls: 'today' };
+  if (d === 1) return { text: 'завтра', cls: 'soon' };
+  if (d <= 3)  return { text: `через ${d} дн`, cls: 'soon' };
+  if (d <= 7)  return { text: `через ${d} дн`, cls: 'week' };
+  return null;
+}
+
+// Список ближайших платежей (для отображения наверху таблицы)
+const upcomingPayments = computed(() => {
+  const list = [];
+  const push = (arr, type) => {
+    for (const it of arr) {
+      if (!it.dueDay) continue;
+      const d = daysUntilDue(it.dueDay);
+      if (d === null || d > 7) continue;
+      list.push({
+        id: it.id,
+        name: it.name,
+        value: Number(it.value) || 0,
+        dueDay: it.dueDay,
+        days: d,
+        type, // 'income' | 'expense'
+      });
+    }
+  };
+  push(expenses.value, 'expense');
+  push(incomes.value, 'income');
+  return list.sort((a, b) => a.days - b.days).slice(0, 5);
+});
 
 const byUser = computed(() => {
   let sergI = 0, sergE = 0, sashaI = 0, sashaE = 0;
@@ -160,6 +231,34 @@ const byUser = computed(() => {
         <div class="sc-cell">
           <div class="sc-cell-label">📉 Расходы</div>
           <div class="sc-cell-value expense">−{{ fmt(totalExpense) }} ₽</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ✅ БЛИЖАЙШИЕ ПЛАТЕЖИ -->
+    <div v-if="upcomingPayments.length > 0" class="upcoming-card">
+      <div class="upcoming-head">
+        <span class="upcoming-icon">🔔</span>
+        <span class="upcoming-title">Ближайшие платежи</span>
+      </div>
+      <div class="upcoming-list">
+        <div
+          v-for="p in upcomingPayments"
+          :key="p.id"
+          class="upcoming-row"
+          :class="p.type === 'income' ? 'income' : 'expense'"
+        >
+          <span class="up-emoji">{{ p.type === 'income' ? '💰' : '💳' }}</span>
+          <span class="up-name">{{ p.name }}</span>
+          <span class="up-amount">
+            {{ p.type === 'income' ? '+' : '−' }}{{ fmt(p.value) }} ₽
+          </span>
+          <span
+            class="up-badge"
+            :class="p.days === 0 ? 'today' : p.days <= 1 ? 'soon' : 'week'"
+          >
+            {{ p.days === 0 ? 'сегодня' : p.days === 1 ? 'завтра' : `${p.days} дн` }}
+          </span>
         </div>
       </div>
     </div>
@@ -248,6 +347,17 @@ const byUser = computed(() => {
                 :disabled="isLocked(item)"
                 @input="scheduleSave"
               />
+              <input
+                v-model.number="item.dueDay"
+                type="number"
+                class="dt-day"
+                min="1"
+                max="31"
+                placeholder="день"
+                :disabled="isLocked(item)"
+                @input="scheduleSave"
+                title="День месяца для платежа (1-31)"
+              />
               <button
                 v-if="!isLocked(item)"
                 class="dt-del"
@@ -289,6 +399,16 @@ const byUser = computed(() => {
                 type="number"
                 class="dt-value"
                 @input="scheduleSave"
+              />
+              <input
+                v-model.number="item.dueDay"
+                type="number"
+                class="dt-day"
+                min="1"
+                max="31"
+                placeholder="день"
+                @input="scheduleSave"
+                title="День месяца для платежа (1-31)"
               />
               <button
                 class="dt-del"
@@ -427,7 +547,6 @@ const byUser = computed(() => {
   opacity: 0.75;
 }
 
-/* ✅ Уменьшен: 34 → 22 */
 .sc-amount {
   font-size: 22px;
   font-weight: 800;
@@ -452,7 +571,6 @@ const byUser = computed(() => {
   flex-shrink: 0;
 }
 
-/* ✅ Уменьшен: 20 → 15 */
 .sc-graph-value {
   font-size: 15px;
   font-weight: 800;
@@ -488,7 +606,6 @@ const byUser = computed(() => {
   opacity: 0.75;
 }
 
-/* ✅ Уменьшен: 17 → 14 */
 .sc-cell-value {
   font-size: 14px;
   font-weight: 800;
@@ -507,6 +624,115 @@ const byUser = computed(() => {
   width: 1px;
   height: 28px;
   background: rgba(255, 255, 255, 0.25);
+}
+
+/* ============================================================
+   ✅ БЛИЖАЙШИЕ ПЛАТЕЖИ
+   ============================================================ */
+.upcoming-card {
+  padding: 14px 16px;
+  border-radius: 16px;
+  background:
+    linear-gradient(135deg, rgba(251, 191, 36, 0.12), rgba(249, 115, 22, 0.06)),
+    #ffffff;
+  border: 1px solid rgba(251, 146, 60, 0.35);
+  box-shadow: 0 8px 20px -10px rgba(251, 146, 60, 0.4);
+}
+
+.upcoming-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.upcoming-icon {
+  font-size: 16px;
+  animation: bellPulse 2s ease-in-out infinite;
+}
+
+@keyframes bellPulse {
+  0%, 100% { transform: rotate(0deg); }
+  15%      { transform: rotate(-12deg); }
+  30%      { transform: rotate(12deg); }
+  45%      { transform: rotate(-8deg); }
+  60%      { transform: rotate(8deg); }
+  75%      { transform: rotate(0deg); }
+}
+
+.upcoming-title {
+  font-size: 11.5px;
+  font-weight: 800;
+  color: #c2410c;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.upcoming-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.upcoming-row {
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.75);
+  border: 1px solid rgba(148, 163, 184, 0.15);
+
+  &.income  { border-left: 3px solid #22c55e; }
+  &.expense { border-left: 3px solid #ef4444; }
+}
+
+.up-emoji { font-size: 14px; }
+
+.up-name {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.up-amount {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 800;
+  white-space: nowrap;
+  color: var(--text);
+}
+
+.up-badge {
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+
+  &.today {
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    color: #fff;
+    box-shadow: 0 4px 12px -4px rgba(239, 68, 68, 0.6);
+  }
+
+  &.soon {
+    background: linear-gradient(135deg, #f59e0b, #f97316);
+    color: #fff;
+  }
+
+  &.week {
+    background: rgba(251, 191, 36, 0.2);
+    color: #b45309;
+    border: 1px solid rgba(251, 191, 36, 0.5);
+  }
 }
 
 /* ============================================================
@@ -541,10 +767,7 @@ const byUser = computed(() => {
 
 .card-head .card-title { margin-bottom: 0; }
 
-.card-actions {
-  display: flex;
-  gap: 6px;
-}
+.card-actions { display: flex; gap: 6px; }
 
 .btn-add-mini {
   padding: 5px 12px;
@@ -580,9 +803,7 @@ const byUser = computed(() => {
   }
 }
 
-/* ============================================================
-   ТАБЛИЦА ПРОЦЕНТОВ
-   ============================================================ */
+/* ТАБЛИЦА ПРОЦЕНТОВ */
 .percent-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -666,7 +887,6 @@ const byUser = computed(() => {
   color: var(--muted);
 }
 
-/* ✅ Уменьшен: 20 → 15 */
 .pr-value {
   font-family: var(--mono);
   font-size: 15px;
@@ -679,9 +899,7 @@ const byUser = computed(() => {
   text-overflow: ellipsis;
 }
 
-/* ============================================================
-   ДОХОДЫ И РАСХОДЫ
-   ============================================================ */
+/* ДОХОДЫ И РАСХОДЫ */
 .dt-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -719,14 +937,16 @@ const byUser = computed(() => {
   gap: 6px;
 }
 
+/* ✅ + колонка для дня платежа */
 .dt-row {
   display: grid;
-  grid-template-columns: 1fr 90px auto;
+  grid-template-columns: 1fr 90px 52px auto;
   gap: 5px;
   align-items: center;
 
   &.locked .dt-name,
-  &.locked .dt-value {
+  &.locked .dt-value,
+  &.locked .dt-day {
     background: rgba(148, 163, 184, 0.08);
     color: var(--muted);
     cursor: not-allowed;
@@ -734,9 +954,9 @@ const byUser = computed(() => {
   }
 }
 
-/* ✅ Уже уменьшены до 11.5px */
 .dt-name,
-.dt-value {
+.dt-value,
+.dt-day {
   padding: 6px 10px;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -761,6 +981,35 @@ const byUser = computed(() => {
   font-family: var(--mono);
   font-weight: 700;
   font-size: 11.5px;
+}
+
+/* ✅ Поле дня платежа */
+.dt-day {
+  text-align: center;
+  font-family: var(--mono);
+  font-weight: 700;
+  font-size: 11.5px;
+  color: #c2410c;
+  background: rgba(251, 146, 60, 0.06);
+  border-color: rgba(251, 146, 60, 0.25);
+
+  &::placeholder {
+    color: rgba(194, 65, 12, 0.4);
+    font-weight: 600;
+  }
+
+  &:focus {
+    border-color: #f59e0b;
+    box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
+  }
+
+  /* Убираем стрелки у number-input */
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  &[type="number"] { -moz-appearance: textfield; }
 }
 
 .dt-del,
@@ -828,7 +1077,6 @@ const byUser = computed(() => {
     background: rgba(34, 197, 94, 0.1);
     border: 1px solid rgba(34, 197, 94, 0.25);
     color: #15803d;
-
     strong { color: #15803d; }
   }
 
@@ -836,12 +1084,10 @@ const byUser = computed(() => {
     background: rgba(239, 68, 68, 0.08);
     border: 1px solid rgba(239, 68, 68, 0.25);
     color: #dc2626;
-
     strong { color: #b91c1c; }
   }
 }
 
-/* Итоговая разница */
 .grand-total {
   margin-top: 16px;
   padding: 12px 16px;
@@ -856,14 +1102,12 @@ const byUser = computed(() => {
   &.positive {
     background: linear-gradient(135deg, rgba(34, 197, 94, 0.12), rgba(34, 197, 94, 0.06));
     border: 1px solid rgba(34, 197, 94, 0.3);
-
     .gt-value { color: #16a34a; }
   }
 
   &.negative {
     background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(239, 68, 68, 0.06));
     border: 1px solid rgba(239, 68, 68, 0.3);
-
     .gt-value { color: #dc2626; }
   }
 }
@@ -875,7 +1119,6 @@ const byUser = computed(() => {
   letter-spacing: 0.05em;
 }
 
-/* ✅ Уменьшен: 22 → 16 */
 .gt-value {
   font-family: var(--mono);
   font-size: 16px;
@@ -883,9 +1126,7 @@ const byUser = computed(() => {
   letter-spacing: -0.02em;
 }
 
-/* ============================================================
-   ОТЧЁТ ПО ПОЛЬЗОВАТЕЛЯМ
-   ============================================================ */
+/* ОТЧЁТ ПО ПОЛЬЗОВАТЕЛЯМ */
 .user-report {
   display: flex;
   flex-direction: column;
@@ -961,7 +1202,6 @@ const byUser = computed(() => {
 
 .uc-info { min-width: 0; flex: 1; }
 
-/* ✅ Уменьшен: 15 → 14 */
 .uc-name {
   font-size: 14px;
   font-weight: 800;
@@ -1040,7 +1280,6 @@ const byUser = computed(() => {
   letter-spacing: 0.05em;
 }
 
-/* ✅ Уменьшен: 18 → 15 */
 .uc-total-value {
   font-family: var(--mono);
   font-size: 15px;
@@ -1048,9 +1287,7 @@ const byUser = computed(() => {
   letter-spacing: -0.02em;
 }
 
-/* ============================================================
-   МОБИЛЬНЫЙ
-   ============================================================ */
+/* МОБИЛЬНЫЙ */
 @media (max-width: 700px) {
   .sc-top { padding: 16px 16px 12px; gap: 10px; }
   .sc-amount { font-size: 20px; }
@@ -1060,6 +1297,12 @@ const byUser = computed(() => {
   .sc-bottom { padding: 10px 16px 12px; gap: 8px; }
   .sc-cell-value { font-size: 13px; }
 
+  .upcoming-card { padding: 12px 14px; border-radius: 14px; }
+  .upcoming-row { gap: 8px; padding: 6px 10px; }
+  .up-name { font-size: 12px; }
+  .up-amount { font-size: 11.5px; }
+  .up-badge { font-size: 9.5px; padding: 2px 8px; }
+
   .card { padding: 14px 16px; border-radius: 16px; }
 
   .percent-grid { grid-template-columns: 1fr; gap: 10px; }
@@ -1067,7 +1310,7 @@ const byUser = computed(() => {
   .pr-value { font-size: 14px; }
 
   .dt-grid { grid-template-columns: 1fr; gap: 14px; }
-  .dt-row { grid-template-columns: 1fr 80px auto; }
+  .dt-row { grid-template-columns: 1fr 70px 44px auto; }
 
   .user-report-grid { grid-template-columns: 1fr; }
   .uc-total-value { font-size: 14px; }
@@ -1075,7 +1318,9 @@ const byUser = computed(() => {
 }
 
 @media (max-width: 400px) {
-  .dt-row { grid-template-columns: 1fr 70px auto; }
+  .dt-row { grid-template-columns: 1fr 60px 40px auto; }
   .sc-amount { font-size: 18px; }
+  .up-name { font-size: 11.5px; }
+  .up-amount { font-size: 11px; }
 }
 </style>
