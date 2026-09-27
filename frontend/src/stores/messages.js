@@ -25,9 +25,7 @@ export const useMessagesStore = defineStore('messages', () => {
 
   const firstUnreadId = ref({ 'Сергей': null, 'Саша': null });
 
-  // ✅ Флаг онлайн-соединения
   const isOnline = ref(typeof navigator !== 'undefined' ? navigator.onLine : true);
-  // ✅ Очередь исходящих, которые не удалось отправить
   const pendingOut = ref([]);
 
   const tick = ref(0);
@@ -160,10 +158,22 @@ export const useMessagesStore = defineStore('messages', () => {
   }
 
   // ============================================================
-  // ✅ Optimistic send
+  // Optimistic send + защита от дублей
   // ============================================================
   function makeLocalId() {
     return 'local_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  }
+
+  // ✅ Убирает дубли по id
+  function dedupePeer(peer) {
+    const list = messages.value[peer];
+    if (!list) return;
+    const seen = new Set();
+    messages.value[peer] = list.filter(m => {
+      if (seen.has(m.id)) return false;
+      seen.add(m.id);
+      return true;
+    });
   }
 
   async function send(to, text, replyTo = null, image = null) {
@@ -207,6 +217,7 @@ export const useMessagesStore = defineStore('messages', () => {
       if (!data.ok) throw new Error(data.error);
 
       replaceMessage(localId, data.message);
+      dedupePeer(to);
       notifyTypingStop(to);
       return data.message;
     } catch (e) {
@@ -249,6 +260,7 @@ export const useMessagesStore = defineStore('messages', () => {
       });
       if (!data.ok) throw new Error(data.error);
       replaceMessage(localId, data.message);
+      dedupePeer(item.to);
       pendingOut.value = pendingOut.value.filter(p => p.localId !== localId);
       return data.message;
     } catch (e) {
@@ -272,6 +284,9 @@ export const useMessagesStore = defineStore('messages', () => {
     }
   }
 
+  // ============================================================
+  // Редактирование / удаление / реакции / прочтение
+  // ============================================================
   async function edit(id, text) {
     const cleanText = String(text || '').trim();
     if (!cleanText) throw new Error('Пустой текст');
@@ -348,15 +363,33 @@ export const useMessagesStore = defineStore('messages', () => {
     return data;
   }
 
+  // ✅ Защита от дубля: если приходит WS message:new для "своего" сообщения,
+  //    а в ленте уже есть optimistic с тем же текстом и временем — заменяем, не пушим
   function pushMessage(msg) {
     if (!msg || !msg.from || !msg.to) return;
     const peer = msg.from === auth.user ? msg.to : msg.from;
     if (!messages.value[peer]) messages.value[peer] = [];
+
     if (messages.value[peer].some(m => m.id === msg.id)) return;
+
+    if (msg.from === auth.user) {
+      const optimistic = messages.value[peer].find(
+        m => m.pending && m.from === auth.user &&
+             m.text === msg.text &&
+             Math.abs(new Date(m.createdAt) - new Date(msg.createdAt)) < 5000
+      );
+      if (optimistic) {
+        const idx = messages.value[peer].indexOf(optimistic);
+        messages.value[peer][idx] = msg;
+        return;
+      }
+    }
+
     messages.value[peer].push(msg);
     messages.value[peer].sort(
       (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
     );
+
     if (msg.to === auth.user && !msg.readAt && !msg.pending) {
       unread.value[msg.from] = (unread.value[msg.from] || 0) + 1;
     }

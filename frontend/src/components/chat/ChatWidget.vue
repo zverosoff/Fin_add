@@ -96,9 +96,6 @@ function fmtLastSeen(iso) {
   return 'был(а) ' + d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
 }
 
-// ============================================================
-// Авторастущий textarea
-// ============================================================
 function autoResize() {
   const el = inputEl.value;
   if (!el) return;
@@ -185,9 +182,6 @@ function cancelImage() { pendingImage.value = null; }
 function openFullscreen(src) { fullscreenImage.value = src; }
 function closeFullscreen() { fullscreenImage.value = null; }
 
-// ============================================================
-// Emoji
-// ============================================================
 function toggleEmoji() {
   if (activePanel.value === 'emoji') {
     activePanel.value = 'keyboard';
@@ -268,7 +262,7 @@ async function onScroll() {
 }
 
 // ============================================================
-// Открытие/закрытие
+// Открытие/закрытие — БЕЗ фокуса на поле ввода
 // ============================================================
 async function toggle() {
   open.value = !open.value;
@@ -276,6 +270,12 @@ async function toggle() {
     document.body.dataset.chatOpen = 'true';
     await ensureHistory();
     await nextTick();
+
+    // ✅ Принудительно снимаем фокус со всего — клавиатура не должна выскакивать
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+
     const firstUnread = firstUnreadId.value;
     if (firstUnread) {
       const m = messages.messageById(firstUnread);
@@ -284,6 +284,7 @@ async function toggle() {
     } else {
       scrollToBottom();
     }
+
     try {
       await messages.markAllRead(peer.value);
       await updateBadge(messages.totalUnread);
@@ -353,9 +354,6 @@ function onKeydown(e) {
   }
 }
 
-// ============================================================
-// Редактирование / удаление / пин / ответ
-// ============================================================
 function startEdit(msg) {
   editing.value = msg;
   editText.value = msg.text;
@@ -415,9 +413,6 @@ function getQuoteText(id) {
   return `${who}: ${txt}`;
 }
 
-// ============================================================
-// Реакции
-// ============================================================
 async function addReaction(msg, emoji) {
   try {
     await messages.toggleReaction(msg.id, emoji);
@@ -551,9 +546,6 @@ function onContextMenu(e, msg) {
   openMenu(e, msg);
 }
 
-// ============================================================
-// Время
-// ============================================================
 function fmtTime(iso) {
   if (!iso) return '';
   return new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
@@ -582,9 +574,6 @@ function isSameDay(a, b) {
          da.getDate() === db.getDate();
 }
 
-// ============================================================
-// Viewport / PWA / heartbeat / online
-// ============================================================
 let heartbeatTimer = null;
 
 function updateViewport() {
@@ -619,6 +608,19 @@ function onViewportResize() { updateViewport(); }
 
 function onNetworkOnline() { messages.setNetworkOnline(true); }
 function onNetworkOffline() { messages.setNetworkOnline(false); }
+
+// ✅ При открытии чата принудительно убираем фокус с input
+watch(open, async (v) => {
+  if (v) {
+    await nextTick();
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    if (inputEl.value) inputEl.value.blur();
+  } else {
+    if (inputEl.value) inputEl.value.blur();
+  }
+});
 
 watch(history, async (newList, oldList) => {
   if (!open.value) return;
@@ -977,6 +979,10 @@ watch(open, (v) => { if (v) askNotifications(); });
             class="chat-input"
             placeholder="Сообщение"
             rows="1"
+            inputmode="text"
+            autocomplete="off"
+            autocorrect="off"
+            autocapitalize="sentences"
             @input="onInput"
             @keydown="onKeydown"
             @focus="activePanel = 'keyboard'"
@@ -1128,9 +1134,6 @@ $chat-font: 12px;
 $chat-font-sm: 10px;
 $chat-font-lg: 13px;
 
-/* ============================================================
-   FAB
-   ============================================================ */
 .chat-fab {
   position: fixed;
   right: 20px;
@@ -1174,9 +1177,6 @@ $chat-font-lg: 13px;
   box-shadow: 0 4px 12px -2px rgba(239, 68, 68, 0.7), 0 0 0 3px #ffffff;
 }
 
-/* ============================================================
-   Panel
-   ============================================================ */
 .chat-panel {
   position: fixed;
   right: 20px;
@@ -1287,9 +1287,6 @@ $chat-font-lg: 13px;
   &.active { background: var(--chat-menu-hover); }
 }
 
-/* ============================================================
-   Offline banner
-   ============================================================ */
 .chat-offline {
   padding: 6px 12px;
   background: rgba(255, 149, 0, 0.15);
@@ -1301,9 +1298,6 @@ $chat-font-lg: 13px;
   flex-shrink: 0;
 }
 
-/* ============================================================
-   Pinned
-   ============================================================ */
 .chat-pinned {
   display: flex; align-items: center; gap: 10px;
   padding: 6px 12px;
@@ -1364,9 +1358,6 @@ $chat-font-lg: 13px;
   &:active { transform: scale(0.9); }
 }
 
-/* ============================================================
-   Body
-   ============================================================ */
 .chat-body {
   flex: 1;
   overflow-y: auto;
@@ -1433,7 +1424,6 @@ $chat-font-lg: 13px;
   margin-bottom: 14px;
 
   &.swiping { transition: transform 0s, opacity 0.25s; }
-
   &.in { align-self: flex-start; }
   &.out { align-self: flex-end; }
 
@@ -1458,13 +1448,7 @@ $chat-font-lg: 13px;
   }
 
   &.highlight .chat-bubble { animation: msgHighlight 1.2s ease-out; }
-
-  /* ✅ Полупрозрачное у "отправляется" */
-  &.is-pending .chat-bubble {
-    opacity: 0.72;
-  }
-
-  /* ✅ Крестик у "не отправлено" */
+  &.is-pending .chat-bubble { opacity: 0.72; }
   &.is-failed .chat-bubble {
     opacity: 0.85;
     box-shadow: 0 0 0 1.5px rgba(255, 59, 48, 0.6), 0 1px 2px rgba(0, 0, 0, 0.15);
@@ -1486,7 +1470,6 @@ $chat-font-lg: 13px;
   line-height: 1.4;
   cursor: default;
   transition: opacity 0.25s, box-shadow 0.25s;
-
   &.is-pinned { padding-top: 14px; }
 }
 
@@ -1497,9 +1480,6 @@ $chat-font-lg: 13px;
   opacity: 0.75;
 }
 
-/* ============================================================
-   Image
-   ============================================================ */
 .bubble-image {
   margin: -2px -4px 4px;
   border-radius: 10px;
@@ -1561,7 +1541,6 @@ $chat-font-lg: 13px;
   background: rgba(0, 0, 0, 0.05);
   cursor: pointer;
   font-size: $chat-font-sm;
-
   .chat-msg.out & { background: rgba(255, 255, 255, 0.15); }
 }
 
@@ -1580,9 +1559,6 @@ $chat-font-lg: 13px;
   font-weight: 500;
 }
 
-/* ============================================================
-   Meta
-   ============================================================ */
 .chat-meta {
   display: flex; align-items: center; justify-content: flex-end;
   gap: 3px;
@@ -1613,7 +1589,6 @@ $chat-font-lg: 13px;
   &.read { opacity: 1; }
 }
 
-/* ✅ статус отправки */
 .chat-status {
   font-size: $chat-font;
   margin-left: 2px;
@@ -1640,7 +1615,6 @@ $chat-font-lg: 13px;
   50%      { opacity: 1; }
 }
 
-/* Часики */
 .clock-dot {
   display: inline-block;
   width: 8px; height: 8px;
@@ -1652,9 +1626,6 @@ $chat-font-lg: 13px;
 
 @keyframes clockSpin { to { transform: rotate(360deg); } }
 
-/* ============================================================
-   Reactions
-   ============================================================ */
 .bubble-reactions {
   display: inline-flex;
   gap: 3px;
@@ -1689,9 +1660,6 @@ $chat-font-lg: 13px;
   opacity: 0.85;
 }
 
-/* ============================================================
-   Scroll down
-   ============================================================ */
 .scroll-down-btn {
   position: absolute;
   right: 14px;
@@ -1729,9 +1697,6 @@ $chat-font-lg: 13px;
   box-shadow: 0 2px 6px rgba(0, 122, 255, 0.5);
 }
 
-/* ============================================================
-   Preview rows
-   ============================================================ */
 .chat-reply-preview,
 .chat-edit-preview {
   display: flex; align-items: center; gap: 8px;
@@ -1824,9 +1789,6 @@ $chat-font-lg: 13px;
   &:active { transform: scale(0.9); }
 }
 
-/* ============================================================
-   Input row
-   ============================================================ */
 .chat-input-row {
   display: flex;
   align-items: flex-end;
@@ -1913,9 +1875,6 @@ $chat-font-lg: 13px;
   &:active { transform: scale(0.9); }
 }
 
-/* ============================================================
-   Bottom panels
-   ============================================================ */
 .chat-panel-bottom {
   border-top: 0.5px solid var(--chat-border);
   background: var(--chat-header-bg);
@@ -2086,9 +2045,6 @@ $chat-font-lg: 13px;
   background: linear-gradient(135deg, #f2f2f7, #ffffff);
 }
 
-/* ============================================================
-   Context menu
-   ============================================================ */
 .ctx-backdrop {
   position: fixed;
   inset: 0;
@@ -2168,9 +2124,6 @@ $chat-font-lg: 13px;
 .ctx-icon { font-size: $chat-font; width: 18px; text-align: center; flex-shrink: 0; }
 .ctx-label { flex: 1; }
 
-/* ============================================================
-   Fullscreen image
-   ============================================================ */
 .fs-overlay {
   position: fixed;
   inset: 0;
@@ -2209,7 +2162,6 @@ $chat-font-lg: 13px;
    ANIMATIONS
    ============================================================ */
 
-/* Панель чата */
 .chat-panel-enter-active { transition: opacity 0.28s ease, transform 0.38s cubic-bezier(.34,1.56,.64,1); }
 .chat-panel-leave-active { transition: opacity 0.2s ease, transform 0.25s cubic-bezier(.4,0,.6,1); }
 .chat-panel-enter-from,
@@ -2219,25 +2171,21 @@ $chat-font-lg: 13px;
   transform-origin: bottom right;
 }
 
-/* FAB */
 .fab-pop-enter-active { transition: opacity 0.25s, transform 0.35s cubic-bezier(.34,1.56,.64,1); }
 .fab-pop-leave-active { transition: opacity 0.18s, transform 0.22s ease; }
 .fab-pop-enter-from,
 .fab-pop-leave-to { opacity: 0; transform: scale(0.6); }
 
-/* Бейдж на FAB */
 .badge-pop-enter-active { transition: opacity 0.2s, transform 0.28s cubic-bezier(.34,1.56,.64,1); }
 .badge-pop-leave-active { transition: opacity 0.15s, transform 0.2s ease; }
 .badge-pop-enter-from,
 .badge-pop-leave-to { opacity: 0; transform: scale(0.4); }
 
-/* Статус в шапке */
 .status-fade-enter-active,
 .status-fade-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
 .status-fade-enter-from { opacity: 0; transform: translateY(-4px); }
 .status-fade-leave-to { opacity: 0; transform: translateY(4px); }
 
-/* Offline / Pinned */
 .offline-slide-enter-active,
 .offline-slide-leave-active { transition: max-height 0.3s ease, opacity 0.25s ease, padding 0.3s ease; overflow: hidden; }
 .offline-slide-enter-from,
@@ -2252,67 +2200,54 @@ $chat-font-lg: 13px;
 .pinned-slide-enter-to,
 .pinned-slide-leave-from { max-height: 60px; opacity: 1; }
 
-/* Сообщения */
 .msg-in-enter-active { transition: opacity 0.25s ease, transform 0.32s cubic-bezier(.34,1.56,.64,1); }
 .msg-in-enter-from { opacity: 0; transform: translateY(10px) scale(0.96); }
 
-/* Реакции */
 .reactions-pop-enter-active { transition: opacity 0.2s, transform 0.28s cubic-bezier(.34,1.56,.64,1); }
 .reactions-pop-leave-active { transition: opacity 0.15s, transform 0.15s ease; }
 .reactions-pop-enter-from,
 .reactions-pop-leave-to { opacity: 0; transform: scale(0.6); }
 
-/* Статус отправки */
 .status-swap-enter-active,
 .status-swap-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
 .status-swap-enter-from { opacity: 0; transform: scale(0.6); }
 .status-swap-leave-to { opacity: 0; transform: scale(0.6); }
 
-/* Плавное исчезновение loading */
 .fade-slow-enter-active,
 .fade-slow-leave-active { transition: opacity 0.25s ease; }
 .fade-slow-enter-from,
 .fade-slow-leave-to { opacity: 0; }
 
-/* Кнопка вниз */
 .scroll-down-enter-active { transition: opacity 0.22s, transform 0.3s cubic-bezier(.34,1.56,.64,1); }
 .scroll-down-leave-active { transition: opacity 0.15s, transform 0.2s ease; }
 .scroll-down-enter-from,
 .scroll-down-leave-to { opacity: 0; transform: translateY(8px) scale(0.85); }
 
-/* Preview rows (reply/edit/image) */
 .slide-up-enter-active { transition: opacity 0.22s, transform 0.3s cubic-bezier(.34,1.56,.64,1); }
 .slide-up-leave-active { transition: opacity 0.15s, transform 0.2s ease; }
 .slide-up-enter-from,
 .slide-up-leave-to { opacity: 0; transform: translateY(12px); }
 
-/* Панель снизу (emoji/settings) */
 .panel-slide-enter-active { transition: max-height 0.28s cubic-bezier(.34,1.56,.64,1), opacity 0.22s ease; max-height: 280px; }
 .panel-slide-leave-active { transition: max-height 0.22s ease, opacity 0.18s ease; max-height: 0; }
 .panel-slide-enter-from,
 .panel-slide-leave-to { max-height: 0; opacity: 0; }
 
-/* Контекстное меню */
 .ctx-menu-enter-active { transition: opacity 0.18s ease, transform 0.22s cubic-bezier(.34,1.56,.64,1); }
 .ctx-menu-leave-active { transition: opacity 0.14s ease, transform 0.16s ease; }
 .ctx-menu-enter-from,
 .ctx-menu-leave-to { opacity: 0; transform: scale(0.92); }
 
-/* Fullscreen image */
 .fs-enter-active { transition: opacity 0.24s ease, transform 0.3s cubic-bezier(.34,1.56,.64,1); }
 .fs-leave-active { transition: opacity 0.18s ease, transform 0.2s ease; }
 .fs-enter-from,
 .fs-leave-to { opacity: 0; transform: scale(0.96); }
 
-/* Кнопка Send — pop-in при появлении */
 .send-pop-enter-active { transition: opacity 0.18s, transform 0.25s cubic-bezier(.34,1.56,.64,1); }
 .send-pop-leave-active { transition: opacity 0.12s, transform 0.15s ease; }
 .send-pop-enter-from,
 .send-pop-leave-to { opacity: 0; transform: scale(0.7); }
 
-/* ============================================================
-   Mobile
-   ============================================================ */
 @media (max-width: 700px) {
   .chat-fab {
     right: 16px;
