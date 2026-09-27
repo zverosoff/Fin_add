@@ -22,7 +22,7 @@ export default defineConfig({
       manifest: {
         name: 'Финансы PRO+',
         short_name: 'Финансы',
-        description: 'Управление личными финансами: счета, операции, аналитика, цели.',
+        description: 'Управление личными финансами: счета, операции, аналитика, цели, чат.',
         lang: 'ru',
         start_url: '/',
         scope: '/',
@@ -32,24 +32,9 @@ export default defineConfig({
         theme_color: '#eef2f8',
 
         icons: [
-          {
-            src: '/img/favicon.png',
-            sizes: '192x192',
-            type: 'image/png',
-            purpose: 'any',
-          },
-          {
-            src: '/img/favicon.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'any',
-          },
-          {
-            src: '/img/favicon.png',
-            sizes: '512x512',
-            type: 'image/png',
-            purpose: 'maskable',
-          },
+          { src: '/img/favicon.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
+          { src: '/img/favicon.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
+          { src: '/img/favicon.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
       },
 
@@ -74,6 +59,11 @@ export default defineConfig({
             handler: 'NetworkOnly',
           },
         ],
+
+        // ✅ Обработка кликов по push-уведомлениям (для Notification)
+        // через SW — только когда показываем через reg.showNotification
+        clientsClaim: true,
+        skipWaiting: true,
       },
 
       devOptions: {

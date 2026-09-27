@@ -3,18 +3,22 @@ import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useAccountsStore } from '@/stores/accounts';
+import { useMessagesStore } from '@/stores/messages';
 import { useWebSocket } from '@/composables/useWebSocket';
 import { useScanStore } from '@/stores/scan';
 import { notifySaved } from '@/composables/useDataStatus';
+import { initPushHandlers } from '@/composables/usePushNotifications';
 import WelcomeOverlay from '@/components/ui/WelcomeOverlay.vue';
 import ToastContainer from '@/components/ui/ToastContainer.vue';
 import BottomNav from '@/components/ui/BottomNav.vue';
 import ScanModal from '@/components/scan/ScanModal.vue';
 import ManualModal from '@/components/transactions/ManualModal.vue';
 import PdfImportModal from '@/components/scan/PdfImportModal.vue';
+import ChatWidget from '@/components/chat/ChatWidget.vue';   // ✅ NEW
 
 const auth = useAuthStore();
 const accounts = useAccountsStore();
+const messagesStore = useMessagesStore();
 const router = useRouter();
 const route = useRoute();
 const { connect } = useWebSocket();
@@ -29,6 +33,7 @@ const manualOpen = ref(false);
 const pdfOpen = ref(false);
 
 const showBottomNav = computed(() => route.name !== 'login');
+const showChat = computed(() => route.name !== 'login' && auth.isAuthenticated);
 
 const TAB_ORDER = ['finance', 'analytics', 'deposits', 'profile'];
 
@@ -59,6 +64,8 @@ onMounted(async () => {
   if (route.name !== 'login') {
     document.body.classList.add('app-has-bottom-nav');
   }
+
+  initPushHandlers();
 
   const hasSessionHint = auth.isAuthenticated || !!auth.user;
   if (!hasSessionHint) {
@@ -113,7 +120,6 @@ onMounted(async () => {
     stage.value = 'Готово!';
     done.value = true;
 
-    // ✅ Было 900ms — теперь 400ms
     setTimeout(() => {
       booting.value = false;
     }, 400);
@@ -130,6 +136,7 @@ watch(() => route.name, (name) => {
 
 onUnmounted(() => {
   document.body.classList.remove('app-has-bottom-nav');
+  document.body.dataset.chatOpen = 'false';
 });
 </script>
 
@@ -143,6 +150,9 @@ onUnmounted(() => {
   </div>
 
   <BottomNav v-if="showBottomNav" />
+
+  <!-- ✅ Чат -->
+  <ChatWidget v-if="showChat" />
 
   <ScanModal
     v-model="scanStore.isOpen"

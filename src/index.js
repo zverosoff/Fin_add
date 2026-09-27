@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import authRoutes from './routes/auth.js';
 import stateRoutes from './routes/state.js';
 import txRoutes from './routes/transactions.js';
+import messagesRoutes from './routes/messages.js';   // ✅ NEW
 import { attachSocket } from './services/wsService.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -29,7 +30,6 @@ if (!process.env.JWT_SECRET || process.env.JWT_SECRET.length < 32) {
 const app = express();
 const server = http.createServer(app);
 
-// ✅ Добавлен http://localhost:3000 — теперь фронт и бэк на одном порту
 const ALLOWED_ORIGINS = [
   'http://localhost:3000',
   'http://localhost:5173',
@@ -42,10 +42,8 @@ const ALLOWED_ORIGINS = [
 
 console.log('[init] CORS разрешён для:', ALLOWED_ORIGINS);
 
-// ✅ CORS применяем ТОЛЬКО к /api — не к статике
 const corsOptions = {
   origin: (origin, cb) => {
-    // Разрешаем запросы без origin (curl, SSR, same-origin)
     if (!origin) return cb(null, true);
     if (ALLOWED_ORIGINS.includes(origin)) return cb(null, true);
     if (/\.vercel\.app$/.test(origin)) return cb(null, true);
@@ -62,7 +60,6 @@ app.use('/api', cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
 
-// Логирование запросов
 app.use((req, _res, next) => {
   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
   next();
@@ -74,21 +71,20 @@ app.use((req, _res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/state', stateRoutes);
 app.use('/api/transactions', txRoutes);
+app.use('/api/messages', messagesRoutes);   // ✅ NEW
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, time: new Date().toISOString() });
 });
 
-// 404 для API
 app.use('/api/*', (_req, res) => {
   res.status(404).json({ ok: false, error: 'Not found' });
 });
 
 // ============================================================
-// ✅ Отдача собранного фронтенда (Vue SPA)
+// Отдача фронта
 // ============================================================
 const FRONTEND_DIST = path.resolve(__dirname, '../frontend/dist');
-
 console.log('[init] frontend dist:', FRONTEND_DIST);
 console.log('[init] dist существует?', fs.existsSync(FRONTEND_DIST));
 
@@ -97,7 +93,6 @@ console.log('[init] index.html существует?', fs.existsSync(indexPath))
 
 app.use(express.static(FRONTEND_DIST));
 
-// SPA-fallback: все GET-запросы, кроме /api и /socket.io, отдают index.html
 app.get(/^(?!\/api|\/socket\.io).*/, (req, res) => {
   res.sendFile(indexPath, (err) => {
     if (err) {

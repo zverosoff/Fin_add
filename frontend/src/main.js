@@ -10,8 +10,6 @@ app.use(router);
 app.mount('#app');
 
 // ✅ PWA: регистрация Service Worker
-// vite-plugin-pwa с injectRegister: 'auto' сам вставит скрипт,
-// но мы на всякий случай логируем обновления.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.ready
@@ -23,8 +21,15 @@ if ('serviceWorker' in navigator) {
       });
   });
 
-  // Показываем уведомление о новой версии
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    console.log('[pwa] SW обновлён — перезагрузка не требуется');
+    console.log('[pwa] SW обновлён');
+  });
+
+  // ✅ Клик по уведомлению → фокус на окно
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data?.type === 'notification-click') {
+      console.log('[pwa] клик по уведомлению:', event.data);
+      window.focus();
+    }
   });
 }
