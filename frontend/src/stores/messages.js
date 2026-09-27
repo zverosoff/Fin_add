@@ -3,7 +3,6 @@ import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { api } from '@/api/client';
 import { useAuthStore } from './auth';
-import { notifyIncomingMessage } from '@/composables/usePushNotifications';
 import { playIncomingMessage } from '@/composables/useNotificationSound';
 
 const USERS = ['Сергей', 'Саша'];
@@ -170,7 +169,6 @@ export const useMessagesStore = defineStore('messages', () => {
     lastTypingSent = 0;
   }
 
-  // ✅ Отправка с поддержкой изображения
   async function send(to, text, replyTo = null, image = null) {
     const cleanText = String(text || '').trim();
     if (!cleanText && !image) throw new Error('Пустое сообщение');
@@ -288,25 +286,16 @@ export const useMessagesStore = defineStore('messages', () => {
     }
   }
 
-function onIncoming(msg) {
-  console.log('[onIncoming]', msg);
-  pushMessage(msg);
-  if (msg.from) presence.value[msg.from] = msg.createdAt;
+  function onIncoming(msg) {
+    pushMessage(msg);
+    if (msg.from) presence.value[msg.from] = msg.createdAt;
 
-  if (msg.to === auth.user) {
-    const isChatOpen = document.body.dataset.chatOpen === 'true';
-    const isHidden = document.visibilityState !== 'visible';
-    console.log('[onIncoming] isChatOpen=', isChatOpen, 'isHidden=', isHidden, 'auth.user=', auth.user, 'msg.to=', msg.to);
-
-    try { playIncomingMessage(); } catch (e) { console.warn('[sound] err', e); }
-    if (!isChatOpen || isHidden) {
-      try { notifyIncomingMessage(msg); } catch (e) { console.warn('[notify] err', e); }
-    } else {
-      console.log('[onIncoming] чат открыт и вкладка видима — уведомление не показываем');
+    if (msg.to === auth.user) {
+      try { playIncomingMessage(); } catch (e) {}
+      // ✅ Уведомления теперь через настоящий Web Push от бэкенда.
     }
+    if (msg.from) typing.value[msg.from] = 0;
   }
-  if (msg.from) typing.value[msg.from] = 0;
-}
 
   function onEdited(msg) {
     const m = messageById(msg.id);
