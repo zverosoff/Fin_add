@@ -304,6 +304,8 @@ async function toggle() {
     document.body.dataset.chatOpen = 'true';
     await ensureHistory();
     await nextTick();
+
+    // ✅ Прокрутка к новым сообщениям без фокуса на поле ввода
     const firstUnread = firstUnreadId.value;
     if (firstUnread) {
       const m = messages.messageById(firstUnread);
@@ -312,7 +314,9 @@ async function toggle() {
     } else {
       scrollToBottom();
     }
-    setTimeout(() => inputEl.value?.focus(), 150);
+
+    // ❌ УБРАНО: setTimeout(() => inputEl.value?.focus(), 150);
+
     try {
       await messages.markAllRead(peer.value);
       await updateBadge(messages.totalUnread);
