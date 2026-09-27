@@ -20,6 +20,7 @@ export function runMigrations() {
         from_user TEXT NOT NULL,
         to_user TEXT NOT NULL,
         text TEXT NOT NULL,
+        image TEXT,
         created_at TEXT NOT NULL,
         read_at TEXT,
         edited_at TEXT,
@@ -48,6 +49,7 @@ export function runMigrations() {
     addColumn('deleted_at', 'TEXT');
     addColumn('pinned_at', 'TEXT');
     addColumn('reply_to', 'TEXT');
+    addColumn('image', 'TEXT'); // ✅ base64 или URL
 
     console.log('[migrate] таблица messages обновлена');
   }
@@ -73,7 +75,7 @@ export function runMigrations() {
   }
 
   // ============================================================
-  // ✅ message_reactions
+  // message_reactions
   // ============================================================
   const hasReactions = db.prepare(`
     SELECT name FROM sqlite_master

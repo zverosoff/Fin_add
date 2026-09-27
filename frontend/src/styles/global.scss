@@ -42,11 +42,6 @@ body {
   100% { background-position: 0% 50%; }
 }
 
-/* ✅ Убираем padding-bottom у #app — теперь он в .page-transition-wrap */
-body.app-has-bottom-nav #app {
-  /* пусто — управляется через .page-transition-wrap */
-}
-
 /* ============================================================
    СКРОЛЛБАР
    ============================================================ */
@@ -111,7 +106,7 @@ input, select, textarea {
 }
 
 /* ============================================================
-   LEGACY: самописные модалки (.tx-modal-overlay / .tx-modal)
+   LEGACY: самописные модалки
    ============================================================ */
 .tx-modal-overlay {
   position: fixed;
@@ -175,7 +170,9 @@ input, select, textarea {
   }
 }
 
-// Добавляем CSS-переменные для тем
+/* ============================================================
+   ТЕМЫ ЧАТА
+   ============================================================ */
 :root,
 :root[data-theme="light"] {
   --chat-bg: #f2f2f7;
@@ -216,6 +213,48 @@ input, select, textarea {
   --chat-menu-bg: rgba(30, 39, 50, 0.98);
   --chat-menu-text: #e7e9ea;
   --chat-menu-hover: rgba(82, 136, 193, 0.15);
+  --chat-bg-pattern: none;
+}
+
+:root[data-theme="sunset"] {
+  --chat-bg: #1a0f1f;
+  --chat-header-bg: rgba(36, 18, 40, 0.96);
+  --chat-border: rgba(255, 200, 150, 0.12);
+  --chat-text: #ffe9d6;
+  --chat-text-muted: #b89a8a;
+  --chat-bubble-in-bg: #2d1a2e;
+  --chat-bubble-in-text: #ffe9d6;
+  --chat-bubble-out-bg: #c2410c;
+  --chat-bubble-out-text: #fff7ed;
+  --chat-input-bg: #2d1a2e;
+  --chat-input-border: rgba(255, 200, 150, 0.15);
+  --chat-accent: #fb923c;
+  --chat-reactions-bg: rgba(255, 200, 150, 0.08);
+  --chat-reactions-out-bg: rgba(255, 255, 255, 0.12);
+  --chat-menu-bg: rgba(45, 26, 46, 0.98);
+  --chat-menu-text: #ffe9d6;
+  --chat-menu-hover: rgba(251, 146, 60, 0.15);
+  --chat-bg-pattern: none;
+}
+
+:root[data-theme="night"] {
+  --chat-bg: #070b14;
+  --chat-header-bg: rgba(12, 18, 30, 0.96);
+  --chat-border: rgba(120, 180, 255, 0.1);
+  --chat-text: #d6e4ff;
+  --chat-text-muted: #6b7a99;
+  --chat-bubble-in-bg: #101a2e;
+  --chat-bubble-in-text: #d6e4ff;
+  --chat-bubble-out-bg: #1e3a8a;
+  --chat-bubble-out-text: #e0ecff;
+  --chat-input-bg: #101a2e;
+  --chat-input-border: rgba(120, 180, 255, 0.12);
+  --chat-accent: #60a5fa;
+  --chat-reactions-bg: rgba(120, 180, 255, 0.08);
+  --chat-reactions-out-bg: rgba(255, 255, 255, 0.1);
+  --chat-menu-bg: rgba(16, 26, 46, 0.98);
+  --chat-menu-text: #d6e4ff;
+  --chat-menu-hover: rgba(96, 165, 250, 0.15);
   --chat-bg-pattern: none;
 }
 

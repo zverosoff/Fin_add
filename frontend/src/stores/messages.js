@@ -39,15 +39,11 @@ export const useMessagesStore = defineStore('messages', () => {
   const hasMore = ref({ 'Сергей': true, 'Саша': true });
   const loadingMore = ref({ 'Сергей': false, 'Саша': false });
 
-  // Первое непрочитанное — для разделителя
   const firstUnreadId = ref({ 'Сергей': null, 'Саша': null });
 
   const tick = ref(0);
   setInterval(() => { tick.value++; }, 30 * 1000);
 
-  // ============================================================
-  // Computed
-  // ============================================================
   const totalUnread = computed(() =>
     Object.values(unread.value).reduce((s, n) => s + n, 0)
   );
@@ -76,9 +72,6 @@ export const useMessagesStore = defineStore('messages', () => {
     return null;
   }
 
-  // ============================================================
-  // Загрузка
-  // ============================================================
   async function loadConversations() {
     loading.value = true;
     try {
@@ -95,7 +88,6 @@ export const useMessagesStore = defineStore('messages', () => {
     }
   }
 
-  // ✅ Загрузка с учётом пагинации: если есть before — подгружаем ещё
   async function loadHistory(peer, before = null) {
     const params = { peer, limit: PAGE_SIZE };
     if (before) params.before = before;
@@ -104,16 +96,13 @@ export const useMessagesStore = defineStore('messages', () => {
     if (!data.ok) throw new Error(data.error);
 
     if (before) {
-      // Подгрузили старые — добавляем В НАЧАЛО
       const existing = messages.value[peer] || [];
       messages.value[peer] = [...data.messages, ...existing];
       hasMore.value[peer] = data.hasMore;
     } else {
-      // Первая загрузка
       messages.value[peer] = data.messages;
       hasMore.value[peer] = data.hasMore;
 
-      // Запоминаем первое непрочитанное для разделителя
       const firstUnread = data.messages.find(
         m => m.to === auth.user && !m.readAt
       );
@@ -123,7 +112,6 @@ export const useMessagesStore = defineStore('messages', () => {
     return data.messages;
   }
 
-  // ✅ Загрузка старых сообщений (скролл вверх)
   async function loadMore(peer) {
     if (!hasMore.value[peer] || loadingMore.value[peer]) return;
     const list = messages.value[peer] || [];
@@ -156,9 +144,6 @@ export const useMessagesStore = defineStore('messages', () => {
     try { await api.post('/messages/heartbeat'); } catch (e) { /* ignore */ }
   }
 
-  // ============================================================
-  // Typing
-  // ============================================================
   let lastTypingSent = 0;
   let typingStopTimer = null;
 
@@ -185,15 +170,16 @@ export const useMessagesStore = defineStore('messages', () => {
     lastTypingSent = 0;
   }
 
-  // ============================================================
-  // Отправка
-  // ============================================================
-  async function send(to, text, replyTo = null) {
+  // ✅ Отправка с поддержкой изображения
+  async function send(to, text, replyTo = null, image = null) {
     const cleanText = String(text || '').trim();
-    if (!cleanText) throw new Error('Пустое сообщение');
+    if (!cleanText && !image) throw new Error('Пустое сообщение');
 
     const { data } = await api.post('/messages', {
-      to, text: cleanText, replyTo,
+      to,
+      text: cleanText,
+      replyTo,
+      image: image || null,
     });
     if (!data.ok) throw new Error(data.error);
 
@@ -202,9 +188,6 @@ export const useMessagesStore = defineStore('messages', () => {
     return data.message;
   }
 
-  // ============================================================
-  // Редактирование
-  // ============================================================
   async function edit(id, text) {
     const cleanText = String(text || '').trim();
     if (!cleanText) throw new Error('Пустой текст');
@@ -220,9 +203,6 @@ export const useMessagesStore = defineStore('messages', () => {
     return data.message;
   }
 
-  // ============================================================
-  // Удаление
-  // ============================================================
   async function remove(id) {
     const { data } = await api.delete(`/messages/${id}`);
     if (!data.ok) throw new Error(data.error);
@@ -232,9 +212,6 @@ export const useMessagesStore = defineStore('messages', () => {
     return data;
   }
 
-  // ============================================================
-  // Пиннед
-  // ============================================================
   async function togglePin(id) {
     const { data } = await api.post(`/messages/${id}/pin`);
     if (!data.ok) throw new Error(data.error);
@@ -243,19 +220,14 @@ export const useMessagesStore = defineStore('messages', () => {
     return data;
   }
 
-  // ============================================================
-  // ✅ Реакции (оптимистично)
-  // ============================================================
   async function toggleReaction(id, emoji) {
     const msg = messageById(id);
     if (!msg) return;
 
-    // Оптимистично: сохраним текущие реакции
     const previousReactions = JSON.parse(JSON.stringify(msg.reactions || []));
     const currentUserReaction = (msg.reactions || [])
       .find(r => r.users.includes(auth.user))?.emoji;
 
-    // Локально применяем правило Telegram: одна реакция на юзера
     const nextReactions = (msg.reactions || [])
       .map(r => ({ ...r, users: r.users.filter(u => u !== auth.user) }))
       .filter(r => r.users.length > 0);
@@ -274,15 +246,11 @@ export const useMessagesStore = defineStore('messages', () => {
       msg.reactions = data.reactions;
       return data;
     } catch (e) {
-      // Откат
       msg.reactions = previousReactions;
       throw e;
     }
   }
 
-  // ============================================================
-  // Прочитано
-  // ============================================================
   async function markRead(id) {
     const { data } = await api.patch(`/messages/${id}/read`);
     if (!data.ok) throw new Error(data.error);
@@ -304,9 +272,6 @@ export const useMessagesStore = defineStore('messages', () => {
     return data;
   }
 
-  // ============================================================
-  // WebSocket-обработчики
-  // ============================================================
   function pushMessage(msg) {
     if (!msg || !msg.from || !msg.to) return;
     const peer = msg.from === auth.user ? msg.to : msg.from;

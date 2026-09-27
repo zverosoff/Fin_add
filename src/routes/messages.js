@@ -21,6 +21,7 @@ function rowToMessage(row, reactionsMap) {
     from: row.from_user,
     to: row.to_user,
     text: row.text,
+    image: row.image || null,
     createdAt: row.created_at,
     readAt: row.read_at,
     editedAt: row.edited_at,
@@ -60,9 +61,9 @@ function loadReactionsForMessages(ids) {
 
 const insertMsg = db.prepare(`
   INSERT INTO messages
-    (id, from_user, to_user, text, created_at, read_at, edited_at, deleted_at, pinned_at, reply_to, payload)
+    (id, from_user, to_user, text, image, created_at, read_at, edited_at, deleted_at, pinned_at, reply_to, payload)
   VALUES
-    (@id, @from, @to, @text, @createdAt, NULL, NULL, NULL, NULL, @replyTo, @payload)
+    (@id, @from, @to, @text, @image, @createdAt, NULL, NULL, NULL, NULL, @replyTo, @payload)
 `);
 
 const listByUserStmt = db.prepare(`
@@ -74,7 +75,6 @@ const listByUserStmt = db.prepare(`
   LIMIT @limit
 `);
 
-// ✅ Пагинация: сообщения ДО указанной даты
 const listByUserBeforeStmt = db.prepare(`
   SELECT * FROM messages
   WHERE ((from_user = @user AND to_user = @peer)
@@ -110,7 +110,6 @@ const touchPresenceStmt = db.prepare(`
 const getPresenceStmt = db.prepare('SELECT * FROM user_presence WHERE user = ?');
 const getAllPresenceStmt = db.prepare('SELECT * FROM user_presence');
 
-// Реакции
 const addReactionStmt = db.prepare(`
   INSERT OR IGNORE INTO message_reactions (message_id, user, emoji, created_at)
   VALUES (@messageId, @user, @emoji, @createdAt)
@@ -246,7 +245,6 @@ router.get('/unread', requireAuth, (req, res) => {
 
 // ============================================================
 // GET /api/messages?peer=Саша&limit=50&before=ISO
-// ✅ Пагинация: если передан before — грузим сообщения до этой даты
 // ============================================================
 router.get('/', requireAuth, (req, res) => {
   try {
@@ -266,12 +264,10 @@ router.get('/', requireAuth, (req, res) => {
     let hasMore = false;
 
     if (before) {
-      // ✅ Грузим N сообщений ДО даты, в порядке по возрастанию для отображения
       const fetched = listByUserBeforeStmt.all({ user: me, peer, before, limit: limit + 1 });
       hasMore = fetched.length > limit;
       rows = fetched.slice(0, limit).reverse();
     } else {
-      // Первая загрузка: последние N сообщений
       const fetched = listByUserStmt.all({ user: me, peer, limit: 500 });
       const sliced = fetched.slice(-limit);
       hasMore = fetched.length > limit;
@@ -293,11 +289,12 @@ router.get('/', requireAuth, (req, res) => {
 
 // ============================================================
 // POST /api/messages
+// ✅ Поддержка изображений (base64/URL) в поле image
 // ============================================================
 router.post('/', requireAuth, (req, res) => {
   try {
     const me = req.user;
-    const { to, text, replyTo } = req.body ?? {};
+    const { to, text, replyTo, image } = req.body ?? {};
 
     if (!to || !USERS.includes(to)) {
       return res.status(400).json({ ok: false, error: 'to обязателен' });
@@ -307,8 +304,12 @@ router.post('/', requireAuth, (req, res) => {
     }
 
     const cleanText = String(text ?? '').trim().slice(0, 2000);
-    if (!cleanText) {
-      return res.status(400).json({ ok: false, error: 'Текст пуст' });
+    const cleanImage = typeof image === 'string' && image.length > 0
+      ? image.slice(0, 5_000_000) // ~5MB base64
+      : null;
+
+    if (!cleanText && !cleanImage) {
+      return res.status(400).json({ ok: false, error: 'Пустое сообщение' });
     }
 
     const msg = {
@@ -316,6 +317,7 @@ router.post('/', requireAuth, (req, res) => {
       from: me,
       to,
       text: cleanText,
+      image: cleanImage,
       createdAt: new Date().toISOString(),
       replyTo: replyTo || null,
       payload: JSON.stringify({ fromUser: me }),
@@ -343,10 +345,6 @@ router.post('/', requireAuth, (req, res) => {
 
 // ============================================================
 // POST /api/messages/:id/reaction
-// ✅ В Telegram-стиле: у пользователя одна реакция на сообщение.
-//    - Нет реакции → добавляем emoji
-//    - Уже emoji, который прислали → удаляем (toggle off)
-//    - Другой emoji → заменяем (сначала чистим все реакции юзера, потом ставим новую)
 // ============================================================
 router.post('/:id/reaction', requireAuth, (req, res) => {
   try {
@@ -365,28 +363,23 @@ router.post('/:id/reaction', requireAuth, (req, res) => {
       return res.status(403).json({ ok: false, error: 'Нет доступа' });
     }
 
-    // Текущая реакция юзера
     const current = db.prepare(`
       SELECT emoji FROM message_reactions
       WHERE message_id = ? AND user = ?
     `).get(id, me);
 
     const tx = db.transaction(() => {
-      // Всегда чистим все реакции пользователя на это сообщение
       clearUserReactionsStmt.run(id, me);
-
-      // Если была та же самая реакция — toggle off (не добавляем)
       if (current && current.emoji === emoji) {
-        return false; // removed
+        return false;
       }
-
       addReactionStmt.run({
         messageId: id,
         user: me,
         emoji,
         createdAt: new Date().toISOString(),
       });
-      return true; // added or replaced
+      return true;
     });
 
     tx();
@@ -470,7 +463,9 @@ router.patch('/:id', requireAuth, (req, res) => {
     if (row.deleted_at) return res.status(400).json({ ok: false, error: 'Удалено' });
 
     const cleanText = String(text ?? '').trim().slice(0, 2000);
-    if (!cleanText) return res.status(400).json({ ok: false, error: 'Текст пуст' });
+    if (!cleanText && !row.image) {
+      return res.status(400).json({ ok: false, error: 'Текст пуст' });
+    }
 
     const editedAt = new Date().toISOString();
     db.prepare('UPDATE messages SET text = ?, edited_at = ? WHERE id = ?')
