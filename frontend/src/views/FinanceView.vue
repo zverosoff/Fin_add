@@ -9,6 +9,7 @@ import { notifySaved, notifyError } from '@/composables/useDataStatus';
 
 import PageHero from '@/components/ui/PageHero.vue';
 import AccountsBlock from '@/components/accounts/AccountsBlock.vue';
+import CashBlock from '@/components/accounts/CashBlock.vue';
 import ReconcileBanner from '@/components/accounts/ReconcileBanner.vue';
 import ReconcileModal from '@/components/accounts/ReconcileModal.vue';
 import MonthNav from '@/components/transactions/MonthNav.vue';
@@ -68,6 +69,8 @@ function onUserMenu(owner) {
           @reconcile="onReconcile"
           @user-menu="onUserMenu"
         />
+        <!-- ✅ Новый блок наличных под картой балансов -->
+        <CashBlock />
         <MonthNav />
         <SummaryCompact />
       </aside>
