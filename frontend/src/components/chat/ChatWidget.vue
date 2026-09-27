@@ -1670,41 +1670,57 @@ $chat-font-lg: 13px;
 
 @keyframes clockSpin { to { transform: rotate(360deg); } }
 
+/* ✅ Реакции — круглый пузырёк, прижат к нижнему-левому углу bubble */
 .bubble-reactions {
   position: absolute;
-  left: 6px;
+  left: -10px;
   bottom: -10px;
   display: inline-flex;
-  gap: 3px;
-  padding: 2px 6px;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 3px 5px;
+  min-width: 24px;
+  height: 24px;
   border-radius: 999px;
   background: var(--chat-menu-bg);
-  border: 0.5px solid var(--chat-border);
-  box-shadow: 0 2px 8px -2px rgba(15, 23, 42, 0.2);
-  z-index: 2;
-  pointer-events: auto;
+  border: 2px solid var(--chat-bg);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+  z-index: 3;
+  box-sizing: border-box;
 }
 
 .reaction-chip {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  justify-content: center;
+  gap: 1px;
   padding: 0;
   border: none;
   background: transparent;
   cursor: pointer;
   font-family: inherit;
+  line-height: 1;
   transition: transform 0.12s;
 
   &:hover { transform: scale(1.15); }
+  &:active { transform: scale(0.9); }
 }
 
-.rc-emoji { font-size: 12px; line-height: 1; }
+.rc-emoji {
+  font-size: 14px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+}
+
 .rc-count {
-  font-size: $chat-font-sm;
+  font-size: 10px;
   font-weight: 700;
   color: var(--chat-text);
   opacity: 0.85;
+  line-height: 1;
+  margin-left: 1px;
 }
 
 .scroll-down-btn {
