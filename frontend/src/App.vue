@@ -14,7 +14,7 @@ import BottomNav from '@/components/ui/BottomNav.vue';
 import ScanModal from '@/components/scan/ScanModal.vue';
 import ManualModal from '@/components/transactions/ManualModal.vue';
 import PdfImportModal from '@/components/scan/PdfImportModal.vue';
-import ChatWidget from '@/components/chat/ChatWidget.vue';   // ✅ NEW
+import ChatWidget from '@/components/chat/ChatWidget.vue';
 
 const auth = useAuthStore();
 const accounts = useAccountsStore();
@@ -28,7 +28,6 @@ const booting = ref(false);
 const percent = ref(0);
 const stage = ref('Запуск…');
 const done = ref(false);
-
 const manualOpen = ref(false);
 const pdfOpen = ref(false);
 
@@ -36,13 +35,17 @@ const showBottomNav = computed(() => route.name !== 'login');
 const showChat = computed(() => route.name !== 'login' && auth.isAuthenticated);
 
 const TAB_ORDER = ['finance', 'analytics', 'deposits', 'profile'];
-
 const transitionName = ref('fade-page');
+
+// ✅ Title с количеством непрочитанных
+const BASE_TITLE = 'Финансы PRO+';
+watch(() => messagesStore.totalUnread, (n) => {
+  document.title = n > 0 ? `(${n}) ${BASE_TITLE}` : BASE_TITLE;
+}, { immediate: true });
 
 watch(() => route.name, (newName, oldName) => {
   const newIdx = TAB_ORDER.indexOf(newName);
   const oldIdx = TAB_ORDER.indexOf(oldName);
-
   if (newIdx >= 0 && oldIdx >= 0) {
     transitionName.value = newIdx > oldIdx ? 'slide-left' : 'slide-right';
   } else {
@@ -50,28 +53,15 @@ watch(() => route.name, (newName, oldName) => {
   }
 });
 
-function switchToManual() {
-  scanStore.close();
-  manualOpen.value = true;
-}
-
-function switchToPdf() {
-  scanStore.close();
-  pdfOpen.value = true;
-}
+function switchToManual() { scanStore.close(); manualOpen.value = true; }
+function switchToPdf() { scanStore.close(); pdfOpen.value = true; }
 
 onMounted(async () => {
-  if (route.name !== 'login') {
-    document.body.classList.add('app-has-bottom-nav');
-  }
-
+  if (route.name !== 'login') document.body.classList.add('app-has-bottom-nav');
   initPushHandlers();
 
   const hasSessionHint = auth.isAuthenticated || !!auth.user;
-  if (!hasSessionHint) {
-    router.push('/login');
-    return;
-  }
+  if (!hasSessionHint) { router.push('/login'); return; }
 
   booting.value = true;
   done.value = false;
@@ -93,9 +83,7 @@ onMounted(async () => {
       return;
     }
 
-    if (valid === null) {
-      stage.value = 'Сервер недоступен, работаем офлайн…';
-    }
+    if (valid === null) stage.value = 'Сервер недоступен, работаем офлайн…';
 
     stage.value = 'Загрузка данных…';
     percent.value = 30;
@@ -120,9 +108,7 @@ onMounted(async () => {
     stage.value = 'Готово!';
     done.value = true;
 
-    setTimeout(() => {
-      booting.value = false;
-    }, 400);
+    setTimeout(() => { booting.value = false; }, 400);
   } catch (e) {
     console.error('[app] bootstrap error:', e);
     stage.value = 'Ошибка загрузки';
@@ -150,8 +136,6 @@ onUnmounted(() => {
   </div>
 
   <BottomNav v-if="showBottomNav" />
-
-  <!-- ✅ Чат -->
   <ChatWidget v-if="showChat" />
 
   <ScanModal
@@ -184,9 +168,7 @@ onUnmounted(() => {
 }
 
 @media (max-width: 700px) {
-  .page-transition-wrap {
-    padding-bottom: calc(80px + env(safe-area-inset-bottom, 0));
-  }
+  .page-transition-wrap { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0)); }
 }
 
 .slide-left-enter-active,
@@ -199,9 +181,7 @@ onUnmounted(() => {
 .slide-left-leave-active,
 .slide-right-leave-active {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
+  top: 0; left: 0; right: 0;
   width: 100%;
   transition: transform 0.28s cubic-bezier(.22,.61,.36,1), opacity 0.28s;
   pointer-events: none;
@@ -213,9 +193,7 @@ onUnmounted(() => {
 .fade-page-leave-active { transition: opacity 0.25s ease; }
 .fade-page-leave-active {
   position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
+  top: 0; left: 0; right: 0;
   width: 100%;
   pointer-events: none;
 }

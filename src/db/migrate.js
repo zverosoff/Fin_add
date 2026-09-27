@@ -5,7 +5,7 @@ export function runMigrations() {
   console.log('[migrate] проверка схемы…');
 
   // ============================================================
-  // ✅ messages — с новыми полями
+  // messages
   // ============================================================
   const hasMessages = db.prepare(`
     SELECT name FROM sqlite_master
@@ -35,7 +35,6 @@ export function runMigrations() {
     `);
     console.log('[migrate] ✅ таблица messages создана');
   } else {
-    // ✅ Добавляем недостающие колонки (soft migration)
     const cols = db.prepare(`PRAGMA table_info(messages)`).all();
     const colNames = new Set(cols.map(c => c.name));
 
@@ -54,7 +53,7 @@ export function runMigrations() {
   }
 
   // ============================================================
-  // ✅ user_presence — последний визит пользователя
+  // user_presence
   // ============================================================
   const hasPresence = db.prepare(`
     SELECT name FROM sqlite_master
@@ -71,8 +70,30 @@ export function runMigrations() {
       );
     `);
     console.log('[migrate] ✅ таблица user_presence создана');
-  } else {
-    console.log('[migrate] таблица user_presence уже есть');
+  }
+
+  // ============================================================
+  // ✅ message_reactions
+  // ============================================================
+  const hasReactions = db.prepare(`
+    SELECT name FROM sqlite_master
+    WHERE type='table' AND name='message_reactions'
+  `).get();
+
+  if (!hasReactions) {
+    console.log('[migrate] создаю таблицу message_reactions…');
+    db.exec(`
+      CREATE TABLE message_reactions (
+        message_id TEXT NOT NULL,
+        user TEXT NOT NULL,
+        emoji TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (message_id, user, emoji)
+      );
+      CREATE INDEX idx_react_msg ON message_reactions(message_id);
+      CREATE INDEX idx_react_user ON message_reactions(user);
+    `);
+    console.log('[migrate] ✅ таблица message_reactions создана');
   }
 
   console.log('[migrate] ✅ все миграции применены');

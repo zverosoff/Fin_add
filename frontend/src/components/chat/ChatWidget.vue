@@ -3,6 +3,12 @@ import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue';
 import { useMessagesStore } from '@/stores/messages';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from '@/composables/useToast';
+import { linkify } from '@/composables/useLinkify';
+import {
+  playOutgoingMessage,
+  playReaction,
+  playError,
+} from '@/composables/useNotificationSound';
 import {
   getPermission,
   requestPermission,
@@ -22,6 +28,9 @@ const inputEl = ref(null);
 // Контекстное меню
 const menu = ref({ open: false, x: 0, y: 0, message: null });
 
+// Панель реакций
+const reactionsPanel = ref({ open: false, x: 0, y: 0, message: null });
+
 // Режим редактирования
 const editing = ref(null);
 const editText = ref('');
@@ -29,14 +38,15 @@ const editText = ref('');
 // Режим ответа
 const replyTo = ref(null);
 
-// ✅ Высота панели под visualViewport (для мобильной клавиатуры)
-const panelHeight = ref('100vh');
-const panelTop = ref('0px');
+// Мобильный viewport
+const panelHeight = ref('');
+const panelTop = ref('');
 
 const me = computed(() => auth.user || 'Сергей');
 const peer = computed(() => messages.myPeer());
 const peerEmoji = computed(() => peer.value === 'Сергей' ? '👨' : '👩');
 const peerOnline = computed(() => messages.isOnline(peer.value));
+const peerTyping = computed(() => messages.isTyping(peer.value));
 
 const history = computed(() => messages.messagesWith(peer.value));
 const pinned = computed(() => messages.pinnedWith(peer.value));
@@ -46,9 +56,10 @@ const pinnedLatest = computed(() =>
 const totalUnread = computed(() => messages.totalUnread);
 
 // ============================================================
-// Presence — «был(а) недавно»
+// Presence
 // ============================================================
 const peerStatusText = computed(() => {
+  if (peerTyping.value) return 'печатает…';
   if (peerOnline.value) return 'в сети';
   const last = messages.lastSeen(peer.value);
   if (!last) return 'был(а) недавно';
@@ -74,20 +85,30 @@ function fmtLastSeen(iso) {
 }
 
 // ============================================================
-// ✅ Мобильная клавиатура: слушаем visualViewport
+// Скролл — авто только если пользователь внизу
 // ============================================================
-function updateViewport() {
-  if (window.innerWidth > 700) {
-    panelHeight.value = '';
-    panelTop.value = '';
-    return;
+function isNearBottom() {
+  if (!scrollEl.value) return true;
+  const el = scrollEl.value;
+  return el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+}
+
+function scrollToBottom(smooth = false) {
+  if (!scrollEl.value) return;
+  if (smooth) {
+    scrollEl.value.scrollTo({ top: scrollEl.value.scrollHeight, behavior: 'smooth' });
+  } else {
+    scrollEl.value.scrollTop = scrollEl.value.scrollHeight;
   }
+}
 
-  const vv = window.visualViewport;
-  if (!vv) return;
-
-  panelHeight.value = vv.height + 'px';
-  panelTop.value = vv.offsetTop + 'px';
+function scrollToMessage(id) {
+  const el = scrollEl.value?.querySelector(`[data-msg-id="${id}"]`);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    el.classList.add('highlight');
+    setTimeout(() => el.classList.remove('highlight'), 1200);
+  }
 }
 
 // ============================================================
@@ -110,6 +131,8 @@ async function toggle() {
   } else {
     document.body.dataset.chatOpen = 'false';
     closeMenu();
+    closeReactions();
+    messages.notifyTypingStop(peer.value);
   }
 }
 
@@ -136,12 +159,23 @@ async function send() {
     await messages.send(peer.value, clean, replyTo.value?.id || null);
     text.value = '';
     replyTo.value = null;
+    try { playOutgoingMessage(); } catch (e) { /* ignore */ }
     await nextTick();
-    scrollToBottom();
+    scrollToBottom(true);
   } catch (e) {
     toast.error('Не отправилось: ' + e.message);
+    try { playError(); } catch (err) {}
   } finally {
     sending.value = false;
+  }
+}
+
+function onInput() {
+  // ✅ Уведомляем о печати
+  if (text.value.trim()) {
+    messages.notifyTypingStart(peer.value);
+  } else {
+    messages.notifyTypingStop(peer.value);
   }
 }
 
@@ -217,12 +251,49 @@ async function togglePin(msg) {
 }
 
 // ============================================================
+// Реакции
+// ============================================================
+async function addReaction(msg, emoji) {
+  try {
+    await messages.toggleReaction(msg.id, emoji);
+    try { playReaction(); } catch (e) {}
+  } catch (e) {
+    toast.error('Ошибка: ' + e.message);
+  }
+}
+
+function openReactions(e, msg) {
+  if (e.cancelable) e.preventDefault();
+  e.stopPropagation();
+  closeMenu();
+
+  let x = e.clientX || 0;
+  let y = e.clientY || 0;
+  if (e.touches?.[0]) { x = e.touches[0].clientX; y = e.touches[0].clientY; }
+  if (e.changedTouches?.[0]) { x = e.changedTouches[0].clientX; y = e.changedTouches[0].clientY; }
+
+  const W = 320, H = 60;
+  x = Math.min(x, window.innerWidth - W - 8);
+  y = Math.min(y, window.innerHeight - H - 8);
+  x = Math.max(8, x);
+  y = Math.max(8, y);
+
+  reactionsPanel.value = { open: true, x, y, message: msg };
+}
+
+function closeReactions() {
+  reactionsPanel.value.open = false;
+  reactionsPanel.value.message = null;
+}
+
+// ============================================================
 // Ответ
 // ============================================================
 function startReply(msg) {
   replyTo.value = msg;
   editing.value = null;
   closeMenu();
+  closeReactions();
   nextTick(() => inputEl.value?.focus());
 }
 
@@ -230,13 +301,34 @@ function cancelReply() {
   replyTo.value = null;
 }
 
+function getQuoteText(id) {
+  const m = messages.messageById(id);
+  if (!m) return 'сообщение';
+  const who = m.from === me.value ? 'Вы' : m.from;
+  const txt = (m.text || '').slice(0, 60);
+  return `${who}: ${txt}`;
+}
+
 // ============================================================
-// ✅ Контекстное меню с защитой от преждевременного закрытия
+// Копирование
+// ============================================================
+async function copyMessage(msg) {
+  closeMenu();
+  try {
+    await navigator.clipboard.writeText(msg.text);
+    toast.success('📋 Скопировано');
+  } catch (e) {
+    toast.error('Не удалось скопировать');
+  }
+}
+
+// ============================================================
+// ✅ Контекстное меню с защитой
 // ============================================================
 let longPressTimer = null;
 let longPressStart = null;
-let longPressTriggered = false;      // меню открыто через long-press
-let pointerStillDown = false;        // палец всё ещё нажат после long-press
+let longPressTriggered = false;
+let pointerStillDown = false;
 let menuOpenedAt = 0;
 
 function openMenu(e, msg) {
@@ -245,17 +337,11 @@ function openMenu(e, msg) {
 
   let x = e.clientX || 0;
   let y = e.clientY || 0;
+  if (e.touches?.[0]) { x = e.touches[0].clientX; y = e.touches[0].clientY; }
+  if (e.changedTouches?.[0]) { x = e.changedTouches[0].clientX; y = e.changedTouches[0].clientY; }
 
-  if (e.touches && e.touches[0]) {
-    x = e.touches[0].clientX;
-    y = e.touches[0].clientY;
-  } else if (e.changedTouches && e.changedTouches[0]) {
-    x = e.changedTouches[0].clientX;
-    y = e.changedTouches[0].clientY;
-  }
-
-  const menuW = 200;
-  const menuH = 220;
+  const menuW = 210;
+  const menuH = 260;
   x = Math.min(x, window.innerWidth - menuW - 8);
   y = Math.min(y, window.innerHeight - menuH - 8);
   x = Math.max(8, x);
@@ -268,23 +354,13 @@ function openMenu(e, msg) {
 }
 
 function closeMenu() {
-  // ✅ Блокируем закрытие, если палец всё ещё нажат
   if (pointerStillDown) return;
-  // ✅ Блокируем закрытие первые 400ms после открытия
   if (Date.now() - menuOpenedAt < 400) return;
-
   menu.value.open = false;
   menu.value.message = null;
 }
 
-function forceCloseMenu() {
-  menu.value.open = false;
-  menu.value.message = null;
-}
-
-const menuIsMine = computed(() =>
-  menu.value.message?.from === me.value
-);
+const menuIsMine = computed(() => menu.value.message?.from === me.value);
 
 // ============================================================
 // Long-press
@@ -301,15 +377,14 @@ function onTouchStart(e, msg) {
   longPressTimer = setTimeout(() => {
     longPressTimer = null;
     longPressTriggered = true;
-
-    const fakeEvent = {
+    // Сначала панель реакций
+    openReactions({
       clientX: longPressStart.x,
       clientY: longPressStart.y,
       cancelable: false,
       preventDefault: () => {},
       stopPropagation: () => {},
-    };
-    openMenu(fakeEvent, msg);
+    }, msg);
   }, 450);
 }
 
@@ -332,49 +407,22 @@ function onTouchEnd(e) {
     clearTimeout(longPressTimer);
     longPressTimer = null;
   }
-
-  // ✅ Палец оторвался — теперь можно закрывать
   pointerStillDown = false;
 
   if (longPressTriggered) {
     if (e && e.cancelable) e.preventDefault();
     e && e.stopPropagation();
-    // Снимем флаг через небольшую задержку, чтобы клик не успел закрыть
     setTimeout(() => { longPressTriggered = false; }, 250);
   }
-
   longPressStart = null;
 }
 
-// На ПК тоже поддержать правый клик (contextmenu)
 function onContextMenu(e, msg) {
   e.preventDefault();
   e.stopPropagation();
   pointerStillDown = false;
   openMenu(e, msg);
 }
-
-// ============================================================
-// Скролл
-// ============================================================
-function scrollToBottom() {
-  if (scrollEl.value) {
-    scrollEl.value.scrollTop = scrollEl.value.scrollHeight;
-  }
-}
-
-function scrollToMessage(id) {
-  const el = scrollEl.value?.querySelector(`[data-msg-id="${id}"]`);
-  if (el) {
-    el.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    el.classList.add('highlight');
-    setTimeout(() => el.classList.remove('highlight'), 1200);
-  }
-}
-
-watch(history, () => {
-  if (open.value) nextTick(() => scrollToBottom());
-});
 
 // ============================================================
 // Время
@@ -410,9 +458,21 @@ function isSameDay(a, b) {
 }
 
 // ============================================================
-// PWA / Presence heartbeat / Viewport
+// Viewport / PWA / heartbeat
 // ============================================================
 let heartbeatTimer = null;
+
+function updateViewport() {
+  if (window.innerWidth > 700) {
+    panelHeight.value = '';
+    panelTop.value = '';
+    return;
+  }
+  const vv = window.visualViewport;
+  if (!vv) return;
+  panelHeight.value = vv.height + 'px';
+  panelTop.value = vv.offsetTop + 'px';
+}
 
 async function askNotifications() {
   const cur = getPermission();
@@ -431,11 +491,24 @@ function onVisibilityChange() {
 
 function onBeforeUnload() {
   messages.heartbeat();
+  messages.notifyTypingStop(peer.value);
 }
 
 function onViewportResize() {
   updateViewport();
 }
+
+// ============================================================
+// ✅ Авто-скролл: только если пользователь был внизу
+// ============================================================
+watch(history, (newList, oldList) => {
+  if (!open.value) return;
+  const wasNearBottom = isNearBottom();
+  // Если появилось новое сообщение и мы были внизу — скроллим
+  if (newList.length > (oldList?.length || 0) && wasNearBottom) {
+    nextTick(() => scrollToBottom(true));
+  }
+}, { deep: false });
 
 onMounted(async () => {
   try {
@@ -452,7 +525,6 @@ onMounted(async () => {
   document.addEventListener('visibilitychange', onVisibilityChange);
   window.addEventListener('beforeunload', onBeforeUnload);
 
-  // ✅ visualViewport
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', onViewportResize);
     window.visualViewport.addEventListener('scroll', onViewportResize);
@@ -478,7 +550,7 @@ watch(open, (v) => { if (v) askNotifications(); });
 </script>
 
 <template>
-  <!-- Плавающая кнопка -->
+  <!-- FAB -->
   <button
     class="chat-fab"
     :class="{ open, 'has-unread': totalUnread > 0 }"
@@ -493,13 +565,12 @@ watch(open, (v) => { if (v) askNotifications(); });
         <path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
       </svg>
     </span>
-
     <span v-if="totalUnread > 0 && !open" class="chat-fab-badge">
       {{ totalUnread > 99 ? '99+' : totalUnread }}
     </span>
   </button>
 
-  <!-- Панель чата -->
+  <!-- Панель -->
   <Transition name="chat-panel">
     <div
       v-if="open"
@@ -510,9 +581,9 @@ watch(open, (v) => { if (v) askNotifications(); });
       }"
       @click.stop
     >
-      <!-- ✅ HEADER: sticky/absolute, не сдвигается при клавиатуре -->
+      <!-- Header -->
       <div class="chat-head">
-        <button class="chat-back" @click="close" aria-label="Назад">
+        <button class="chat-back" @click="close">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20">
             <path d="M15 18l-6-6 6-6" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
@@ -524,7 +595,10 @@ watch(open, (v) => { if (v) askNotifications(); });
           </div>
           <div class="chat-user-info">
             <div class="chat-user-name">{{ peer }}</div>
-            <div class="chat-user-status" :class="{ online: peerOnline }">
+            <div
+              class="chat-user-status"
+              :class="{ online: peerOnline, typing: peerTyping }"
+            >
               {{ peerStatusText }}
             </div>
           </div>
@@ -537,21 +611,24 @@ watch(open, (v) => { if (v) askNotifications(); });
         </button>
       </div>
 
-      <!-- Pinned bar -->
+      <!-- Pinned -->
       <div v-if="pinnedLatest" class="chat-pinned" @click="scrollToMessage(pinnedLatest.id)">
         <div class="pinned-icon">📌</div>
         <div class="pinned-body">
-          <div class="pinned-label">Закреплённое</div>
+          <div class="pinned-label">
+            Закреплённое
+            <span v-if="peerTyping" class="pinned-typing">· {{ peer }} печатает…</span>
+          </div>
           <div class="pinned-text">{{ pinnedLatest.text }}</div>
         </div>
-        <button class="pinned-unpin" @click.stop="togglePin(pinnedLatest)" title="Открепить">
+        <button class="pinned-unpin" @click.stop="togglePin(pinnedLatest)">
           <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
             <path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
           </svg>
         </button>
       </div>
 
-      <!-- Сообщения -->
+      <!-- Body -->
       <div ref="scrollEl" class="chat-body">
         <div v-if="history.length === 0" class="chat-empty">
           <div class="chat-empty-icon">💬</div>
@@ -564,9 +641,7 @@ watch(open, (v) => { if (v) askNotifications(); });
             <div
               v-if="i === 0 || !isSameDay(history[i - 1].createdAt, m.createdAt)"
               class="chat-day"
-            >
-              {{ fmtDay(m.createdAt) }}
-            </div>
+            >{{ fmtDay(m.createdAt) }}</div>
 
             <div
               class="chat-msg"
@@ -581,12 +656,18 @@ watch(open, (v) => { if (v) askNotifications(); });
               <div class="chat-bubble" :class="{ 'is-pinned': m.pinnedAt }">
                 <div v-if="m.pinnedAt" class="bubble-pin">📌</div>
 
-                <div v-if="m.replyTo" class="bubble-reply" @click.stop="scrollToMessage(m.replyTo)">
+                <!-- Reply quote -->
+                <div
+                  v-if="m.replyTo"
+                  class="bubble-reply"
+                  @click.stop="scrollToMessage(m.replyTo)"
+                >
                   <div class="br-line"></div>
-                  <div class="br-text">↩️ ответ</div>
+                  <div class="br-text">{{ getQuoteText(m.replyTo) }}</div>
                 </div>
 
-                <div class="chat-text">{{ m.text }}</div>
+                <!-- ✅ Текст с ссылками/markdown -->
+                <div class="chat-text" v-html="linkify(m.text)"></div>
 
                 <div class="chat-meta">
                   <span v-if="m.editedAt" class="chat-edited">изм.</span>
@@ -595,10 +676,22 @@ watch(open, (v) => { if (v) askNotifications(); });
                     v-if="m.from === me"
                     class="chat-read"
                     :class="{ read: !!m.readAt }"
-                  >
-                    {{ m.readAt ? '✓✓' : '✓' }}
-                  </span>
+                  >{{ m.readAt ? '✓✓' : '✓' }}</span>
                 </div>
+              </div>
+
+              <!-- ✅ Реакции -->
+              <div v-if="m.reactions?.length" class="msg-reactions">
+                <button
+                  v-for="r in m.reactions"
+                  :key="r.emoji"
+                  class="reaction-chip"
+                  :class="{ mine: r.users.includes(me) }"
+                  @click.stop="addReaction(m, r.emoji)"
+                >
+                  <span class="rc-emoji">{{ r.emoji }}</span>
+                  <span class="rc-count">{{ r.users.length }}</span>
+                </button>
               </div>
             </div>
           </template>
@@ -610,7 +703,7 @@ watch(open, (v) => { if (v) askNotifications(); });
         <div class="crp-line"></div>
         <div class="crp-body">
           <div class="crp-label">Ответ</div>
-          <div class="crp-text">{{ replyTo.text }}</div>
+          <div class="crp-text">{{ getQuoteText(replyTo.id) }}</div>
         </div>
         <button class="crp-close" @click="cancelReply">✕</button>
       </div>
@@ -650,6 +743,7 @@ watch(open, (v) => { if (v) askNotifications(); });
             class="chat-input"
             placeholder="Сообщение"
             rows="1"
+            @input="onInput"
             @keydown="onKeydown"
           />
           <button
@@ -665,6 +759,37 @@ watch(open, (v) => { if (v) askNotifications(); });
       </div>
     </div>
   </Transition>
+
+  <!-- ✅ Панель реакций -->
+  <Teleport to="body">
+    <Transition name="ctx-menu">
+      <div
+        v-if="reactionsPanel.open"
+        class="ctx-backdrop"
+        @click="closeReactions"
+        @contextmenu.prevent="closeReactions"
+      >
+        <div
+          class="reactions-panel"
+          :style="{ left: reactionsPanel.x + 'px', top: reactionsPanel.y + 'px' }"
+          @click.stop
+          @touchstart.stop
+          @touchend.stop
+        >
+          <button
+            v-for="e in ['❤️','👍','🔥','😂','😮','😢','👎','🎉']"
+            :key="e"
+            class="reaction-btn"
+            @click="addReaction(reactionsPanel.message, e); closeReactions()"
+          >{{ e }}</button>
+
+          <button class="reaction-btn reaction-btn-more" @click="openMenu({ clientX: reactionsPanel.x, clientY: reactionsPanel.y + 60, cancelable: false, preventDefault: () => {}, stopPropagation: () => {} }, reactionsPanel.message); closeReactions()" title="Ещё">
+            ⋯
+          </button>
+        </div>
+      </div>
+    </Transition>
+  </Teleport>
 
   <!-- Контекстное меню -->
   <Teleport to="body">
@@ -688,6 +813,11 @@ watch(open, (v) => { if (v) askNotifications(); });
             <span class="ctx-label">Ответить</span>
           </button>
 
+          <button class="ctx-item" @click="copyMessage(menu.message)">
+            <span class="ctx-icon">📋</span>
+            <span class="ctx-label">Копировать</span>
+          </button>
+
           <button class="ctx-item" @click="togglePin(menu.message)">
             <span class="ctx-icon">📌</span>
             <span class="ctx-label">
@@ -704,10 +834,7 @@ watch(open, (v) => { if (v) askNotifications(); });
             <span class="ctx-label">Редактировать</span>
           </button>
 
-          <button
-            class="ctx-item danger"
-            @click="removeMsg(menu.message)"
-          >
+          <button class="ctx-item danger" @click="removeMsg(menu.message)">
             <span class="ctx-icon">🗑</span>
             <span class="ctx-label">Удалить</span>
           </button>
@@ -718,12 +845,11 @@ watch(open, (v) => { if (v) askNotifications(); });
 </template>
 
 <style scoped lang="scss">
-/* ✅ Единый размер шрифта — 12px */
 $chat-font: 12px;
 $chat-font-sm: 10px;
 $chat-font-lg: 13px;
 
-/* Плавающая кнопка */
+/* FAB */
 .chat-fab {
   position: fixed;
   right: 20px;
@@ -739,22 +865,13 @@ $chat-font-lg: 13px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow:
-    0 10px 28px -8px rgba(99, 102, 241, 0.6),
-    0 4px 12px -4px rgba(15, 23, 42, 0.15);
+  box-shadow: 0 10px 28px -8px rgba(99, 102, 241, 0.6), 0 4px 12px -4px rgba(15, 23, 42, 0.15);
   transition: transform 0.2s cubic-bezier(.34,1.56,.64,1);
 
   &:hover { transform: scale(1.08); }
   &:active { transform: scale(0.94); }
-
-  &.open {
-    background: linear-gradient(135deg, #ef4444, #dc2626);
-    box-shadow: 0 10px 28px -8px rgba(239, 68, 68, 0.6);
-  }
-
-  &.has-unread:not(.open) {
-    animation: fabPulse 1.6s ease-in-out infinite;
-  }
+  &.open { background: linear-gradient(135deg, #ef4444, #dc2626); box-shadow: 0 10px 28px -8px rgba(239, 68, 68, 0.6); }
+  &.has-unread:not(.open) { animation: fabPulse 1.6s ease-in-out infinite; }
 }
 
 @keyframes fabPulse {
@@ -766,10 +883,8 @@ $chat-font-lg: 13px;
 
 .chat-fab-badge {
   position: absolute;
-  top: -4px;
-  right: -4px;
-  min-width: 20px;
-  height: 20px;
+  top: -4px; right: -4px;
+  min-width: 20px; height: 20px;
   padding: 0 6px;
   border-radius: 999px;
   background: linear-gradient(135deg, #ef4444, #dc2626);
@@ -783,7 +898,7 @@ $chat-font-lg: 13px;
   box-shadow: 0 4px 12px -2px rgba(239, 68, 68, 0.7), 0 0 0 3px #ffffff;
 }
 
-/* Панель чата */
+/* Panel */
 .chat-panel {
   position: fixed;
   right: 20px;
@@ -793,20 +908,17 @@ $chat-font-lg: 13px;
   max-width: calc(100vw - 32px);
   height: 580px;
   max-height: calc(100vh - 200px);
-
   background: #f2f2f7;
   border-radius: 20px;
   border: 1px solid rgba(148, 163, 184, 0.2);
-  box-shadow:
-    0 30px 70px -20px rgba(15, 23, 42, 0.3),
-    0 10px 30px -10px rgba(15, 23, 42, 0.15);
+  box-shadow: 0 30px 70px -20px rgba(15, 23, 42, 0.3), 0 10px 30px -10px rgba(15, 23, 42, 0.15);
   display: flex;
   flex-direction: column;
   overflow: hidden;
   margin-bottom: 72px;
 }
 
-/* ✅ HEADER — absolute, не уезжает при клавиатуре */
+/* Header */
 .chat-head {
   position: relative;
   display: flex;
@@ -815,33 +927,26 @@ $chat-font-lg: 13px;
   padding: 10px 12px;
   background: rgba(249, 250, 251, 0.96);
   backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-bottom: 0.5px solid rgba(60, 60, 67, 0.15);
   flex-shrink: 0;
   z-index: 5;
 }
 
 .chat-back {
-  width: 30px;
-  height: 30px;
+  width: 30px; height: 30px;
   border-radius: 8px;
   border: none;
   background: transparent;
   color: #007aff;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
-
   &:hover { background: rgba(0, 122, 255, 0.1); }
 }
 
 .chat-head-main {
   flex: 1;
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  display: flex; align-items: center; gap: 10px;
   min-width: 0;
   cursor: pointer;
   user-select: none;
@@ -849,23 +954,18 @@ $chat-font-lg: 13px;
 
 .chat-avatar {
   position: relative;
-  width: 34px;
-  height: 34px;
+  width: 34px; height: 34px;
   border-radius: 50%;
   background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(139, 92, 246, 0.2));
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   font-size: 17px;
   flex-shrink: 0;
 
   &.online::after {
     content: '';
     position: absolute;
-    right: 0;
-    bottom: 0;
-    width: 10px;
-    height: 10px;
+    right: 0; bottom: 0;
+    width: 10px; height: 10px;
     border-radius: 50%;
     background: #22c55e;
     border: 2px solid #ffffff;
@@ -888,47 +988,36 @@ $chat-font-lg: 13px;
   margin-top: 1px;
 
   &.online { color: #22c55e; }
+  &.typing { color: #22c55e; font-style: italic; }
 }
 
 .chat-head-action {
-  width: 30px;
-  height: 30px;
+  width: 30px; height: 30px;
   border-radius: 8px;
   border: none;
   background: transparent;
   color: #007aff;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
-
   &:hover { background: rgba(0, 122, 255, 0.1); }
 }
 
-/* PINNED BAR */
+/* Pinned */
 .chat-pinned {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  display: flex; align-items: center; gap: 10px;
   padding: 6px 12px;
   background: rgba(249, 250, 251, 0.95);
   border-bottom: 0.5px solid rgba(60, 60, 67, 0.15);
   cursor: pointer;
   flex-shrink: 0;
-
   &:hover { background: rgba(240, 240, 245, 0.95); }
 }
 
-.pinned-icon {
-  font-size: $chat-font;
-  flex-shrink: 0;
-  color: #007aff;
-}
+.pinned-icon { font-size: $chat-font; flex-shrink: 0; color: #007aff; }
 
 .pinned-body {
-  flex: 1;
-  min-width: 0;
+  flex: 1; min-width: 0;
   border-left: 3px solid #007aff;
   padding-left: 8px;
 }
@@ -939,6 +1028,16 @@ $chat-font-lg: 13px;
   color: #007aff;
   text-transform: uppercase;
   letter-spacing: 0.03em;
+  display: flex; align-items: center; gap: 6px;
+  flex-wrap: wrap;
+}
+
+.pinned-typing {
+  color: #22c55e;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  font-style: italic;
 }
 
 .pinned-text {
@@ -951,25 +1050,18 @@ $chat-font-lg: 13px;
 }
 
 .pinned-unpin {
-  width: 26px;
-  height: 26px;
+  width: 26px; height: 26px;
   border-radius: 50%;
   border: none;
   background: rgba(120, 120, 128, 0.1);
   color: #8e8e93;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
-
-  &:hover {
-    background: rgba(255, 59, 48, 0.15);
-    color: #ff3b30;
-  }
+  &:hover { background: rgba(255, 59, 48, 0.15); color: #ff3b30; }
 }
 
-/* BODY */
+/* Body */
 .chat-body {
   flex: 1;
   overflow-y: auto;
@@ -982,12 +1074,8 @@ $chat-font-lg: 13px;
 }
 
 .chat-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 40px 20px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; padding: 40px 20px;
   color: #8e8e93;
   text-align: center;
 }
@@ -1011,39 +1099,34 @@ $chat-font-lg: 13px;
 
 .chat-msg {
   display: flex;
+  flex-direction: column;
   max-width: 78%;
   -webkit-user-select: none;
   user-select: none;
 
   &.in {
     align-self: flex-start;
-
     .chat-bubble {
       background: #ffffff;
       color: #000;
       border-radius: 16px 16px 16px 4px;
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
     }
-
     .chat-meta { color: #8e8e93; }
   }
 
   &.out {
     align-self: flex-end;
-
     .chat-bubble {
       background: #007aff;
       color: #ffffff;
       border-radius: 16px 16px 4px 16px;
       box-shadow: 0 1px 2px rgba(0, 122, 255, 0.3);
     }
-
     .chat-meta { color: rgba(255, 255, 255, 0.85); }
   }
 
-  &.highlight .chat-bubble {
-    animation: msgHighlight 1.2s ease-out;
-  }
+  &.highlight .chat-bubble { animation: msgHighlight 1.2s ease-out; }
 }
 
 @keyframes msgHighlight {
@@ -1061,15 +1144,12 @@ $chat-font-lg: 13px;
   line-height: 1.4;
   cursor: default;
 
-  &.is-pinned {
-    padding-top: 14px;
-  }
+  &.is-pinned { padding-top: 14px; }
 }
 
 .bubble-pin {
   position: absolute;
-  top: 2px;
-  right: 6px;
+  top: 2px; right: 6px;
   font-size: 9px;
   opacity: 0.75;
 }
@@ -1079,10 +1159,39 @@ $chat-font-lg: 13px;
   font-size: $chat-font;
 }
 
+/* ✅ Стилизация ссылок/markdown */
+.chat-text :deep(a.md-link),
+.chat-text :deep(a.md-phone) {
+  color: inherit;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  text-decoration-thickness: 1px;
+  word-break: break-all;
+  font-weight: 500;
+}
+
+.chat-msg.out .chat-text :deep(a.md-link),
+.chat-msg.out .chat-text :deep(a.md-phone) {
+  color: #ffffff;
+  text-decoration-color: rgba(255, 255, 255, 0.7);
+}
+
+.chat-text :deep(code.md-code) {
+  display: inline-block;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.08);
+  font-family: var(--mono);
+  font-size: 11px;
+}
+
+.chat-msg.out .chat-text :deep(code.md-code) {
+  background: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+
 .bubble-reply {
-  display: flex;
-  align-items: stretch;
-  gap: 5px;
+  display: flex; align-items: stretch; gap: 5px;
   margin: -2px 0 3px;
   padding: 3px 6px;
   border-radius: 6px;
@@ -1090,9 +1199,7 @@ $chat-font-lg: 13px;
   cursor: pointer;
   font-size: $chat-font-sm;
 
-  .chat-msg.out & {
-    background: rgba(255, 255, 255, 0.15);
-  }
+  .chat-msg.out & { background: rgba(255, 255, 255, 0.15); }
 }
 
 .br-line {
@@ -1111,9 +1218,7 @@ $chat-font-lg: 13px;
 }
 
 .chat-meta {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
+  display: flex; align-items: center; justify-content: flex-end;
   gap: 3px;
   font-size: $chat-font-sm;
   font-weight: 500;
@@ -1121,11 +1226,7 @@ $chat-font-lg: 13px;
   line-height: 1;
 }
 
-.chat-edited {
-  font-style: italic;
-  opacity: 0.85;
-  font-size: 9px;
-}
+.chat-edited { font-style: italic; opacity: 0.85; font-size: 9px; }
 
 .chat-time {
   font-family: -apple-system, "SF Pro Text", var(--mono);
@@ -1137,16 +1238,54 @@ $chat-font-lg: 13px;
   font-size: $chat-font;
   opacity: 0.7;
   margin-left: 2px;
-
   &.read { opacity: 1; }
 }
 
-/* REPLY / EDIT PREVIEW */
+/* ✅ Реакции */
+.msg-reactions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 3px;
+  padding: 0 2px;
+}
+
+.chat-msg.out .msg-reactions { justify-content: flex-end; }
+
+.reaction-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(60, 60, 67, 0.18);
+  background: #ffffff;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.12s;
+
+  &:hover {
+    background: rgba(0, 122, 255, 0.1);
+    border-color: #007aff;
+  }
+
+  &.mine {
+    background: rgba(0, 122, 255, 0.15);
+    border-color: #007aff;
+  }
+}
+
+.rc-emoji { font-size: 11px; line-height: 1; }
+.rc-count {
+  font-size: $chat-font-sm;
+  font-weight: 700;
+  color: #007aff;
+}
+
+/* Reply / Edit preview */
 .chat-reply-preview,
 .chat-edit-preview {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display: flex; align-items: center; gap: 8px;
   padding: 6px 12px;
   background: rgba(249, 250, 251, 0.95);
   border-top: 0.5px solid rgba(60, 60, 67, 0.15);
@@ -1161,10 +1300,7 @@ $chat-font-lg: 13px;
   flex-shrink: 0;
 }
 
-.crp-body, .cep-body {
-  flex: 1;
-  min-width: 0;
-}
+.crp-body, .cep-body { flex: 1; min-width: 0; }
 
 .crp-label, .cep-label {
   font-size: $chat-font-sm;
@@ -1186,8 +1322,7 @@ $chat-font-lg: 13px;
 }
 
 .crp-close, .cep-close {
-  width: 24px;
-  height: 24px;
+  width: 24px; height: 24px;
   border-radius: 50%;
   border: none;
   background: rgba(120, 120, 128, 0.12);
@@ -1195,14 +1330,10 @@ $chat-font-lg: 13px;
   cursor: pointer;
   font-size: 11px;
   flex-shrink: 0;
-
-  &:hover {
-    background: rgba(255, 59, 48, 0.15);
-    color: #ff3b30;
-  }
+  &:hover { background: rgba(255, 59, 48, 0.15); color: #ff3b30; }
 }
 
-/* INPUT */
+/* Input */
 .chat-input-row {
   display: flex;
   align-items: flex-end;
@@ -1234,42 +1365,34 @@ $chat-font-lg: 13px;
 }
 
 .chat-send {
-  width: 30px;
-  height: 30px;
+  width: 30px; height: 30px;
   border-radius: 50%;
   border: none;
   background: #007aff;
   color: #ffffff;
   cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: inline-flex; align-items: center; justify-content: center;
   flex-shrink: 0;
-
   &:disabled { opacity: 0.35; cursor: not-allowed; }
   &:not(:disabled):active { transform: scale(0.94); }
 }
 
 .chat-input-btn {
-  width: 30px;
-  height: 30px;
+  width: 30px; height: 30px;
   border-radius: 50%;
   border: none;
   cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+  display: inline-flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
 
 .chat-input-btn-accept {
   background: #34c759;
   color: #ffffff;
-
   &:active { transform: scale(0.94); }
 }
 
-/* Анимация панели */
+/* Animations */
 .chat-panel-enter-active,
 .chat-panel-leave-active {
   transition: opacity 0.22s ease, transform 0.28s cubic-bezier(.34,1.56,.64,1);
@@ -1282,7 +1405,7 @@ $chat-font-lg: 13px;
   transform-origin: bottom right;
 }
 
-/* КОНТЕКСТНОЕ МЕНЮ */
+/* Backdrop / Menu */
 .ctx-backdrop {
   position: fixed;
   inset: 0;
@@ -1296,19 +1419,14 @@ $chat-font-lg: 13px;
   padding: 6px;
   background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-radius: 12px;
-  box-shadow:
-    0 12px 40px -8px rgba(15, 23, 42, 0.3),
-    0 4px 12px -4px rgba(15, 23, 42, 0.15);
+  box-shadow: 0 12px 40px -8px rgba(15, 23, 42, 0.3), 0 4px 12px -4px rgba(15, 23, 42, 0.15);
   border: 0.5px solid rgba(60, 60, 67, 0.15);
   overflow: hidden;
 }
 
 .ctx-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  display: flex; align-items: center; gap: 10px;
   width: 100%;
   padding: 9px 11px;
   border: none;
@@ -1328,7 +1446,6 @@ $chat-font-lg: 13px;
 
   &.danger {
     color: #ff3b30;
-
     &:hover { background: rgba(255, 59, 48, 0.1); }
   }
 }
@@ -1353,28 +1470,68 @@ $chat-font-lg: 13px;
   transform: scale(0.9);
 }
 
-/* ✅ МОБИЛЬНЫЙ — полноэкранный + visualViewport */
+/* ✅ Панель реакций */
+.reactions-panel {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.98);
+  backdrop-filter: blur(20px) saturate(180%);
+  border-radius: 999px;
+  box-shadow: 0 12px 40px -8px rgba(15, 23, 42, 0.3), 0 4px 12px -4px rgba(15, 23, 42, 0.15);
+  border: 0.5px solid rgba(60, 60, 67, 0.15);
+  white-space: nowrap;
+}
+
+.reaction-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.12s, background 0.12s;
+
+  &:hover {
+    transform: scale(1.25);
+    background: rgba(0, 122, 255, 0.08);
+  }
+
+  &:active { transform: scale(0.9); }
+}
+
+.reaction-btn-more {
+  font-size: 16px;
+  color: #8e8e93;
+  border-left: 1px solid rgba(60, 60, 67, 0.15);
+  border-radius: 0 50% 50% 0;
+  padding-left: 4px;
+  margin-left: 2px;
+  width: 28px;
+}
+
+/* ✅ МОБИЛЬНЫЙ */
 @media (max-width: 700px) {
   .chat-fab {
     right: 16px;
     bottom: calc(84px + env(safe-area-inset-bottom, 0));
-    width: 52px;
-    height: 52px;
+    width: 52px; height: 52px;
   }
 
   .chat-panel {
-    right: 0;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 100%;
-    max-width: 100%;
-    height: 100%;
-    max-height: 100%;
+    right: 0; left: 0; top: 0; bottom: 0;
+    width: 100%; max-width: 100%;
+    height: 100%; max-height: 100%;
     margin-bottom: 0;
     border-radius: 0;
     border: none;
-    /* ✅ размеры панели задаются через :style из visualViewport */
   }
 
   .chat-head {
@@ -1392,7 +1549,6 @@ $chat-font-lg: 13px;
 
   .chat-body {
     padding: 8px 10px;
-    /* ✅ Сохраняем позицию при появлении клавиатуры */
     overscroll-behavior: contain;
   }
 
@@ -1400,5 +1556,16 @@ $chat-font-lg: 13px;
   .chat-bubble { font-size: $chat-font-lg; }
   .chat-text { font-size: $chat-font-lg; }
   .chat-input { font-size: $chat-font-lg; }
+
+  .reactions-panel {
+    left: 50% !important;
+    transform: translateX(-50%);
+    bottom: calc(90px + env(safe-area-inset-bottom, 0));
+    top: auto !important;
+    max-width: calc(100vw - 20px);
+    overflow-x: auto;
+  }
+
+  .reaction-btn { width: 34px; height: 34px; font-size: 20px; }
 }
 </style>
