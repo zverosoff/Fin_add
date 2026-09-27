@@ -1,3 +1,4 @@
+// src/routes/messages.js
 import { Router } from 'express';
 import db from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -7,7 +8,7 @@ const router = Router();
 const USERS = ['Сергей', 'Саша'];
 
 // ============================================================
-// ✅ Гарантируем, что таблица есть (на всякий случай)
+// ✅ Страховка: если таблиц нет — создаём
 // ============================================================
 db.exec(`
   CREATE TABLE IF NOT EXISTS messages (
@@ -17,11 +18,22 @@ db.exec(`
     text TEXT NOT NULL,
     created_at TEXT NOT NULL,
     read_at TEXT,
+    edited_at TEXT,
+    deleted_at TEXT,
+    pinned_at TEXT,
+    reply_to TEXT,
     payload TEXT
   );
   CREATE INDEX IF NOT EXISTS idx_msg_from ON messages(from_user);
   CREATE INDEX IF NOT EXISTS idx_msg_to ON messages(to_user);
   CREATE INDEX IF NOT EXISTS idx_msg_created ON messages(created_at);
+  CREATE INDEX IF NOT EXISTS idx_msg_pinned ON messages(pinned_at);
+
+  CREATE TABLE IF NOT EXISTS user_presence (
+    user TEXT PRIMARY KEY,
+    last_seen TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
 `);
 
 // ============================================================
@@ -35,56 +47,104 @@ function rowToMessage(row) {
     text: row.text,
     createdAt: row.created_at,
     readAt: row.read_at,
+    editedAt: row.edited_at,
+    deletedAt: row.deleted_at,
+    pinnedAt: row.pinned_at,
+    replyTo: row.reply_to,
     payload: row.payload ? JSON.parse(row.payload) : null,
   };
 }
 
 const insertMsg = db.prepare(`
-  INSERT INTO messages (id, from_user, to_user, text, created_at, read_at, payload)
-  VALUES (@id, @from, @to, @text, @createdAt, NULL, @payload)
+  INSERT INTO messages
+    (id, from_user, to_user, text, created_at, read_at, edited_at, deleted_at, pinned_at, reply_to, payload)
+  VALUES
+    (@id, @from, @to, @text, @createdAt, NULL, NULL, NULL, NULL, @replyTo, @payload)
 `);
 
 const listByUserStmt = db.prepare(`
   SELECT * FROM messages
-  WHERE (from_user = @user AND to_user = @peer)
-     OR (from_user = @peer AND to_user = @user)
+  WHERE ((from_user = @user AND to_user = @peer)
+      OR (from_user = @peer AND to_user = @user))
+    AND deleted_at IS NULL
   ORDER BY created_at ASC
-  LIMIT @limit
-`);
-
-const listAllForUserStmt = db.prepare(`
-  SELECT * FROM messages
-  WHERE from_user = @user OR to_user = @user
-  ORDER BY created_at DESC
   LIMIT @limit
 `);
 
 const unreadStmt = db.prepare(`
   SELECT from_user, COUNT(*) as cnt FROM messages
-  WHERE to_user = @user AND read_at IS NULL
+  WHERE to_user = @user AND read_at IS NULL AND deleted_at IS NULL
   GROUP BY from_user
 `);
 
 const markReadStmt = db.prepare(`
   UPDATE messages
   SET read_at = @readAt
-  WHERE from_user = @peer AND to_user = @user AND read_at IS NULL
+  WHERE from_user = @peer AND to_user = @user AND read_at IS NULL AND deleted_at IS NULL
 `);
 
+const getMsgStmt = db.prepare('SELECT * FROM messages WHERE id = ?');
 const deleteMsgStmt = db.prepare('DELETE FROM messages WHERE id = ?');
 
+const touchPresenceStmt = db.prepare(`
+  INSERT INTO user_presence (user, last_seen, updated_at)
+  VALUES (@user, @now, @now)
+  ON CONFLICT(user) DO UPDATE SET
+    last_seen = @now,
+    updated_at = @now
+`);
+
+const getPresenceStmt = db.prepare('SELECT * FROM user_presence WHERE user = ?');
+const getAllPresenceStmt = db.prepare('SELECT * FROM user_presence');
+
 // ============================================================
-// GET /api/messages?peer=Саша&limit=100
-// История переписки с конкретным пользователем
+// GET /api/messages/presence
+// Возвращает: { Сергей: '2026-09-27T...', Саша: '...' }
+// ============================================================
+router.get('/presence', requireAuth, (req, res) => {
+  try {
+    const rows = getAllPresenceStmt.all();
+    const map = {};
+    for (const u of USERS) {
+      const r = rows.find(x => x.user === u);
+      map[u] = r ? r.last_seen : null;
+    }
+    res.json({ ok: true, presence: map });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ============================================================
+// POST /api/messages/heartbeat
+// Обновляет last_seen для текущего пользователя
+// ============================================================
+router.post('/heartbeat', requireAuth, (req, res) => {
+  try {
+    const me = req.user;
+    const now = new Date().toISOString();
+    touchPresenceStmt.run({ user: me, now });
+
+    const io = req.app.get('io');
+    if (io) io.emit('presence:update', { user: me, lastSeen: now });
+
+    res.json({ ok: true, lastSeen: now });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ============================================================
+// GET /api/messages?peer=Саша&limit=200
 // ============================================================
 router.get('/', requireAuth, (req, res) => {
   try {
     const me = req.user;
     const peer = String(req.query.peer || '').trim();
-    const limit = Math.min(Number(req.query.limit) || 100, 500);
+    const limit = Math.min(Number(req.query.limit) || 200, 500);
 
     if (!peer || !USERS.includes(peer)) {
-      return res.status(400).json({ ok: false, error: 'peer обязателен и должен быть одним из пользователей' });
+      return res.status(400).json({ ok: false, error: 'peer обязателен' });
     }
     if (peer === me) {
       return res.status(400).json({ ok: false, error: 'Нельзя писать самому себе' });
@@ -100,24 +160,37 @@ router.get('/', requireAuth, (req, res) => {
 
 // ============================================================
 // GET /api/messages/conversations
-// Список диалогов + непрочитанные
 // ============================================================
 router.get('/conversations', requireAuth, (req, res) => {
   try {
     const me = req.user;
 
-    // Последнее сообщение с каждым пользователем
     const conversations = USERS
       .filter(u => u !== me)
       .map(peer => {
         const rows = listByUserStmt.all({ user: me, peer, limit: 1000 });
         const last = rows[rows.length - 1];
         const unread = rows.filter(r => r.to_user === me && !r.read_at).length;
+
+        // ✅ Пиннед
+        const pinned = db.prepare(`
+          SELECT * FROM messages
+          WHERE ((from_user = @user AND to_user = @peer)
+              OR (from_user = @peer AND to_user = @user))
+            AND pinned_at IS NOT NULL
+            AND deleted_at IS NULL
+          ORDER BY pinned_at DESC
+        `).all({ user: me, peer });
+
+        const presence = getPresenceStmt.get(peer);
+
         return {
           peer,
           lastMessage: last ? rowToMessage(last) : null,
           unread,
           total: rows.length,
+          pinned: pinned.map(rowToMessage),
+          lastSeen: presence ? presence.last_seen : null,
         };
       });
 
@@ -130,7 +203,6 @@ router.get('/conversations', requireAuth, (req, res) => {
 
 // ============================================================
 // GET /api/messages/unread
-// Количество непрочитанных по каждому пользователю
 // ============================================================
 router.get('/unread', requireAuth, (req, res) => {
   try {
@@ -149,15 +221,14 @@ router.get('/unread', requireAuth, (req, res) => {
 
 // ============================================================
 // POST /api/messages
-// { to: 'Саша', text: 'Привет!' }
 // ============================================================
 router.post('/', requireAuth, (req, res) => {
   try {
     const me = req.user;
-    const { to, text } = req.body ?? {};
+    const { to, text, replyTo } = req.body ?? {};
 
     if (!to || !USERS.includes(to)) {
-      return res.status(400).json({ ok: false, error: 'to обязателен и должен быть пользователем' });
+      return res.status(400).json({ ok: false, error: 'to обязателен' });
     }
     if (to === me) {
       return res.status(400).json({ ok: false, error: 'Нельзя писать самому себе' });
@@ -165,7 +236,7 @@ router.post('/', requireAuth, (req, res) => {
 
     const cleanText = String(text ?? '').trim().slice(0, 2000);
     if (!cleanText) {
-      return res.status(400).json({ ok: false, error: 'Текст сообщения пуст' });
+      return res.status(400).json({ ok: false, error: 'Текст пуст' });
     }
 
     const msg = {
@@ -174,27 +245,20 @@ router.post('/', requireAuth, (req, res) => {
       to,
       text: cleanText,
       createdAt: new Date().toISOString(),
+      replyTo: replyTo || null,
       payload: JSON.stringify({ fromUser: me }),
     };
 
     insertMsg.run(msg);
 
-    const saved = rowToMessage({
-      id: msg.id,
-      from_user: msg.from,
-      to_user: msg.to,
-      text: msg.text,
-      created_at: msg.createdAt,
-      read_at: null,
-      payload: msg.payload,
-    });
+    // ✅ Обновляем presence
+    const now = new Date().toISOString();
+    touchPresenceStmt.run({ user: me, now });
 
-    // ✅ WebSocket — мгновенная доставка
+    const saved = rowToMessage(getMsgStmt.get(msg.id));
+
     const io = req.app.get('io');
-    if (io) {
-      // Отправляем обоим участникам
-      io.emit('message:new', saved);
-    }
+    if (io) io.emit('message:new', saved);
 
     res.json({ ok: true, message: saved });
   } catch (err) {
@@ -204,16 +268,118 @@ router.post('/', requireAuth, (req, res) => {
 });
 
 // ============================================================
+// PATCH /api/messages/:id
+// Редактирование текста
+// ============================================================
+router.patch('/:id', requireAuth, (req, res) => {
+  try {
+    const me = req.user;
+    const { id } = req.params;
+    const { text } = req.body ?? {};
+
+    const row = getMsgStmt.get(id);
+    if (!row) return res.status(404).json({ ok: false, error: 'Не найдено' });
+    if (row.from_user !== me) {
+      return res.status(403).json({ ok: false, error: 'Только автор может редактировать' });
+    }
+    if (row.deleted_at) {
+      return res.status(400).json({ ok: false, error: 'Сообщение удалено' });
+    }
+
+    const cleanText = String(text ?? '').trim().slice(0, 2000);
+    if (!cleanText) {
+      return res.status(400).json({ ok: false, error: 'Текст пуст' });
+    }
+
+    const editedAt = new Date().toISOString();
+    db.prepare('UPDATE messages SET text = ?, edited_at = ? WHERE id = ?')
+      .run(cleanText, editedAt, id);
+
+    const updated = rowToMessage(getMsgStmt.get(id));
+
+    const io = req.app.get('io');
+    if (io) io.emit('message:edited', updated);
+
+    res.json({ ok: true, message: updated });
+  } catch (err) {
+    console.error('[messages] edit ошибка:', err.message);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ============================================================
+// DELETE /api/messages/:id
+// Soft delete (deleted_at). Работает для обоих участников.
+// ============================================================
+router.delete('/:id', requireAuth, (req, res) => {
+  try {
+    const me = req.user;
+    const { id } = req.params;
+
+    const row = getMsgStmt.get(id);
+    if (!row) return res.status(404).json({ ok: false, error: 'Не найдено' });
+    if (row.from_user !== me && row.to_user !== me) {
+      return res.status(403).json({ ok: false, error: 'Нет доступа' });
+    }
+
+    const deletedAt = new Date().toISOString();
+    db.prepare('UPDATE messages SET deleted_at = ? WHERE id = ?').run(deletedAt, id);
+
+    const io = req.app.get('io');
+    if (io) io.emit('message:deleted', { id, deletedAt, by: me });
+
+    res.json({ ok: true, id, deletedAt });
+  } catch (err) {
+    console.error('[messages] delete ошибка:', err.message);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ============================================================
+// POST /api/messages/:id/pin
+// Закрепить/открепить
+// ============================================================
+router.post('/:id/pin', requireAuth, (req, res) => {
+  try {
+    const me = req.user;
+    const { id } = req.params;
+
+    const row = getMsgStmt.get(id);
+    if (!row) return res.status(404).json({ ok: false, error: 'Не найдено' });
+    if (row.from_user !== me && row.to_user !== me) {
+      return res.status(403).json({ ok: false, error: 'Нет доступа' });
+    }
+    if (row.deleted_at) {
+      return res.status(400).json({ ok: false, error: 'Сообщение удалено' });
+    }
+
+    const wasPinned = !!row.pinned_at;
+    const pinnedAt = wasPinned ? null : new Date().toISOString();
+
+    db.prepare('UPDATE messages SET pinned_at = ? WHERE id = ?').run(pinnedAt, id);
+
+    const updated = rowToMessage(getMsgStmt.get(id));
+
+    const io = req.app.get('io');
+    if (io) io.emit('message:pinned', updated);
+
+    res.json({ ok: true, message: updated, pinned: !wasPinned });
+  } catch (err) {
+    console.error('[messages] pin ошибка:', err.message);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ============================================================
 // PATCH /api/messages/:id/read
-// Пометить одно сообщение как прочитанное
 // ============================================================
 router.patch('/:id/read', requireAuth, (req, res) => {
   try {
     const me = req.user;
     const { id } = req.params;
 
-    const row = db.prepare('SELECT * FROM messages WHERE id = ?').get(id);
-    if (!row) return res.status(404).json({ ok: false, error: 'Сообщение не найдено' });
+    const row = getMsgStmt.get(id);
+    if (!row) return res.status(404).json({ ok: false, error: 'Не найдено' });
     if (row.to_user !== me) {
       return res.status(403).json({ ok: false, error: 'Нет доступа' });
     }
@@ -233,7 +399,6 @@ router.patch('/:id/read', requireAuth, (req, res) => {
 
 // ============================================================
 // PATCH /api/messages/read-all?peer=Саша
-// Пометить все сообщения от peer как прочитанные
 // ============================================================
 router.patch('/read-all', requireAuth, (req, res) => {
   try {
@@ -253,32 +418,6 @@ router.patch('/read-all', requireAuth, (req, res) => {
     res.json({ ok: true, count: result.changes, readAt });
   } catch (err) {
     console.error('[messages] read-all ошибка:', err.message);
-    res.status(500).json({ ok: false, error: err.message });
-  }
-});
-
-// ============================================================
-// DELETE /api/messages/:id
-// ============================================================
-router.delete('/:id', requireAuth, (req, res) => {
-  try {
-    const me = req.user;
-    const { id } = req.params;
-
-    const row = db.prepare('SELECT * FROM messages WHERE id = ?').get(id);
-    if (!row) return res.status(404).json({ ok: false, error: 'Не найдено' });
-    if (row.from_user !== me) {
-      return res.status(403).json({ ok: false, error: 'Можно удалять только свои' });
-    }
-
-    const result = deleteMsgStmt.run(id);
-
-    const io = req.app.get('io');
-    if (io) io.emit('message:deleted', { id, by: me });
-
-    res.json({ ok: true, deleted: result.changes });
-  } catch (err) {
-    console.error('[messages] delete ошибка:', err.message);
     res.status(500).json({ ok: false, error: err.message });
   }
 });
