@@ -493,7 +493,6 @@ function onTouchStart(e, msg) {
   if (window.innerWidth > 700) return;
   if (e.touches.length !== 1) return;
 
-  // Swipe-to-reply
   swipeState.value = {
     id: msg.id,
     startX: e.touches[0].clientX,
@@ -525,7 +524,6 @@ function onTouchMove(e) {
   const dx = e.touches[0].clientX - s.startX;
   const dy = e.touches[0].clientY - s.startY;
 
-  // Если свайп явно горизонтальный — гасим long-press
   if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
     if (longPressTimer) {
       clearTimeout(longPressTimer);
@@ -533,7 +531,6 @@ function onTouchMove(e) {
     }
     s.dx = Math.max(0, dx);
   } else if (Math.abs(dy) > 10) {
-    // Вертикальный скролл — сбрасываем свайп
     s.dx = 0;
     if (longPressTimer) {
       clearTimeout(longPressTimer);
@@ -694,7 +691,7 @@ watch(open, (v) => { if (v) askNotifications(); });
 </script>
 
 <template>
-  <!-- FAB -->
+  <!-- FAB (скрыт при открытом чате) -->
   <button
     v-if="!open"
     class="chat-fab"
@@ -711,6 +708,8 @@ watch(open, (v) => { if (v) askNotifications(); });
       {{ totalUnread > 99 ? '99+' : totalUnread }}
     </span>
   </button>
+
+  <!-- Панель -->
   <Transition name="chat-panel">
     <div
       v-if="open"
@@ -808,8 +807,7 @@ watch(open, (v) => { if (v) askNotifications(); });
                 swiping: swipeState.active && swipeState.id === m.id && swipeState.dx > 0,
               }"
               :style="swipeState.active && swipeState.id === m.id
-                ? { transform: `translateX(${Math.min(swipeState.dx, 80)}px)` }
-                : {}"
+                ? { transform: `translateX(${Math.min(swipeState.dx, 80)}px)` }"
               :data-msg-id="m.id"
               @contextmenu="onContextMenu($event, m)"
               @touchstart="onTouchStart($event, m)"
@@ -817,36 +815,8 @@ watch(open, (v) => { if (v) askNotifications(); });
               @touchend="onTouchEnd"
               @touchcancel="onTouchEnd"
             >
-              <div class="chat-bubble" :class="{ 'is-pinned': m.pinnedAt }">
-                <div v-if="m.pinnedAt" class="bubble-pin">📌</div>
-
-                <div
-                  v-if="m.replyTo"
-                  class="bubble-reply"
-                  @click.stop="scrollToMessage(m.replyTo)"
-                >
-                  <div class="br-line"></div>
-                  <div class="br-text">{{ getQuoteText(m.replyTo) }}</div>
-                </div>
-
-                <!-- ✅ Изображение -->
-                <div v-if="m.image" class="bubble-image" @click.stop="openFullscreen(m.image)">
-                  <img :src="m.image" alt="image" loading="lazy" />
-                </div>
-
-                <div v-if="m.text" class="chat-text" v-html="linkify(m.text)"></div>
-
-                <div class="chat-meta">
-                  <span v-if="m.editedAt" class="chat-edited">изм.</span>
-                  <span class="chat-time">{{ fmtTime(m.createdAt) }}</span>
-                  <span
-                    v-if="m.from === me"
-                    class="chat-read"
-                    :class="{ read: !!m.readAt }"
-                  >{{ m.readAt ? '✓✓' : '✓' }}</span>
-                </div>
-
-                <!-- ✅ Реакции — в потоке, не перекрывают -->
+              <div class="chat-row">
+                <!-- Реакции слева от bubble -->
                 <div v-if="m.reactions?.length" class="bubble-reactions">
                   <button
                     v-for="r in m.reactions"
@@ -858,6 +828,36 @@ watch(open, (v) => { if (v) askNotifications(); });
                     <span class="rc-emoji">{{ r.emoji }}</span>
                     <span v-if="r.users.length > 1" class="rc-count">{{ r.users.length }}</span>
                   </button>
+                </div>
+
+                <div class="chat-bubble" :class="{ 'is-pinned': m.pinnedAt }">
+                  <div v-if="m.pinnedAt" class="bubble-pin">📌</div>
+
+                  <div
+                    v-if="m.replyTo"
+                    class="bubble-reply"
+                    @click.stop="scrollToMessage(m.replyTo)"
+                  >
+                    <div class="br-line"></div>
+                    <div class="br-text">{{ getQuoteText(m.replyTo) }}</div>
+                  </div>
+
+                  <!-- ✅ Изображение -->
+                  <div v-if="m.image" class="bubble-image" @click.stop="openFullscreen(m.image)">
+                    <img :src="m.image" alt="image" loading="lazy" />
+                  </div>
+
+                  <div v-if="m.text" class="chat-text" v-html="linkify(m.text)"></div>
+
+                  <div class="chat-meta">
+                    <span v-if="m.editedAt" class="chat-edited">изм.</span>
+                    <span class="chat-time">{{ fmtTime(m.createdAt) }}</span>
+                    <span
+                      v-if="m.from === me"
+                      class="chat-read"
+                      :class="{ read: !!m.readAt }"
+                    >{{ m.readAt ? '✓✓' : '✓' }}</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -929,7 +929,6 @@ watch(open, (v) => { if (v) askNotifications(); });
             @change="onFileChange"
           />
 
-          <!-- ✅ Прикрепить изображение -->
           <button
             class="chat-input-icon"
             @click="openFilePicker"
@@ -1403,15 +1402,17 @@ $chat-font-lg: 13px;
 .chat-msg {
   display: flex;
   flex-direction: column;
-  max-width: 78%;
+  max-width: 82%;
   -webkit-user-select: none;
   user-select: none;
   transition: transform 0.15s ease;
 
   &.swiping { transition: none; }
 
+  &.in { align-self: flex-start; }
+  &.out { align-self: flex-end; }
+
   &.in {
-    align-self: flex-start;
     .chat-bubble {
       background: var(--chat-bubble-in-bg);
       color: var(--chat-bubble-in-text);
@@ -1422,7 +1423,6 @@ $chat-font-lg: 13px;
   }
 
   &.out {
-    align-self: flex-end;
     .chat-bubble {
       background: var(--chat-bubble-out-bg);
       color: var(--chat-bubble-out-text);
@@ -1438,6 +1438,53 @@ $chat-font-lg: 13px;
 @keyframes msgHighlight {
   0%, 100% { box-shadow: 0 0 0 0 rgba(255, 149, 0, 0); }
   30%      { box-shadow: 0 0 0 4px rgba(255, 149, 0, 0.5); }
+}
+
+/* Строка: реакции слева + bubble */
+.chat-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+}
+
+.chat-msg.out .chat-row {
+  flex-direction: row-reverse;
+}
+
+/* ✅ Реакции — вертикальный столбик слева от bubble */
+.bubble-reactions {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex-shrink: 0;
+  align-self: center;
+}
+
+.reaction-chip {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0;
+  padding: 2px 4px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.12s;
+  line-height: 1;
+
+  &:hover { transform: scale(1.15); }
+}
+
+.rc-emoji { font-size: 16px; line-height: 1; }
+.rc-count {
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--chat-text);
+  opacity: 0.75;
+  margin-top: 1px;
 }
 
 .chat-bubble {
@@ -1541,42 +1588,6 @@ $chat-font-lg: 13px;
   font-weight: 500;
 }
 
-/* ✅ Реакции — В ПОТОКЕ, не перекрывают */
-.bubble-reactions {
-  display: inline-flex;
-  gap: 3px;
-  margin-top: 4px;
-  padding: 2px 6px;
-  border-radius: 999px;
-  background: var(--chat-menu-bg);
-  border: 0.5px solid var(--chat-border);
-  box-shadow: 0 2px 8px -2px rgba(15, 23, 42, 0.2);
-  width: fit-content;
-}
-
-.reaction-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 0;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-family: inherit;
-  transition: transform 0.12s;
-
-  &:hover { transform: scale(1.15); }
-}
-
-.rc-emoji { font-size: 12px; line-height: 1; }
-.rc-count {
-  font-size: $chat-font-sm;
-  font-weight: 700;
-  color: var(--chat-text);
-  opacity: 0.85;
-}
-
-/* Meta — без padding-left, т.к. реакции больше не absolute */
 .chat-meta {
   display: flex; align-items: center; justify-content: flex-end;
   gap: 3px;
