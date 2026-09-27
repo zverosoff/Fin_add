@@ -1690,6 +1690,12 @@ $chat-font-lg: 13px;
   box-sizing: border-box;
 }
 
+/* ✅ Для входящих — реакции справа */
+.chat-msg.in .bubble-reactions {
+  left: auto;
+  right: -10px;
+}
+
 .reaction-chip {
   display: inline-flex;
   align-items: center;
