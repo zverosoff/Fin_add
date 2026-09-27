@@ -12,25 +12,10 @@ const PAGE_SIZE = 50;
 export const useMessagesStore = defineStore('messages', () => {
   const auth = useAuthStore();
 
-  const messages = ref({
-    'Сергей': [],
-    'Саша':   [],
-  });
-
-  const unread = ref({
-    'Сергей': 0,
-    'Саша':   0,
-  });
-
-  const presence = ref({
-    'Сергей': null,
-    'Саша':   null,
-  });
-
-  const typing = ref({
-    'Сергей': 0,
-    'Саша':   0,
-  });
+  const messages = ref({ 'Сергей': [], 'Саша': [] });
+  const unread = ref({ 'Сергей': 0, 'Саша': 0 });
+  const presence = ref({ 'Сергей': null, 'Саша': null });
+  const typing = ref({ 'Сергей': 0, 'Саша': 0 });
 
   const online = ref([]);
   const loaded = ref(false);
@@ -39,6 +24,11 @@ export const useMessagesStore = defineStore('messages', () => {
   const loadingMore = ref({ 'Сергей': false, 'Саша': false });
 
   const firstUnreadId = ref({ 'Сергей': null, 'Саша': null });
+
+  // ✅ Флаг онлайн-соединения
+  const isOnline = ref(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  // ✅ Очередь исходящих, которые не удалось отправить
+  const pendingOut = ref([]);
 
   const tick = ref(0);
   setInterval(() => { tick.value++; }, 30 * 1000);
@@ -52,7 +42,7 @@ export const useMessagesStore = defineStore('messages', () => {
     return USERS.find(u => u !== me) || 'Саша';
   }
 
-  function isOnline(user) { return online.value.includes(user); }
+  function isUserOnline(user) { return online.value.includes(user); }
   function lastSeen(user) { return presence.value[user]; }
   function isTyping(user) {
     tick.value;
@@ -140,7 +130,7 @@ export const useMessagesStore = defineStore('messages', () => {
   }
 
   async function heartbeat() {
-    try { await api.post('/messages/heartbeat'); } catch (e) { /* ignore */ }
+    try { await api.post('/messages/heartbeat'); } catch (e) {}
   }
 
   let lastTypingSent = 0;
@@ -169,30 +159,124 @@ export const useMessagesStore = defineStore('messages', () => {
     lastTypingSent = 0;
   }
 
+  // ============================================================
+  // ✅ Optimistic send
+  // ============================================================
+  function makeLocalId() {
+    return 'local_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8);
+  }
+
   async function send(to, text, replyTo = null, image = null) {
     const cleanText = String(text || '').trim();
     if (!cleanText && !image) throw new Error('Пустое сообщение');
 
-    const { data } = await api.post('/messages', {
+    const localId = makeLocalId();
+    const now = new Date().toISOString();
+
+    const optimistic = {
+      id: localId,
+      from: auth.user,
       to,
       text: cleanText,
-      replyTo,
       image: image || null,
-    });
-    if (!data.ok) throw new Error(data.error);
+      createdAt: now,
+      readAt: null,
+      editedAt: null,
+      deletedAt: null,
+      pinnedAt: null,
+      replyTo: replyTo || null,
+      reactions: [],
+      pending: true,
+      failed: false,
+    };
+    pushMessage(optimistic);
 
-    pushMessage(data.message);
-    notifyTypingStop(to);
-    return data.message;
+    if (!isOnline.value) {
+      pendingOut.value.push({ localId, to, text: cleanText, image, replyTo, createdAt: now });
+      notifyTypingStop(to);
+      return optimistic;
+    }
+
+    try {
+      const { data } = await api.post('/messages', {
+        to,
+        text: cleanText,
+        replyTo,
+        image: image || null,
+      });
+      if (!data.ok) throw new Error(data.error);
+
+      replaceMessage(localId, data.message);
+      notifyTypingStop(to);
+      return data.message;
+    } catch (e) {
+      const m = messageById(localId);
+      if (m) {
+        m.pending = false;
+        m.failed = true;
+      }
+      pendingOut.value.push({ localId, to, text: cleanText, image, replyTo, createdAt: now });
+      throw e;
+    }
+  }
+
+  function replaceMessage(localId, realMsg) {
+    for (const peer of Object.keys(messages.value)) {
+      const idx = messages.value[peer].findIndex(m => m.id === localId);
+      if (idx !== -1) {
+        messages.value[peer][idx] = realMsg;
+        return;
+      }
+    }
+  }
+
+  async function retryMessage(localId) {
+    const item = pendingOut.value.find(p => p.localId === localId);
+    if (!item) return;
+
+    const m = messageById(localId);
+    if (m) {
+      m.pending = true;
+      m.failed = false;
+    }
+
+    try {
+      const { data } = await api.post('/messages', {
+        to: item.to,
+        text: item.text,
+        replyTo: item.replyTo,
+        image: item.image || null,
+      });
+      if (!data.ok) throw new Error(data.error);
+      replaceMessage(localId, data.message);
+      pendingOut.value = pendingOut.value.filter(p => p.localId !== localId);
+      return data.message;
+    } catch (e) {
+      if (m) {
+        m.pending = false;
+        m.failed = true;
+      }
+      throw e;
+    }
+  }
+
+  async function flushPending() {
+    if (!isOnline.value) return;
+    const queue = [...pendingOut.value];
+    for (const item of queue) {
+      try {
+        await retryMessage(item.localId);
+      } catch (e) {
+        console.warn('[messages] retry failed:', e.message);
+      }
+    }
   }
 
   async function edit(id, text) {
     const cleanText = String(text || '').trim();
     if (!cleanText) throw new Error('Пустой текст');
-
     const { data } = await api.patch(`/messages/${id}`, { text: cleanText });
     if (!data.ok) throw new Error(data.error);
-
     const msg = messageById(id);
     if (msg) {
       msg.text = data.message.text;
@@ -221,23 +305,18 @@ export const useMessagesStore = defineStore('messages', () => {
   async function toggleReaction(id, emoji) {
     const msg = messageById(id);
     if (!msg) return;
-
     const previousReactions = JSON.parse(JSON.stringify(msg.reactions || []));
     const currentUserReaction = (msg.reactions || [])
       .find(r => r.users.includes(auth.user))?.emoji;
-
     const nextReactions = (msg.reactions || [])
       .map(r => ({ ...r, users: r.users.filter(u => u !== auth.user) }))
       .filter(r => r.users.length > 0);
-
     if (currentUserReaction !== emoji) {
       const target = nextReactions.find(r => r.emoji === emoji);
       if (target) target.users.push(auth.user);
       else nextReactions.push({ emoji, users: [auth.user] });
     }
-
     msg.reactions = nextReactions;
-
     try {
       const { data } = await api.post(`/messages/${id}/reaction`, { emoji });
       if (!data.ok) throw new Error(data.error);
@@ -260,7 +339,6 @@ export const useMessagesStore = defineStore('messages', () => {
   async function markAllRead(peer) {
     const { data } = await api.patch(`/messages/read-all?peer=${encodeURIComponent(peer)}`);
     if (!data.ok) throw new Error(data.error);
-
     const list = messages.value[peer] || [];
     for (const m of list) {
       if (m.to === auth.user && !m.readAt) m.readAt = data.readAt;
@@ -275,13 +353,11 @@ export const useMessagesStore = defineStore('messages', () => {
     const peer = msg.from === auth.user ? msg.to : msg.from;
     if (!messages.value[peer]) messages.value[peer] = [];
     if (messages.value[peer].some(m => m.id === msg.id)) return;
-
     messages.value[peer].push(msg);
     messages.value[peer].sort(
       (a, b) => new Date(a.createdAt) - new Date(b.createdAt)
     );
-
-    if (msg.to === auth.user && !msg.readAt) {
+    if (msg.to === auth.user && !msg.readAt && !msg.pending) {
       unread.value[msg.from] = (unread.value[msg.from] || 0) + 1;
     }
   }
@@ -289,20 +365,15 @@ export const useMessagesStore = defineStore('messages', () => {
   function onIncoming(msg) {
     pushMessage(msg);
     if (msg.from) presence.value[msg.from] = msg.createdAt;
-
     if (msg.to === auth.user) {
       try { playIncomingMessage(); } catch (e) {}
-      // ✅ Уведомления теперь через настоящий Web Push от бэкенда.
     }
     if (msg.from) typing.value[msg.from] = 0;
   }
 
   function onEdited(msg) {
     const m = messageById(msg.id);
-    if (m) {
-      m.text = msg.text;
-      m.editedAt = msg.editedAt;
-    }
+    if (m) { m.text = msg.text; m.editedAt = msg.editedAt; }
   }
 
   function onDeleted({ id }) {
@@ -333,8 +404,8 @@ export const useMessagesStore = defineStore('messages', () => {
     }
   }
 
-  function onPresence({ user, lastSeen }) {
-    if (user && lastSeen) presence.value[user] = lastSeen;
+  function onPresence({ user, lastSeen: ls }) {
+    if (user && ls) presence.value[user] = ls;
   }
 
   function onReaction({ messageId, reactions }) {
@@ -342,13 +413,18 @@ export const useMessagesStore = defineStore('messages', () => {
     if (m) m.reactions = reactions;
   }
 
-  function onTyping({ from, to, typing: isTyping }) {
+  function onTyping({ from, to, typing: isTypingFlag }) {
     if (to !== auth.user) return;
-    typing.value[from] = isTyping ? Date.now() : 0;
+    typing.value[from] = isTypingFlag ? Date.now() : 0;
   }
 
   function setOnline(list) {
     online.value = Array.isArray(list) ? list : [];
+  }
+
+  function setNetworkOnline(flag) {
+    isOnline.value = !!flag;
+    if (flag) flushPending();
   }
 
   function reset() {
@@ -360,60 +436,26 @@ export const useMessagesStore = defineStore('messages', () => {
     loaded.value = false;
     hasMore.value = { 'Сергей': true, 'Саша': true };
     firstUnreadId.value = { 'Сергей': null, 'Саша': null };
+    pendingOut.value = [];
   }
 
   return {
-    messages,
-    unread,
-    presence,
-    typing,
-    online,
-    loaded,
-    loading,
-    tick,
-    hasMore,
-    loadingMore,
-    firstUnreadId,
-
+    messages, unread, presence, typing, online, loaded, loading,
+    tick, hasMore, loadingMore, firstUnreadId,
+    isOnline, pendingOut,
     totalUnread,
 
-    myPeer,
-    isOnline,
-    lastSeen,
-    isTyping,
-    messagesWith,
-    pinnedWith,
-    messageById,
+    myPeer, isUserOnline, lastSeen, isTyping,
+    messagesWith, pinnedWith, messageById,
 
-    loadConversations,
-    loadHistory,
-    loadMore,
-    loadUnread,
-    loadPresence,
-    heartbeat,
+    loadConversations, loadHistory, loadMore, loadUnread, loadPresence, heartbeat,
+    notifyTypingStart, notifyTypingStop,
 
-    notifyTypingStart,
-    notifyTypingStop,
+    send, retryMessage, flushPending,
+    edit, remove, togglePin, toggleReaction, markRead, markAllRead,
 
-    send,
-    edit,
-    remove,
-    togglePin,
-    toggleReaction,
-    markRead,
-    markAllRead,
-
-    pushMessage,
-    onIncoming,
-    onEdited,
-    onDeleted,
-    onPinned,
-    onRead,
-    onReadAll,
-    onPresence,
-    onReaction,
-    onTyping,
-    setOnline,
-    reset,
+    pushMessage, onIncoming, onEdited, onDeleted, onPinned,
+    onRead, onReadAll, onPresence, onReaction, onTyping,
+    setOnline, setNetworkOnline, reset,
   };
 });
