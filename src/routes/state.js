@@ -24,7 +24,7 @@ function readTransactions() {
   return rows.map(r => JSON.parse(r.payload));
 }
 
-// ✅ Дефолтные счета — на случай восстановления
+// ✅ Дефолтные счета
 const DEFAULT_ACCOUNTS = [
   { id: 'tbank_sergey', name: 'Т-Банк',   owner: 'Сергей', value: 0, openingBalance: 0 },
   { id: 'sber_sergey',  name: 'СберБанк', owner: 'Сергей', value: 0, openingBalance: 0 },
@@ -32,22 +32,38 @@ const DEFAULT_ACCOUNTS = [
   { id: 'sber_sasha',   name: 'СберБанк', owner: 'Саша',   value: 0, openingBalance: 0 },
 ];
 
-// ✅ Дефолтные наличные
+// ✅ Дефолтные наличные (новый формат: { balance, savings })
 const DEFAULT_CASH = {
-  Сергей: 0,
-  Саша: 0,
+  Сергей: { balance: 0, savings: 0 },
+  Саша:   { balance: 0, savings: 0 },
 };
 
-// ✅ Нормализация cash
-function normalizeCash(raw) {
-  const src = (raw && typeof raw === 'object') ? raw : {};
+// ✅ Нормализация cash — поддерживает ОБА формата:
+//   legacy: { Сергей: 5000, Саша: 300 }
+//   new:    { Сергей: { balance: 5000, savings: 2000 }, Саша: {...} }
+function normalizeCashOwner(raw) {
+  if (raw && typeof raw === 'object' && !Array.isArray(raw)) {
+    return {
+      balance: Number(raw.balance) || 0,
+      savings: Number(raw.savings) || 0,
+    };
+  }
+  // legacy: число
   return {
-    Сергей: Number(src.Сергей) || 0,
-    Саша:   Number(src.Саша)   || 0,
+    balance: Number(raw) || 0,
+    savings: 0,
   };
 }
 
-// ✅ Убираем legacy-счета cash_* из accounts
+function normalizeCash(raw) {
+  const src = (raw && typeof raw === 'object') ? raw : {};
+  return {
+    Сергей: normalizeCashOwner(src.Сергей),
+    Саша:   normalizeCashOwner(src.Саша),
+  };
+}
+
+// ✅ Убираем legacy-счета cash_*
 function stripLegacyCashAccounts(accounts) {
   if (!Array.isArray(accounts)) return accounts;
   return accounts.filter(a => a && typeof a.id === 'string' && !a.id.startsWith('cash_'));
@@ -62,7 +78,6 @@ function buildFullState() {
     console.log('[state] восстановлены дефолтные счета (GET)');
     writeAppState(state);
   } else {
-    // ✅ Убираем legacy-счета cash_*
     const filtered = stripLegacyCashAccounts(state.accounts);
     if (filtered.length !== state.accounts.length) {
       state.accounts = filtered;
@@ -71,14 +86,8 @@ function buildFullState() {
     }
   }
 
-  // ✅ Защита: если cash потерян — восстанавливаем
-  if (!state.cash || typeof state.cash !== 'object') {
-    state.cash = { ...DEFAULT_CASH };
-    console.log('[state] восстановлены наличные (GET)');
-    writeAppState(state);
-  } else {
-    state.cash = normalizeCash(state.cash);
-  }
+  // ✅ Наличные — ВСЕГДА нормализуем к объекту
+  state.cash = normalizeCash(state.cash);
 
   state.transactions = readTransactions();
   return state;
@@ -99,20 +108,19 @@ router.post('/', requireAuth, (req, res) => {
   const incoming = req.body ?? {};
   const current = readAppState();
 
-  // Простые поля — заменяем целиком, но только если значение пришло
-  // и оно НЕ undefined / null (защита от затирания)
+  // Простые поля
   for (const key of ['accountStart', 'rate', 'incomes', 'expenses', 'accounts']) {
     if (key in incoming && incoming[key] !== undefined && incoming[key] !== null) {
       current[key] = incoming[key];
     }
   }
 
-  // ✅ НАЛИЧНЫЕ — отдельная обработка с нормализацией
+  // ✅ НАЛИЧНЫЕ — нормализация + сохранение
   if ('cash' in incoming && incoming.cash !== undefined && incoming.cash !== null) {
     current.cash = normalizeCash(incoming.cash);
   }
 
-  // Цели: полная замена или мёрж
+  // Цели
   if ('goals' in incoming && Array.isArray(incoming.goals)) {
     if (incoming.replaceGoals === true) {
       current.goals = incoming.goals;
@@ -125,17 +133,16 @@ router.post('/', requireAuth, (req, res) => {
     }
   }
 
-  // Квартира — заменяем целиком
+  // Квартира
   if ('flat' in incoming && typeof incoming.flat === 'object') {
     current.flat = incoming.flat;
   }
 
-  // ✅ Защита: если accounts потерялись — восстанавливаем
+  // Защита accounts
   if (!current.accounts || !Array.isArray(current.accounts) || current.accounts.length === 0) {
     current.accounts = DEFAULT_ACCOUNTS.map(a => ({ ...a }));
     console.log('[state] восстановлены дефолтные счета (POST)');
   } else {
-    // ✅ Убираем legacy-счета cash_*
     const filtered = stripLegacyCashAccounts(current.accounts);
     if (filtered.length !== current.accounts.length) {
       current.accounts = filtered;
@@ -143,11 +150,8 @@ router.post('/', requireAuth, (req, res) => {
     }
   }
 
-  // ✅ Защита: если cash потерян — восстанавливаем
-  if (!current.cash || typeof current.cash !== 'object') {
-    current.cash = { ...DEFAULT_CASH };
-    console.log('[state] восстановлены наличные (POST)');
-  }
+  // ✅ Защита cash
+  current.cash = normalizeCash(current.cash);
 
   writeAppState(current);
   const full = buildFullState();
