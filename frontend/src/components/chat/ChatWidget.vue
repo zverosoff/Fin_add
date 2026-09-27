@@ -1673,7 +1673,7 @@ $chat-font-lg: 13px;
 /* ✅ Реакции — круглый пузырёк, прижат к нижнему-левому углу bubble */
 .bubble-reactions {
   position: absolute;
-  left: -10px;
+  left: -18px;
   bottom: -10px;
   display: inline-flex;
   align-items: center;
