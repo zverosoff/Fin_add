@@ -33,38 +33,22 @@ export function useWebSocket() {
     });
 
     socket.on('state', (state) => {
-      console.log('[ws] новое состояние');
       accounts.setFromWS(state);
     });
 
     // ============================================================
-    // ✅ Сообщения
+    // Сообщения
     // ============================================================
-    socket.on('message:new', (msg) => {
-      console.log('[ws] message:new', msg);
-      messages.onIncoming(msg);
-    });
+    socket.on('message:new',      (msg) => messages.onIncoming(msg));
+    socket.on('message:edited',   (msg) => messages.onEdited(msg));
+    socket.on('message:deleted',  (p)   => messages.onDeleted(p));
+    socket.on('message:pinned',   (msg) => messages.onPinned(msg));
+    socket.on('message:read',     (p)   => messages.onRead(p));
+    socket.on('message:read-all', (p)   => messages.onReadAll(p));
 
-    socket.on('message:read', (payload) => {
-      console.log('[ws] message:read', payload);
-      messages.onRead(payload);
-    });
+    socket.on('users:online',     (list) => messages.setOnline(list));
+    socket.on('presence:update',  (p)   => messages.onPresence(p));
 
-    socket.on('message:read-all', (payload) => {
-      console.log('[ws] message:read-all', payload);
-      messages.onReadAll(payload);
-    });
-
-    socket.on('message:deleted', (payload) => {
-      console.log('[ws] message:deleted', payload);
-      messages.onDeleted(payload);
-    });
-
-    socket.on('users:online', (list) => {
-      messages.setOnline(list);
-    });
-
-    // ============================================================
     socket.on('disconnect', (reason) => {
       connected.value = false;
       console.log('[ws] отключились:', reason);

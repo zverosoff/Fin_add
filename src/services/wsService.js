@@ -1,9 +1,19 @@
 import jwt from 'jsonwebtoken';
+import db from '../db/index.js';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me';
 
-// ✅ Карта: userId → Set<socketId>
-const onlineUsers = new Map();
+const onlineUsers = new Map();   // userId → Set<socketId>
+
+const touchPresenceStmt = db.prepare(`
+  INSERT INTO user_presence (user, last_seen, updated_at)
+  VALUES (@user, @now, @now)
+  ON CONFLICT(user) DO UPDATE SET
+    last_seen = @now,
+    updated_at = @now
+`);
+
+const getAllPresenceStmt = db.prepare('SELECT * FROM user_presence');
 
 function addOnline(userId, socketId) {
   if (!onlineUsers.has(userId)) onlineUsers.set(userId, new Set());
@@ -15,10 +25,6 @@ function removeOnline(userId, socketId) {
   if (!set) return;
   set.delete(socketId);
   if (set.size === 0) onlineUsers.delete(userId);
-}
-
-function isOnline(userId) {
-  return onlineUsers.has(userId) && onlineUsers.get(userId).size > 0;
 }
 
 function getOnlineList() {
@@ -49,19 +55,24 @@ export function attachSocket(io) {
 
     addOnline(user, socket.id);
 
-    // ✅ Отправляем всем список онлайн
-    io.emit('users:online', getOnlineList());
+    // ✅ Обновляем presence
+    const now = new Date().toISOString();
+    touchPresenceStmt.run({ user, now });
 
-    // ✅ Отправляем пользователю его непрочитанные
-    // (клиент сам запросит /api/messages/unread, если нужно)
+    io.emit('users:online', getOnlineList());
+    io.emit('presence:update', { user, lastSeen: now });
 
     socket.on('disconnect', (reason) => {
       console.log(`[ws] ✗ отключился ${user} (${reason})`);
       removeOnline(user, socket.id);
+
+      const lastSeen = new Date().toISOString();
+      touchPresenceStmt.run({ user, now: lastSeen });
+
       io.emit('users:online', getOnlineList());
+      io.emit('presence:update', { user, lastSeen });
     });
 
-    // ✅ Пинг-понг для поддержания соединения
     socket.on('ping:client', () => {
       socket.emit('pong:server', { t: Date.now() });
     });
