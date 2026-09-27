@@ -4,8 +4,10 @@ import { ref, computed } from 'vue';
 import { api } from '@/api/client';
 import { useAuthStore } from './auth';
 import { notifyIncomingMessage } from '@/composables/usePushNotifications';
+import { playIncomingMessage } from '@/composables/useNotificationSound';
 
 const USERS = ['Сергей', 'Саша'];
+const TYPING_TIMEOUT = 3000;
 
 export const useMessagesStore = defineStore('messages', () => {
   const auth = useAuthStore();
@@ -25,9 +27,19 @@ export const useMessagesStore = defineStore('messages', () => {
     'Саша':   null,
   });
 
+  // Кто печатает: { 'Саша': timestamp }
+  const typing = ref({
+    'Сергей': 0,
+    'Саша':   0,
+  });
+
   const online = ref([]);
   const loaded = ref(false);
   const loading = ref(false);
+
+  // ✅ Живое время: tick каждый 30 сек для реактивности «N мин назад»
+  const tick = ref(0);
+  setInterval(() => { tick.value++; }, 30 * 1000);
 
   // ============================================================
   // Computed
@@ -49,12 +61,26 @@ export const useMessagesStore = defineStore('messages', () => {
     return presence.value[user];
   }
 
+  function isTyping(user) {
+    // ✅ Проверяем, что timestamp свежий (не старше 3с)
+    tick.value; // зависимость для реактивности
+    return Date.now() - typing.value[user] < TYPING_TIMEOUT;
+  }
+
   function messagesWith(peer) {
     return messages.value[peer] || [];
   }
 
   function pinnedWith(peer) {
     return (messages.value[peer] || []).filter(m => m.pinnedAt && !m.deletedAt);
+  }
+
+  function messageById(id) {
+    for (const peer of Object.keys(messages.value)) {
+      const m = messages.value[peer].find(x => x.id === id);
+      if (m) return m;
+    }
+    return null;
   }
 
   // ============================================================
@@ -65,7 +91,6 @@ export const useMessagesStore = defineStore('messages', () => {
     try {
       const { data } = await api.get('/messages/conversations');
       if (!data.ok) throw new Error(data.error);
-
       for (const c of data.conversations) {
         unread.value[c.peer] = c.unread;
         presence.value[c.peer] = c.lastSeen;
@@ -99,11 +124,39 @@ export const useMessagesStore = defineStore('messages', () => {
   }
 
   async function heartbeat() {
+    try { await api.post('/messages/heartbeat'); } catch (e) { /* ignore */ }
+  }
+
+  // ============================================================
+  // Typing
+  // ============================================================
+  let lastTypingSent = 0;
+  let typingStopTimer = null;
+
+  async function sendTyping(to, isTyping) {
     try {
-      await api.post('/messages/heartbeat');
-    } catch (e) {
-      // тихо
+      await api.post('/messages/typing', { to, typing: isTyping });
+    } catch (e) { /* ignore */ }
+  }
+
+  function notifyTypingStart(to) {
+    const now = Date.now();
+    // не чаще, чем раз в 1.5 сек
+    if (now - lastTypingSent > 1500) {
+      lastTypingSent = now;
+      sendTyping(to, true);
     }
+    if (typingStopTimer) clearTimeout(typingStopTimer);
+    typingStopTimer = setTimeout(() => {
+      sendTyping(to, false);
+      lastTypingSent = 0;
+    }, 2500);
+  }
+
+  function notifyTypingStop(to) {
+    if (typingStopTimer) clearTimeout(typingStopTimer);
+    sendTyping(to, false);
+    lastTypingSent = 0;
   }
 
   // ============================================================
@@ -113,10 +166,13 @@ export const useMessagesStore = defineStore('messages', () => {
     const cleanText = String(text || '').trim();
     if (!cleanText) throw new Error('Пустое сообщение');
 
-    const { data } = await api.post('/messages', { to, text: cleanText, replyTo });
+    const { data } = await api.post('/messages', {
+      to, text: cleanText, replyTo,
+    });
     if (!data.ok) throw new Error(data.error);
 
     pushMessage(data.message);
+    notifyTypingStop(to);
     return data.message;
   }
 
@@ -130,13 +186,10 @@ export const useMessagesStore = defineStore('messages', () => {
     const { data } = await api.patch(`/messages/${id}`, { text: cleanText });
     if (!data.ok) throw new Error(data.error);
 
-    // Локально
-    for (const peer of Object.keys(messages.value)) {
-      const msg = messages.value[peer].find(m => m.id === id);
-      if (msg) {
-        msg.text = data.message.text;
-        msg.editedAt = data.message.editedAt;
-      }
+    const msg = messageById(id);
+    if (msg) {
+      msg.text = data.message.text;
+      msg.editedAt = data.message.editedAt;
     }
     return data.message;
   }
@@ -147,7 +200,6 @@ export const useMessagesStore = defineStore('messages', () => {
   async function remove(id) {
     const { data } = await api.delete(`/messages/${id}`);
     if (!data.ok) throw new Error(data.error);
-
     for (const peer of Object.keys(messages.value)) {
       messages.value[peer] = messages.value[peer].filter(m => m.id !== id);
     }
@@ -160,11 +212,21 @@ export const useMessagesStore = defineStore('messages', () => {
   async function togglePin(id) {
     const { data } = await api.post(`/messages/${id}/pin`);
     if (!data.ok) throw new Error(data.error);
+    const msg = messageById(id);
+    if (msg) msg.pinnedAt = data.message.pinnedAt;
+    return data;
+  }
 
-    for (const peer of Object.keys(messages.value)) {
-      const msg = messages.value[peer].find(m => m.id === id);
-      if (msg) msg.pinnedAt = data.message.pinnedAt;
-    }
+  // ============================================================
+  // Реакции
+  // ============================================================
+  async function toggleReaction(id, emoji) {
+    const { data } = await api.post(`/messages/${id}/reaction`, { emoji });
+    if (!data.ok) throw new Error(data.error);
+
+    const msg = messageById(id);
+    if (msg) msg.reactions = data.reactions;
+
     return data;
   }
 
@@ -174,18 +236,14 @@ export const useMessagesStore = defineStore('messages', () => {
   async function markRead(id) {
     const { data } = await api.patch(`/messages/${id}/read`);
     if (!data.ok) throw new Error(data.error);
-
-    for (const peer of Object.keys(messages.value)) {
-      const msg = messages.value[peer].find(m => m.id === id);
-      if (msg) msg.readAt = data.readAt;
-    }
+    const msg = messageById(id);
+    if (msg) msg.readAt = data.readAt;
     return data;
   }
 
   async function markAllRead(peer) {
     const { data } = await api.patch(`/messages/read-all?peer=${encodeURIComponent(peer)}`);
     if (!data.ok) throw new Error(data.error);
-
     const list = messages.value[peer] || [];
     for (const m of list) {
       if (m.to === auth.user && !m.readAt) m.readAt = data.readAt;
@@ -216,26 +274,29 @@ export const useMessagesStore = defineStore('messages', () => {
   function onIncoming(msg) {
     pushMessage(msg);
 
-    // Обновляем presence отправителя
     if (msg.from) presence.value[msg.from] = msg.createdAt;
 
     if (msg.to === auth.user) {
+      // ✅ Звук — только если не от меня и чат не открыт/невидим
       const isChatOpen = document.body.dataset.chatOpen === 'true';
       const isHidden = document.visibilityState !== 'visible';
+
+      try { playIncomingMessage(); } catch (e) { /* ignore */ }
 
       if (!isChatOpen || isHidden) {
         try { notifyIncomingMessage(msg); } catch (e) { /* ignore */ }
       }
     }
+
+    // ✅ Сбрасываем typing от отправителя
+    if (msg.from) typing.value[msg.from] = 0;
   }
 
   function onEdited(msg) {
-    for (const peer of Object.keys(messages.value)) {
-      const m = messages.value[peer].find(x => x.id === msg.id);
-      if (m) {
-        m.text = msg.text;
-        m.editedAt = msg.editedAt;
-      }
+    const m = messageById(msg.id);
+    if (m) {
+      m.text = msg.text;
+      m.editedAt = msg.editedAt;
     }
   }
 
@@ -246,17 +307,13 @@ export const useMessagesStore = defineStore('messages', () => {
   }
 
   function onPinned(msg) {
-    for (const peer of Object.keys(messages.value)) {
-      const m = messages.value[peer].find(x => x.id === msg.id);
-      if (m) m.pinnedAt = msg.pinnedAt;
-    }
+    const m = messageById(msg.id);
+    if (m) m.pinnedAt = msg.pinnedAt;
   }
 
   function onRead({ id, readAt }) {
-    for (const peer of Object.keys(messages.value)) {
-      const msg = messages.value[peer].find(m => m.id === id);
-      if (msg) msg.readAt = readAt;
-    }
+    const m = messageById(id);
+    if (m) m.readAt = readAt;
   }
 
   function onReadAll({ peer, by }) {
@@ -275,6 +332,17 @@ export const useMessagesStore = defineStore('messages', () => {
     if (user && lastSeen) presence.value[user] = lastSeen;
   }
 
+  function onReaction({ messageId, reactions }) {
+    const m = messageById(messageId);
+    if (m) m.reactions = reactions;
+  }
+
+  function onTyping({ from, to, typing: isTyping }) {
+    // Нас интересуют только те, кто печатает НАМ
+    if (to !== auth.user) return;
+    typing.value[from] = isTyping ? Date.now() : 0;
+  }
+
   function setOnline(list) {
     online.value = Array.isArray(list) ? list : [];
   }
@@ -283,6 +351,7 @@ export const useMessagesStore = defineStore('messages', () => {
     messages.value = { 'Сергей': [], 'Саша': [] };
     unread.value = { 'Сергей': 0, 'Саша': 0 };
     presence.value = { 'Сергей': null, 'Саша': null };
+    typing.value = { 'Сергей': 0, 'Саша': 0 };
     online.value = [];
     loaded.value = false;
   }
@@ -291,27 +360,36 @@ export const useMessagesStore = defineStore('messages', () => {
     messages,
     unread,
     presence,
+    typing,
     online,
     loaded,
     loading,
+    tick,
 
     totalUnread,
 
     myPeer,
     isOnline,
     lastSeen,
+    isTyping,
     messagesWith,
     pinnedWith,
+    messageById,
 
     loadConversations,
     loadHistory,
     loadUnread,
     loadPresence,
     heartbeat,
+
+    notifyTypingStart,
+    notifyTypingStop,
+
     send,
     edit,
     remove,
     togglePin,
+    toggleReaction,
     markRead,
     markAllRead,
 
@@ -323,6 +401,8 @@ export const useMessagesStore = defineStore('messages', () => {
     onRead,
     onReadAll,
     onPresence,
+    onReaction,
+    onTyping,
     setOnline,
     reset,
   };

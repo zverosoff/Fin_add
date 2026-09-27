@@ -32,22 +32,20 @@ export function useWebSocket() {
       console.log('[ws] подключились, id:', socket.id);
     });
 
-    socket.on('state', (state) => {
-      accounts.setFromWS(state);
-    });
+    socket.on('state', (state) => accounts.setFromWS(state));
 
-    // ============================================================
     // Сообщения
-    // ============================================================
     socket.on('message:new',      (msg) => messages.onIncoming(msg));
     socket.on('message:edited',   (msg) => messages.onEdited(msg));
     socket.on('message:deleted',  (p)   => messages.onDeleted(p));
     socket.on('message:pinned',   (msg) => messages.onPinned(msg));
     socket.on('message:read',     (p)   => messages.onRead(p));
     socket.on('message:read-all', (p)   => messages.onReadAll(p));
+    socket.on('reaction:update',  (p)   => messages.onReaction(p));   // ✅ NEW
+    socket.on('typing:update',    (p)   => messages.onTyping(p));     // ✅ NEW
 
-    socket.on('users:online',     (list) => messages.setOnline(list));
-    socket.on('presence:update',  (p)   => messages.onPresence(p));
+    socket.on('users:online',    (list) => messages.setOnline(list));
+    socket.on('presence:update', (p)    => messages.onPresence(p));
 
     socket.on('disconnect', (reason) => {
       connected.value = false;

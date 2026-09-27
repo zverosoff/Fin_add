@@ -4,17 +4,18 @@ import db from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { runMigrations } from '../db/migrate.js';
 
-// ✅ Убеждаемся, что схема актуальна (идемпотентно)
 runMigrations();
 
 const router = Router();
 
 const USERS = ['Сергей', 'Саша'];
+const ALLOWED_EMOJI = ['❤️', '👍', '🔥', '😂', '😮', '😢', '👎', '🎉'];
 
 // ============================================================
 // Внутренние функции
 // ============================================================
-function rowToMessage(row) {
+function rowToMessage(row, reactionsMap) {
+  const reactions = reactionsMap?.[row.id] || [];
   return {
     id: row.id,
     from: row.from_user,
@@ -27,7 +28,35 @@ function rowToMessage(row) {
     pinnedAt: row.pinned_at,
     replyTo: row.reply_to,
     payload: row.payload ? JSON.parse(row.payload) : null,
+    reactions,   // [{ emoji, users: ['Сергей'] }]
   };
+}
+
+function loadReactionsForMessages(ids) {
+  if (!ids.length) return {};
+  const placeholders = ids.map(() => '?').join(',');
+  const rows = db.prepare(`
+    SELECT message_id, user, emoji FROM message_reactions
+    WHERE message_id IN (${placeholders})
+    ORDER BY created_at ASC
+  `).all(...ids);
+
+  const map = {};
+  for (const r of rows) {
+    if (!map[r.message_id]) map[r.message_id] = {};
+    if (!map[r.message_id][r.emoji]) map[r.message_id][r.emoji] = new Set();
+    map[r.message_id][r.emoji].add(r.user);
+  }
+
+  // Преобразуем Set → массив, объект → массив
+  const result = {};
+  for (const [msgId, byEmoji] of Object.entries(map)) {
+    result[msgId] = Object.entries(byEmoji).map(([emoji, users]) => ({
+      emoji,
+      users: [...users],
+    }));
+  }
+  return result;
 }
 
 const insertMsg = db.prepare(`
@@ -59,7 +88,6 @@ const markReadStmt = db.prepare(`
 `);
 
 const getMsgStmt = db.prepare('SELECT * FROM messages WHERE id = ?');
-const deleteMsgStmt = db.prepare('DELETE FROM messages WHERE id = ?');
 
 const touchPresenceStmt = db.prepare(`
   INSERT INTO user_presence (user, last_seen, updated_at)
@@ -71,6 +99,30 @@ const touchPresenceStmt = db.prepare(`
 
 const getPresenceStmt = db.prepare('SELECT * FROM user_presence WHERE user = ?');
 const getAllPresenceStmt = db.prepare('SELECT * FROM user_presence');
+
+// Реакции
+const addReactionStmt = db.prepare(`
+  INSERT OR IGNORE INTO message_reactions (message_id, user, emoji, created_at)
+  VALUES (@messageId, @user, @emoji, @createdAt)
+`);
+const removeReactionStmt = db.prepare(`
+  DELETE FROM message_reactions WHERE message_id = ? AND user = ? AND emoji = ?
+`);
+const getAllReactionsStmt = db.prepare(`
+  SELECT message_id, user, emoji FROM message_reactions
+  WHERE message_id = ?
+  ORDER BY created_at ASC
+`);
+
+function buildReactionsFor(msgId) {
+  const rows = getAllReactionsStmt.all(msgId);
+  const map = {};
+  for (const r of rows) {
+    if (!map[r.emoji]) map[r.emoji] = [];
+    map[r.emoji].push(r.user);
+  }
+  return Object.entries(map).map(([emoji, users]) => ({ emoji, users }));
+}
 
 // ============================================================
 // GET /api/messages/presence
@@ -97,11 +149,38 @@ router.post('/heartbeat', requireAuth, (req, res) => {
     const me = req.user;
     const now = new Date().toISOString();
     touchPresenceStmt.run({ user: me, now });
-
     const io = req.app.get('io');
     if (io) io.emit('presence:update', { user: me, lastSeen: now });
-
     res.json({ ok: true, lastSeen: now });
+  } catch (err) {
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ============================================================
+// POST /api/messages/typing
+// body: { to: 'Саша', typing: true }
+// ============================================================
+router.post('/typing', requireAuth, (req, res) => {
+  try {
+    const me = req.user;
+    const { to, typing } = req.body ?? {};
+
+    if (!to || !USERS.includes(to)) {
+      return res.status(400).json({ ok: false, error: 'to обязателен' });
+    }
+
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('typing:update', {
+        from: me,
+        to,
+        typing: !!typing,
+        at: new Date().toISOString(),
+      });
+    }
+
+    res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
   }
@@ -137,7 +216,7 @@ router.get('/conversations', requireAuth, (req, res) => {
           lastMessage: last ? rowToMessage(last) : null,
           unread,
           total: rows.length,
-          pinned: pinned.map(rowToMessage),
+          pinned: pinned.map(r => rowToMessage(r)),
           lastSeen: presence ? presence.last_seen : null,
         };
       });
@@ -162,7 +241,6 @@ router.get('/unread', requireAuth, (req, res) => {
     const total = Object.values(map).reduce((s, n) => s + n, 0);
     res.json({ ok: true, unread: map, total });
   } catch (err) {
-    console.error('[messages] unread ошибка:', err.message);
     res.status(500).json({ ok: false, error: err.message });
   }
 });
@@ -184,7 +262,9 @@ router.get('/', requireAuth, (req, res) => {
     }
 
     const rows = listByUserStmt.all({ user: me, peer, limit });
-    res.json({ ok: true, messages: rows.map(rowToMessage) });
+    const reactionsMap = loadReactionsForMessages(rows.map(r => r.id));
+
+    res.json({ ok: true, messages: rows.map(r => rowToMessage(r, reactionsMap)) });
   } catch (err) {
     console.error('[messages] GET ошибка:', err.message);
     res.status(500).json({ ok: false, error: err.message });
@@ -229,7 +309,11 @@ router.post('/', requireAuth, (req, res) => {
     const saved = rowToMessage(getMsgStmt.get(msg.id));
 
     const io = req.app.get('io');
-    if (io) io.emit('message:new', saved);
+    if (io) {
+      io.emit('message:new', saved);
+      // Сброс typing у отправителя
+      io.emit('typing:update', { from: me, to, typing: false });
+    }
 
     res.json({ ok: true, message: saved });
   } catch (err) {
@@ -239,8 +323,57 @@ router.post('/', requireAuth, (req, res) => {
 });
 
 // ============================================================
-// PATCH /api/messages/read-all?peer=Саша
-// ✅ ВАЖНО: ДОЛЖЕН БЫТЬ ВЫШЕ PATCH /:id
+// POST /api/messages/:id/reaction
+// body: { emoji: '❤️' }
+// ============================================================
+router.post('/:id/reaction', requireAuth, (req, res) => {
+  try {
+    const me = req.user;
+    const { id } = req.params;
+    const { emoji } = req.body ?? {};
+
+    if (!ALLOWED_EMOJI.includes(emoji)) {
+      return res.status(400).json({ ok: false, error: 'Недопустимый emoji' });
+    }
+
+    const row = getMsgStmt.get(id);
+    if (!row) return res.status(404).json({ ok: false, error: 'Не найдено' });
+    if (row.deleted_at) return res.status(400).json({ ok: false, error: 'Удалено' });
+    if (row.from_user !== me && row.to_user !== me) {
+      return res.status(403).json({ ok: false, error: 'Нет доступа' });
+    }
+
+    // Проверим, уже стоит ли реакция
+    const existing = db.prepare(`
+      SELECT 1 FROM message_reactions
+      WHERE message_id = ? AND user = ? AND emoji = ?
+    `).get(id, me, emoji);
+
+    if (existing) {
+      removeReactionStmt.run(id, me, emoji);
+    } else {
+      addReactionStmt.run({
+        messageId: id,
+        user: me,
+        emoji,
+        createdAt: new Date().toISOString(),
+      });
+    }
+
+    const reactions = buildReactionsFor(id);
+
+    const io = req.app.get('io');
+    if (io) io.emit('reaction:update', { messageId: id, reactions });
+
+    res.json({ ok: true, messageId: id, reactions });
+  } catch (err) {
+    console.error('[messages] reaction ошибка:', err.message);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ============================================================
+// PATCH /read-all
 // ============================================================
 router.patch('/read-all', requireAuth, (req, res) => {
   try {
@@ -265,8 +398,7 @@ router.patch('/read-all', requireAuth, (req, res) => {
 });
 
 // ============================================================
-// PATCH /api/messages/:id/read
-// ✅ ВАЖНО: ДОЛЖЕН БЫТЬ ВЫШЕ PATCH /:id
+// PATCH /:id/read
 // ============================================================
 router.patch('/:id/read', requireAuth, (req, res) => {
   try {
@@ -293,8 +425,7 @@ router.patch('/:id/read', requireAuth, (req, res) => {
 });
 
 // ============================================================
-// PATCH /api/messages/:id — редактирование
-// ✅ ВАЖНО: ПОСЛЕ /read-all и /:id/read
+// PATCH /:id
 // ============================================================
 router.patch('/:id', requireAuth, (req, res) => {
   try {
@@ -305,22 +436,20 @@ router.patch('/:id', requireAuth, (req, res) => {
     const row = getMsgStmt.get(id);
     if (!row) return res.status(404).json({ ok: false, error: 'Не найдено' });
     if (row.from_user !== me) {
-      return res.status(403).json({ ok: false, error: 'Только автор может редактировать' });
+      return res.status(403).json({ ok: false, error: 'Только автор' });
     }
     if (row.deleted_at) {
-      return res.status(400).json({ ok: false, error: 'Сообщение удалено' });
+      return res.status(400).json({ ok: false, error: 'Удалено' });
     }
 
     const cleanText = String(text ?? '').trim().slice(0, 2000);
-    if (!cleanText) {
-      return res.status(400).json({ ok: false, error: 'Текст пуст' });
-    }
+    if (!cleanText) return res.status(400).json({ ok: false, error: 'Текст пуст' });
 
     const editedAt = new Date().toISOString();
     db.prepare('UPDATE messages SET text = ?, edited_at = ? WHERE id = ?')
       .run(cleanText, editedAt, id);
 
-    const updated = rowToMessage(getMsgStmt.get(id));
+    const updated = rowToMessage(getMsgStmt.get(id), loadReactionsForMessages([id]));
 
     const io = req.app.get('io');
     if (io) io.emit('message:edited', updated);
@@ -333,7 +462,7 @@ router.patch('/:id', requireAuth, (req, res) => {
 });
 
 // ============================================================
-// DELETE /api/messages/:id — soft delete
+// DELETE /:id
 // ============================================================
 router.delete('/:id', requireAuth, (req, res) => {
   try {
@@ -360,7 +489,7 @@ router.delete('/:id', requireAuth, (req, res) => {
 });
 
 // ============================================================
-// POST /api/messages/:id/pin
+// POST /:id/pin
 // ============================================================
 router.post('/:id/pin', requireAuth, (req, res) => {
   try {
@@ -373,7 +502,7 @@ router.post('/:id/pin', requireAuth, (req, res) => {
       return res.status(403).json({ ok: false, error: 'Нет доступа' });
     }
     if (row.deleted_at) {
-      return res.status(400).json({ ok: false, error: 'Сообщение удалено' });
+      return res.status(400).json({ ok: false, error: 'Удалено' });
     }
 
     const wasPinned = !!row.pinned_at;
@@ -381,7 +510,7 @@ router.post('/:id/pin', requireAuth, (req, res) => {
 
     db.prepare('UPDATE messages SET pinned_at = ? WHERE id = ?').run(pinnedAt, id);
 
-    const updated = rowToMessage(getMsgStmt.get(id));
+    const updated = rowToMessage(getMsgStmt.get(id), loadReactionsForMessages([id]));
 
     const io = req.app.get('io');
     if (io) io.emit('message:pinned', updated);
