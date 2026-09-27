@@ -8,9 +8,6 @@ cleanupOutdatedCaches();
 
 precacheAndRoute(self.__WB_MANIFEST);
 
-// ============================================================
-// Web Push — приходит от бэкенда через web-push
-// ============================================================
 self.addEventListener('push', (event) => {
   let data = {};
   try {
@@ -23,7 +20,7 @@ self.addEventListener('push', (event) => {
   const options = {
     body: data.body || '',
     icon: '/img/favicon.png',
-    badge: '/img/favicon.png',
+    badge: '/img/badge.png',   // ✅ монохромная иконка (белая на прозрачном)
     data: { url: data.url || '/', messageId: data.messageId },
     vibrate: [80, 40, 80],
   };
@@ -31,13 +28,9 @@ self.addEventListener('push', (event) => {
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
-// ============================================================
-// Клик по уведомлению
-// ============================================================
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   const url = event.notification.data?.url || '/';
-
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((list) => {
       for (const c of list) {
@@ -50,9 +43,6 @@ self.addEventListener('notificationclick', (event) => {
   );
 });
 
-// ============================================================
-// Обновление подписки при смене endpoint
-// ============================================================
 self.addEventListener('pushsubscriptionchange', (event) => {
   event.waitUntil(
     self.registration.pushManager

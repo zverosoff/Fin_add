@@ -21,6 +21,7 @@ export default defineConfig({
         'favicon.svg',
         'icons.svg',
         'img/favicon.png',
+        'img/badge.png',   // ✅
         'img/sber.png',
         'img/tbank.png',
       ],
@@ -36,7 +37,6 @@ export default defineConfig({
         orientation: 'portrait-primary',
         background_color: '#eef2f8',
         theme_color: '#eef2f8',
-
         icons: [
           { src: '/img/favicon.png', sizes: '192x192', type: 'image/png', purpose: 'any' },
           { src: '/img/favicon.png', sizes: '512x512', type: 'image/png', purpose: 'any' },
