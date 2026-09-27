@@ -13,21 +13,40 @@ if (VAPID_PUBLIC && VAPID_PRIVATE) {
   console.warn('[push] VAPID-ключи не заданы, push отключён');
 }
 
-const saveSubscriptionStmt = db.prepare(`
-  INSERT INTO push_subscriptions (user, endpoint, p256dh, auth, created_at)
-  VALUES (@user, @endpoint, @p256dh, @auth, @createdAt)
-  ON CONFLICT(user, endpoint) DO UPDATE SET
-    p256dh = @p256dh,
-    auth = @auth
-`);
+// ✅ Ленивая инициализация стейтментов — БЕЗ выполнения prepare на верхнем уровне
+let stmts = null;
 
-const deleteSubscriptionStmt = db.prepare(`
-  DELETE FROM push_subscriptions WHERE endpoint = ?
-`);
+function ensureTable() {
+  // На случай, если миграции не успели
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      user TEXT NOT NULL,
+      endpoint TEXT NOT NULL,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      created_at TEXT NOT NULL,
+      PRIMARY KEY (user, endpoint)
+    );
+    CREATE INDEX IF NOT EXISTS idx_push_user ON push_subscriptions(user);
+  `);
+}
 
-const listSubscriptionsStmt = db.prepare(`
-  SELECT * FROM push_subscriptions WHERE user = ?
-`);
+function getStmts() {
+  if (stmts) return stmts;
+  ensureTable();
+  stmts = {
+    save: db.prepare(`
+      INSERT INTO push_subscriptions (user, endpoint, p256dh, auth, created_at)
+      VALUES (@user, @endpoint, @p256dh, @auth, @createdAt)
+      ON CONFLICT(user, endpoint) DO UPDATE SET
+        p256dh = @p256dh,
+        auth = @auth
+    `),
+    del: db.prepare(`DELETE FROM push_subscriptions WHERE endpoint = ?`),
+    list: db.prepare(`SELECT * FROM push_subscriptions WHERE user = ?`),
+  };
+  return stmts;
+}
 
 export function isPushEnabled() {
   return !!(VAPID_PUBLIC && VAPID_PRIVATE);
@@ -38,7 +57,7 @@ export function getVapidPublicKey() {
 }
 
 export function saveSubscription(user, subscription) {
-  saveSubscriptionStmt.run({
+  getStmts().save.run({
     user,
     endpoint: subscription.endpoint,
     p256dh: subscription.keys.p256dh,
@@ -48,13 +67,13 @@ export function saveSubscription(user, subscription) {
 }
 
 export function removeSubscription(endpoint) {
-  deleteSubscriptionStmt.run(endpoint);
+  getStmts().del.run(endpoint);
 }
 
 export async function sendPushToUser(user, payload) {
   if (!isPushEnabled()) return;
 
-  const subs = listSubscriptionsStmt.all(user);
+  const subs = getStmts().list.all(user);
   if (!subs.length) return;
 
   await Promise.allSettled(
