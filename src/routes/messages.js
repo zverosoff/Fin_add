@@ -2,39 +2,14 @@
 import { Router } from 'express';
 import db from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
+import { runMigrations } from '../db/migrate.js';   // ✅ NEW
+
+// ✅ Убеждаемся, что схема актуальна (идемпотентно)
+runMigrations();
 
 const router = Router();
 
 const USERS = ['Сергей', 'Саша'];
-
-// ============================================================
-// ✅ Страховка: если таблиц нет — создаём
-// ============================================================
-db.exec(`
-  CREATE TABLE IF NOT EXISTS messages (
-    id TEXT PRIMARY KEY,
-    from_user TEXT NOT NULL,
-    to_user TEXT NOT NULL,
-    text TEXT NOT NULL,
-    created_at TEXT NOT NULL,
-    read_at TEXT,
-    edited_at TEXT,
-    deleted_at TEXT,
-    pinned_at TEXT,
-    reply_to TEXT,
-    payload TEXT
-  );
-  CREATE INDEX IF NOT EXISTS idx_msg_from ON messages(from_user);
-  CREATE INDEX IF NOT EXISTS idx_msg_to ON messages(to_user);
-  CREATE INDEX IF NOT EXISTS idx_msg_created ON messages(created_at);
-  CREATE INDEX IF NOT EXISTS idx_msg_pinned ON messages(pinned_at);
-
-  CREATE TABLE IF NOT EXISTS user_presence (
-    user TEXT PRIMARY KEY,
-    last_seen TEXT NOT NULL,
-    updated_at TEXT NOT NULL
-  );
-`);
 
 // ============================================================
 // Внутренние функции
@@ -99,7 +74,6 @@ const getAllPresenceStmt = db.prepare('SELECT * FROM user_presence');
 
 // ============================================================
 // GET /api/messages/presence
-// Возвращает: { Сергей: '2026-09-27T...', Саша: '...' }
 // ============================================================
 router.get('/presence', requireAuth, (req, res) => {
   try {
@@ -117,7 +91,6 @@ router.get('/presence', requireAuth, (req, res) => {
 
 // ============================================================
 // POST /api/messages/heartbeat
-// Обновляет last_seen для текущего пользователя
 // ============================================================
 router.post('/heartbeat', requireAuth, (req, res) => {
   try {
@@ -172,7 +145,6 @@ router.get('/conversations', requireAuth, (req, res) => {
         const last = rows[rows.length - 1];
         const unread = rows.filter(r => r.to_user === me && !r.read_at).length;
 
-        // ✅ Пиннед
         const pinned = db.prepare(`
           SELECT * FROM messages
           WHERE ((from_user = @user AND to_user = @peer)
@@ -251,7 +223,6 @@ router.post('/', requireAuth, (req, res) => {
 
     insertMsg.run(msg);
 
-    // ✅ Обновляем presence
     const now = new Date().toISOString();
     touchPresenceStmt.run({ user: me, now });
 
@@ -268,8 +239,7 @@ router.post('/', requireAuth, (req, res) => {
 });
 
 // ============================================================
-// PATCH /api/messages/:id
-// Редактирование текста
+// PATCH /api/messages/:id — редактирование
 // ============================================================
 router.patch('/:id', requireAuth, (req, res) => {
   try {
@@ -308,8 +278,7 @@ router.patch('/:id', requireAuth, (req, res) => {
 });
 
 // ============================================================
-// DELETE /api/messages/:id
-// Soft delete (deleted_at). Работает для обоих участников.
+// DELETE /api/messages/:id — soft delete
 // ============================================================
 router.delete('/:id', requireAuth, (req, res) => {
   try {
@@ -337,7 +306,6 @@ router.delete('/:id', requireAuth, (req, res) => {
 
 // ============================================================
 // POST /api/messages/:id/pin
-// Закрепить/открепить
 // ============================================================
 router.post('/:id/pin', requireAuth, (req, res) => {
   try {
