@@ -288,21 +288,25 @@ export const useMessagesStore = defineStore('messages', () => {
     }
   }
 
-  function onIncoming(msg) {
-    pushMessage(msg);
-    if (msg.from) presence.value[msg.from] = msg.createdAt;
+function onIncoming(msg) {
+  console.log('[onIncoming]', msg);
+  pushMessage(msg);
+  if (msg.from) presence.value[msg.from] = msg.createdAt;
 
-    if (msg.to === auth.user) {
-      const isChatOpen = document.body.dataset.chatOpen === 'true';
-      const isHidden = document.visibilityState !== 'visible';
+  if (msg.to === auth.user) {
+    const isChatOpen = document.body.dataset.chatOpen === 'true';
+    const isHidden = document.visibilityState !== 'visible';
+    console.log('[onIncoming] isChatOpen=', isChatOpen, 'isHidden=', isHidden, 'auth.user=', auth.user, 'msg.to=', msg.to);
 
-      try { playIncomingMessage(); } catch (e) {}
-      if (!isChatOpen || isHidden) {
-        try { notifyIncomingMessage(msg); } catch (e) {}
-      }
+    try { playIncomingMessage(); } catch (e) { console.warn('[sound] err', e); }
+    if (!isChatOpen || isHidden) {
+      try { notifyIncomingMessage(msg); } catch (e) { console.warn('[notify] err', e); }
+    } else {
+      console.log('[onIncoming] чат открыт и вкладка видима — уведомление не показываем');
     }
-    if (msg.from) typing.value[msg.from] = 0;
   }
+  if (msg.from) typing.value[msg.from] = 0;
+}
 
   function onEdited(msg) {
     const m = messageById(msg.id);
