@@ -174,3 +174,53 @@ input, select, textarea {
     transform: translateY(0);
   }
 }
+
+// Добавляем CSS-переменные для тем
+:root,
+:root[data-theme="light"] {
+  --chat-bg: #f2f2f7;
+  --chat-header-bg: rgba(249, 250, 251, 0.96);
+  --chat-border: rgba(60, 60, 67, 0.15);
+  --chat-text: #000;
+  --chat-text-muted: #8e8e93;
+  --chat-bubble-in-bg: #ffffff;
+  --chat-bubble-in-text: #000;
+  --chat-bubble-out-bg: #007aff;
+  --chat-bubble-out-text: #ffffff;
+  --chat-input-bg: #ffffff;
+  --chat-input-border: rgba(60, 60, 67, 0.2);
+  --chat-accent: #007aff;
+  --chat-reactions-bg: rgba(0, 0, 0, 0.05);
+  --chat-reactions-out-bg: rgba(255, 255, 255, 0.18);
+  --chat-menu-bg: rgba(255, 255, 255, 0.98);
+  --chat-menu-text: #000;
+  --chat-menu-hover: rgba(0, 122, 255, 0.1);
+  --chat-bg-pattern: none;
+}
+
+:root[data-theme="dark"] {
+  --chat-bg: #0f1419;
+  --chat-header-bg: rgba(22, 26, 32, 0.96);
+  --chat-border: rgba(255, 255, 255, 0.08);
+  --chat-text: #e7e9ea;
+  --chat-text-muted: #7a8899;
+  --chat-bubble-in-bg: #1e2732;
+  --chat-bubble-in-text: #e7e9ea;
+  --chat-bubble-out-bg: #2b5278;
+  --chat-bubble-out-text: #ffffff;
+  --chat-input-bg: #1e2732;
+  --chat-input-border: rgba(255, 255, 255, 0.1);
+  --chat-accent: #5288c1;
+  --chat-reactions-bg: rgba(255, 255, 255, 0.06);
+  --chat-reactions-out-bg: rgba(255, 255, 255, 0.12);
+  --chat-menu-bg: rgba(30, 39, 50, 0.98);
+  --chat-menu-text: #e7e9ea;
+  --chat-menu-hover: rgba(82, 136, 193, 0.15);
+  --chat-bg-pattern: none;
+}
+
+/* Применяем паттерн к фону body чата */
+.chat-body {
+  background-image: var(--chat-bg-pattern, none) !important;
+  background-attachment: local !important;
+}

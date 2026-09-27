@@ -4,6 +4,7 @@ import { useMessagesStore } from '@/stores/messages';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from '@/composables/useToast';
 import { linkify } from '@/composables/useLinkify';
+import { useTheme } from '@/composables/useTheme';
 import {
   playOutgoingMessage,
   playReaction,
@@ -18,6 +19,7 @@ import {
 const messages = useMessagesStore();
 const auth = useAuthStore();
 const toast = useToast();
+const { theme, background, setTheme, setBackground, THEMES, BACKGROUNDS } = useTheme();
 
 const open = ref(false);
 const text = ref('');
@@ -25,8 +27,12 @@ const sending = ref(false);
 const scrollEl = ref(null);
 const inputEl = ref(null);
 
-// Контекстное меню + панель реакций — ОДНА панель
+// Контекстное меню
 const menu = ref({ open: false, x: 0, y: 0, message: null });
+
+// Панели: настройки / emoji / "обычный" input
+// panel: 'keyboard' | 'emoji' | 'settings'
+const activePanel = ref('keyboard');
 
 // Режим редактирования
 const editing = ref(null);
@@ -39,12 +45,51 @@ const replyTo = ref(null);
 const panelHeight = ref('');
 const panelTop = ref('');
 
-// Пагинация — индикатор загрузки
+// Пагинация
 const loadingOlder = ref(false);
 
-// Показать кнопку «вниз»
+// Кнопка «вниз»
 const showScrollDown = ref(false);
 const newBelowCount = ref(0);
+
+// Emoji picker: категории
+const EMOJI_CATEGORIES = [
+  {
+    id: 'smileys',
+    icon: '😀',
+    label: 'Смайлы',
+    emojis: ['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','🥲','😋','😛','😜','🤪','😝','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🤧','🥵','🥶','😵','🤯','🤠','🥳','😎','🤓','🧐','😕','😟','🙁','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','👿'],
+  },
+  {
+    id: 'gestures',
+    icon: '👍',
+    label: 'Жесты',
+    emojis: ['👍','👎','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','👇','☝️','✋','🤚','🖐️','🖖','👋','🤝','🙏','✍️','💅','🤳','💪','🦾','🦵','🦶','👂','🦻','👃','🧠','🦷','👀','👁️','👅','👄','💋','🩸','🤲','👐','🙌','👏','🤜','🤛','✊','👊'],
+  },
+  {
+    id: 'hearts',
+    icon: '❤️',
+    label: 'Сердца',
+    emojis: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','♥️','💌','💋','🔥','✨','⭐','🌟','💫','⚡','💥','💢','💤','💨','🎉','🎊','🎈','🎁'],
+  },
+  {
+    id: 'animals',
+    icon: '🐱',
+    label: 'Животные',
+    emojis: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🙈','🙉','🙊','🐒','🐔','🐧','🐦','🐤','🐣','🐥','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦗','🕷️','🦂','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🦐'],
+  },
+  {
+    id: 'food',
+    icon: '🍕',
+    label: 'Еда',
+    emojis: ['🍏','🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🫐','🍈','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🍆','🥑','🥦','🥬','🥒','🌶️','🌽','🥕','🧄','🧅','🥔','🍠','🥐','🥯','🍞','🥖','🥨','🧀','🥚','🍳','🧈','🥞','🧇','🥓','🥩','🍗','🍖','🌭','🍔','🍟','🍕'],
+  },
+];
+
+const activeEmojiCat = ref('smileys');
+const currentEmojiList = computed(() =>
+  EMOJI_CATEGORIES.find(c => c.id === activeEmojiCat.value)?.emojis || []
+);
 
 const me = computed(() => auth.user || 'Сергей');
 const peer = computed(() => messages.myPeer());
@@ -76,13 +121,70 @@ function fmtLastSeen(iso) {
   const diffMin = Math.floor(diffSec / 60);
   const diffHours = Math.floor(diffMin / 60);
   const diffDays = Math.floor(diffHours / 24);
-
-  if (diffSec < 60)   return 'был(а) только что';
-  if (diffMin < 60)   return `был(а) ${diffMin} мин назад`;
+  if (diffSec < 60) return 'был(а) только что';
+  if (diffMin < 60) return `был(а) ${diffMin} мин назад`;
   if (diffHours < 24) return `был(а) ${diffHours} ч назад`;
   if (diffDays === 1) return 'был(а) вчера';
-  if (diffDays < 7)   return `был(а) ${diffDays} дн назад`;
+  if (diffDays < 7) return `был(а) ${diffDays} дн назад`;
   return 'был(а) ' + d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+}
+
+// ============================================================
+// Авторастущий textarea
+// ============================================================
+function autoResize() {
+  const el = inputEl.value;
+  if (!el) return;
+  el.style.height = 'auto';
+  const maxH = 5 * 18 + 14; // 5 строк * line-height + padding
+  el.style.height = Math.min(el.scrollHeight, maxH) + 'px';
+}
+
+function onInput() {
+  autoResize();
+  if (text.value.trim()) messages.notifyTypingStart(peer.value);
+  else messages.notifyTypingStop(peer.value);
+}
+
+// ============================================================
+// Emoji picker
+// ============================================================
+function toggleEmoji() {
+  if (activePanel.value === 'emoji') {
+    activePanel.value = 'keyboard';
+    nextTick(() => inputEl.value?.focus());
+  } else {
+    activePanel.value = 'emoji';
+    inputEl.value?.blur();
+  }
+}
+
+function insertEmoji(emoji) {
+  text.value += emoji;
+  nextTick(() => {
+    autoResize();
+    inputEl.value?.focus();
+  });
+  messages.notifyTypingStart(peer.value);
+}
+
+function onBackspace() {
+  // Удаляем последний символ (правильно работает с эмодзи)
+  text.value = [...text.value].slice(0, -1).join('');
+  nextTick(autoResize);
+}
+
+// ============================================================
+// Settings panel
+// ============================================================
+function toggleSettings() {
+  if (activePanel.value === 'settings') {
+    activePanel.value = 'keyboard';
+    nextTick(() => inputEl.value?.focus());
+  } else {
+    activePanel.value = 'settings';
+    inputEl.value?.blur();
+  }
 }
 
 // ============================================================
@@ -114,26 +216,19 @@ function scrollToMessage(id) {
   }
 }
 
-// ✅ Скролл вверх → подгрузка старых
 async function onScroll() {
   const el = scrollEl.value;
   if (!el) return;
-
-  // Показать/скрыть кнопку вниз
   const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
   showScrollDown.value = !nearBottom && newBelowCount.value > 0;
 
-  // Пагинация: если вверху и есть ещё
   if (el.scrollTop < 80 && messages.hasMore[peer.value] && !loadingOlder.value) {
     loadingOlder.value = true;
-
     const prevScrollHeight = el.scrollHeight;
     const prevScrollTop = el.scrollTop;
-
     try {
       await messages.loadMore(peer.value);
       await nextTick();
-      // Восстанавливаем позицию скролла (компенсация за добавленное сверху)
       el.scrollTop = el.scrollHeight - prevScrollHeight + prevScrollTop;
     } catch (e) {
       console.warn('[chat] loadMore error:', e);
@@ -148,38 +243,29 @@ async function onScroll() {
 // ============================================================
 async function toggle() {
   open.value = !open.value;
-
   if (open.value) {
     document.body.dataset.chatOpen = 'true';
     await ensureHistory();
     await nextTick();
-
-    // ✅ Умный скролл: если есть непрочитанные — к первому, иначе — вниз
     const firstUnread = firstUnreadId.value;
     if (firstUnread) {
-      // Проверим, что он ещё не прочитан
       const m = messages.messageById(firstUnread);
-      if (m && !m.readAt) {
-        nextTick(() => scrollToMessage(firstUnread));
-      } else {
-        scrollToBottom();
-      }
+      if (m && !m.readAt) nextTick(() => scrollToMessage(firstUnread));
+      else scrollToBottom();
     } else {
       scrollToBottom();
     }
-
     setTimeout(() => inputEl.value?.focus(), 150);
-
     try {
       await messages.markAllRead(peer.value);
       await updateBadge(messages.totalUnread);
     } catch (e) {}
-
     updateViewport();
   } else {
     document.body.dataset.chatOpen = 'false';
     closeMenu();
     messages.notifyTypingStop(peer.value);
+    activePanel.value = 'keyboard';
   }
 }
 
@@ -203,7 +289,10 @@ async function send() {
     await messages.send(peer.value, clean, replyTo.value?.id || null);
     text.value = '';
     replyTo.value = null;
+    await nextTick();
+    autoResize();
     try { playOutgoingMessage(); } catch (e) {}
+    // ✅ Всегда докручиваем вниз при отправке
     await nextTick();
     scrollToBottom(true);
   } catch (e) {
@@ -212,11 +301,6 @@ async function send() {
   } finally {
     sending.value = false;
   }
-}
-
-function onInput() {
-  if (text.value.trim()) messages.notifyTypingStart(peer.value);
-  else messages.notifyTypingStop(peer.value);
 }
 
 function onKeydown(e) {
@@ -236,7 +320,8 @@ function startEdit(msg) {
   editText.value = msg.text;
   replyTo.value = null;
   closeMenu();
-  nextTick(() => inputEl.value?.focus());
+  activePanel.value = 'keyboard';
+  nextTick(() => { inputEl.value?.focus(); autoResize(); });
 }
 
 async function saveEdit() {
@@ -275,7 +360,8 @@ function startReply(msg) {
   replyTo.value = msg;
   editing.value = null;
   closeMenu();
-  nextTick(() => inputEl.value?.focus());
+  activePanel.value = 'keyboard';
+  nextTick(() => { inputEl.value?.focus(); autoResize(); });
 }
 
 function cancelReply() { replyTo.value = null; }
@@ -299,9 +385,6 @@ async function addReaction(msg, emoji) {
   closeMenu();
 }
 
-// ============================================================
-// Копирование
-// ============================================================
 async function copyMessage(msg) {
   closeMenu();
   try {
@@ -311,7 +394,7 @@ async function copyMessage(msg) {
 }
 
 // ============================================================
-// Контекстное меню + панель реакций — ОДНА панель
+// Контекстное меню
 // ============================================================
 let longPressTimer = null;
 let longPressStart = null;
@@ -328,7 +411,6 @@ function openMenu(e, msg) {
   if (e.touches?.[0]) { x = e.touches[0].clientX; y = e.touches[0].clientY; }
   if (e.changedTouches?.[0]) { x = e.changedTouches[0].clientX; y = e.changedTouches[0].clientY; }
 
-  // Меню+реакции: ширина 340, высота 400
   const menuW = 340;
   const menuH = 400;
   x = Math.min(x, window.innerWidth - menuW - 8);
@@ -350,7 +432,6 @@ function closeMenu() {
 }
 
 const menuIsMine = computed(() => menu.value.message?.from === me.value);
-
 const currentUserReactionOn = computed(() => {
   const m = menu.value.message;
   if (!m) return null;
@@ -363,11 +444,9 @@ const currentUserReactionOn = computed(() => {
 function onTouchStart(e, msg) {
   if (window.innerWidth > 700) return;
   if (e.touches.length !== 1) return;
-
   longPressTriggered = false;
   pointerStillDown = true;
   longPressStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
-
   if (longPressTimer) clearTimeout(longPressTimer);
   longPressTimer = setTimeout(() => {
     longPressTimer = null;
@@ -385,7 +464,6 @@ function onTouchStart(e, msg) {
 function onTouchMove(e) {
   if (!longPressTimer || !longPressStart) return;
   if (e.touches.length !== 1) return;
-
   const dx = Math.abs(e.touches[0].clientX - longPressStart.x);
   const dy = Math.abs(e.touches[0].clientY - longPressStart.y);
   if (dx > 10 || dy > 10) {
@@ -484,18 +562,22 @@ function onBeforeUnload() {
 function onViewportResize() { updateViewport(); }
 
 // ============================================================
-// Автоскролл: только если пользователь был внизу
+// ✅ Скролл при новом сообщении — всегда видно полностью
 // ============================================================
-watch(history, (newList, oldList) => {
+watch(history, async (newList, oldList) => {
   if (!open.value) return;
   const added = newList.length > (oldList?.length || 0);
   if (!added) return;
 
-  if (isNearBottom()) {
-    nextTick(() => scrollToBottom(true));
+  const wasNearBottom = isNearBottom();
+  await nextTick();
+
+  // Всегда скроллим, чтобы новое сообщение было видно полностью
+  if (wasNearBottom) {
+    scrollToBottom(true);
   } else {
-    // Пользователь наверху — увеличим счётчик «новых ниже»
-    newBelowCount.value++;
+    // Пользователь наверху — увеличим счётчик и покажем кнопку
+    newBelowCount.value += (newList.length - (oldList?.length || 0));
     showScrollDown.value = true;
   }
 }, { deep: false });
@@ -587,6 +669,19 @@ watch(open, (v) => { if (v) askNotifications(); });
           </div>
         </div>
 
+        <!-- ✅ Кнопка настроек (темы/фоны) -->
+        <button
+          class="chat-head-action"
+          :class="{ active: activePanel === 'settings' }"
+          @click="toggleSettings"
+          title="Настройки"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+            <circle cx="12" cy="12" r="3"/>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09A1.65 1.65 0 0 0 15 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+          </svg>
+        </button>
+
         <button class="chat-head-action" @click="close" title="Закрыть">
           <svg viewBox="0 0 24 24" fill="currentColor" width="18" height="18">
             <path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
@@ -613,14 +708,12 @@ watch(open, (v) => { if (v) askNotifications(); });
 
       <!-- Body -->
       <div ref="scrollEl" class="chat-body" @scroll.passive="onScroll">
-        <!-- Пагинация индикатор -->
         <div v-if="loadingOlder" class="loading-older">
           <span class="spinner"></span> Загрузка…
         </div>
-        <div
-          v-else-if="!messages.hasMore[peer] && history.length > 0"
-          class="history-start"
-        >Начало истории</div>
+        <div v-else-if="!messages.hasMore[peer] && history.length > 0" class="history-start">
+          Начало истории
+        </div>
 
         <div v-if="history.length === 0" class="chat-empty">
           <div class="chat-empty-icon">💬</div>
@@ -635,11 +728,7 @@ watch(open, (v) => { if (v) askNotifications(); });
               class="chat-day"
             >{{ fmtDay(m.createdAt) }}</div>
 
-            <!-- ✅ Разделитель «Новые сообщения» -->
-            <div
-              v-if="m.id === firstUnreadId && !m.readAt"
-              class="unread-divider"
-            >
+            <div v-if="m.id === firstUnreadId && !m.readAt" class="unread-divider">
               <span>Новые сообщения</span>
             </div>
 
@@ -667,7 +756,17 @@ watch(open, (v) => { if (v) askNotifications(); });
 
                 <div class="chat-text" v-html="linkify(m.text)"></div>
 
-                <!-- ✅ Реакции ВНУТРИ bubble (как в Telegram) -->
+                <div class="chat-meta">
+                  <span v-if="m.editedAt" class="chat-edited">изм.</span>
+                  <span class="chat-time">{{ fmtTime(m.createdAt) }}</span>
+                  <span
+                    v-if="m.from === me"
+                    class="chat-read"
+                    :class="{ read: !!m.readAt }"
+                  >{{ m.readAt ? '✓✓' : '✓' }}</span>
+                </div>
+
+                <!-- ✅ Реакции — прижаты к левому низу bubble, абсолютно, не растягивают -->
                 <div v-if="m.reactions?.length" class="bubble-reactions">
                   <button
                     v-for="r in m.reactions"
@@ -680,29 +779,15 @@ watch(open, (v) => { if (v) askNotifications(); });
                     <span v-if="r.users.length > 1" class="rc-count">{{ r.users.length }}</span>
                   </button>
                 </div>
-
-                <div class="chat-meta">
-                  <span v-if="m.editedAt" class="chat-edited">изм.</span>
-                  <span class="chat-time">{{ fmtTime(m.createdAt) }}</span>
-                  <span
-                    v-if="m.from === me"
-                    class="chat-read"
-                    :class="{ read: !!m.readAt }"
-                  >{{ m.readAt ? '✓✓' : '✓' }}</span>
-                </div>
               </div>
             </div>
           </template>
         </template>
       </div>
 
-      <!-- Кнопка «вниз» -->
+      <!-- Кнопка вниз -->
       <Transition name="scroll-down">
-        <button
-          v-if="showScrollDown"
-          class="scroll-down-btn"
-          @click="scrollToBottom(true)"
-        >
+        <button v-if="showScrollDown" class="scroll-down-btn" @click="scrollToBottom(true)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18">
             <path d="M12 5v14M19 12l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
@@ -730,7 +815,7 @@ watch(open, (v) => { if (v) askNotifications(); });
         <button class="cep-close" @click="cancelEdit">✕</button>
       </div>
 
-      <!-- Ввод -->
+      <!-- ✅ Ввод: авторастущий + emoji + настройки -->
       <div class="chat-input-row">
         <template v-if="editing">
           <button class="chat-input-btn chat-input-btn-accept" @click="saveEdit">
@@ -738,17 +823,35 @@ watch(open, (v) => { if (v) askNotifications(); });
               <polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </button>
-          <input
+          <textarea
             ref="inputEl"
             v-model="editText"
             class="chat-input"
-            type="text"
+            rows="1"
+            @input="autoResize"
             @keydown="onKeydown"
             placeholder="Редактировать…"
           />
         </template>
 
         <template v-else>
+          <!-- Emoji button -->
+          <button
+            class="chat-input-icon"
+            :class="{ active: activePanel === 'emoji' }"
+            @click="toggleEmoji"
+            :title="activePanel === 'emoji' ? 'Клавиатура' : 'Эмодзи'"
+          >
+            <svg v-if="activePanel !== 'emoji'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+              <circle cx="12" cy="12" r="10"/>
+              <path d="M8 14s1.5 2 4 2 4-2 4-2M9 9h.01M15 9h.01" stroke-linecap="round"/>
+            </svg>
+            <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
+              <rect x="3" y="6" width="18" height="12" rx="2"/>
+              <path d="M7 10h.01M11 10h.01M15 10h.01M7 14h10" stroke-linecap="round"/>
+            </svg>
+          </button>
+
           <textarea
             ref="inputEl"
             v-model="text"
@@ -757,7 +860,9 @@ watch(open, (v) => { if (v) askNotifications(); });
             rows="1"
             @input="onInput"
             @keydown="onKeydown"
+            @focus="activePanel = 'keyboard'"
           />
+
           <button class="chat-send" :disabled="!text.trim() || sending" @click="send">
             <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
               <path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/>
@@ -765,10 +870,77 @@ watch(open, (v) => { if (v) askNotifications(); });
           </button>
         </template>
       </div>
+
+      <!-- ✅ Панель emoji -->
+      <Transition name="panel">
+        <div v-if="activePanel === 'emoji'" class="chat-panel-bottom emoji-panel">
+          <div class="emoji-cats">
+            <button
+              v-for="c in EMOJI_CATEGORIES"
+              :key="c.id"
+              class="emoji-cat"
+              :class="{ active: activeEmojiCat === c.id }"
+              @click="activeEmojiCat = c.id"
+              :title="c.label"
+            >{{ c.icon }}</button>
+          </div>
+          <div class="emoji-grid">
+            <button
+              v-for="e in currentEmojiList"
+              :key="e"
+              class="emoji-cell"
+              @click="insertEmoji(e)"
+            >{{ e }}</button>
+            <div class="emoji-spacer"></div>
+            <button class="emoji-cell emoji-backspace" @click="onBackspace" title="Удалить">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
+                <path d="M21 4H8l-7 8 7 8h13a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2zM18 9l-6 6M12 9l6 6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </Transition>
+
+      <!-- ✅ Панель настроек: тема + фон -->
+      <Transition name="panel">
+        <div v-if="activePanel === 'settings'" class="chat-panel-bottom settings-panel">
+          <div class="settings-section">
+            <div class="settings-title">Тема</div>
+            <div class="theme-grid">
+              <button
+                v-for="t in THEMES"
+                :key="t.id"
+                class="theme-btn"
+                :class="{ active: theme === t.id }"
+                @click="setTheme(t.id)"
+              >
+                <span class="theme-icon">{{ t.icon }}</span>
+                <span class="theme-label">{{ t.label }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-title">Фон чата</div>
+            <div class="bg-grid">
+              <button
+                v-for="b in BACKGROUNDS"
+                :key="b.id"
+                class="bg-btn"
+                :class="{ active: background === b.id }"
+                :style="b.style ? { background: b.style } : {}"
+                @click="setBackground(b.id)"
+              >
+                <span v-if="!b.style" class="bg-default-mark">Aa</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </Transition>
     </div>
   </Transition>
 
-  <!-- ✅ Объединённая панель: реакции + контекстное меню -->
+  <!-- Объединённое меню -->
   <Teleport to="body">
     <Transition name="ctx-menu">
       <div
@@ -785,7 +957,6 @@ watch(open, (v) => { if (v) askNotifications(); });
           @touchend.stop
           @contextmenu.prevent
         >
-          <!-- ✅ Строка с реакциями -->
           <div class="reactions-row">
             <button
               v-for="e in ['❤️','👍','🔥','😂','😮','😢','👎','🎉']"
@@ -796,36 +967,21 @@ watch(open, (v) => { if (v) askNotifications(); });
             >{{ e }}</button>
           </div>
 
-          <!-- Пункты меню -->
           <button class="ctx-item" @click="startReply(menu.message)">
-            <span class="ctx-icon">↩️</span>
-            <span class="ctx-label">Ответить</span>
+            <span class="ctx-icon">↩️</span><span class="ctx-label">Ответить</span>
           </button>
-
           <button class="ctx-item" @click="copyMessage(menu.message)">
-            <span class="ctx-icon">📋</span>
-            <span class="ctx-label">Копировать</span>
+            <span class="ctx-icon">📋</span><span class="ctx-label">Копировать</span>
           </button>
-
           <button class="ctx-item" @click="togglePin(menu.message)">
             <span class="ctx-icon">📌</span>
-            <span class="ctx-label">
-              {{ menu.message?.pinnedAt ? 'Открепить' : 'Закрепить' }}
-            </span>
+            <span class="ctx-label">{{ menu.message?.pinnedAt ? 'Открепить' : 'Закрепить' }}</span>
           </button>
-
-          <button
-            v-if="menuIsMine"
-            class="ctx-item"
-            @click="startEdit(menu.message)"
-          >
-            <span class="ctx-icon">✏️</span>
-            <span class="ctx-label">Редактировать</span>
+          <button v-if="menuIsMine" class="ctx-item" @click="startEdit(menu.message)">
+            <span class="ctx-icon">✏️</span><span class="ctx-label">Редактировать</span>
           </button>
-
           <button class="ctx-item danger" @click="removeMsg(menu.message)">
-            <span class="ctx-icon">🗑</span>
-            <span class="ctx-label">Удалить</span>
+            <span class="ctx-icon">🗑</span><span class="ctx-label">Удалить</span>
           </button>
         </div>
       </div>
@@ -838,28 +994,24 @@ $chat-font: 12px;
 $chat-font-sm: 10px;
 $chat-font-lg: 13px;
 
-/* FAB */
+/* ✅ Цвета через CSS-переменные — управляются темой */
 .chat-fab {
   position: fixed;
   right: 20px;
   bottom: calc(90px + env(safe-area-inset-bottom, 0));
   z-index: 950;
-  width: 56px;
-  height: 56px;
+  width: 56px; height: 56px;
   border-radius: 50%;
   border: 3px solid #ffffff;
   background: linear-gradient(135deg, #3b82f6, #8b5cf6);
   color: #ffffff;
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   box-shadow: 0 10px 28px -8px rgba(99, 102, 241, 0.6), 0 4px 12px -4px rgba(15, 23, 42, 0.15);
   transition: transform 0.2s cubic-bezier(.34,1.56,.64,1);
-
   &:hover { transform: scale(1.08); }
   &:active { transform: scale(0.94); }
-  &.open { background: linear-gradient(135deg, #ef4444, #dc2626); box-shadow: 0 10px 28px -8px rgba(239, 68, 68, 0.6); }
+  &.open { background: linear-gradient(135deg, #ef4444, #dc2626); }
   &.has-unread:not(.open) { animation: fabPulse 1.6s ease-in-out infinite; }
 }
 
@@ -897,9 +1049,9 @@ $chat-font-lg: 13px;
   max-width: calc(100vw - 32px);
   height: 580px;
   max-height: calc(100vh - 200px);
-  background: #f2f2f7;
+  background: var(--chat-bg);
   border-radius: 20px;
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  border: 1px solid var(--chat-border);
   box-shadow: 0 30px 70px -20px rgba(15, 23, 42, 0.3), 0 10px 30px -10px rgba(15, 23, 42, 0.15);
   display: flex;
   flex-direction: column;
@@ -912,9 +1064,9 @@ $chat-font-lg: 13px;
   position: relative;
   display: flex; align-items: center; gap: 6px;
   padding: 10px 12px;
-  background: rgba(249, 250, 251, 0.96);
+  background: var(--chat-header-bg);
   backdrop-filter: blur(20px) saturate(180%);
-  border-bottom: 0.5px solid rgba(60, 60, 67, 0.15);
+  border-bottom: 0.5px solid var(--chat-border);
   flex-shrink: 0;
   z-index: 5;
 }
@@ -924,11 +1076,11 @@ $chat-font-lg: 13px;
   border-radius: 8px;
   border: none;
   background: transparent;
-  color: #007aff;
+  color: var(--chat-accent);
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
-  &:hover { background: rgba(0, 122, 255, 0.1); }
+  &:hover { background: var(--chat-menu-hover); }
 }
 
 .chat-head-main {
@@ -955,7 +1107,7 @@ $chat-font-lg: 13px;
     width: 10px; height: 10px;
     border-radius: 50%;
     background: #22c55e;
-    border: 2px solid #ffffff;
+    border: 2px solid var(--chat-bg);
   }
 }
 
@@ -964,16 +1116,15 @@ $chat-font-lg: 13px;
 .chat-user-name {
   font-size: $chat-font-lg;
   font-weight: 600;
-  color: #000;
+  color: var(--chat-text);
   line-height: 1.2;
 }
 
 .chat-user-status {
   font-size: $chat-font;
-  color: #8e8e93;
+  color: var(--chat-text-muted);
   font-weight: 400;
   margin-top: 1px;
-
   &.online { color: #22c55e; }
   &.typing { color: #22c55e; font-style: italic; }
 }
@@ -983,36 +1134,41 @@ $chat-font-lg: 13px;
   border-radius: 8px;
   border: none;
   background: transparent;
-  color: #007aff;
+  color: var(--chat-accent);
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
-  &:hover { background: rgba(0, 122, 255, 0.1); }
+  transition: background 0.15s;
+  &:hover { background: var(--chat-menu-hover); }
+  &.active {
+    background: var(--chat-menu-hover);
+    color: var(--chat-accent);
+  }
 }
 
 /* Pinned */
 .chat-pinned {
   display: flex; align-items: center; gap: 10px;
   padding: 6px 12px;
-  background: rgba(249, 250, 251, 0.95);
-  border-bottom: 0.5px solid rgba(60, 60, 67, 0.15);
+  background: var(--chat-header-bg);
+  border-bottom: 0.5px solid var(--chat-border);
   cursor: pointer;
   flex-shrink: 0;
-  &:hover { background: rgba(240, 240, 245, 0.95); }
+  &:hover { opacity: 0.9; }
 }
 
-.pinned-icon { font-size: $chat-font; flex-shrink: 0; color: #007aff; }
+.pinned-icon { font-size: $chat-font; flex-shrink: 0; color: var(--chat-accent); }
 
 .pinned-body {
   flex: 1; min-width: 0;
-  border-left: 3px solid #007aff;
+  border-left: 3px solid var(--chat-accent);
   padding-left: 8px;
 }
 
 .pinned-label {
   font-size: $chat-font-sm;
   font-weight: 600;
-  color: #007aff;
+  color: var(--chat-accent);
   text-transform: uppercase;
   letter-spacing: 0.03em;
   display: flex; align-items: center; gap: 6px;
@@ -1029,19 +1185,20 @@ $chat-font-lg: 13px;
 
 .pinned-text {
   font-size: $chat-font;
-  color: #3c3c43;
+  color: var(--chat-text);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   margin-top: 1px;
+  opacity: 0.85;
 }
 
 .pinned-unpin {
   width: 26px; height: 26px;
   border-radius: 50%;
   border: none;
-  background: rgba(120, 120, 128, 0.1);
-  color: #8e8e93;
+  background: rgba(120, 120, 128, 0.15);
+  color: var(--chat-text-muted);
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
@@ -1056,26 +1213,25 @@ $chat-font-lg: 13px;
   display: flex;
   flex-direction: column;
   gap: 3px;
-  background: #f2f2f7;
+  background: var(--chat-bg);
+  background-image: var(--chat-bg-pattern, none);
+  background-attachment: local;
   -webkit-overflow-scrolling: touch;
   position: relative;
 }
 
-/* ✅ Пагинация */
+/* Пагинация */
 .loading-older {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 8px;
-  color: #8e8e93;
+  display: flex; align-items: center; justify-content: center;
+  gap: 6px; padding: 8px;
+  color: var(--chat-text-muted);
   font-size: $chat-font-sm;
 }
 
 .spinner {
   width: 12px; height: 12px;
   border: 2px solid rgba(120, 120, 128, 0.25);
-  border-top-color: #007aff;
+  border-top-color: var(--chat-accent);
   border-radius: 50%;
   animation: spin 0.8s linear infinite;
 }
@@ -1085,33 +1241,30 @@ $chat-font-lg: 13px;
 .history-start {
   text-align: center;
   padding: 8px;
-  color: #8e8e93;
+  color: var(--chat-text-muted);
   font-size: $chat-font-sm;
   opacity: 0.7;
 }
 
-/* ✅ Разделитель «Новые» */
 .unread-divider {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display: flex; align-items: center; gap: 8px;
   margin: 8px 0;
-  color: #007aff;
+  color: var(--chat-accent);
   font-size: $chat-font-sm;
   font-weight: 600;
-
   &::before, &::after {
     content: '';
     flex: 1;
     height: 1px;
-    background: rgba(0, 122, 255, 0.35);
+    background: currentColor;
+    opacity: 0.35;
   }
 }
 
 .chat-empty {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
   gap: 6px; padding: 40px 20px;
-  color: #8e8e93;
+  color: var(--chat-text-muted);
   text-align: center;
 }
 
@@ -1125,7 +1278,7 @@ $chat-font-lg: 13px;
   margin: 6px 0 4px;
   border-radius: 999px;
   background: rgba(120, 120, 128, 0.15);
-  color: #6c6c70;
+  color: var(--chat-text-muted);
   font-size: $chat-font-sm;
   font-weight: 600;
   text-transform: uppercase;
@@ -1142,21 +1295,21 @@ $chat-font-lg: 13px;
   &.in {
     align-self: flex-start;
     .chat-bubble {
-      background: #ffffff;
-      color: #000;
+      background: var(--chat-bubble-in-bg);
+      color: var(--chat-bubble-in-text);
       border-radius: 16px 16px 16px 4px;
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
     }
-    .chat-meta { color: #8e8e93; }
+    .chat-meta { color: var(--chat-text-muted); }
   }
 
   &.out {
     align-self: flex-end;
     .chat-bubble {
-      background: #007aff;
-      color: #ffffff;
+      background: var(--chat-bubble-out-bg);
+      color: var(--chat-bubble-out-text);
       border-radius: 16px 16px 4px 16px;
-      box-shadow: 0 1px 2px rgba(0, 122, 255, 0.3);
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
     }
     .chat-meta { color: rgba(255, 255, 255, 0.7); }
   }
@@ -1194,7 +1347,7 @@ $chat-font-lg: 13px;
   font-size: $chat-font;
 }
 
-/* Ссылки/markdown */
+/* Ссылки */
 .chat-text :deep(a.md-link),
 .chat-text :deep(a.md-phone) {
   color: inherit;
@@ -1207,7 +1360,7 @@ $chat-font-lg: 13px;
 
 .chat-msg.out .chat-text :deep(a.md-link),
 .chat-msg.out .chat-text :deep(a.md-phone) {
-  color: #ffffff;
+  color: var(--chat-bubble-out-text);
   text-decoration-color: rgba(255, 255, 255, 0.7);
 }
 
@@ -1222,7 +1375,6 @@ $chat-font-lg: 13px;
 
 .chat-msg.out .chat-text :deep(code.md-code) {
   background: rgba(255, 255, 255, 0.22);
-  color: #ffffff;
 }
 
 .bubble-reply {
@@ -1252,29 +1404,20 @@ $chat-font-lg: 13px;
   font-weight: 500;
 }
 
-/* ✅ Реакции ВНУТРИ bubble — как в Telegram */
+/* ✅ Реакции — прижаты к левому низу, абсолютно, не растягивают bubble */
 .bubble-reactions {
-  display: flex;
-  flex-wrap: wrap;
+  position: absolute;
+  left: 6px;
+  bottom: -10px;
+  display: inline-flex;
   gap: 3px;
-  margin-top: 4px;
-  margin-bottom: 1px;
-  padding: 3px 6px;
-  margin-left: -6px;
-  margin-right: -6px;
+  padding: 2px 6px;
   border-radius: 999px;
-  background: rgba(0, 0, 0, 0.05);
-  width: fit-content;
-  max-width: 100%;
-
-  .chat-msg.out & {
-    background: rgba(255, 255, 255, 0.18);
-  }
-}
-
-.chat-msg.out .bubble-reactions {
-  margin-left: auto;
-  margin-right: -6px;
+  background: var(--chat-menu-bg);
+  border: 0.5px solid var(--chat-border);
+  box-shadow: 0 2px 8px -2px rgba(15, 23, 42, 0.2);
+  z-index: 2;
+  pointer-events: auto;
 }
 
 .reaction-chip {
@@ -1295,12 +1438,11 @@ $chat-font-lg: 13px;
 .rc-count {
   font-size: $chat-font-sm;
   font-weight: 700;
-  color: #007aff;
-
-  .chat-msg.out & { color: #ffffff; }
+  color: var(--chat-text);
+  opacity: 0.85;
 }
 
-/* ✅ Время сообщения — меньше и прозрачнее, но читаемое */
+/* Meta */
 .chat-meta {
   display: flex; align-items: center; justify-content: flex-end;
   gap: 3px;
@@ -1309,6 +1451,8 @@ $chat-font-lg: 13px;
   margin-top: 2px;
   line-height: 1;
   opacity: 0.65;
+  /* место под реакции слева снизу */
+  padding-left: 24px;
 }
 
 .chat-edited {
@@ -1330,41 +1474,35 @@ $chat-font-lg: 13px;
   &.read { opacity: 1; }
 }
 
-/* Кнопка «вниз» */
+/* Кнопка вниз */
 .scroll-down-btn {
   position: absolute;
   right: 14px;
   bottom: calc(100% + 14px);
-  width: 36px;
-  height: 36px;
+  width: 36px; height: 36px;
   border-radius: 50%;
-  border: 1px solid rgba(60, 60, 67, 0.15);
-  background: rgba(255, 255, 255, 0.98);
-  color: #007aff;
+  border: 1px solid var(--chat-border);
+  background: var(--chat-menu-bg);
+  color: var(--chat-accent);
   cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   box-shadow: 0 8px 24px -6px rgba(15, 23, 42, 0.25);
   z-index: 20;
   position: relative;
   margin-bottom: 6px;
   align-self: flex-end;
   transition: transform 0.15s;
-
   &:hover { transform: scale(1.08); }
   &:active { transform: scale(0.94); }
 }
 
 .sd-badge {
   position: absolute;
-  top: -4px;
-  right: -4px;
-  min-width: 18px;
-  height: 18px;
+  top: -4px; right: -4px;
+  min-width: 18px; height: 18px;
   padding: 0 5px;
   border-radius: 999px;
-  background: #007aff;
+  background: var(--chat-accent);
   color: #fff;
   font-size: 10px;
   font-weight: 800;
@@ -1389,8 +1527,8 @@ $chat-font-lg: 13px;
 .chat-edit-preview {
   display: flex; align-items: center; gap: 8px;
   padding: 6px 12px;
-  background: rgba(249, 250, 251, 0.95);
-  border-top: 0.5px solid rgba(60, 60, 67, 0.15);
+  background: var(--chat-header-bg);
+  border-top: 0.5px solid var(--chat-border);
   flex-shrink: 0;
 }
 
@@ -1398,7 +1536,7 @@ $chat-font-lg: 13px;
   width: 3px;
   align-self: stretch;
   border-radius: 2px;
-  background: #007aff;
+  background: var(--chat-accent);
   flex-shrink: 0;
 }
 
@@ -1407,7 +1545,7 @@ $chat-font-lg: 13px;
 .crp-label, .cep-label {
   font-size: $chat-font-sm;
   font-weight: 600;
-  color: #007aff;
+  color: var(--chat-accent);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -1416,7 +1554,8 @@ $chat-font-lg: 13px;
 
 .crp-text, .cep-text {
   font-size: $chat-font;
-  color: #3c3c43;
+  color: var(--chat-text);
+  opacity: 0.85;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1427,36 +1566,60 @@ $chat-font-lg: 13px;
   width: 24px; height: 24px;
   border-radius: 50%;
   border: none;
-  background: rgba(120, 120, 128, 0.12);
-  color: #8e8e93;
+  background: rgba(120, 120, 128, 0.15);
+  color: var(--chat-text-muted);
   cursor: pointer;
   font-size: 11px;
   flex-shrink: 0;
   &:hover { background: rgba(255, 59, 48, 0.15); color: #ff3b30; }
 }
 
-/* ✅ Input: ТОЧНО ТАКОЙ ЖЕ шрифт, как у сообщений */
+/* Input */
 .chat-input-row {
   display: flex;
   align-items: flex-end;
   gap: 6px;
   padding: 6px 8px;
   padding-bottom: calc(6px + env(safe-area-inset-bottom, 0));
-  background: rgba(249, 250, 251, 0.96);
-  border-top: 0.5px solid rgba(60, 60, 67, 0.15);
+  background: var(--chat-header-bg);
+  border-top: 0.5px solid var(--chat-border);
   flex-shrink: 0;
+}
+
+.chat-input-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: var(--chat-text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.15s;
+
+  &:hover {
+    background: var(--chat-menu-hover);
+    color: var(--chat-accent);
+  }
+
+  &.active {
+    color: var(--chat-accent);
+    background: var(--chat-menu-hover);
+  }
 }
 
 .chat-input {
   flex: 1;
   min-height: 30px;
-  max-height: 100px;
+  max-height: 110px;
   padding: 7px 12px;
   border-radius: 16px;
-  border: 0.5px solid rgba(60, 60, 67, 0.2);
-  background: #ffffff;
-  color: #000;
-  /* ✅ Тот же шрифт, что у .chat-text */
+  border: 0.5px solid var(--chat-input-border);
+  background: var(--chat-input-bg);
+  color: var(--chat-text);
   font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
   font-size: $chat-font;
   font-weight: 400;
@@ -1464,16 +1627,18 @@ $chat-font-lg: 13px;
   letter-spacing: normal;
   resize: none;
   outline: none;
+  overflow-y: auto;
+  transition: border-color 0.15s;
 
-  &:focus { border-color: #007aff; }
-  &::placeholder { color: #8e8e93; }
+  &:focus { border-color: var(--chat-accent); }
+  &::placeholder { color: var(--chat-text-muted); }
 }
 
 .chat-send {
   width: 30px; height: 30px;
   border-radius: 50%;
   border: none;
-  background: #007aff;
+  background: var(--chat-accent);
   color: #ffffff;
   cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
@@ -1497,6 +1662,196 @@ $chat-font-lg: 13px;
   &:active { transform: scale(0.94); }
 }
 
+/* ✅ Панель снизу: emoji + settings */
+.chat-panel-bottom {
+  border-top: 0.5px solid var(--chat-border);
+  background: var(--chat-header-bg);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+.panel-enter-active,
+.panel-leave-active {
+  transition: max-height 0.25s cubic-bezier(.34,1.56,.64,1), opacity 0.2s;
+  max-height: 280px;
+}
+.panel-enter-from,
+.panel-leave-to {
+  max-height: 0;
+  opacity: 0;
+}
+
+/* Emoji panel */
+.emoji-panel {
+  display: flex;
+  flex-direction: column;
+  max-height: 240px;
+}
+
+.emoji-cats {
+  display: flex;
+  gap: 2px;
+  padding: 4px 8px;
+  border-bottom: 0.5px solid var(--chat-border);
+  overflow-x: auto;
+  flex-shrink: 0;
+  &::-webkit-scrollbar { display: none; }
+}
+
+.emoji-cat {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 20px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: background 0.15s;
+
+  &:hover { background: var(--chat-menu-hover); }
+  &.active { background: var(--chat-menu-hover); box-shadow: inset 0 -2px 0 var(--chat-accent); }
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+  gap: 2px;
+  padding: 6px 6px 8px;
+  overflow-y: auto;
+  max-height: 190px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.emoji-cell {
+  width: 100%;
+  height: 36px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 22px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.12s, transform 0.12s;
+
+  &:hover {
+    background: var(--chat-menu-hover);
+    transform: scale(1.1);
+  }
+  &:active { transform: scale(0.9); }
+}
+
+.emoji-spacer { height: 0; }
+
+.emoji-backspace {
+  grid-column: 1 / -1;
+  height: 38px;
+  color: var(--chat-text-muted);
+  background: rgba(120, 120, 128, 0.08);
+  border-radius: 8px;
+  margin-top: 4px;
+
+  &:hover { background: rgba(120, 120, 128, 0.15); transform: none; }
+}
+
+/* Settings panel */
+.settings-panel {
+  max-height: 280px;
+  overflow-y: auto;
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.settings-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.settings-title {
+  font-size: $chat-font-sm;
+  font-weight: 700;
+  color: var(--chat-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.theme-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 10px 6px;
+  border-radius: 12px;
+  border: 1.5px solid var(--chat-border);
+  background: var(--chat-input-bg);
+  color: var(--chat-text);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  transition: all 0.15s;
+
+  &:hover { border-color: var(--chat-accent); }
+  &.active {
+    border-color: var(--chat-accent);
+    background: var(--chat-menu-hover);
+    color: var(--chat-accent);
+  }
+}
+
+.theme-icon { font-size: 18px; }
+.theme-label { font-size: 10px; font-weight: 600; }
+
+.bg-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 6px;
+}
+
+.bg-btn {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: 10px;
+  border: 2px solid var(--chat-border);
+  background: #f5f5f5;
+  cursor: pointer;
+  transition: all 0.15s;
+  overflow: hidden;
+
+  &:hover { transform: scale(1.05); }
+  &.active {
+    border-color: var(--chat-accent);
+    box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.25);
+  }
+}
+
+.bg-default-mark {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 800;
+  color: #8e8e93;
+  background: linear-gradient(135deg, #f2f2f7, #ffffff);
+}
+
 /* Animations */
 .chat-panel-enter-active,
 .chat-panel-leave-active {
@@ -1518,38 +1873,34 @@ $chat-font-lg: 13px;
   background: rgba(0, 0, 0, 0.05);
 }
 
-/* ✅ Объединённое меню: реакции + пункты */
 .ctx-menu {
   position: absolute;
   min-width: 220px;
   max-width: 340px;
   padding: 6px;
-  background: rgba(255, 255, 255, 0.98);
+  background: var(--chat-menu-bg);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
   border-radius: 14px;
   box-shadow: 0 12px 40px -8px rgba(15, 23, 42, 0.3), 0 4px 12px -4px rgba(15, 23, 42, 0.15);
-  border: 0.5px solid rgba(60, 60, 67, 0.15);
+  border: 0.5px solid var(--chat-border);
   overflow: hidden;
 }
 
-/* Строка реакций сверху */
 .reactions-row {
   display: flex;
   align-items: center;
   gap: 2px;
   padding: 4px 6px 8px;
-  border-bottom: 0.5px solid rgba(60, 60, 67, 0.12);
+  border-bottom: 0.5px solid var(--chat-border);
   margin-bottom: 4px;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
-
   &::-webkit-scrollbar { display: none; }
 }
 
 .reaction-btn {
-  width: 32px;
-  height: 32px;
+  width: 32px; height: 32px;
   border-radius: 50%;
   border: none;
   background: transparent;
@@ -1561,17 +1912,11 @@ $chat-font-lg: 13px;
   justify-content: center;
   flex-shrink: 0;
   transition: transform 0.12s, background 0.12s;
-
-  &:hover {
-    transform: scale(1.2);
-    background: rgba(0, 122, 255, 0.08);
-  }
-
+  &:hover { transform: scale(1.2); background: var(--chat-menu-hover); }
   &.active {
-    background: rgba(0, 122, 255, 0.15);
-    box-shadow: inset 0 0 0 1.5px #007aff;
+    background: var(--chat-menu-hover);
+    box-shadow: inset 0 0 0 1.5px var(--chat-accent);
   }
-
   &:active { transform: scale(0.9); }
 }
 
@@ -1581,7 +1926,7 @@ $chat-font-lg: 13px;
   padding: 9px 11px;
   border: none;
   background: transparent;
-  color: #000;
+  color: var(--chat-menu-text);
   font-family: -apple-system, "SF Pro Text", inherit;
   font-size: $chat-font-lg;
   font-weight: 500;
@@ -1590,35 +1935,25 @@ $chat-font-lg: 13px;
   text-align: left;
 
   &:hover {
-    background: rgba(0, 122, 255, 0.1);
-    color: #007aff;
+    background: var(--chat-menu-hover);
+    color: var(--chat-accent);
   }
 
   &.danger {
     color: #ff3b30;
-    &:hover { background: rgba(255, 59, 48, 0.1); }
+    &:hover { background: rgba(255, 59, 48, 0.12); color: #ff3b30; }
   }
 }
 
-.ctx-icon {
-  font-size: $chat-font;
-  width: 18px;
-  text-align: center;
-  flex-shrink: 0;
-}
-
+.ctx-icon { font-size: $chat-font; width: 18px; text-align: center; flex-shrink: 0; }
 .ctx-label { flex: 1; }
 
 .ctx-menu-enter-active,
 .ctx-menu-leave-active {
   transition: opacity 0.15s ease, transform 0.18s cubic-bezier(.34,1.56,.64,1);
 }
-
 .ctx-menu-enter-from,
-.ctx-menu-leave-to {
-  opacity: 0;
-  transform: scale(0.9);
-}
+.ctx-menu-leave-to { opacity: 0; transform: scale(0.9); }
 
 /* ✅ МОБИЛЬНЫЙ */
 @media (max-width: 700px) {
@@ -1660,7 +1995,6 @@ $chat-font-lg: 13px;
   .chat-text { font-size: $chat-font-lg; }
   .chat-input { font-size: $chat-font-lg; }
 
-  /* Меню в Telegram-стиле — прижато к низу */
   .ctx-menu {
     left: 8px !important;
     right: 8px !important;
@@ -1674,10 +2008,9 @@ $chat-font-lg: 13px;
   .reaction-btn { width: 38px; height: 38px; font-size: 22px; }
   .reactions-row { justify-content: space-between; padding: 6px 2px 10px; }
 
-  .scroll-down-btn {
-    right: 12px;
-    width: 40px;
-    height: 40px;
-  }
+  .scroll-down-btn { right: 12px; width: 40px; height: 40px; }
+
+  .emoji-grid { max-height: 220px; }
+  .bg-grid { grid-template-columns: repeat(6, 1fr); }
 }
 </style>
