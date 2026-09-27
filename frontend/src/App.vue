@@ -7,7 +7,7 @@ import { useMessagesStore } from '@/stores/messages';
 import { useWebSocket } from '@/composables/useWebSocket';
 import { useScanStore } from '@/stores/scan';
 import { notifySaved } from '@/composables/useDataStatus';
-import { initPushHandlers } from '@/composables/usePushNotifications';
+import { initPushHandlers, subscribeToPush } from '@/composables/usePushNotifications';
 import WelcomeOverlay from '@/components/ui/WelcomeOverlay.vue';
 import ToastContainer from '@/components/ui/ToastContainer.vue';
 import BottomNav from '@/components/ui/BottomNav.vue';
@@ -103,6 +103,13 @@ onMounted(async () => {
 
     connect();
     notifySaved('готово');
+
+    // ✅ Подписка на Web Push
+    try {
+      await subscribeToPush();
+    } catch (e) {
+      console.warn('[app] push subscribe failed:', e.message);
+    }
 
     percent.value = 100;
     stage.value = 'Готово!';

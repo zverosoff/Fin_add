@@ -3,6 +3,7 @@ import { Router } from 'express';
 import db from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
 import { runMigrations } from '../db/migrate.js';
+import { sendPushToUser } from '../services/push.js';
 
 runMigrations();
 
@@ -11,9 +12,6 @@ const router = Router();
 const USERS = ['Сергей', 'Саша'];
 const ALLOWED_EMOJI = ['❤️', '👍', '🔥', '😂', '😮', '😢', '👎', '🎉'];
 
-// ============================================================
-// Внутренние функции
-// ============================================================
 function rowToMessage(row, reactionsMap) {
   const reactions = reactionsMap?.[row.id] || [];
   return {
@@ -289,9 +287,8 @@ router.get('/', requireAuth, (req, res) => {
 
 // ============================================================
 // POST /api/messages
-// ✅ Поддержка изображений (base64/URL) в поле image
 // ============================================================
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
   try {
     const me = req.user;
     const { to, text, replyTo, image } = req.body ?? {};
@@ -305,7 +302,7 @@ router.post('/', requireAuth, (req, res) => {
 
     const cleanText = String(text ?? '').trim().slice(0, 2000);
     const cleanImage = typeof image === 'string' && image.length > 0
-      ? image.slice(0, 5_000_000) // ~5MB base64
+      ? image.slice(0, 5_000_000)
       : null;
 
     if (!cleanText && !cleanImage) {
@@ -334,6 +331,18 @@ router.post('/', requireAuth, (req, res) => {
     if (io) {
       io.emit('message:new', saved);
       io.emit('typing:update', { from: me, to, typing: false });
+    }
+
+    // ✅ Настоящий Web Push получателю
+    try {
+      await sendPushToUser(to, {
+        title: `${me}`,
+        body: cleanText || '📷 Изображение',
+        url: '/',
+        messageId: saved.id,
+      });
+    } catch (e) {
+      console.warn('[push] send failed:', e.message);
     }
 
     res.json({ ok: true, message: saved });
