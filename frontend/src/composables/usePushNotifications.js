@@ -41,35 +41,49 @@ export async function requestPermission() {
  * @param {{id:string, from:string, text:string, createdAt:string}} msg
  */
 export async function notifyIncomingMessage(msg) {
-  if (!isNotificationSupported()) return null;
-  if (Notification.permission !== 'granted') return null;
+  console.log('[push] notifyIncomingMessage вызван', { msg, perm: Notification.permission });
+
+  if (!isNotificationSupported()) {
+    console.warn('[push] Notification не поддерживается');
+    return null;
+  }
+  if (Notification.permission !== 'granted') {
+    console.warn('[push] нет разрешения:', Notification.permission);
+    return null;
+  }
 
   const emoji = msg.from === 'Сергей' ? '👨' : '👩';
   const title = `${emoji} ${msg.from}`;
-  const body = (msg.text || '').slice(0, 200);
+  const body = (msg.text || '').slice(0, 200) || '📷 Изображение';
 
-  // Пытаемся через SW (лучше работает в PWA)
+  // Пытаемся через SW
   try {
     const reg = await navigator.serviceWorker?.getRegistration();
+    console.log('[push] SW registration:', reg);
+
     if (reg && reg.showNotification) {
       await reg.showNotification(title, {
         body,
         icon: ICON_URL,
         badge: ICON_URL,
         tag: 'msg-' + msg.id,
-        renotify: false,
+        renotify: true,           // ✅ чтобы перезаписывалось с новым телом
+        requireInteraction: false,
         data: { url: '/', messageId: msg.id, from: msg.from },
         vibrate: [80, 40, 80],
         silent: false,
       });
+      console.log('[push] ✅ показано через SW');
       updateBadge();
       return true;
+    } else {
+      console.warn('[push] SW reg.showNotification недоступен, fallback');
     }
   } catch (e) {
     console.warn('[push] SW-notification не сработал, fallback:', e);
   }
 
-  // Fallback: обычное Notification
+  // Fallback
   try {
     const n = new Notification(title, {
       body,
@@ -78,12 +92,8 @@ export async function notifyIncomingMessage(msg) {
       tag: 'msg-' + msg.id,
       data: { url: '/', messageId: msg.id, from: msg.from },
     });
-
-    n.onclick = () => {
-      window.focus();
-      n.close();
-    };
-
+    console.log('[push] ✅ показано через Notification fallback');
+    n.onclick = () => { window.focus(); n.close(); };
     updateBadge();
     return true;
   } catch (e) {
