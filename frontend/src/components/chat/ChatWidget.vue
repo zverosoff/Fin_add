@@ -1671,15 +1671,18 @@ $chat-font-lg: 13px;
 @keyframes clockSpin { to { transform: rotate(360deg); } }
 
 .bubble-reactions {
+  position: absolute;
+  left: 6px;
+  bottom: -10px;
   display: inline-flex;
   gap: 3px;
-  margin-top: 4px;
   padding: 2px 6px;
   border-radius: 999px;
   background: var(--chat-menu-bg);
   border: 0.5px solid var(--chat-border);
   box-shadow: 0 2px 8px -2px rgba(15, 23, 42, 0.2);
-  width: fit-content;
+  z-index: 2;
+  pointer-events: auto;
 }
 
 .reaction-chip {
@@ -1691,9 +1694,9 @@ $chat-font-lg: 13px;
   background: transparent;
   cursor: pointer;
   font-family: inherit;
-  transition: transform 0.15s cubic-bezier(.34,1.56,.64,1);
-  &:hover { transform: scale(1.18); }
-  &:active { transform: scale(0.92); }
+  transition: transform 0.12s;
+
+  &:hover { transform: scale(1.15); }
 }
 
 .rc-emoji { font-size: 12px; line-height: 1; }
