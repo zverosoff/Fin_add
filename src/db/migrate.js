@@ -49,7 +49,7 @@ export function runMigrations() {
     addColumn('deleted_at', 'TEXT');
     addColumn('pinned_at', 'TEXT');
     addColumn('reply_to', 'TEXT');
-    addColumn('image', 'TEXT'); // ✅ base64 или URL
+    addColumn('image', 'TEXT');
 
     console.log('[migrate] таблица messages обновлена');
   }
@@ -96,6 +96,30 @@ export function runMigrations() {
       CREATE INDEX idx_react_user ON message_reactions(user);
     `);
     console.log('[migrate] ✅ таблица message_reactions создана');
+  }
+
+  // ============================================================
+  // push_subscriptions
+  // ============================================================
+  const hasPush = db.prepare(`
+    SELECT name FROM sqlite_master
+    WHERE type='table' AND name='push_subscriptions'
+  `).get();
+
+  if (!hasPush) {
+    console.log('[migrate] создаю таблицу push_subscriptions…');
+    db.exec(`
+      CREATE TABLE push_subscriptions (
+        user TEXT NOT NULL,
+        endpoint TEXT NOT NULL,
+        p256dh TEXT NOT NULL,
+        auth TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        PRIMARY KEY (user, endpoint)
+      );
+      CREATE INDEX idx_push_user ON push_subscriptions(user);
+    `);
+    console.log('[migrate] ✅ таблица push_subscriptions создана');
   }
 
   console.log('[migrate] ✅ все миграции применены');

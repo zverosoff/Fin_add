@@ -3,13 +3,14 @@ import { createPinia } from 'pinia';
 import router from './router';
 import App from './App.vue';
 import './styles/global.scss';
+import { subscribeToPush, initPushHandlers } from '@/composables/usePushNotifications';
 
 const app = createApp(App);
 app.use(createPinia());
 app.use(router);
 app.mount('#app');
 
-// ✅ PWA: регистрация Service Worker
+// ✅ PWA: Service Worker + Web Push
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.ready
@@ -19,17 +20,17 @@ if ('serviceWorker' in navigator) {
       .catch((e) => {
         console.warn('[pwa] SW не зарегистрирован:', e);
       });
+
+    // ✅ Авто-подписка на push (если пользователь уже дал разрешение)
+    // Первый раз запросит разрешение при логине через App.vue
+    if (Notification.permission === 'granted') {
+      subscribeToPush().catch((e) => console.warn('[push] subscribe failed:', e));
+    }
   });
 
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     console.log('[pwa] SW обновлён');
   });
 
-  // ✅ Клик по уведомлению → фокус на окно
-  navigator.serviceWorker.addEventListener('message', (event) => {
-    if (event.data?.type === 'notification-click') {
-      console.log('[pwa] клик по уведомлению:', event.data);
-      window.focus();
-    }
-  });
+  initPushHandlers();
 }

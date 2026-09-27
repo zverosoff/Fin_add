@@ -2,12 +2,18 @@ import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
 import { VitePWA } from 'vite-plugin-pwa';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   plugins: [
     vue(),
 
     VitePWA({
+      strategies: 'injectManifest',
+      srcDir: 'src',
+      filename: 'sw.js',
       registerType: 'autoUpdate',
       injectRegister: 'auto',
 
@@ -38,32 +44,9 @@ export default defineConfig({
         ],
       },
 
-      workbox: {
+      injectManifest: {
         globPatterns: ['**/*.{js,css,html,svg,png,ico,woff2}'],
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
-
-        navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api/, /^\/socket\.io/],
-
-        runtimeCaching: [
-          {
-            urlPattern: /^\/api\//,
-            handler: 'NetworkOnly',
-          },
-          {
-            urlPattern: /^https?:\/\/.*\/api\//,
-            handler: 'NetworkOnly',
-          },
-          {
-            urlPattern: /^https?:\/\/.*\/socket\.io\//,
-            handler: 'NetworkOnly',
-          },
-        ],
-
-        // ✅ Обработка кликов по push-уведомлениям (для Notification)
-        // через SW — только когда показываем через reg.showNotification
-        clientsClaim: true,
-        skipWaiting: true,
       },
 
       devOptions: {
