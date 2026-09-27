@@ -23,7 +23,7 @@ const inputEl = ref(null);
 const menu = ref({ open: false, x: 0, y: 0, message: null });
 
 // Режим редактирования
-const editing = ref(null);   // message object или null
+const editing = ref(null);
 const editText = ref('');
 
 // Режим ответа
@@ -218,28 +218,36 @@ function cancelReply() {
 // ============================================================
 // Контекстное меню
 // ============================================================
+let longPressTimer = null;
+let longPressStart = null;
+let longPressTriggered = false;
+
 function openMenu(e, msg) {
-  e.preventDefault();
+  if (e.cancelable) e.preventDefault();
   e.stopPropagation();
 
-  const isMobile = window.innerWidth <= 700;
   let x = e.clientX || 0;
   let y = e.clientY || 0;
 
   if (e.touches && e.touches[0]) {
     x = e.touches[0].clientX;
     y = e.touches[0].clientY;
+  } else if (e.changedTouches && e.changedTouches[0]) {
+    x = e.changedTouches[0].clientX;
+    y = e.changedTouches[0].clientY;
   }
 
   // Держим внутри окна
-  const menuW = 180;
-  const menuH = 180;
+  const menuW = 200;
+  const menuH = 220;
   x = Math.min(x, window.innerWidth - menuW - 8);
   y = Math.min(y, window.innerHeight - menuH - 8);
   x = Math.max(8, x);
   y = Math.max(8, y);
 
   menu.value = { open: true, x, y, message: msg };
+
+  if (navigator.vibrate) navigator.vibrate(15);
 }
 
 function closeMenu() {
@@ -251,40 +259,57 @@ const menuIsMine = computed(() =>
   menu.value.message?.from === me.value
 );
 
+// ============================================================
 // Long-press для мобильного
-let longPressTimer = null;
-let longPressStart = null;
-
+// ============================================================
 function onTouchStart(e, msg) {
   if (window.innerWidth > 700) return;
+  if (e.touches.length !== 1) return;
+
+  longPressTriggered = false;
   longPressStart = { x: e.touches[0].clientX, y: e.touches[0].clientY };
+
+  if (longPressTimer) clearTimeout(longPressTimer);
   longPressTimer = setTimeout(() => {
-    openMenu(e, msg);
     longPressTimer = null;
-  }, 500);
+    longPressTriggered = true;
+
+    const fakeEvent = {
+      clientX: longPressStart.x,
+      clientY: longPressStart.y,
+      cancelable: false,
+      preventDefault: () => {},
+      stopPropagation: () => {},
+    };
+    openMenu(fakeEvent, msg);
+  }, 450);
 }
 
 function onTouchMove(e) {
   if (!longPressTimer || !longPressStart) return;
+  if (e.touches.length !== 1) return;
+
   const dx = Math.abs(e.touches[0].clientX - longPressStart.x);
   const dy = Math.abs(e.touches[0].clientY - longPressStart.y);
-  if (dx > 8 || dy > 8) {
+  if (dx > 10 || dy > 10) {
     clearTimeout(longPressTimer);
     longPressTimer = null;
+    longPressStart = null;
   }
 }
 
-function onTouchEnd() {
+function onTouchEnd(e) {
   if (longPressTimer) {
     clearTimeout(longPressTimer);
     longPressTimer = null;
   }
+  if (longPressTriggered) {
+    // Блокируем последующий click/touchend — не даём закрыть меню
+    if (e && e.cancelable) e.preventDefault();
+    e && e.stopPropagation();
+    setTimeout(() => { longPressTriggered = false; }, 350);
+  }
   longPressStart = null;
-}
-
-// Клик вне меню — закрыть
-function onDocClick() {
-  if (menu.value.open) closeMenu();
 }
 
 // ============================================================
@@ -356,15 +381,12 @@ async function askNotifications() {
 }
 
 onMounted(async () => {
-  document.addEventListener('click', onDocClick);
-
   try {
     await messages.loadPresence();
     await messages.loadUnread();
     await updateBadge(messages.totalUnread);
   } catch (e) { /* ignore */ }
 
-  // ✅ Heartbeat — обновляем «был в сети» каждые 30 сек, пока вкладка открыта
   messages.heartbeat();
   heartbeatTimer = setInterval(() => {
     if (document.visibilityState === 'visible') {
@@ -372,20 +394,24 @@ onMounted(async () => {
     }
   }, 30 * 1000);
 
-  document.addEventListener('visibilitychange', () => {
-    if (document.visibilityState === 'visible') {
-      messages.heartbeat();
-    }
-  });
-
-  window.addEventListener('beforeunload', () => {
-    messages.heartbeat();
-  });
+  document.addEventListener('visibilitychange', onVisibilityChange);
+  window.addEventListener('beforeunload', onBeforeUnload);
 });
+
+function onVisibilityChange() {
+  if (document.visibilityState === 'visible') {
+    messages.heartbeat();
+  }
+}
+
+function onBeforeUnload() {
+  messages.heartbeat();
+}
 
 onUnmounted(() => {
   document.body.dataset.chatOpen = 'false';
-  document.removeEventListener('click', onDocClick);
+  document.removeEventListener('visibilitychange', onVisibilityChange);
+  window.removeEventListener('beforeunload', onBeforeUnload);
   if (heartbeatTimer) clearInterval(heartbeatTimer);
 });
 
@@ -418,9 +444,7 @@ watch(open, (v) => { if (v) askNotifications(); });
   <!-- Панель чата -->
   <Transition name="chat-panel">
     <div v-if="open" class="chat-panel" @click.stop>
-      <!-- ══════════════════════════════════════════════════════
-           Header в стиле Telegram iOS
-           ══════════════════════════════════════════════════════ -->
+      <!-- Header в стиле Telegram iOS -->
       <div class="chat-head">
         <button class="chat-back" @click="close" aria-label="Назад">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20">
@@ -447,9 +471,7 @@ watch(open, (v) => { if (v) askNotifications(); });
         </button>
       </div>
 
-      <!-- ══════════════════════════════════════════════════════
-           Pinned message bar
-           ══════════════════════════════════════════════════════ -->
+      <!-- Pinned bar -->
       <div v-if="pinnedLatest" class="chat-pinned" @click="scrollToMessage(pinnedLatest.id)">
         <div class="pinned-icon">📌</div>
         <div class="pinned-body">
@@ -463,9 +485,7 @@ watch(open, (v) => { if (v) askNotifications(); });
         </button>
       </div>
 
-      <!-- ══════════════════════════════════════════════════════
-           Сообщения
-           ══════════════════════════════════════════════════════ -->
+      <!-- Сообщения -->
       <div ref="scrollEl" class="chat-body">
         <div v-if="history.length === 0" class="chat-empty">
           <div class="chat-empty-icon">💬</div>
@@ -487,16 +507,14 @@ watch(open, (v) => { if (v) askNotifications(); });
               :class="m.from === me ? 'out' : 'in'"
               :data-msg-id="m.id"
               @contextmenu="openMenu($event, m)"
-              @touchstart.passive="onTouchStart($event, m)"
-              @touchmove.passive="onTouchMove"
+              @touchstart="onTouchStart($event, m)"
+              @touchmove="onTouchMove"
               @touchend="onTouchEnd"
               @touchcancel="onTouchEnd"
             >
               <div class="chat-bubble" :class="{ 'is-pinned': m.pinnedAt }">
-                <!-- Pinned marker -->
                 <div v-if="m.pinnedAt" class="bubble-pin">📌</div>
 
-                <!-- Reply-to -->
                 <div v-if="m.replyTo" class="bubble-reply" @click.stop="scrollToMessage(m.replyTo)">
                   <div class="br-line"></div>
                   <div class="br-text">↩️ ответ</div>
@@ -521,9 +539,7 @@ watch(open, (v) => { if (v) askNotifications(); });
         </template>
       </div>
 
-      <!-- ══════════════════════════════════════════════════════
-           Reply preview
-           ══════════════════════════════════════════════════════ -->
+      <!-- Reply preview -->
       <div v-if="replyTo" class="chat-reply-preview">
         <div class="crp-line"></div>
         <div class="crp-body">
@@ -533,9 +549,7 @@ watch(open, (v) => { if (v) askNotifications(); });
         <button class="crp-close" @click="cancelReply">✕</button>
       </div>
 
-      <!-- ══════════════════════════════════════════════════════
-           Edit preview
-           ══════════════════════════════════════════════════════ -->
+      <!-- Edit preview -->
       <div v-if="editing" class="chat-edit-preview">
         <div class="cep-icon">✏️</div>
         <div class="cep-body">
@@ -545,9 +559,7 @@ watch(open, (v) => { if (v) askNotifications(); });
         <button class="cep-close" @click="cancelEdit">✕</button>
       </div>
 
-      <!-- ══════════════════════════════════════════════════════
-           Ввод
-           ══════════════════════════════════════════════════════ -->
+      <!-- Ввод -->
       <div class="chat-input-row">
         <template v-if="editing">
           <button class="chat-input-btn chat-input-btn-accept" @click="saveEdit" title="Сохранить">
@@ -589,9 +601,7 @@ watch(open, (v) => { if (v) askNotifications(); });
     </div>
   </Transition>
 
-  <!-- ══════════════════════════════════════════════════════
-       Контекстное меню
-       ══════════════════════════════════════════════════════ -->
+  <!-- Контекстное меню -->
   <Teleport to="body">
     <Transition name="ctx-menu">
       <div
@@ -599,21 +609,21 @@ watch(open, (v) => { if (v) askNotifications(); });
         class="ctx-backdrop"
         @click="closeMenu"
         @contextmenu.prevent="closeMenu"
+        @touchstart.self="closeMenu"
       >
         <div
           class="ctx-menu"
           :style="{ left: menu.x + 'px', top: menu.y + 'px' }"
           @click.stop
+          @touchstart.stop
+          @touchend.stop
         >
           <button class="ctx-item" @click="startReply(menu.message)">
             <span class="ctx-icon">↩️</span>
             <span class="ctx-label">Ответить</span>
           </button>
 
-          <button
-            class="ctx-item"
-            @click="togglePin(menu.message)"
-          >
+          <button class="ctx-item" @click="togglePin(menu.message)">
             <span class="ctx-icon">📌</span>
             <span class="ctx-label">
               {{ menu.message?.pinnedAt ? 'Открепить' : 'Закрепить' }}
@@ -643,9 +653,7 @@ watch(open, (v) => { if (v) askNotifications(); });
 </template>
 
 <style scoped lang="scss">
-/* ============================================================
-   Плавающая кнопка
-   ============================================================ */
+/* Плавающая кнопка */
 .chat-fab {
   position: fixed;
   right: 20px;
@@ -713,9 +721,7 @@ watch(open, (v) => { if (v) askNotifications(); });
   to   { transform: scale(1); }
 }
 
-/* ============================================================
-   Панель чата — общая
-   ============================================================ */
+/* Панель чата */
 .chat-panel {
   position: fixed;
   right: 20px;
@@ -738,9 +744,7 @@ watch(open, (v) => { if (v) askNotifications(); });
   margin-bottom: 72px;
 }
 
-/* ============================================================
-   HEADER в стиле Telegram iOS
-   ============================================================ */
+/* HEADER в стиле Telegram iOS */
 .chat-head {
   display: flex;
   align-items: center;
@@ -808,10 +812,7 @@ watch(open, (v) => { if (v) askNotifications(); });
   }
 }
 
-.chat-user-info {
-  min-width: 0;
-  flex: 1;
-}
+.chat-user-info { min-width: 0; flex: 1; }
 
 .chat-user-name {
   font-size: 15px;
@@ -847,9 +848,7 @@ watch(open, (v) => { if (v) askNotifications(); });
   &:hover { background: rgba(0, 122, 255, 0.1); }
 }
 
-/* ============================================================
-   PINNED BAR
-   ============================================================ */
+/* PINNED BAR */
 .chat-pinned {
   display: flex;
   align-items: center;
@@ -915,9 +914,7 @@ watch(open, (v) => { if (v) askNotifications(); });
   }
 }
 
-/* ============================================================
-   BODY
-   ============================================================ */
+/* BODY */
 .chat-body {
   flex: 1;
   overflow-y: auto;
@@ -1024,9 +1021,7 @@ watch(open, (v) => { if (v) askNotifications(); });
   opacity: 0.75;
 }
 
-.chat-text {
-  white-space: pre-wrap;
-}
+.chat-text { white-space: pre-wrap; }
 
 .bubble-reply {
   display: flex;
@@ -1091,9 +1086,7 @@ watch(open, (v) => { if (v) askNotifications(); });
   &.read { opacity: 1; }
 }
 
-/* ============================================================
-   REPLY / EDIT PREVIEW
-   ============================================================ */
+/* REPLY / EDIT PREVIEW */
 .chat-reply-preview,
 .chat-edit-preview {
   display: flex;
@@ -1156,9 +1149,7 @@ watch(open, (v) => { if (v) askNotifications(); });
   }
 }
 
-/* ============================================================
-   INPUT
-   ============================================================ */
+/* INPUT */
 .chat-input-row {
   display: flex;
   align-items: flex-end;
@@ -1260,9 +1251,7 @@ watch(open, (v) => { if (v) askNotifications(); });
   transform-origin: bottom right;
 }
 
-/* ============================================================
-   КОНТЕКСТНОЕ МЕНЮ
-   ============================================================ */
+/* КОНТЕКСТНОЕ МЕНЮ */
 .ctx-backdrop {
   position: fixed;
   inset: 0;
@@ -1336,9 +1325,7 @@ watch(open, (v) => { if (v) askNotifications(); });
   transform: scale(0.9);
 }
 
-/* ============================================================
-   МОБИЛЬНЫЙ — полноэкранный
-   ============================================================ */
+/* МОБИЛЬНЫЙ — полноэкранный */
 @media (max-width: 700px) {
   .chat-fab {
     right: 16px;
