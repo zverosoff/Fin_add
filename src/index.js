@@ -8,10 +8,14 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
+// ✅ СНАЧАЛА миграции — ДО импорта роутов, которые дёргают db.prepare
+import { runMigrations } from './db/migrate.js';
+runMigrations();
+
 import authRoutes from './routes/auth.js';
 import stateRoutes from './routes/state.js';
 import txRoutes from './routes/transactions.js';
-import messagesRoutes from './routes/messages.js';   // ✅ NEW
+import messagesRoutes from './routes/messages.js';
 import { attachSocket } from './services/wsService.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -71,7 +75,7 @@ app.use((req, _res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/state', stateRoutes);
 app.use('/api/transactions', txRoutes);
-app.use('/api/messages', messagesRoutes);   // ✅ NEW
+app.use('/api/messages', messagesRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, time: new Date().toISOString() });

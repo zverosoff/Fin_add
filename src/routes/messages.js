@@ -1,4 +1,3 @@
-// src/routes/messages.js
 import { Router } from 'express';
 import db from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
@@ -6,6 +5,24 @@ import { requireAuth } from '../middleware/auth.js';
 const router = Router();
 
 const USERS = ['Сергей', 'Саша'];
+
+// ============================================================
+// ✅ Гарантируем, что таблица есть (на всякий случай)
+// ============================================================
+db.exec(`
+  CREATE TABLE IF NOT EXISTS messages (
+    id TEXT PRIMARY KEY,
+    from_user TEXT NOT NULL,
+    to_user TEXT NOT NULL,
+    text TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    read_at TEXT,
+    payload TEXT
+  );
+  CREATE INDEX IF NOT EXISTS idx_msg_from ON messages(from_user);
+  CREATE INDEX IF NOT EXISTS idx_msg_to ON messages(to_user);
+  CREATE INDEX IF NOT EXISTS idx_msg_created ON messages(created_at);
+`);
 
 // ============================================================
 // Внутренние функции
