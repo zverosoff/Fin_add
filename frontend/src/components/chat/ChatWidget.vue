@@ -696,25 +696,21 @@ watch(open, (v) => { if (v) askNotifications(); });
 <template>
   <!-- FAB -->
   <button
+    v-if="!open"
     class="chat-fab"
-    :class="{ open, 'has-unread': totalUnread > 0 }"
+    :class="{ 'has-unread': totalUnread > 0 }"
     type="button"
     @click="toggle"
   >
     <span class="chat-fab-icon">
-      <svg v-if="!open" viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+      <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
         <path d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
       </svg>
-      <svg v-else viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
-        <path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-      </svg>
     </span>
-    <span v-if="totalUnread > 0 && !open" class="chat-fab-badge">
+    <span v-if="totalUnread > 0" class="chat-fab-badge">
       {{ totalUnread > 99 ? '99+' : totalUnread }}
     </span>
   </button>
-
-  <!-- Панель -->
   <Transition name="chat-panel">
     <div
       v-if="open"
@@ -1132,8 +1128,7 @@ $chat-font-lg: 13px;
   transition: transform 0.2s cubic-bezier(.34,1.56,.64,1);
   &:hover { transform: scale(1.08); }
   &:active { transform: scale(0.94); }
-  &.open { background: linear-gradient(135deg, #ef4444, #dc2626); }
-  &.has-unread:not(.open) { animation: fabPulse 1.6s ease-in-out infinite; }
+  &.has-unread { animation: fabPulse 1.6s ease-in-out infinite; }
 }
 
 @keyframes fabPulse {
