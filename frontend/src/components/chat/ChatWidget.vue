@@ -9,6 +9,7 @@ import {
   playOutgoingMessage,
   playReaction,
   playError,
+  playSendError,
 } from '@/composables/useNotificationSound';
 import {
   getPermission,
@@ -28,71 +29,28 @@ const scrollEl = ref(null);
 const inputEl = ref(null);
 const fileEl = ref(null);
 
-// Контекстное меню
 const menu = ref({ open: false, x: 0, y: 0, message: null });
-
-// Панели
 const activePanel = ref('keyboard');
-
-// Режим редактирования
 const editing = ref(null);
 const editText = ref('');
-
-// Ответ
 const replyTo = ref(null);
-
-// ✅ Изображение к отправке
 const pendingImage = ref(null);
-
-// ✅ Fullscreen просмотр
 const fullscreenImage = ref(null);
 
-// Mobile viewport
 const panelHeight = ref('');
 const panelTop = ref('');
-
-// Пагинация
 const loadingOlder = ref(false);
-
-// Кнопка «вниз»
 const showScrollDown = ref(false);
 const newBelowCount = ref(0);
 
-// ✅ Swipe-to-reply
 const swipeState = ref({ id: null, startX: 0, startY: 0, dx: 0, active: false });
 
-// Emoji picker
 const EMOJI_CATEGORIES = [
-  {
-    id: 'smileys',
-    icon: '😀',
-    label: 'Смайлы',
-    emojis: ['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','🥲','😋','😛','😜','🤪','😝','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🤧','🥵','🥶','😵','🤯','🤠','🥳','😎','🤓','🧐','😕','😟','🙁','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','👿'],
-  },
-  {
-    id: 'gestures',
-    icon: '👍',
-    label: 'Жесты',
-    emojis: ['👍','👎','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','👇','☝️','✋','🤚','🖐️','🖖','👋','🤝','🙏','✍️','💅','🤳','💪','🦾','🦵','🦶','👂','🦻','👃','🧠','🦷','👀','👁️','👅','👄','💋','🩸','🤲','👐','🙌','👏','🤜','🤛','✊','👊'],
-  },
-  {
-    id: 'hearts',
-    icon: '❤️',
-    label: 'Сердца',
-    emojis: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','♥️','💌','💋','🔥','✨','⭐','🌟','💫','⚡','💥','💢','💤','💨','🎉','🎊','🎈','🎁'],
-  },
-  {
-    id: 'animals',
-    icon: '🐱',
-    label: 'Животные',
-    emojis: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🙈','🙉','🙊','🐒','🐔','🐧','🐦','🐤','🐣','🐥','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦗','🕷️','🦂','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🦐'],
-  },
-  {
-    id: 'food',
-    icon: '🍕',
-    label: 'Еда',
-    emojis: ['🍏','🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🫐','🍈','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🍆','🥑','🥦','🥬','🥒','🌶️','🌽','🥕','🧄','🧅','🥔','🍠','🥐','🥯','🍞','🥖','🥨','🧀','🥚','🍳','🧈','🥞','🧇','🥓','🥩','🍗','🍖','🌭','🍔','🍟','🍕'],
-  },
+  { id: 'smileys', icon: '😀', label: 'Смайлы', emojis: ['😀','😃','😄','😁','😆','😅','🤣','😂','🙂','🙃','😉','😊','😇','🥰','😍','🤩','😘','😗','😚','😙','🥲','😋','😛','😜','🤪','😝','🤗','🤭','🤫','🤔','🤐','🤨','😐','😑','😶','😏','😒','🙄','😬','🤥','😌','😔','😪','🤤','😴','😷','🤒','🤕','🤢','🤮','🤧','🥵','🥶','😵','🤯','🤠','🥳','😎','🤓','🧐','😕','😟','🙁','😮','😯','😲','😳','🥺','😦','😧','😨','😰','😥','😢','😭','😱','😖','😣','😞','😓','😩','😫','🥱','😤','😡','😠','🤬','😈','👿'] },
+  { id: 'gestures', icon: '👍', label: 'Жесты', emojis: ['👍','👎','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','👇','☝️','✋','🤚','🖐️','🖖','👋','🤝','🙏','✍️','💅','🤳','💪','🦾','🦵','🦶','👂','🦻','👃','🧠','🦷','👀','👁️','👅','👄','💋','🩸','🤲','👐','🙌','👏','🤜','🤛','✊','👊'] },
+  { id: 'hearts', icon: '❤️', label: 'Сердца', emojis: ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟','♥️','💌','💋','🔥','✨','⭐','🌟','💫','⚡','💥','💢','💤','💨','🎉','🎊','🎈','🎁'] },
+  { id: 'animals', icon: '🐱', label: 'Животные', emojis: ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🙈','🙉','🙊','🐒','🐔','🐧','🐦','🐤','🐣','🐥','🦆','🦅','🦉','🦇','🐺','🐗','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🦗','🕷️','🦂','🐢','🐍','🦎','🦖','🦕','🐙','🦑','🦐'] },
+  { id: 'food', icon: '🍕', label: 'Еда', emojis: ['🍏','🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🫐','🍈','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🍆','🥑','🥦','🥬','🥒','🌶️','🌽','🥕','🧄','🧅','🥔','🍠','🥐','🥯','🍞','🥖','🥨','🧀','🥚','🍳','🧈','🥞','🧇','🥓','🥩','🍗','🍖','🌭','🍔','🍟','🍕'] },
 ];
 
 const activeEmojiCat = ref('smileys');
@@ -103,7 +61,7 @@ const currentEmojiList = computed(() =>
 const me = computed(() => auth.user || 'Сергей');
 const peer = computed(() => messages.myPeer());
 const peerEmoji = computed(() => peer.value === 'Сергей' ? '👨' : '👩');
-const peerOnline = computed(() => messages.isOnline(peer.value));
+const peerOnline = computed(() => messages.isUserOnline(peer.value));
 const peerTyping = computed(() => messages.isTyping(peer.value));
 
 const history = computed(() => messages.messagesWith(peer.value));
@@ -155,9 +113,6 @@ function onInput() {
   else messages.notifyTypingStop(peer.value);
 }
 
-// ============================================================
-// ✅ Swipe style (вынесено из template, чтобы не ломать парсер)
-// ============================================================
 function swipeStyle(m) {
   if (swipeState.value.active && swipeState.value.id === m.id) {
     const dx = Math.min(swipeState.value.dx, 80);
@@ -167,45 +122,71 @@ function swipeStyle(m) {
 }
 
 // ============================================================
-// Изображения
+// Изображения — компрессия
 // ============================================================
 function openFilePicker() {
   fileEl.value?.click();
 }
 
-function onFileChange(e) {
+async function compressImage(file, maxSize = 1600, quality = 0.82) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width > maxSize || height > maxSize) {
+          if (width >= height) {
+            height = Math.round((height * maxSize) / width);
+            width = maxSize;
+          } else {
+            width = Math.round((width * maxSize) / height);
+            height = maxSize;
+          }
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const dataUrl = canvas.toDataURL('image/jpeg', quality);
+        resolve(dataUrl);
+      };
+      img.onerror = reject;
+      img.src = reader.result;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+async function onFileChange(e) {
   const file = e.target.files?.[0];
   if (!file) return;
   if (!file.type.startsWith('image/')) {
     toast.error('Только изображения');
     return;
   }
-  if (file.size > 5 * 1024 * 1024) {
-    toast.error('Максимум 5MB');
+  if (file.size > 10 * 1024 * 1024) {
+    toast.error('Максимум 10MB');
     return;
   }
-  const reader = new FileReader();
-  reader.onload = () => {
-    pendingImage.value = reader.result;
-  };
-  reader.readAsDataURL(file);
+  try {
+    const dataUrl = await compressImage(file);
+    pendingImage.value = dataUrl;
+  } catch (err) {
+    console.error('[img] compress error:', err);
+    toast.error('Не удалось обработать изображение');
+  }
   e.target.value = '';
 }
 
-function cancelImage() {
-  pendingImage.value = null;
-}
-
-function openFullscreen(src) {
-  fullscreenImage.value = src;
-}
-
-function closeFullscreen() {
-  fullscreenImage.value = null;
-}
+function cancelImage() { pendingImage.value = null; }
+function openFullscreen(src) { fullscreenImage.value = src; }
+function closeFullscreen() { fullscreenImage.value = null; }
 
 // ============================================================
-// Emoji picker
+// Emoji
 // ============================================================
 function toggleEmoji() {
   if (activePanel.value === 'emoji') {
@@ -219,10 +200,7 @@ function toggleEmoji() {
 
 function insertEmoji(emoji) {
   text.value += emoji;
-  nextTick(() => {
-    autoResize();
-    inputEl.value?.focus();
-  });
+  nextTick(() => { autoResize(); inputEl.value?.focus(); });
   messages.notifyTypingStart(peer.value);
 }
 
@@ -231,9 +209,6 @@ function onBackspace() {
   nextTick(autoResize);
 }
 
-// ============================================================
-// Settings panel
-// ============================================================
 function toggleSettings() {
   if (activePanel.value === 'settings') {
     activePanel.value = 'keyboard';
@@ -255,11 +230,8 @@ function isNearBottom() {
 
 function scrollToBottom(smooth = false) {
   if (!scrollEl.value) return;
-  if (smooth) {
-    scrollEl.value.scrollTo({ top: scrollEl.value.scrollHeight, behavior: 'smooth' });
-  } else {
-    scrollEl.value.scrollTop = scrollEl.value.scrollHeight;
-  }
+  if (smooth) scrollEl.value.scrollTo({ top: scrollEl.value.scrollHeight, behavior: 'smooth' });
+  else scrollEl.value.scrollTop = scrollEl.value.scrollHeight;
   newBelowCount.value = 0;
   showScrollDown.value = false;
 }
@@ -304,8 +276,6 @@ async function toggle() {
     document.body.dataset.chatOpen = 'true';
     await ensureHistory();
     await nextTick();
-
-    // ✅ Прокрутка к новым сообщениям без фокуса на поле ввода
     const firstUnread = firstUnreadId.value;
     if (firstUnread) {
       const m = messages.messageById(firstUnread);
@@ -314,9 +284,6 @@ async function toggle() {
     } else {
       scrollToBottom();
     }
-
-    // ❌ УБРАНО: setTimeout(() => inputEl.value?.focus(), 150);
-
     try {
       await messages.markAllRead(peer.value);
       await updateBadge(messages.totalUnread);
@@ -358,10 +325,21 @@ async function send() {
     await nextTick();
     scrollToBottom(true);
   } catch (e) {
-    toast.error('Не отправилось: ' + e.message);
-    try { playError(); } catch (err) {}
+    try { playSendError(); } catch (err) {}
+    toast.error('Не отправилось: ' + e.message + '. Нажмите на ! у сообщения');
   } finally {
     sending.value = false;
+  }
+}
+
+async function onRetry(m) {
+  if (!m.failed) return;
+  try {
+    await messages.retryMessage(m.id);
+    toast.success('Отправлено');
+    try { playOutgoingMessage(); } catch (e) {}
+  } catch (e) {
+    toast.error('Снова не удалось: ' + e.message);
   }
 }
 
@@ -376,7 +354,7 @@ function onKeydown(e) {
 }
 
 // ============================================================
-// Редактирование / Удаление / Пиннед / Ответ
+// Редактирование / удаление / пин / ответ
 // ============================================================
 function startEdit(msg) {
   editing.value = msg;
@@ -501,9 +479,6 @@ const currentUserReactionOn = computed(() => {
   return (m.reactions || []).find(r => r.users.includes(me.value))?.emoji || null;
 });
 
-// ============================================================
-// Long-press + Swipe-to-reply
-// ============================================================
 function onTouchStart(e, msg) {
   if (window.innerWidth > 700) return;
   if (e.touches.length !== 1) return;
@@ -540,25 +515,16 @@ function onTouchMove(e) {
   const dy = e.touches[0].clientY - s.startY;
 
   if (Math.abs(dx) > 10 && Math.abs(dx) > Math.abs(dy)) {
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      longPressTimer = null;
-    }
+    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
     s.dx = Math.max(0, dx);
   } else if (Math.abs(dy) > 10) {
     s.dx = 0;
-    if (longPressTimer) {
-      clearTimeout(longPressTimer);
-      longPressTimer = null;
-    }
+    if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
   }
 }
 
 function onTouchEnd(e) {
-  if (longPressTimer) {
-    clearTimeout(longPressTimer);
-    longPressTimer = null;
-  }
+  if (longPressTimer) { clearTimeout(longPressTimer); longPressTimer = null; }
   pointerStillDown = false;
 
   const s = swipeState.value;
@@ -617,7 +583,7 @@ function isSameDay(a, b) {
 }
 
 // ============================================================
-// Viewport / PWA / heartbeat
+// Viewport / PWA / heartbeat / online
 // ============================================================
 let heartbeatTimer = null;
 
@@ -651,6 +617,9 @@ function onBeforeUnload() {
 
 function onViewportResize() { updateViewport(); }
 
+function onNetworkOnline() { messages.setNetworkOnline(true); }
+function onNetworkOffline() { messages.setNetworkOnline(false); }
+
 watch(history, async (newList, oldList) => {
   if (!open.value) return;
   const added = newList.length > (oldList?.length || 0);
@@ -674,6 +643,8 @@ onMounted(async () => {
     await updateBadge(messages.totalUnread);
   } catch (e) {}
 
+  messages.setNetworkOnline(navigator.onLine);
+
   messages.heartbeat();
   heartbeatTimer = setInterval(() => {
     if (document.visibilityState === 'visible') messages.heartbeat();
@@ -681,6 +652,8 @@ onMounted(async () => {
 
   document.addEventListener('visibilitychange', onVisibilityChange);
   window.addEventListener('beforeunload', onBeforeUnload);
+  window.addEventListener('online', onNetworkOnline);
+  window.addEventListener('offline', onNetworkOffline);
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', onViewportResize);
     window.visualViewport.addEventListener('scroll', onViewportResize);
@@ -693,6 +666,8 @@ onUnmounted(() => {
   document.body.dataset.chatOpen = 'false';
   document.removeEventListener('visibilitychange', onVisibilityChange);
   window.removeEventListener('beforeunload', onBeforeUnload);
+  window.removeEventListener('online', onNetworkOnline);
+  window.removeEventListener('offline', onNetworkOffline);
   if (window.visualViewport) {
     window.visualViewport.removeEventListener('resize', onViewportResize);
     window.visualViewport.removeEventListener('scroll', onViewportResize);
@@ -706,23 +681,27 @@ watch(open, (v) => { if (v) askNotifications(); });
 </script>
 
 <template>
-  <!-- FAB (скрыт при открытом чате) -->
-  <button
-    v-if="!open"
-    class="chat-fab"
-    :class="{ 'has-unread': totalUnread > 0 }"
-    type="button"
-    @click="toggle"
-  >
-    <span class="chat-fab-icon">
-      <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
-        <path d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
-      </svg>
-    </span>
-    <span v-if="totalUnread > 0" class="chat-fab-badge">
-      {{ totalUnread > 99 ? '99+' : totalUnread }}
-    </span>
-  </button>
+  <!-- FAB -->
+  <Transition name="fab-pop">
+    <button
+      v-if="!open"
+      class="chat-fab"
+      :class="{ 'has-unread': totalUnread > 0 }"
+      type="button"
+      @click="toggle"
+    >
+      <span class="chat-fab-icon">
+        <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+          <path d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
+        </svg>
+      </span>
+      <Transition name="badge-pop">
+        <span v-if="totalUnread > 0" class="chat-fab-badge">
+          {{ totalUnread > 99 ? '99+' : totalUnread }}
+        </span>
+      </Transition>
+    </button>
+  </Transition>
 
   <!-- Панель -->
   <Transition name="chat-panel">
@@ -732,7 +711,6 @@ watch(open, (v) => { if (v) askNotifications(); });
       :style="{ height: panelHeight || undefined, top: panelTop || undefined }"
       @click.stop
     >
-      <!-- Header -->
       <div class="chat-head">
         <button class="chat-back" @click="close">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="20" height="20">
@@ -740,15 +718,21 @@ watch(open, (v) => { if (v) askNotifications(); });
           </svg>
         </button>
 
-        <div class="chat-head-main" @click="close">
+        <div class="chat-head-main">
           <div class="chat-avatar" :class="{ online: peerOnline }">
             {{ peerEmoji }}
           </div>
           <div class="chat-user-info">
             <div class="chat-user-name">{{ peer }}</div>
-            <div class="chat-user-status" :class="{ online: peerOnline, typing: peerTyping }">
-              {{ peerStatusText }}
-            </div>
+            <Transition name="status-fade" mode="out-in">
+              <div
+                :key="peerStatusText"
+                class="chat-user-status"
+                :class="{ online: peerOnline, typing: peerTyping }"
+              >
+                {{ peerStatusText }}
+              </div>
+            </Transition>
           </div>
         </div>
 
@@ -771,31 +755,36 @@ watch(open, (v) => { if (v) askNotifications(); });
         </button>
       </div>
 
-      <!-- Pinned -->
-      <div v-if="pinnedLatest" class="chat-pinned" @click="scrollToMessage(pinnedLatest.id)">
-        <div class="pinned-icon">📌</div>
-        <div class="pinned-body">
-          <div class="pinned-label">
-            Закреплённое
-            <span v-if="peerTyping" class="pinned-typing">· {{ peer }} печатает…</span>
-          </div>
-          <div class="pinned-text">{{ pinnedLatest.text || '📷 Изображение' }}</div>
+      <Transition name="offline-slide">
+        <div v-if="!messages.isOnline" class="chat-offline">
+          ⚠️ Нет соединения — сообщения отправятся, когда сеть вернётся
         </div>
-        <button class="pinned-unpin" @click.stop="togglePin(pinnedLatest)">
-          <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
-            <path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
-          </svg>
-        </button>
-      </div>
+      </Transition>
 
-      <!-- Body -->
+      <Transition name="pinned-slide">
+        <div v-if="pinnedLatest" class="chat-pinned" @click="scrollToMessage(pinnedLatest.id)">
+          <div class="pinned-icon">📌</div>
+          <div class="pinned-body">
+            <div class="pinned-label">
+              Закреплённое
+              <span v-if="peerTyping" class="pinned-typing">· {{ peer }} печатает…</span>
+            </div>
+            <div class="pinned-text">{{ pinnedLatest.text || '📷 Изображение' }}</div>
+          </div>
+          <button class="pinned-unpin" @click.stop="togglePin(pinnedLatest)">
+            <svg viewBox="0 0 24 24" fill="currentColor" width="14" height="14">
+              <path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+            </svg>
+          </button>
+        </div>
+      </Transition>
+
       <div ref="scrollEl" class="chat-body" @scroll.passive="onScroll">
-        <div v-if="loadingOlder" class="loading-older">
-          <span class="spinner"></span> Загрузка…
-        </div>
-        <div v-else-if="!messages.hasMore[peer] && history.length > 0" class="history-start">
-          Начало истории
-        </div>
+        <Transition name="fade-slow">
+          <div v-if="loadingOlder" class="loading-older">
+            <span class="spinner"></span> Загрузка…
+          </div>
+        </Transition>
 
         <div v-if="history.length === 0" class="chat-empty">
           <div class="chat-empty-icon">💬</div>
@@ -814,109 +803,126 @@ watch(open, (v) => { if (v) askNotifications(); });
               <span>Новые сообщения</span>
             </div>
 
-            <div
-              class="chat-msg"
-              :class="{
-                out: m.from === me,
-                in: m.from !== me,
-                swiping: swipeState.active && swipeState.id === m.id && swipeState.dx > 0,
-              }"
-              :style="swipeStyle(m)"
-              :data-msg-id="m.id"
-              @contextmenu="onContextMenu($event, m)"
-              @touchstart="onTouchStart($event, m)"
-              @touchmove="onTouchMove"
-              @touchend="onTouchEnd"
-              @touchcancel="onTouchEnd"
-            >
+            <Transition name="msg-in" appear>
               <div
-                class="chat-bubble"
-                :class="{ 'is-pinned': m.pinnedAt, 'has-reactions': m.reactions?.length }"
+                class="chat-msg"
+                :class="{
+                  out: m.from === me,
+                  in: m.from !== me,
+                  swiping: swipeState.active && swipeState.id === m.id && swipeState.dx > 0,
+                  'is-pending': m.pending,
+                  'is-failed': m.failed,
+                }"
+                :style="swipeStyle(m)"
+                :data-msg-id="m.id"
+                @contextmenu="onContextMenu($event, m)"
+                @touchstart="onTouchStart($event, m)"
+                @touchmove="onTouchMove"
+                @touchend="onTouchEnd"
+                @touchcancel="onTouchEnd"
               >
-                <div v-if="m.pinnedAt" class="bubble-pin">📌</div>
+                <div class="chat-bubble" :class="{ 'is-pinned': m.pinnedAt }">
+                  <div v-if="m.pinnedAt" class="bubble-pin">📌</div>
 
-                <div
-                  v-if="m.replyTo"
-                  class="bubble-reply"
-                  @click.stop="scrollToMessage(m.replyTo)"
-                >
-                  <div class="br-line"></div>
-                  <div class="br-text">{{ getQuoteText(m.replyTo) }}</div>
-                </div>
+                  <div v-if="m.replyTo" class="bubble-reply" @click.stop="scrollToMessage(m.replyTo)">
+                    <div class="br-line"></div>
+                    <div class="br-text">{{ getQuoteText(m.replyTo) }}</div>
+                  </div>
 
-                <!-- ✅ Изображение -->
-                <div v-if="m.image" class="bubble-image" @click.stop="openFullscreen(m.image)">
-                  <img :src="m.image" alt="image" loading="lazy" />
-                </div>
+                  <div v-if="m.image" class="bubble-image" @click.stop="openFullscreen(m.image)">
+                    <img :src="m.image" alt="image" loading="lazy" />
+                  </div>
 
-                <div v-if="m.text" class="chat-text" v-html="linkify(m.text)"></div>
+                  <div v-if="m.text" class="chat-text" v-html="linkify(m.text)"></div>
 
-                <div class="chat-meta">
-                  <span v-if="m.editedAt" class="chat-edited">изм.</span>
-                  <span class="chat-time">{{ fmtTime(m.createdAt) }}</span>
-                  <span
-                    v-if="m.from === me"
-                    class="chat-read"
-                    :class="{ read: !!m.readAt }"
-                  >{{ m.readAt ? '✓✓' : '✓' }}</span>
-                </div>
+                  <div class="chat-meta">
+                    <span v-if="m.editedAt" class="chat-edited">изм.</span>
+                    <span class="chat-time">{{ fmtTime(m.createdAt) }}</span>
 
-                <!-- ✅ Реакции — белый круг в левом нижнем углу bubble -->
-                <div v-if="m.reactions?.length" class="bubble-reactions">
-                  <button
-                    v-for="r in m.reactions"
-                    :key="r.emoji"
-                    class="reaction-chip"
-                    :class="{ mine: r.users.includes(me) }"
-                    @click.stop="addReaction(m, r.emoji)"
-                  >
-                    <span class="rc-emoji">{{ r.emoji }}</span>
-                    <span v-if="r.users.length > 1" class="rc-count">{{ r.users.length }}</span>
-                  </button>
+                    <Transition name="status-swap" mode="out-in">
+                      <span
+                        v-if="m.pending"
+                        key="pending"
+                        class="chat-status pending"
+                        title="Отправляется…"
+                      >
+                        <span class="clock-dot"></span>
+                      </span>
+                      <span
+                        v-else-if="m.failed"
+                        key="failed"
+                        class="chat-status failed"
+                        title="Не отправлено — нажмите, чтобы повторить"
+                        @click.stop="onRetry(m)"
+                      >!</span>
+                      <span
+                        v-else-if="m.from === me"
+                        key="read"
+                        class="chat-read"
+                        :class="{ read: !!m.readAt }"
+                      >{{ m.readAt ? '✓✓' : '✓' }}</span>
+                    </Transition>
+                  </div>
+
+                  <TransitionGroup name="reactions-pop" tag="div" v-if="m.reactions?.length" class="bubble-reactions">
+                    <button
+                      v-for="r in m.reactions"
+                      :key="r.emoji"
+                      class="reaction-chip"
+                      :class="{ mine: r.users.includes(me) }"
+                      @click.stop="addReaction(m, r.emoji)"
+                    >
+                      <span class="rc-emoji">{{ r.emoji }}</span>
+                      <span v-if="r.users.length > 1" class="rc-count">{{ r.users.length }}</span>
+                    </button>
+                  </TransitionGroup>
                 </div>
               </div>
-            </div>
+            </Transition>
           </template>
         </template>
       </div>
 
-      <!-- Кнопка вниз -->
       <Transition name="scroll-down">
         <button v-if="showScrollDown" class="scroll-down-btn" @click="scrollToBottom(true)">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18">
             <path d="M12 5v14M19 12l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round"/>
           </svg>
-          <span v-if="newBelowCount > 0" class="sd-badge">{{ newBelowCount }}</span>
+          <Transition name="badge-pop">
+            <span v-if="newBelowCount > 0" class="sd-badge">{{ newBelowCount }}</span>
+          </Transition>
         </button>
       </Transition>
 
-      <!-- Reply preview -->
-      <div v-if="replyTo" class="chat-reply-preview">
-        <div class="crp-line"></div>
-        <div class="crp-body">
-          <div class="crp-label">Ответ</div>
-          <div class="crp-text">{{ getQuoteText(replyTo.id) }}</div>
+      <Transition name="slide-up">
+        <div v-if="replyTo" class="chat-reply-preview">
+          <div class="crp-line"></div>
+          <div class="crp-body">
+            <div class="crp-label">Ответ</div>
+            <div class="crp-text">{{ getQuoteText(replyTo.id) }}</div>
+          </div>
+          <button class="crp-close" @click="cancelReply">✕</button>
         </div>
-        <button class="crp-close" @click="cancelReply">✕</button>
-      </div>
+      </Transition>
 
-      <!-- Edit preview -->
-      <div v-if="editing" class="chat-edit-preview">
-        <div class="cep-icon">✏️</div>
-        <div class="cep-body">
-          <div class="cep-label">Редактирование</div>
-          <div class="cep-text">{{ editing.text || '📷 Изображение' }}</div>
+      <Transition name="slide-up">
+        <div v-if="editing" class="chat-edit-preview">
+          <div class="cep-icon">✏️</div>
+          <div class="cep-body">
+            <div class="cep-label">Редактирование</div>
+            <div class="cep-text">{{ editing.text || '📷 Изображение' }}</div>
+          </div>
+          <button class="cep-close" @click="cancelEdit">✕</button>
         </div>
-        <button class="cep-close" @click="cancelEdit">✕</button>
-      </div>
+      </Transition>
 
-      <!-- ✅ Превью изображения перед отправкой -->
-      <div v-if="pendingImage" class="chat-image-preview">
-        <img :src="pendingImage" alt="preview" />
-        <button class="cip-close" @click="cancelImage">✕</button>
-      </div>
+      <Transition name="slide-up">
+        <div v-if="pendingImage" class="chat-image-preview">
+          <img :src="pendingImage" alt="preview" />
+          <button class="cip-close" @click="cancelImage">✕</button>
+        </div>
+      </Transition>
 
-      <!-- Ввод -->
       <div class="chat-input-row">
         <template v-if="editing">
           <button class="chat-input-btn chat-input-btn-accept" @click="saveEdit">
@@ -944,11 +950,7 @@ watch(open, (v) => { if (v) askNotifications(); });
             @change="onFileChange"
           />
 
-          <button
-            class="chat-input-icon"
-            @click="openFilePicker"
-            title="Прикрепить изображение"
-          >
+          <button class="chat-input-icon" @click="openFilePicker" title="Прикрепить изображение">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20">
               <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
@@ -958,7 +960,6 @@ watch(open, (v) => { if (v) askNotifications(); });
             class="chat-input-icon"
             :class="{ active: activePanel === 'emoji' }"
             @click="toggleEmoji"
-            :title="activePanel === 'emoji' ? 'Клавиатура' : 'Эмодзи'"
           >
             <svg v-if="activePanel !== 'emoji'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="22" height="22">
               <circle cx="12" cy="12" r="10"/>
@@ -981,20 +982,22 @@ watch(open, (v) => { if (v) askNotifications(); });
             @focus="activePanel = 'keyboard'"
           />
 
-          <button
-            class="chat-send"
-            :disabled="(!text.trim() && !pendingImage) || sending"
-            @click="send"
-          >
-            <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
-              <path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/>
-            </svg>
-          </button>
+          <Transition name="send-pop" mode="out-in">
+            <button
+              key="send"
+              class="chat-send"
+              :disabled="(!text.trim() && !pendingImage) || sending"
+              @click="send"
+            >
+              <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                <path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/>
+              </svg>
+            </button>
+          </Transition>
         </template>
       </div>
 
-      <!-- Emoji -->
-      <Transition name="panel">
+      <Transition name="panel-slide">
         <div v-if="activePanel === 'emoji'" class="chat-panel-bottom emoji-panel">
           <div class="emoji-cats">
             <button
@@ -1023,8 +1026,7 @@ watch(open, (v) => { if (v) askNotifications(); });
         </div>
       </Transition>
 
-      <!-- Настройки -->
-      <Transition name="panel">
+      <Transition name="panel-slide">
         <div v-if="activePanel === 'settings'" class="chat-panel-bottom settings-panel">
           <div class="settings-section">
             <div class="settings-title">Тема</div>
@@ -1110,7 +1112,7 @@ watch(open, (v) => { if (v) askNotifications(); });
     </Transition>
   </Teleport>
 
-  <!-- ✅ Fullscreen image -->
+  <!-- Fullscreen image -->
   <Teleport to="body">
     <Transition name="fs">
       <div v-if="fullscreenImage" class="fs-overlay" @click="closeFullscreen">
@@ -1126,6 +1128,9 @@ $chat-font: 12px;
 $chat-font-sm: 10px;
 $chat-font-lg: 13px;
 
+/* ============================================================
+   FAB
+   ============================================================ */
 .chat-fab {
   position: fixed;
   right: 20px;
@@ -1139,15 +1144,15 @@ $chat-font-lg: 13px;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   box-shadow: 0 10px 28px -8px rgba(99, 102, 241, 0.6), 0 4px 12px -4px rgba(15, 23, 42, 0.15);
-  transition: transform 0.2s cubic-bezier(.34,1.56,.64,1);
+  transition: transform 0.25s cubic-bezier(.34,1.56,.64,1), background 0.2s;
   &:hover { transform: scale(1.08); }
   &:active { transform: scale(0.94); }
-  &.has-unread { animation: fabPulse 1.6s ease-in-out infinite; }
+  &.has-unread { animation: fabPulse 1.8s ease-in-out infinite; }
 }
 
 @keyframes fabPulse {
-  0%, 100% { transform: scale(1); }
-  50%      { transform: scale(1.06); }
+  0%, 100% { transform: scale(1); box-shadow: 0 10px 28px -8px rgba(99, 102, 241, 0.6); }
+  50%      { transform: scale(1.06); box-shadow: 0 10px 36px -6px rgba(99, 102, 241, 0.85); }
 }
 
 .chat-fab-icon { display: flex; }
@@ -1169,7 +1174,9 @@ $chat-font-lg: 13px;
   box-shadow: 0 4px 12px -2px rgba(239, 68, 68, 0.7), 0 0 0 3px #ffffff;
 }
 
-/* Panel */
+/* ============================================================
+   Panel
+   ============================================================ */
 .chat-panel {
   position: fixed;
   right: 20px;
@@ -1189,7 +1196,6 @@ $chat-font-lg: 13px;
   margin-bottom: 72px;
 }
 
-/* Header */
 .chat-head {
   position: relative;
   display: flex; align-items: center; gap: 6px;
@@ -1210,14 +1216,15 @@ $chat-font-lg: 13px;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
+  transition: background 0.15s, transform 0.15s;
   &:hover { background: var(--chat-menu-hover); }
+  &:active { transform: scale(0.9); }
 }
 
 .chat-head-main {
   flex: 1;
   display: flex; align-items: center; gap: 10px;
   min-width: 0;
-  cursor: pointer;
   user-select: none;
 }
 
@@ -1238,7 +1245,13 @@ $chat-font-lg: 13px;
     border-radius: 50%;
     background: #22c55e;
     border: 2px solid var(--chat-bg);
+    animation: onlinePulse 2s ease-in-out infinite;
   }
+}
+
+@keyframes onlinePulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5); }
+  50%      { box-shadow: 0 0 0 4px rgba(34, 197, 94, 0); }
 }
 
 .chat-user-info { min-width: 0; flex: 1; }
@@ -1268,15 +1281,29 @@ $chat-font-lg: 13px;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
-  transition: background 0.15s;
+  transition: background 0.15s, transform 0.15s, color 0.15s;
   &:hover { background: var(--chat-menu-hover); }
-  &.active {
-    background: var(--chat-menu-hover);
-    color: var(--chat-accent);
-  }
+  &:active { transform: scale(0.9); }
+  &.active { background: var(--chat-menu-hover); }
 }
 
-/* Pinned */
+/* ============================================================
+   Offline banner
+   ============================================================ */
+.chat-offline {
+  padding: 6px 12px;
+  background: rgba(255, 149, 0, 0.15);
+  color: #b45309;
+  font-size: $chat-font-sm;
+  font-weight: 600;
+  text-align: center;
+  border-bottom: 0.5px solid var(--chat-border);
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   Pinned
+   ============================================================ */
 .chat-pinned {
   display: flex; align-items: center; gap: 10px;
   padding: 6px 12px;
@@ -1332,10 +1359,14 @@ $chat-font-lg: 13px;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
+  transition: background 0.15s, transform 0.15s;
   &:hover { background: rgba(255, 59, 48, 0.15); color: #ff3b30; }
+  &:active { transform: scale(0.9); }
 }
 
-/* Body */
+/* ============================================================
+   Body
+   ============================================================ */
 .chat-body {
   flex: 1;
   overflow-y: auto;
@@ -1348,6 +1379,7 @@ $chat-font-lg: 13px;
   background-attachment: local;
   -webkit-overflow-scrolling: touch;
   position: relative;
+  scroll-behavior: smooth;
 }
 
 .loading-older {
@@ -1366,29 +1398,6 @@ $chat-font-lg: 13px;
 }
 
 @keyframes spin { to { transform: rotate(360deg); } }
-
-.history-start {
-  text-align: center;
-  padding: 8px;
-  color: var(--chat-text-muted);
-  font-size: $chat-font-sm;
-  opacity: 0.7;
-}
-
-.unread-divider {
-  display: flex; align-items: center; gap: 8px;
-  margin: 8px 0;
-  color: var(--chat-accent);
-  font-size: $chat-font-sm;
-  font-weight: 600;
-  &::before, &::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: currentColor;
-    opacity: 0.35;
-  }
-}
 
 .chat-empty {
   display: flex; flex-direction: column; align-items: center; justify-content: center;
@@ -1420,14 +1429,15 @@ $chat-font-lg: 13px;
   max-width: 82%;
   -webkit-user-select: none;
   user-select: none;
-  transition: transform 0.15s ease;
-  /* место снизу под реакции, выходящие за bubble */
+  transition: transform 0.18s cubic-bezier(.34,1.56,.64,1), opacity 0.25s;
   margin-bottom: 14px;
 
-  &.swiping { transition: none; }
+  &.swiping { transition: transform 0s, opacity 0.25s; }
+
+  &.in { align-self: flex-start; }
+  &.out { align-self: flex-end; }
 
   &.in {
-    align-self: flex-start;
     .chat-bubble {
       background: var(--chat-bubble-in-bg);
       color: var(--chat-bubble-in-text);
@@ -1438,7 +1448,6 @@ $chat-font-lg: 13px;
   }
 
   &.out {
-    align-self: flex-end;
     .chat-bubble {
       background: var(--chat-bubble-out-bg);
       color: var(--chat-bubble-out-text);
@@ -1449,6 +1458,17 @@ $chat-font-lg: 13px;
   }
 
   &.highlight .chat-bubble { animation: msgHighlight 1.2s ease-out; }
+
+  /* ✅ Полупрозрачное у "отправляется" */
+  &.is-pending .chat-bubble {
+    opacity: 0.72;
+  }
+
+  /* ✅ Крестик у "не отправлено" */
+  &.is-failed .chat-bubble {
+    opacity: 0.85;
+    box-shadow: 0 0 0 1.5px rgba(255, 59, 48, 0.6), 0 1px 2px rgba(0, 0, 0, 0.15);
+  }
 }
 
 @keyframes msgHighlight {
@@ -1465,49 +1485,9 @@ $chat-font-lg: 13px;
   font-size: $chat-font;
   line-height: 1.4;
   cursor: default;
+  transition: opacity 0.25s, box-shadow 0.25s;
 
   &.is-pinned { padding-top: 14px; }
-}
-
-/* ✅ Реакции — белый круг в нижнем-левом углу, выходит за bubble */
-.bubble-reactions {
-  position: absolute;
-  left: -10px;
-  bottom: -14px;
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 3px 6px;
-  min-width: 28px;
-  height: 24px;
-  border-radius: 999px;
-  background: var(--chat-menu-bg);
-  border: 2px solid var(--chat-bg);
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
-  z-index: 3;
-}
-
-.reaction-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  padding: 0;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-family: inherit;
-  line-height: 1;
-  transition: transform 0.12s;
-
-  &:hover { transform: scale(1.15); }
-}
-
-.rc-emoji { font-size: 13px; line-height: 1; }
-.rc-count {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--chat-text);
-  opacity: 0.85;
 }
 
 .bubble-pin {
@@ -1517,7 +1497,9 @@ $chat-font-lg: 13px;
   opacity: 0.75;
 }
 
-/* ✅ Изображение в bubble */
+/* ============================================================
+   Image
+   ============================================================ */
 .bubble-image {
   margin: -2px -4px 4px;
   border-radius: 10px;
@@ -1531,10 +1513,10 @@ $chat-font-lg: 13px;
     height: auto;
     max-height: 320px;
     object-fit: cover;
-    transition: transform 0.2s;
+    transition: transform 0.25s cubic-bezier(.34,1.56,.64,1);
   }
 
-  &:hover img { transform: scale(1.02); }
+  &:hover img { transform: scale(1.03); }
 }
 
 .chat-text {
@@ -1598,6 +1580,9 @@ $chat-font-lg: 13px;
   font-weight: 500;
 }
 
+/* ============================================================
+   Meta
+   ============================================================ */
 .chat-meta {
   display: flex; align-items: center; justify-content: flex-end;
   gap: 3px;
@@ -1606,6 +1591,7 @@ $chat-font-lg: 13px;
   margin-top: 2px;
   line-height: 1;
   opacity: 0.65;
+  min-height: 10px;
 }
 
 .chat-edited {
@@ -1627,7 +1613,85 @@ $chat-font-lg: 13px;
   &.read { opacity: 1; }
 }
 
-/* Кнопка вниз */
+/* ✅ статус отправки */
+.chat-status {
+  font-size: $chat-font;
+  margin-left: 2px;
+  font-weight: 700;
+  &.pending { opacity: 0.6; display: inline-flex; align-items: center; }
+  &.failed {
+    color: #ff3b30;
+    cursor: pointer;
+    padding: 0 4px;
+    border-radius: 4px;
+    background: rgba(255, 59, 48, 0.15);
+    font-weight: 900;
+    animation: failPulse 1.6s ease-in-out infinite;
+  }
+}
+
+.chat-msg.out .chat-status.failed {
+  color: #ffcc00;
+  background: rgba(255, 204, 0, 0.2);
+}
+
+@keyframes failPulse {
+  0%, 100% { opacity: 0.85; }
+  50%      { opacity: 1; }
+}
+
+/* Часики */
+.clock-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  border: 1.5px solid currentColor;
+  border-top-color: transparent;
+  animation: clockSpin 1s linear infinite;
+}
+
+@keyframes clockSpin { to { transform: rotate(360deg); } }
+
+/* ============================================================
+   Reactions
+   ============================================================ */
+.bubble-reactions {
+  display: inline-flex;
+  gap: 3px;
+  margin-top: 4px;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: var(--chat-menu-bg);
+  border: 0.5px solid var(--chat-border);
+  box-shadow: 0 2px 8px -2px rgba(15, 23, 42, 0.2);
+  width: fit-content;
+}
+
+.reaction-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-family: inherit;
+  transition: transform 0.15s cubic-bezier(.34,1.56,.64,1);
+  &:hover { transform: scale(1.18); }
+  &:active { transform: scale(0.92); }
+}
+
+.rc-emoji { font-size: 12px; line-height: 1; }
+.rc-count {
+  font-size: $chat-font-sm;
+  font-weight: 700;
+  color: var(--chat-text);
+  opacity: 0.85;
+}
+
+/* ============================================================
+   Scroll down
+   ============================================================ */
 .scroll-down-btn {
   position: absolute;
   right: 14px;
@@ -1644,9 +1708,9 @@ $chat-font-lg: 13px;
   position: relative;
   margin-bottom: 6px;
   align-self: flex-end;
-  transition: transform 0.15s;
-  &:hover { transform: scale(1.08); }
-  &:active { transform: scale(0.94); }
+  transition: transform 0.18s cubic-bezier(.34,1.56,.64,1);
+  &:hover { transform: scale(1.1); }
+  &:active { transform: scale(0.92); }
 }
 
 .sd-badge {
@@ -1665,17 +1729,9 @@ $chat-font-lg: 13px;
   box-shadow: 0 2px 6px rgba(0, 122, 255, 0.5);
 }
 
-.scroll-down-enter-active,
-.scroll-down-leave-active {
-  transition: opacity 0.18s, transform 0.22s cubic-bezier(.34,1.56,.64,1);
-}
-.scroll-down-enter-from,
-.scroll-down-leave-to {
-  opacity: 0;
-  transform: translateY(8px) scale(0.9);
-}
-
-/* Reply / Edit / Image preview */
+/* ============================================================
+   Preview rows
+   ============================================================ */
 .chat-reply-preview,
 .chat-edit-preview {
   display: flex; align-items: center; gap: 8px;
@@ -1724,10 +1780,11 @@ $chat-font-lg: 13px;
   cursor: pointer;
   font-size: 11px;
   flex-shrink: 0;
+  transition: background 0.15s, transform 0.15s;
   &:hover { background: rgba(255, 59, 48, 0.15); color: #ff3b30; }
+  &:active { transform: scale(0.9); }
 }
 
-/* ✅ Превью изображения */
 .chat-image-preview {
   position: relative;
   padding: 8px 12px;
@@ -1736,14 +1793,19 @@ $chat-font-lg: 13px;
   display: flex;
   align-items: center;
   justify-content: center;
-
   img {
     max-width: 120px;
     max-height: 120px;
     border-radius: 10px;
     object-fit: cover;
     box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.25);
+    animation: imgPop 0.28s cubic-bezier(.34,1.56,.64,1);
   }
+}
+
+@keyframes imgPop {
+  from { transform: scale(0.85); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
 }
 
 .cip-close {
@@ -1758,9 +1820,13 @@ $chat-font-lg: 13px;
   cursor: pointer;
   font-size: 12px;
   display: flex; align-items: center; justify-content: center;
+  transition: transform 0.15s;
+  &:active { transform: scale(0.9); }
 }
 
-/* Input */
+/* ============================================================
+   Input row
+   ============================================================ */
 .chat-input-row {
   display: flex;
   align-items: flex-end;
@@ -1786,17 +1852,10 @@ $chat-font-lg: 13px;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: all 0.15s;
-
-  &:hover {
-    background: var(--chat-menu-hover);
-    color: var(--chat-accent);
-  }
-
-  &.active {
-    color: var(--chat-accent);
-    background: var(--chat-menu-hover);
-  }
+  transition: background 0.15s, color 0.15s, transform 0.15s;
+  &:hover { background: var(--chat-menu-hover); color: var(--chat-accent); }
+  &:active { transform: scale(0.92); }
+  &.active { color: var(--chat-accent); background: var(--chat-menu-hover); }
 }
 
 .chat-input {
@@ -1812,13 +1871,14 @@ $chat-font-lg: 13px;
   font-size: $chat-font;
   font-weight: 400;
   line-height: 1.4;
-  letter-spacing: normal;
   resize: none;
   outline: none;
   overflow-y: auto;
-  transition: border-color 0.15s;
-
-  &:focus { border-color: var(--chat-accent); }
+  transition: border-color 0.15s, box-shadow 0.15s;
+  &:focus {
+    border-color: var(--chat-accent);
+    box-shadow: 0 0 0 3px rgba(0, 122, 255, 0.12);
+  }
   &::placeholder { color: var(--chat-text-muted); }
 }
 
@@ -1831,8 +1891,10 @@ $chat-font-lg: 13px;
   cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
   flex-shrink: 0;
+  transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), opacity 0.2s;
   &:disabled { opacity: 0.35; cursor: not-allowed; }
-  &:not(:disabled):active { transform: scale(0.94); }
+  &:not(:disabled):hover { transform: scale(1.08); }
+  &:not(:disabled):active { transform: scale(0.9); }
 }
 
 .chat-input-btn {
@@ -1847,10 +1909,13 @@ $chat-font-lg: 13px;
 .chat-input-btn-accept {
   background: #34c759;
   color: #ffffff;
-  &:active { transform: scale(0.94); }
+  transition: transform 0.15s;
+  &:active { transform: scale(0.9); }
 }
 
-/* Панель снизу */
+/* ============================================================
+   Bottom panels
+   ============================================================ */
 .chat-panel-bottom {
   border-top: 0.5px solid var(--chat-border);
   background: var(--chat-header-bg);
@@ -1858,18 +1923,6 @@ $chat-font-lg: 13px;
   overflow: hidden;
 }
 
-.panel-enter-active,
-.panel-leave-active {
-  transition: max-height 0.25s cubic-bezier(.34,1.56,.64,1), opacity 0.2s;
-  max-height: 280px;
-}
-.panel-enter-from,
-.panel-leave-to {
-  max-height: 0;
-  opacity: 0;
-}
-
-/* Emoji panel */
 .emoji-panel {
   display: flex;
   flex-direction: column;
@@ -1898,9 +1951,8 @@ $chat-font-lg: 13px;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: background 0.15s;
-
-  &:hover { background: var(--chat-menu-hover); }
+  transition: background 0.15s, transform 0.15s;
+  &:hover { background: var(--chat-menu-hover); transform: scale(1.05); }
   &.active { background: var(--chat-menu-hover); box-shadow: inset 0 -2px 0 var(--chat-accent); }
 }
 
@@ -1925,13 +1977,9 @@ $chat-font-lg: 13px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.12s, transform 0.12s;
-
-  &:hover {
-    background: var(--chat-menu-hover);
-    transform: scale(1.1);
-  }
-  &:active { transform: scale(0.9); }
+  transition: background 0.15s, transform 0.15s cubic-bezier(.34,1.56,.64,1);
+  &:hover { background: var(--chat-menu-hover); transform: scale(1.12); }
+  &:active { transform: scale(0.88); }
 }
 
 .emoji-spacer { height: 0; }
@@ -1943,11 +1991,9 @@ $chat-font-lg: 13px;
   background: rgba(120, 120, 128, 0.08);
   border-radius: 8px;
   margin-top: 4px;
-
   &:hover { background: rgba(120, 120, 128, 0.15); transform: none; }
 }
 
-/* Settings panel */
 .settings-panel {
   max-height: 280px;
   overflow-y: auto;
@@ -1992,9 +2038,9 @@ $chat-font-lg: 13px;
   font-family: inherit;
   font-size: 11px;
   font-weight: 600;
-  transition: all 0.15s;
-
-  &:hover { border-color: var(--chat-accent); }
+  transition: border-color 0.15s, background 0.15s, color 0.15s, transform 0.15s;
+  &:hover { border-color: var(--chat-accent); transform: translateY(-1px); }
+  &:active { transform: scale(0.96); }
   &.active {
     border-color: var(--chat-accent);
     background: var(--chat-menu-hover);
@@ -2018,10 +2064,10 @@ $chat-font-lg: 13px;
   border: 2px solid var(--chat-border);
   background: #f5f5f5;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: transform 0.15s, border-color 0.15s, box-shadow 0.15s;
   overflow: hidden;
-
-  &:hover { transform: scale(1.05); }
+  &:hover { transform: scale(1.06); }
+  &:active { transform: scale(0.94); }
   &.active {
     border-color: var(--chat-accent);
     box-shadow: 0 0 0 2px rgba(0, 122, 255, 0.25);
@@ -2040,20 +2086,9 @@ $chat-font-lg: 13px;
   background: linear-gradient(135deg, #f2f2f7, #ffffff);
 }
 
-/* Animations */
-.chat-panel-enter-active,
-.chat-panel-leave-active {
-  transition: opacity 0.22s ease, transform 0.28s cubic-bezier(.34,1.56,.64,1);
-}
-
-.chat-panel-enter-from,
-.chat-panel-leave-to {
-  opacity: 0;
-  transform: translateY(20px) scale(0.94);
-  transform-origin: bottom right;
-}
-
-/* Backdrop / Menu */
+/* ============================================================
+   Context menu
+   ============================================================ */
 .ctx-backdrop {
   position: fixed;
   inset: 0;
@@ -2099,13 +2134,13 @@ $chat-font-lg: 13px;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: transform 0.12s, background 0.12s;
-  &:hover { transform: scale(1.2); background: var(--chat-menu-hover); }
+  transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), background 0.15s;
+  &:hover { transform: scale(1.22); background: var(--chat-menu-hover); }
+  &:active { transform: scale(0.9); }
   &.active {
     background: var(--chat-menu-hover);
     box-shadow: inset 0 0 0 1.5px var(--chat-accent);
   }
-  &:active { transform: scale(0.9); }
 }
 
 .ctx-item {
@@ -2121,12 +2156,9 @@ $chat-font-lg: 13px;
   cursor: pointer;
   border-radius: 8px;
   text-align: left;
-
-  &:hover {
-    background: var(--chat-menu-hover);
-    color: var(--chat-accent);
-  }
-
+  transition: background 0.15s, color 0.15s, transform 0.12s;
+  &:hover { background: var(--chat-menu-hover); color: var(--chat-accent); }
+  &:active { transform: scale(0.98); }
   &.danger {
     color: #ff3b30;
     &:hover { background: rgba(255, 59, 48, 0.12); color: #ff3b30; }
@@ -2136,14 +2168,9 @@ $chat-font-lg: 13px;
 .ctx-icon { font-size: $chat-font; width: 18px; text-align: center; flex-shrink: 0; }
 .ctx-label { flex: 1; }
 
-.ctx-menu-enter-active,
-.ctx-menu-leave-active {
-  transition: opacity 0.15s ease, transform 0.18s cubic-bezier(.34,1.56,.64,1);
-}
-.ctx-menu-enter-from,
-.ctx-menu-leave-to { opacity: 0; transform: scale(0.9); }
-
-/* ✅ Fullscreen image */
+/* ============================================================
+   Fullscreen image
+   ============================================================ */
 .fs-overlay {
   position: fixed;
   inset: 0;
@@ -2178,12 +2205,114 @@ $chat-font-lg: 13px;
   display: flex; align-items: center; justify-content: center;
 }
 
-.fs-enter-active,
-.fs-leave-active { transition: opacity 0.2s ease; }
-.fs-enter-from,
-.fs-leave-to { opacity: 0; }
+/* ============================================================
+   ANIMATIONS
+   ============================================================ */
 
-/* Мобильный */
+/* Панель чата */
+.chat-panel-enter-active { transition: opacity 0.28s ease, transform 0.38s cubic-bezier(.34,1.56,.64,1); }
+.chat-panel-leave-active { transition: opacity 0.2s ease, transform 0.25s cubic-bezier(.4,0,.6,1); }
+.chat-panel-enter-from,
+.chat-panel-leave-to {
+  opacity: 0;
+  transform: translateY(24px) scale(0.93);
+  transform-origin: bottom right;
+}
+
+/* FAB */
+.fab-pop-enter-active { transition: opacity 0.25s, transform 0.35s cubic-bezier(.34,1.56,.64,1); }
+.fab-pop-leave-active { transition: opacity 0.18s, transform 0.22s ease; }
+.fab-pop-enter-from,
+.fab-pop-leave-to { opacity: 0; transform: scale(0.6); }
+
+/* Бейдж на FAB */
+.badge-pop-enter-active { transition: opacity 0.2s, transform 0.28s cubic-bezier(.34,1.56,.64,1); }
+.badge-pop-leave-active { transition: opacity 0.15s, transform 0.2s ease; }
+.badge-pop-enter-from,
+.badge-pop-leave-to { opacity: 0; transform: scale(0.4); }
+
+/* Статус в шапке */
+.status-fade-enter-active,
+.status-fade-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.status-fade-enter-from { opacity: 0; transform: translateY(-4px); }
+.status-fade-leave-to { opacity: 0; transform: translateY(4px); }
+
+/* Offline / Pinned */
+.offline-slide-enter-active,
+.offline-slide-leave-active { transition: max-height 0.3s ease, opacity 0.25s ease, padding 0.3s ease; overflow: hidden; }
+.offline-slide-enter-from,
+.offline-slide-leave-to { max-height: 0; opacity: 0; padding-top: 0; padding-bottom: 0; }
+.offline-slide-enter-to,
+.offline-slide-leave-from { max-height: 40px; opacity: 1; }
+
+.pinned-slide-enter-active,
+.pinned-slide-leave-active { transition: max-height 0.32s ease, opacity 0.25s ease; overflow: hidden; }
+.pinned-slide-enter-from,
+.pinned-slide-leave-to { max-height: 0; opacity: 0; }
+.pinned-slide-enter-to,
+.pinned-slide-leave-from { max-height: 60px; opacity: 1; }
+
+/* Сообщения */
+.msg-in-enter-active { transition: opacity 0.25s ease, transform 0.32s cubic-bezier(.34,1.56,.64,1); }
+.msg-in-enter-from { opacity: 0; transform: translateY(10px) scale(0.96); }
+
+/* Реакции */
+.reactions-pop-enter-active { transition: opacity 0.2s, transform 0.28s cubic-bezier(.34,1.56,.64,1); }
+.reactions-pop-leave-active { transition: opacity 0.15s, transform 0.15s ease; }
+.reactions-pop-enter-from,
+.reactions-pop-leave-to { opacity: 0; transform: scale(0.6); }
+
+/* Статус отправки */
+.status-swap-enter-active,
+.status-swap-leave-active { transition: opacity 0.2s ease, transform 0.2s ease; }
+.status-swap-enter-from { opacity: 0; transform: scale(0.6); }
+.status-swap-leave-to { opacity: 0; transform: scale(0.6); }
+
+/* Плавное исчезновение loading */
+.fade-slow-enter-active,
+.fade-slow-leave-active { transition: opacity 0.25s ease; }
+.fade-slow-enter-from,
+.fade-slow-leave-to { opacity: 0; }
+
+/* Кнопка вниз */
+.scroll-down-enter-active { transition: opacity 0.22s, transform 0.3s cubic-bezier(.34,1.56,.64,1); }
+.scroll-down-leave-active { transition: opacity 0.15s, transform 0.2s ease; }
+.scroll-down-enter-from,
+.scroll-down-leave-to { opacity: 0; transform: translateY(8px) scale(0.85); }
+
+/* Preview rows (reply/edit/image) */
+.slide-up-enter-active { transition: opacity 0.22s, transform 0.3s cubic-bezier(.34,1.56,.64,1); }
+.slide-up-leave-active { transition: opacity 0.15s, transform 0.2s ease; }
+.slide-up-enter-from,
+.slide-up-leave-to { opacity: 0; transform: translateY(12px); }
+
+/* Панель снизу (emoji/settings) */
+.panel-slide-enter-active { transition: max-height 0.28s cubic-bezier(.34,1.56,.64,1), opacity 0.22s ease; max-height: 280px; }
+.panel-slide-leave-active { transition: max-height 0.22s ease, opacity 0.18s ease; max-height: 0; }
+.panel-slide-enter-from,
+.panel-slide-leave-to { max-height: 0; opacity: 0; }
+
+/* Контекстное меню */
+.ctx-menu-enter-active { transition: opacity 0.18s ease, transform 0.22s cubic-bezier(.34,1.56,.64,1); }
+.ctx-menu-leave-active { transition: opacity 0.14s ease, transform 0.16s ease; }
+.ctx-menu-enter-from,
+.ctx-menu-leave-to { opacity: 0; transform: scale(0.92); }
+
+/* Fullscreen image */
+.fs-enter-active { transition: opacity 0.24s ease, transform 0.3s cubic-bezier(.34,1.56,.64,1); }
+.fs-leave-active { transition: opacity 0.18s ease, transform 0.2s ease; }
+.fs-enter-from,
+.fs-leave-to { opacity: 0; transform: scale(0.96); }
+
+/* Кнопка Send — pop-in при появлении */
+.send-pop-enter-active { transition: opacity 0.18s, transform 0.25s cubic-bezier(.34,1.56,.64,1); }
+.send-pop-leave-active { transition: opacity 0.12s, transform 0.15s ease; }
+.send-pop-enter-from,
+.send-pop-leave-to { opacity: 0; transform: scale(0.7); }
+
+/* ============================================================
+   Mobile
+   ============================================================ */
 @media (max-width: 700px) {
   .chat-fab {
     right: 16px;
@@ -2207,7 +2336,8 @@ $chat-font-lg: 13px;
     z-index: 10;
   }
 
-  .chat-pinned {
+  .chat-pinned,
+  .chat-offline {
     position: sticky;
     top: calc(54px + env(safe-area-inset-top, 0));
     z-index: 9;
