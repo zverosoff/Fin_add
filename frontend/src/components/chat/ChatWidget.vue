@@ -156,6 +156,17 @@ function onInput() {
 }
 
 // ============================================================
+// ✅ Swipe style (вынесено из template, чтобы не ломать парсер)
+// ============================================================
+function swipeStyle(m) {
+  if (swipeState.value.active && swipeState.value.id === m.id) {
+    const dx = Math.min(swipeState.value.dx, 80);
+    return { transform: `translateX(${dx}px)` };
+  }
+  return {};
+}
+
+// ============================================================
 // Изображения
 // ============================================================
 function openFilePicker() {
@@ -806,8 +817,7 @@ watch(open, (v) => { if (v) askNotifications(); });
                 in: m.from !== me,
                 swiping: swipeState.active && swipeState.id === m.id && swipeState.dx > 0,
               }"
-              :style="swipeState.active && swipeState.id === m.id
-                ? { transform: `translateX(${Math.min(swipeState.dx, 80)}px)` }"
+              :style="swipeStyle(m)"
               :data-msg-id="m.id"
               @contextmenu="onContextMenu($event, m)"
               @touchstart="onTouchStart($event, m)"
