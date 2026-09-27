@@ -13,7 +13,6 @@ const userName = computed(() => auth.user || 'Сергей');
 const userEmoji = computed(() => userName.value === 'Сергей' ? '👨' : '👩');
 
 const totalBalance = computed(() => accounts.total);
-const totalCash = computed(() => accounts.totalCash);
 
 const ownersSorted = computed(() => {
   const all = Object.keys(accounts.byOwner || {});
@@ -62,13 +61,6 @@ function isMe(owner) {
         <div class="bc-balance">
           <div class="bc-label">Ваш общий баланс</div>
           <div class="bc-amount">{{ fmt(totalBalance) }} ₽</div>
-
-          <!-- ✅ НАЛИЧНЫЕ — только общая сумма -->
-          <div class="bc-cash" :class="{ 'is-zero': totalCash === 0 }">
-            <span class="bc-cash-icon">💵</span>
-            <span class="bc-cash-label">Наличные</span>
-            <span class="bc-cash-value">{{ fmt(totalCash) }} ₽</span>
-          </div>
         </div>
 
         <div class="bc-avatar">
@@ -189,47 +181,6 @@ function isMe(owner) {
   overflow: hidden;
   text-overflow: ellipsis;
   text-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
-}
-
-/* ✅ НАЛИЧНЫЕ */
-.bc-cash {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  margin-top: 10px;
-  padding: 5px 12px 5px 8px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
-  border: 1px solid rgba(255, 255, 255, 0.35);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  box-shadow: 0 4px 12px -4px rgba(0, 0, 0, 0.25);
-  white-space: nowrap;
-  transition: opacity 0.2s;
-
-  &.is-zero {
-    opacity: 0.7;
-  }
-}
-
-.bc-cash-icon {
-  font-size: 13px;
-  line-height: 1;
-}
-
-.bc-cash-label {
-  font-size: 10.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  opacity: 0.85;
-}
-
-.bc-cash-value {
-  font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
 }
 
 .bc-avatar {
@@ -440,15 +391,6 @@ function isMe(owner) {
 
   .bc-label { font-size: 10px; }
   .bc-amount { font-size: 30px; margin-top: 4px; }
-
-  .bc-cash {
-    margin-top: 8px;
-    padding: 4px 10px 4px 7px;
-    gap: 5px;
-  }
-  .bc-cash-icon { font-size: 12px; }
-  .bc-cash-label { font-size: 9.5px; }
-  .bc-cash-value { font-size: 12px; }
 
   .bc-avatar {
     width: 54px;

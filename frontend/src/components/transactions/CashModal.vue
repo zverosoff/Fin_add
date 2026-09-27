@@ -10,6 +10,7 @@ import Modal from '@/components/ui/Modal.vue';
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
   owner: { type: String, default: '' },
+  initialMode: { type: String, default: 'add' },
 });
 
 const emit = defineEmits(['update:modelValue', 'saved']);
@@ -20,7 +21,7 @@ const toast = useToast();
 
 const OWNERS = ['Сергей', 'Саша'];
 
-// mode: 'add' | 'withdraw' | 'set'
+// Режимы: add | withdraw | set | savings-to | savings-from | savings-set
 const mode = ref('add');
 const user = ref('Сергей');
 const amount = ref('');
@@ -31,9 +32,35 @@ const saving = ref(false);
 const isOwnerLocked = computed(() => !!props.owner);
 
 const currentBalance = computed(() => accounts.getCash(user.value));
+const currentSavings = computed(() => accounts.getCashSavings(user.value));
 const totalCash = computed(() => accounts.totalCash);
+const totalSavings = computed(() => accounts.totalCashSavings);
 
-// ✅ Последние 5 операций наличных этого пользователя
+const isSavingsMode = computed(() =>
+  ['savings-to', 'savings-from', 'savings-set'].includes(mode.value)
+);
+
+const modeTitle = computed(() => {
+  switch (mode.value) {
+    case 'add':           return '➕ Добавить наличные';
+    case 'withdraw':      return '➖ Изъять наличные';
+    case 'set':           return '🎯 Точный баланс';
+    case 'savings-to':    return '🏦 В копилку';
+    case 'savings-from':  return '↩️ Из копилки';
+    case 'savings-set':   return '🎯 Точная копилка';
+    default:              return 'Наличные';
+  }
+});
+
+const amountLabel = computed(() => {
+  switch (mode.value) {
+    case 'set':          return '💵 Новый баланс кошелька, ₽';
+    case 'savings-set':  return '🏦 Новый размер копилки, ₽';
+    default:             return '💵 Сумма, ₽';
+  }
+});
+
+// Последние операции наличных
 const recentOps = computed(() => {
   return (accounts.transactions || [])
     .filter(t => t.accountId === 'cash' && t.user === user.value)
@@ -45,22 +72,27 @@ const preview = computed(() => {
   const v = parseFloat(amount.value);
   if (!isFinite(v)) return null;
 
-  if (mode.value === 'add') return currentBalance.value + v;
-  if (mode.value === 'withdraw') return currentBalance.value - v;
-  if (mode.value === 'set') return v;
-  return null;
+  switch (mode.value) {
+    case 'add':          return { balance: currentBalance.value + v, savings: currentSavings.value };
+    case 'withdraw':     return { balance: currentBalance.value - v, savings: currentSavings.value };
+    case 'set':          return { balance: v, savings: currentSavings.value };
+    case 'savings-to':   return { balance: currentBalance.value - v, savings: currentSavings.value + v };
+    case 'savings-from': return { balance: currentBalance.value + v, savings: currentSavings.value - v };
+    case 'savings-set':  return { balance: currentBalance.value, savings: v };
+    default:             return null;
+  }
 });
 
 const canSave = computed(() => {
   const v = parseFloat(amount.value);
   if (!isFinite(v) || v < 0) return false;
-  if (mode.value !== 'set' && v <= 0) return false;
+  if (!['set', 'savings-set'].includes(mode.value) && v <= 0) return false;
   return true;
 });
 
 watch(() => props.modelValue, (open) => {
   if (!open) return;
-  mode.value = 'add';
+  mode.value = props.initialMode || 'add';
   user.value = props.owner || auth.user || 'Сергей';
   amount.value = '';
   comment.value = '';
@@ -77,30 +109,52 @@ async function save() {
     return;
   }
 
-  if (mode.value !== 'set' && v <= 0) {
+  if (!['set', 'savings-set'].includes(mode.value) && v <= 0) {
     error.value = 'Сумма должна быть больше 0';
     return;
   }
 
-  if (mode.value === 'set' && v < 0) {
-    error.value = 'Баланс не может быть отрицательным';
+  if (['set', 'savings-set'].includes(mode.value) && v < 0) {
+    error.value = 'Сумма не может быть отрицательной';
     return;
   }
 
   saving.value = true;
   try {
-    if (mode.value === 'add') {
-      await accounts.addCash(user.value, v, comment.value);
-      toast.success(`💵 +${fmt(v)} ₽ (${user.value})`);
-    } else if (mode.value === 'withdraw') {
-      await accounts.withdrawCash(user.value, v, comment.value);
-      toast.success(`💵 −${fmt(v)} ₽ (${user.value})`);
-    } else {
-      const res = await accounts.setCashBalance(user.value, v, comment.value);
-      if (res?.unchanged) {
-        toast.info('Баланс не изменился');
-      } else {
-        toast.success(`💵 Новый баланс: ${fmt(v)} ₽`);
+    switch (mode.value) {
+      case 'add': {
+        await accounts.addCash(user.value, v, comment.value);
+        toast.success(`💵 +${fmt(v)} ₽ (${user.value})`);
+        break;
+      }
+      case 'withdraw': {
+        await accounts.withdrawCash(user.value, v, comment.value);
+        toast.success(`💵 −${fmt(v)} ₽ (${user.value})`);
+        break;
+      }
+      case 'set': {
+        const res = await accounts.setCashBalance(user.value, v, comment.value);
+        toast[res?.unchanged ? 'info' : 'success'](
+          res?.unchanged ? 'Баланс не изменился' : `💵 Новый баланс: ${fmt(v)} ₽`
+        );
+        break;
+      }
+      case 'savings-to': {
+        await accounts.toSavings(user.value, v, comment.value);
+        toast.success(`🏦 В копилку: +${fmt(v)} ₽ (${user.value})`);
+        break;
+      }
+      case 'savings-from': {
+        await accounts.fromSavings(user.value, v, comment.value);
+        toast.success(`↩️ Из копилки: +${fmt(v)} ₽ в кошелёк (${user.value})`);
+        break;
+      }
+      case 'savings-set': {
+        const res = await accounts.setCashSavings(user.value, v, comment.value);
+        toast[res?.unchanged ? 'info' : 'success'](
+          res?.unchanged ? 'Копилка не изменилась' : `🏦 Копилка: ${fmt(v)} ₽`
+        );
+        break;
       }
     }
 
@@ -125,15 +179,21 @@ function close() {
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div class="form">
-      <!-- Текущий баланс -->
+      <!-- Текущие балансы -->
       <div class="cash-info">
         <div class="ci-row">
-          <span class="ci-label">Сейчас у {{ user }}:</span>
+          <span class="ci-label">👛 Кошелёк {{ user }}:</span>
           <span class="ci-value">{{ fmt(currentBalance) }} ₽</span>
         </div>
+        <div class="ci-row">
+          <span class="ci-label">🏦 Копилка {{ user }}:</span>
+          <span class="ci-value savings">{{ fmt(currentSavings) }} ₽</span>
+        </div>
         <div class="ci-row subtle">
-          <span class="ci-label">Всего наличных:</span>
-          <span class="ci-value subtle">{{ fmt(totalCash) }} ₽</span>
+          <span class="ci-label">Всего в системе:</span>
+          <span class="ci-value subtle">
+            {{ fmt(totalCash) }} ₽ / {{ fmt(totalSavings) }} ₽
+          </span>
         </div>
       </div>
 
@@ -154,7 +214,7 @@ function close() {
         </div>
       </div>
 
-      <!-- Режим -->
+      <!-- Действие -->
       <div class="field">
         <label>Действие</label>
         <div class="mode-switch">
@@ -172,13 +232,31 @@ function close() {
             type="button"
             :class="{ active: mode === 'set' }"
             @click="mode = 'set'"
-          >🎯 Точный баланс</button>
+          >🎯 Баланс</button>
+        </div>
+
+        <div class="mode-switch secondary">
+          <button
+            type="button"
+            :class="{ active: mode === 'savings-to' }"
+            @click="mode = 'savings-to'"
+          >🏦 В копилку</button>
+          <button
+            type="button"
+            :class="{ active: mode === 'savings-from' }"
+            @click="mode = 'savings-from'"
+          >↩️ Из копилки</button>
+          <button
+            type="button"
+            :class="{ active: mode === 'savings-set' }"
+            @click="mode = 'savings-set'"
+          >🎯 Копилка</button>
         </div>
       </div>
 
       <!-- Сумма -->
       <div class="field">
-        <label>{{ mode === 'set' ? '💵 Новый баланс, ₽' : '💵 Сумма, ₽' }}</label>
+        <label>{{ amountLabel }}</label>
         <input
           v-model="amount"
           type="number"
@@ -202,14 +280,27 @@ function close() {
 
       <!-- Превью -->
       <div v-if="preview !== null" class="preview">
-        <span class="pv-label">Станет:</span>
-        <span class="pv-value" :class="preview < 0 ? 'negative' : 'positive'">
-          {{ fmt(preview) }} ₽
-        </span>
-        <span v-if="preview < 0" class="pv-warn">⚠️ Отрицательный баланс</span>
+        <div class="pv-row">
+          <span class="pv-label">Кошелёк:</span>
+          <span
+            class="pv-value"
+            :class="preview.balance < 0 ? 'negative' : 'positive'"
+          >{{ fmt(preview.balance) }} ₽</span>
+        </div>
+        <div class="pv-row">
+          <span class="pv-label">Копилка:</span>
+          <span
+            class="pv-value"
+            :class="preview.savings < 0 ? 'negative' : 'positive'"
+          >{{ fmt(preview.savings) }} ₽</span>
+        </div>
+        <div
+          v-if="preview.balance < 0 || preview.savings < 0"
+          class="pv-warn"
+        >⚠️ Отрицательное значение</div>
       </div>
 
-      <!-- ✅ Последние операции -->
+      <!-- Последние операции -->
       <div v-if="recentOps.length > 0" class="recent">
         <div class="recent-title">Последние операции {{ user }}</div>
         <div class="recent-list">
@@ -260,7 +351,7 @@ function close() {
     align-items: baseline;
     gap: 8px;
 
-    &.subtle { opacity: 0.8; }
+    &.subtle { opacity: 0.75; }
   }
 
   .ci-label {
@@ -271,12 +362,14 @@ function close() {
 
   .ci-value {
     font-family: var(--mono);
-    font-size: 17px;
+    font-size: 15px;
     font-weight: 800;
     color: #16a34a;
 
+    &.savings { color: #0891b2; }
+
     &.subtle {
-      font-size: 13px;
+      font-size: 12px;
       color: var(--muted);
     }
   }
@@ -353,6 +446,11 @@ function close() {
   background: #f1f5f9;
   border-radius: 10px;
 
+  &.secondary {
+    margin-top: 6px;
+    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(8, 145, 178, 0.08));
+  }
+
   button {
     padding: 9px 8px;
     border: none;
@@ -372,17 +470,27 @@ function close() {
       box-shadow: 0 4px 12px -4px rgba(59, 130, 246, 0.6);
     }
   }
+
+  &.secondary button.active {
+    background: linear-gradient(135deg, #10b981, #059669);
+    box-shadow: 0 4px 12px -4px rgba(16, 185, 129, 0.6);
+  }
 }
 
 .preview {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: 4px;
   padding: 10px 14px;
   border-radius: 10px;
   background: rgba(148, 163, 184, 0.08);
   border: 1px dashed var(--border);
-  flex-wrap: wrap;
+
+  .pv-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+  }
 
   .pv-label {
     font-size: 11.5px;
@@ -394,7 +502,7 @@ function close() {
 
   .pv-value {
     font-family: var(--mono);
-    font-size: 16px;
+    font-size: 15px;
     font-weight: 800;
 
     &.positive { color: #16a34a; }
@@ -405,10 +513,11 @@ function close() {
     font-size: 11.5px;
     color: #d97706;
     font-weight: 700;
+    text-align: center;
+    margin-top: 2px;
   }
 }
 
-/* ✅ Последние операции */
 .recent {
   display: flex;
   flex-direction: column;
