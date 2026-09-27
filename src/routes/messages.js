@@ -28,7 +28,7 @@ function rowToMessage(row, reactionsMap) {
     pinnedAt: row.pinned_at,
     replyTo: row.reply_to,
     payload: row.payload ? JSON.parse(row.payload) : null,
-    reactions,   // [{ emoji, users: ['Сергей'] }]
+    reactions,
   };
 }
 
@@ -48,7 +48,6 @@ function loadReactionsForMessages(ids) {
     map[r.message_id][r.emoji].add(r.user);
   }
 
-  // Преобразуем Set → массив, объект → массив
   const result = {};
   for (const [msgId, byEmoji] of Object.entries(map)) {
     result[msgId] = Object.entries(byEmoji).map(([emoji, users]) => ({
@@ -72,6 +71,17 @@ const listByUserStmt = db.prepare(`
       OR (from_user = @peer AND to_user = @user))
     AND deleted_at IS NULL
   ORDER BY created_at ASC
+  LIMIT @limit
+`);
+
+// ✅ Пагинация: сообщения ДО указанной даты
+const listByUserBeforeStmt = db.prepare(`
+  SELECT * FROM messages
+  WHERE ((from_user = @user AND to_user = @peer)
+      OR (from_user = @peer AND to_user = @user))
+    AND deleted_at IS NULL
+    AND created_at < @before
+  ORDER BY created_at DESC
   LIMIT @limit
 `);
 
@@ -105,8 +115,8 @@ const addReactionStmt = db.prepare(`
   INSERT OR IGNORE INTO message_reactions (message_id, user, emoji, created_at)
   VALUES (@messageId, @user, @emoji, @createdAt)
 `);
-const removeReactionStmt = db.prepare(`
-  DELETE FROM message_reactions WHERE message_id = ? AND user = ? AND emoji = ?
+const clearUserReactionsStmt = db.prepare(`
+  DELETE FROM message_reactions WHERE message_id = ? AND user = ?
 `);
 const getAllReactionsStmt = db.prepare(`
   SELECT message_id, user, emoji FROM message_reactions
@@ -159,27 +169,16 @@ router.post('/heartbeat', requireAuth, (req, res) => {
 
 // ============================================================
 // POST /api/messages/typing
-// body: { to: 'Саша', typing: true }
 // ============================================================
 router.post('/typing', requireAuth, (req, res) => {
   try {
     const me = req.user;
     const { to, typing } = req.body ?? {};
-
     if (!to || !USERS.includes(to)) {
       return res.status(400).json({ ok: false, error: 'to обязателен' });
     }
-
     const io = req.app.get('io');
-    if (io) {
-      io.emit('typing:update', {
-        from: me,
-        to,
-        typing: !!typing,
-        at: new Date().toISOString(),
-      });
-    }
-
+    if (io) io.emit('typing:update', { from: me, to, typing: !!typing });
     res.json({ ok: true });
   } catch (err) {
     res.status(500).json({ ok: false, error: err.message });
@@ -246,13 +245,15 @@ router.get('/unread', requireAuth, (req, res) => {
 });
 
 // ============================================================
-// GET /api/messages?peer=Саша&limit=200
+// GET /api/messages?peer=Саша&limit=50&before=ISO
+// ✅ Пагинация: если передан before — грузим сообщения до этой даты
 // ============================================================
 router.get('/', requireAuth, (req, res) => {
   try {
     const me = req.user;
     const peer = String(req.query.peer || '').trim();
-    const limit = Math.min(Number(req.query.limit) || 200, 500);
+    const limit = Math.min(Number(req.query.limit) || 50, 200);
+    const before = String(req.query.before || '').trim();
 
     if (!peer || !USERS.includes(peer)) {
       return res.status(400).json({ ok: false, error: 'peer обязателен' });
@@ -261,10 +262,29 @@ router.get('/', requireAuth, (req, res) => {
       return res.status(400).json({ ok: false, error: 'Нельзя писать самому себе' });
     }
 
-    const rows = listByUserStmt.all({ user: me, peer, limit });
+    let rows;
+    let hasMore = false;
+
+    if (before) {
+      // ✅ Грузим N сообщений ДО даты, в порядке по возрастанию для отображения
+      const fetched = listByUserBeforeStmt.all({ user: me, peer, before, limit: limit + 1 });
+      hasMore = fetched.length > limit;
+      rows = fetched.slice(0, limit).reverse();
+    } else {
+      // Первая загрузка: последние N сообщений
+      const fetched = listByUserStmt.all({ user: me, peer, limit: 500 });
+      const sliced = fetched.slice(-limit);
+      hasMore = fetched.length > limit;
+      rows = sliced;
+    }
+
     const reactionsMap = loadReactionsForMessages(rows.map(r => r.id));
 
-    res.json({ ok: true, messages: rows.map(r => rowToMessage(r, reactionsMap)) });
+    res.json({
+      ok: true,
+      messages: rows.map(r => rowToMessage(r, reactionsMap)),
+      hasMore,
+    });
   } catch (err) {
     console.error('[messages] GET ошибка:', err.message);
     res.status(500).json({ ok: false, error: err.message });
@@ -311,7 +331,6 @@ router.post('/', requireAuth, (req, res) => {
     const io = req.app.get('io');
     if (io) {
       io.emit('message:new', saved);
-      // Сброс typing у отправителя
       io.emit('typing:update', { from: me, to, typing: false });
     }
 
@@ -324,7 +343,10 @@ router.post('/', requireAuth, (req, res) => {
 
 // ============================================================
 // POST /api/messages/:id/reaction
-// body: { emoji: '❤️' }
+// ✅ В Telegram-стиле: у пользователя одна реакция на сообщение.
+//    - Нет реакции → добавляем emoji
+//    - Уже emoji, который прислали → удаляем (toggle off)
+//    - Другой emoji → заменяем (сначала чистим все реакции юзера, потом ставим новую)
 // ============================================================
 router.post('/:id/reaction', requireAuth, (req, res) => {
   try {
@@ -343,22 +365,31 @@ router.post('/:id/reaction', requireAuth, (req, res) => {
       return res.status(403).json({ ok: false, error: 'Нет доступа' });
     }
 
-    // Проверим, уже стоит ли реакция
-    const existing = db.prepare(`
-      SELECT 1 FROM message_reactions
-      WHERE message_id = ? AND user = ? AND emoji = ?
-    `).get(id, me, emoji);
+    // Текущая реакция юзера
+    const current = db.prepare(`
+      SELECT emoji FROM message_reactions
+      WHERE message_id = ? AND user = ?
+    `).get(id, me);
 
-    if (existing) {
-      removeReactionStmt.run(id, me, emoji);
-    } else {
+    const tx = db.transaction(() => {
+      // Всегда чистим все реакции пользователя на это сообщение
+      clearUserReactionsStmt.run(id, me);
+
+      // Если была та же самая реакция — toggle off (не добавляем)
+      if (current && current.emoji === emoji) {
+        return false; // removed
+      }
+
       addReactionStmt.run({
         messageId: id,
         user: me,
         emoji,
         createdAt: new Date().toISOString(),
       });
-    }
+      return true; // added or replaced
+    });
+
+    tx();
 
     const reactions = buildReactionsFor(id);
 
@@ -435,12 +466,8 @@ router.patch('/:id', requireAuth, (req, res) => {
 
     const row = getMsgStmt.get(id);
     if (!row) return res.status(404).json({ ok: false, error: 'Не найдено' });
-    if (row.from_user !== me) {
-      return res.status(403).json({ ok: false, error: 'Только автор' });
-    }
-    if (row.deleted_at) {
-      return res.status(400).json({ ok: false, error: 'Удалено' });
-    }
+    if (row.from_user !== me) return res.status(403).json({ ok: false, error: 'Только автор' });
+    if (row.deleted_at) return res.status(400).json({ ok: false, error: 'Удалено' });
 
     const cleanText = String(text ?? '').trim().slice(0, 2000);
     if (!cleanText) return res.status(400).json({ ok: false, error: 'Текст пуст' });
@@ -501,13 +528,10 @@ router.post('/:id/pin', requireAuth, (req, res) => {
     if (row.from_user !== me && row.to_user !== me) {
       return res.status(403).json({ ok: false, error: 'Нет доступа' });
     }
-    if (row.deleted_at) {
-      return res.status(400).json({ ok: false, error: 'Удалено' });
-    }
+    if (row.deleted_at) return res.status(400).json({ ok: false, error: 'Удалено' });
 
     const wasPinned = !!row.pinned_at;
     const pinnedAt = wasPinned ? null : new Date().toISOString();
-
     db.prepare('UPDATE messages SET pinned_at = ? WHERE id = ?').run(pinnedAt, id);
 
     const updated = rowToMessage(getMsgStmt.get(id), loadReactionsForMessages([id]));

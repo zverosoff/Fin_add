@@ -8,6 +8,7 @@ import { playIncomingMessage } from '@/composables/useNotificationSound';
 
 const USERS = ['Сергей', 'Саша'];
 const TYPING_TIMEOUT = 3000;
+const PAGE_SIZE = 50;
 
 export const useMessagesStore = defineStore('messages', () => {
   const auth = useAuthStore();
@@ -27,7 +28,6 @@ export const useMessagesStore = defineStore('messages', () => {
     'Саша':   null,
   });
 
-  // Кто печатает: { 'Саша': timestamp }
   const typing = ref({
     'Сергей': 0,
     'Саша':   0,
@@ -36,8 +36,12 @@ export const useMessagesStore = defineStore('messages', () => {
   const online = ref([]);
   const loaded = ref(false);
   const loading = ref(false);
+  const hasMore = ref({ 'Сергей': true, 'Саша': true });
+  const loadingMore = ref({ 'Сергей': false, 'Саша': false });
 
-  // ✅ Живое время: tick каждый 30 сек для реактивности «N мин назад»
+  // Первое непрочитанное — для разделителя
+  const firstUnreadId = ref({ 'Сергей': null, 'Саша': null });
+
   const tick = ref(0);
   setInterval(() => { tick.value++; }, 30 * 1000);
 
@@ -53,28 +57,17 @@ export const useMessagesStore = defineStore('messages', () => {
     return USERS.find(u => u !== me) || 'Саша';
   }
 
-  function isOnline(user) {
-    return online.value.includes(user);
-  }
-
-  function lastSeen(user) {
-    return presence.value[user];
-  }
-
+  function isOnline(user) { return online.value.includes(user); }
+  function lastSeen(user) { return presence.value[user]; }
   function isTyping(user) {
-    // ✅ Проверяем, что timestamp свежий (не старше 3с)
-    tick.value; // зависимость для реактивности
+    tick.value;
     return Date.now() - typing.value[user] < TYPING_TIMEOUT;
   }
 
-  function messagesWith(peer) {
-    return messages.value[peer] || [];
-  }
-
+  function messagesWith(peer) { return messages.value[peer] || []; }
   function pinnedWith(peer) {
     return (messages.value[peer] || []).filter(m => m.pinnedAt && !m.deletedAt);
   }
-
   function messageById(id) {
     for (const peer of Object.keys(messages.value)) {
       const m = messages.value[peer].find(x => x.id === id);
@@ -102,11 +95,47 @@ export const useMessagesStore = defineStore('messages', () => {
     }
   }
 
-  async function loadHistory(peer, limit = 200) {
-    const { data } = await api.get('/messages', { params: { peer, limit } });
+  // ✅ Загрузка с учётом пагинации: если есть before — подгружаем ещё
+  async function loadHistory(peer, before = null) {
+    const params = { peer, limit: PAGE_SIZE };
+    if (before) params.before = before;
+
+    const { data } = await api.get('/messages', { params });
     if (!data.ok) throw new Error(data.error);
-    messages.value[peer] = data.messages;
+
+    if (before) {
+      // Подгрузили старые — добавляем В НАЧАЛО
+      const existing = messages.value[peer] || [];
+      messages.value[peer] = [...data.messages, ...existing];
+      hasMore.value[peer] = data.hasMore;
+    } else {
+      // Первая загрузка
+      messages.value[peer] = data.messages;
+      hasMore.value[peer] = data.hasMore;
+
+      // Запоминаем первое непрочитанное для разделителя
+      const firstUnread = data.messages.find(
+        m => m.to === auth.user && !m.readAt
+      );
+      firstUnreadId.value[peer] = firstUnread?.id || null;
+    }
+
     return data.messages;
+  }
+
+  // ✅ Загрузка старых сообщений (скролл вверх)
+  async function loadMore(peer) {
+    if (!hasMore.value[peer] || loadingMore.value[peer]) return;
+    const list = messages.value[peer] || [];
+    if (list.length === 0) return;
+
+    loadingMore.value[peer] = true;
+    try {
+      const oldest = list[0].createdAt;
+      await loadHistory(peer, oldest);
+    } finally {
+      loadingMore.value[peer] = false;
+    }
   }
 
   async function loadUnread() {
@@ -134,14 +163,11 @@ export const useMessagesStore = defineStore('messages', () => {
   let typingStopTimer = null;
 
   async function sendTyping(to, isTyping) {
-    try {
-      await api.post('/messages/typing', { to, typing: isTyping });
-    } catch (e) { /* ignore */ }
+    try { await api.post('/messages/typing', { to, typing: isTyping }); } catch (e) {}
   }
 
   function notifyTypingStart(to) {
     const now = Date.now();
-    // не чаще, чем раз в 1.5 сек
     if (now - lastTypingSent > 1500) {
       lastTypingSent = now;
       sendTyping(to, true);
@@ -195,7 +221,7 @@ export const useMessagesStore = defineStore('messages', () => {
   }
 
   // ============================================================
-  // Удаление (soft)
+  // Удаление
   // ============================================================
   async function remove(id) {
     const { data } = await api.delete(`/messages/${id}`);
@@ -218,16 +244,40 @@ export const useMessagesStore = defineStore('messages', () => {
   }
 
   // ============================================================
-  // Реакции
+  // ✅ Реакции (оптимистично)
   // ============================================================
   async function toggleReaction(id, emoji) {
-    const { data } = await api.post(`/messages/${id}/reaction`, { emoji });
-    if (!data.ok) throw new Error(data.error);
-
     const msg = messageById(id);
-    if (msg) msg.reactions = data.reactions;
+    if (!msg) return;
 
-    return data;
+    // Оптимистично: сохраним текущие реакции
+    const previousReactions = JSON.parse(JSON.stringify(msg.reactions || []));
+    const currentUserReaction = (msg.reactions || [])
+      .find(r => r.users.includes(auth.user))?.emoji;
+
+    // Локально применяем правило Telegram: одна реакция на юзера
+    const nextReactions = (msg.reactions || [])
+      .map(r => ({ ...r, users: r.users.filter(u => u !== auth.user) }))
+      .filter(r => r.users.length > 0);
+
+    if (currentUserReaction !== emoji) {
+      const target = nextReactions.find(r => r.emoji === emoji);
+      if (target) target.users.push(auth.user);
+      else nextReactions.push({ emoji, users: [auth.user] });
+    }
+
+    msg.reactions = nextReactions;
+
+    try {
+      const { data } = await api.post(`/messages/${id}/reaction`, { emoji });
+      if (!data.ok) throw new Error(data.error);
+      msg.reactions = data.reactions;
+      return data;
+    } catch (e) {
+      // Откат
+      msg.reactions = previousReactions;
+      throw e;
+    }
   }
 
   // ============================================================
@@ -244,11 +294,13 @@ export const useMessagesStore = defineStore('messages', () => {
   async function markAllRead(peer) {
     const { data } = await api.patch(`/messages/read-all?peer=${encodeURIComponent(peer)}`);
     if (!data.ok) throw new Error(data.error);
+
     const list = messages.value[peer] || [];
     for (const m of list) {
       if (m.to === auth.user && !m.readAt) m.readAt = data.readAt;
     }
     unread.value[peer] = 0;
+    firstUnreadId.value[peer] = null;
     return data;
   }
 
@@ -273,22 +325,17 @@ export const useMessagesStore = defineStore('messages', () => {
 
   function onIncoming(msg) {
     pushMessage(msg);
-
     if (msg.from) presence.value[msg.from] = msg.createdAt;
 
     if (msg.to === auth.user) {
-      // ✅ Звук — только если не от меня и чат не открыт/невидим
       const isChatOpen = document.body.dataset.chatOpen === 'true';
       const isHidden = document.visibilityState !== 'visible';
 
-      try { playIncomingMessage(); } catch (e) { /* ignore */ }
-
+      try { playIncomingMessage(); } catch (e) {}
       if (!isChatOpen || isHidden) {
-        try { notifyIncomingMessage(msg); } catch (e) { /* ignore */ }
+        try { notifyIncomingMessage(msg); } catch (e) {}
       }
     }
-
-    // ✅ Сбрасываем typing от отправителя
     if (msg.from) typing.value[msg.from] = 0;
   }
 
@@ -338,7 +385,6 @@ export const useMessagesStore = defineStore('messages', () => {
   }
 
   function onTyping({ from, to, typing: isTyping }) {
-    // Нас интересуют только те, кто печатает НАМ
     if (to !== auth.user) return;
     typing.value[from] = isTyping ? Date.now() : 0;
   }
@@ -354,6 +400,8 @@ export const useMessagesStore = defineStore('messages', () => {
     typing.value = { 'Сергей': 0, 'Саша': 0 };
     online.value = [];
     loaded.value = false;
+    hasMore.value = { 'Сергей': true, 'Саша': true };
+    firstUnreadId.value = { 'Сергей': null, 'Саша': null };
   }
 
   return {
@@ -365,6 +413,9 @@ export const useMessagesStore = defineStore('messages', () => {
     loaded,
     loading,
     tick,
+    hasMore,
+    loadingMore,
+    firstUnreadId,
 
     totalUnread,
 
@@ -378,6 +429,7 @@ export const useMessagesStore = defineStore('messages', () => {
 
     loadConversations,
     loadHistory,
+    loadMore,
     loadUnread,
     loadPresence,
     heartbeat,

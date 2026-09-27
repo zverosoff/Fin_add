@@ -25,22 +25,26 @@ const sending = ref(false);
 const scrollEl = ref(null);
 const inputEl = ref(null);
 
-// Контекстное меню
+// Контекстное меню + панель реакций — ОДНА панель
 const menu = ref({ open: false, x: 0, y: 0, message: null });
-
-// Панель реакций
-const reactionsPanel = ref({ open: false, x: 0, y: 0, message: null });
 
 // Режим редактирования
 const editing = ref(null);
 const editText = ref('');
 
-// Режим ответа
+// Ответ
 const replyTo = ref(null);
 
-// Мобильный viewport
+// Mobile viewport
 const panelHeight = ref('');
 const panelTop = ref('');
+
+// Пагинация — индикатор загрузки
+const loadingOlder = ref(false);
+
+// Показать кнопку «вниз»
+const showScrollDown = ref(false);
+const newBelowCount = ref(0);
 
 const me = computed(() => auth.user || 'Сергей');
 const peer = computed(() => messages.myPeer());
@@ -54,10 +58,8 @@ const pinnedLatest = computed(() =>
   [...pinned.value].sort((a, b) => new Date(b.pinnedAt) - new Date(a.pinnedAt))[0]
 );
 const totalUnread = computed(() => messages.totalUnread);
+const firstUnreadId = computed(() => messages.firstUnreadId[peer.value]);
 
-// ============================================================
-// Presence
-// ============================================================
 const peerStatusText = computed(() => {
   if (peerTyping.value) return 'печатает…';
   if (peerOnline.value) return 'в сети';
@@ -70,8 +72,7 @@ function fmtLastSeen(iso) {
   if (!iso) return 'был(а) недавно';
   const d = new Date(iso);
   const now = new Date();
-  const diffMs = now - d;
-  const diffSec = Math.floor(diffMs / 1000);
+  const diffSec = Math.floor((now - d) / 1000);
   const diffMin = Math.floor(diffSec / 60);
   const diffHours = Math.floor(diffMin / 60);
   const diffDays = Math.floor(diffHours / 24);
@@ -85,7 +86,7 @@ function fmtLastSeen(iso) {
 }
 
 // ============================================================
-// Скролл — авто только если пользователь внизу
+// Скролл
 // ============================================================
 function isNearBottom() {
   if (!scrollEl.value) return true;
@@ -100,6 +101,8 @@ function scrollToBottom(smooth = false) {
   } else {
     scrollEl.value.scrollTop = scrollEl.value.scrollHeight;
   }
+  newBelowCount.value = 0;
+  showScrollDown.value = false;
 }
 
 function scrollToMessage(id) {
@@ -108,6 +111,35 @@ function scrollToMessage(id) {
     el.scrollIntoView({ behavior: 'smooth', block: 'center' });
     el.classList.add('highlight');
     setTimeout(() => el.classList.remove('highlight'), 1200);
+  }
+}
+
+// ✅ Скролл вверх → подгрузка старых
+async function onScroll() {
+  const el = scrollEl.value;
+  if (!el) return;
+
+  // Показать/скрыть кнопку вниз
+  const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 120;
+  showScrollDown.value = !nearBottom && newBelowCount.value > 0;
+
+  // Пагинация: если вверху и есть ещё
+  if (el.scrollTop < 80 && messages.hasMore[peer.value] && !loadingOlder.value) {
+    loadingOlder.value = true;
+
+    const prevScrollHeight = el.scrollHeight;
+    const prevScrollTop = el.scrollTop;
+
+    try {
+      await messages.loadMore(peer.value);
+      await nextTick();
+      // Восстанавливаем позицию скролла (компенсация за добавленное сверху)
+      el.scrollTop = el.scrollHeight - prevScrollHeight + prevScrollTop;
+    } catch (e) {
+      console.warn('[chat] loadMore error:', e);
+    } finally {
+      loadingOlder.value = false;
+    }
   }
 }
 
@@ -121,17 +153,32 @@ async function toggle() {
     document.body.dataset.chatOpen = 'true';
     await ensureHistory();
     await nextTick();
-    scrollToBottom();
+
+    // ✅ Умный скролл: если есть непрочитанные — к первому, иначе — вниз
+    const firstUnread = firstUnreadId.value;
+    if (firstUnread) {
+      // Проверим, что он ещё не прочитан
+      const m = messages.messageById(firstUnread);
+      if (m && !m.readAt) {
+        nextTick(() => scrollToMessage(firstUnread));
+      } else {
+        scrollToBottom();
+      }
+    } else {
+      scrollToBottom();
+    }
+
     setTimeout(() => inputEl.value?.focus(), 150);
+
     try {
       await messages.markAllRead(peer.value);
       await updateBadge(messages.totalUnread);
-    } catch (e) { /* ignore */ }
+    } catch (e) {}
+
     updateViewport();
   } else {
     document.body.dataset.chatOpen = 'false';
     closeMenu();
-    closeReactions();
     messages.notifyTypingStop(peer.value);
   }
 }
@@ -143,9 +190,7 @@ async function ensureHistory() {
   try { await messages.loadHistory(peer.value); } catch (e) {}
 }
 
-function close() {
-  if (open.value) toggle();
-}
+function close() { if (open.value) toggle(); }
 
 // ============================================================
 // Отправка
@@ -153,13 +198,12 @@ function close() {
 async function send() {
   const clean = text.value.trim();
   if (!clean || sending.value) return;
-
   sending.value = true;
   try {
     await messages.send(peer.value, clean, replyTo.value?.id || null);
     text.value = '';
     replyTo.value = null;
-    try { playOutgoingMessage(); } catch (e) { /* ignore */ }
+    try { playOutgoingMessage(); } catch (e) {}
     await nextTick();
     scrollToBottom(true);
   } catch (e) {
@@ -171,19 +215,12 @@ async function send() {
 }
 
 function onInput() {
-  // ✅ Уведомляем о печати
-  if (text.value.trim()) {
-    messages.notifyTypingStart(peer.value);
-  } else {
-    messages.notifyTypingStop(peer.value);
-  }
+  if (text.value.trim()) messages.notifyTypingStart(peer.value);
+  else messages.notifyTypingStop(peer.value);
 }
 
 function onKeydown(e) {
-  if (e.key === 'Enter' && !e.shiftKey) {
-    e.preventDefault();
-    send();
-  }
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); }
   if (e.key === 'Escape') {
     if (editing.value) editing.value = null;
     else if (replyTo.value) replyTo.value = null;
@@ -192,7 +229,7 @@ function onKeydown(e) {
 }
 
 // ============================================================
-// Редактирование
+// Редактирование / Удаление / Пиннед / Ответ
 // ============================================================
 function startEdit(msg) {
   editing.value = msg;
@@ -204,10 +241,7 @@ function startEdit(msg) {
 
 async function saveEdit() {
   const clean = editText.value.trim();
-  if (!clean || clean === editing.value.text) {
-    editing.value = null;
-    return;
-  }
+  if (!clean || clean === editing.value.text) { editing.value = null; return; }
   try {
     await messages.edit(editing.value.id, clean);
     toast.success('✏️ Сообщение изменено');
@@ -218,88 +252,33 @@ async function saveEdit() {
   }
 }
 
-function cancelEdit() {
-  editing.value = null;
-  editText.value = '';
-}
+function cancelEdit() { editing.value = null; editText.value = ''; }
 
-// ============================================================
-// Удаление
-// ============================================================
 async function removeMsg(msg) {
   closeMenu();
   if (!confirm('Удалить сообщение?')) return;
   try {
     await messages.remove(msg.id);
     toast.info('🗑 Сообщение удалено');
-  } catch (e) {
-    toast.error('Ошибка: ' + e.message);
-  }
+  } catch (e) { toast.error('Ошибка: ' + e.message); }
 }
 
-// ============================================================
-// Пиннед
-// ============================================================
 async function togglePin(msg) {
   closeMenu();
   try {
     const res = await messages.togglePin(msg.id);
     toast.info(res.pinned ? '📌 Закреплено' : '📌 Откреплено');
-  } catch (e) {
-    toast.error('Ошибка: ' + e.message);
-  }
+  } catch (e) { toast.error('Ошибка: ' + e.message); }
 }
 
-// ============================================================
-// Реакции
-// ============================================================
-async function addReaction(msg, emoji) {
-  try {
-    await messages.toggleReaction(msg.id, emoji);
-    try { playReaction(); } catch (e) {}
-  } catch (e) {
-    toast.error('Ошибка: ' + e.message);
-  }
-}
-
-function openReactions(e, msg) {
-  if (e.cancelable) e.preventDefault();
-  e.stopPropagation();
-  closeMenu();
-
-  let x = e.clientX || 0;
-  let y = e.clientY || 0;
-  if (e.touches?.[0]) { x = e.touches[0].clientX; y = e.touches[0].clientY; }
-  if (e.changedTouches?.[0]) { x = e.changedTouches[0].clientX; y = e.changedTouches[0].clientY; }
-
-  const W = 320, H = 60;
-  x = Math.min(x, window.innerWidth - W - 8);
-  y = Math.min(y, window.innerHeight - H - 8);
-  x = Math.max(8, x);
-  y = Math.max(8, y);
-
-  reactionsPanel.value = { open: true, x, y, message: msg };
-}
-
-function closeReactions() {
-  reactionsPanel.value.open = false;
-  reactionsPanel.value.message = null;
-}
-
-// ============================================================
-// Ответ
-// ============================================================
 function startReply(msg) {
   replyTo.value = msg;
   editing.value = null;
   closeMenu();
-  closeReactions();
   nextTick(() => inputEl.value?.focus());
 }
 
-function cancelReply() {
-  replyTo.value = null;
-}
+function cancelReply() { replyTo.value = null; }
 
 function getQuoteText(id) {
   const m = messages.messageById(id);
@@ -310,6 +289,17 @@ function getQuoteText(id) {
 }
 
 // ============================================================
+// Реакции
+// ============================================================
+async function addReaction(msg, emoji) {
+  try {
+    await messages.toggleReaction(msg.id, emoji);
+    try { playReaction(); } catch (e) {}
+  } catch (e) { toast.error('Ошибка: ' + e.message); }
+  closeMenu();
+}
+
+// ============================================================
 // Копирование
 // ============================================================
 async function copyMessage(msg) {
@@ -317,13 +307,11 @@ async function copyMessage(msg) {
   try {
     await navigator.clipboard.writeText(msg.text);
     toast.success('📋 Скопировано');
-  } catch (e) {
-    toast.error('Не удалось скопировать');
-  }
+  } catch (e) { toast.error('Не удалось скопировать'); }
 }
 
 // ============================================================
-// ✅ Контекстное меню с защитой
+// Контекстное меню + панель реакций — ОДНА панель
 // ============================================================
 let longPressTimer = null;
 let longPressStart = null;
@@ -340,8 +328,9 @@ function openMenu(e, msg) {
   if (e.touches?.[0]) { x = e.touches[0].clientX; y = e.touches[0].clientY; }
   if (e.changedTouches?.[0]) { x = e.changedTouches[0].clientX; y = e.changedTouches[0].clientY; }
 
-  const menuW = 210;
-  const menuH = 260;
+  // Меню+реакции: ширина 340, высота 400
+  const menuW = 340;
+  const menuH = 400;
   x = Math.min(x, window.innerWidth - menuW - 8);
   y = Math.min(y, window.innerHeight - menuH - 8);
   x = Math.max(8, x);
@@ -362,6 +351,12 @@ function closeMenu() {
 
 const menuIsMine = computed(() => menu.value.message?.from === me.value);
 
+const currentUserReactionOn = computed(() => {
+  const m = menu.value.message;
+  if (!m) return null;
+  return (m.reactions || []).find(r => r.users.includes(me.value))?.emoji || null;
+});
+
 // ============================================================
 // Long-press
 // ============================================================
@@ -377,8 +372,7 @@ function onTouchStart(e, msg) {
   longPressTimer = setTimeout(() => {
     longPressTimer = null;
     longPressTriggered = true;
-    // Сначала панель реакций
-    openReactions({
+    openMenu({
       clientX: longPressStart.x,
       clientY: longPressStart.y,
       cancelable: false,
@@ -408,7 +402,6 @@ function onTouchEnd(e) {
     longPressTimer = null;
   }
   pointerStillDown = false;
-
   if (longPressTriggered) {
     if (e && e.cancelable) e.preventDefault();
     e && e.stopPropagation();
@@ -438,12 +431,10 @@ function fmtDay(iso) {
   const today = new Date();
   const yest = new Date();
   yest.setDate(today.getDate() - 1);
-
   const same = (a, b) =>
     a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate();
-
   if (same(d, today)) return 'Сегодня';
   if (same(d, yest)) return 'Вчера';
   return d.toLocaleDateString('ru-RU', { day: '2-digit', month: 'long' });
@@ -463,11 +454,7 @@ function isSameDay(a, b) {
 let heartbeatTimer = null;
 
 function updateViewport() {
-  if (window.innerWidth > 700) {
-    panelHeight.value = '';
-    panelTop.value = '';
-    return;
-  }
+  if (window.innerWidth > 700) { panelHeight.value = ''; panelTop.value = ''; return; }
   const vv = window.visualViewport;
   if (!vv) return;
   panelHeight.value = vv.height + 'px';
@@ -494,19 +481,22 @@ function onBeforeUnload() {
   messages.notifyTypingStop(peer.value);
 }
 
-function onViewportResize() {
-  updateViewport();
-}
+function onViewportResize() { updateViewport(); }
 
 // ============================================================
-// ✅ Авто-скролл: только если пользователь был внизу
+// Автоскролл: только если пользователь был внизу
 // ============================================================
 watch(history, (newList, oldList) => {
   if (!open.value) return;
-  const wasNearBottom = isNearBottom();
-  // Если появилось новое сообщение и мы были внизу — скроллим
-  if (newList.length > (oldList?.length || 0) && wasNearBottom) {
+  const added = newList.length > (oldList?.length || 0);
+  if (!added) return;
+
+  if (isNearBottom()) {
     nextTick(() => scrollToBottom(true));
+  } else {
+    // Пользователь наверху — увеличим счётчик «новых ниже»
+    newBelowCount.value++;
+    showScrollDown.value = true;
   }
 }, { deep: false });
 
@@ -515,7 +505,7 @@ onMounted(async () => {
     await messages.loadPresence();
     await messages.loadUnread();
     await updateBadge(messages.totalUnread);
-  } catch (e) { /* ignore */ }
+  } catch (e) {}
 
   messages.heartbeat();
   heartbeatTimer = setInterval(() => {
@@ -524,7 +514,6 @@ onMounted(async () => {
 
   document.addEventListener('visibilitychange', onVisibilityChange);
   window.addEventListener('beforeunload', onBeforeUnload);
-
   if (window.visualViewport) {
     window.visualViewport.addEventListener('resize', onViewportResize);
     window.visualViewport.addEventListener('scroll', onViewportResize);
@@ -575,10 +564,7 @@ watch(open, (v) => { if (v) askNotifications(); });
     <div
       v-if="open"
       class="chat-panel"
-      :style="{
-        height: panelHeight || undefined,
-        top: panelTop || undefined,
-      }"
+      :style="{ height: panelHeight || undefined, top: panelTop || undefined }"
       @click.stop
     >
       <!-- Header -->
@@ -595,10 +581,7 @@ watch(open, (v) => { if (v) askNotifications(); });
           </div>
           <div class="chat-user-info">
             <div class="chat-user-name">{{ peer }}</div>
-            <div
-              class="chat-user-status"
-              :class="{ online: peerOnline, typing: peerTyping }"
-            >
+            <div class="chat-user-status" :class="{ online: peerOnline, typing: peerTyping }">
               {{ peerStatusText }}
             </div>
           </div>
@@ -629,7 +612,16 @@ watch(open, (v) => { if (v) askNotifications(); });
       </div>
 
       <!-- Body -->
-      <div ref="scrollEl" class="chat-body">
+      <div ref="scrollEl" class="chat-body" @scroll.passive="onScroll">
+        <!-- Пагинация индикатор -->
+        <div v-if="loadingOlder" class="loading-older">
+          <span class="spinner"></span> Загрузка…
+        </div>
+        <div
+          v-else-if="!messages.hasMore[peer] && history.length > 0"
+          class="history-start"
+        >Начало истории</div>
+
         <div v-if="history.length === 0" class="chat-empty">
           <div class="chat-empty-icon">💬</div>
           <div class="chat-empty-text">Пока нет сообщений с {{ peer }}</div>
@@ -642,6 +634,14 @@ watch(open, (v) => { if (v) askNotifications(); });
               v-if="i === 0 || !isSameDay(history[i - 1].createdAt, m.createdAt)"
               class="chat-day"
             >{{ fmtDay(m.createdAt) }}</div>
+
+            <!-- ✅ Разделитель «Новые сообщения» -->
+            <div
+              v-if="m.id === firstUnreadId && !m.readAt"
+              class="unread-divider"
+            >
+              <span>Новые сообщения</span>
+            </div>
 
             <div
               class="chat-msg"
@@ -656,7 +656,6 @@ watch(open, (v) => { if (v) askNotifications(); });
               <div class="chat-bubble" :class="{ 'is-pinned': m.pinnedAt }">
                 <div v-if="m.pinnedAt" class="bubble-pin">📌</div>
 
-                <!-- Reply quote -->
                 <div
                   v-if="m.replyTo"
                   class="bubble-reply"
@@ -666,8 +665,21 @@ watch(open, (v) => { if (v) askNotifications(); });
                   <div class="br-text">{{ getQuoteText(m.replyTo) }}</div>
                 </div>
 
-                <!-- ✅ Текст с ссылками/markdown -->
                 <div class="chat-text" v-html="linkify(m.text)"></div>
+
+                <!-- ✅ Реакции ВНУТРИ bubble (как в Telegram) -->
+                <div v-if="m.reactions?.length" class="bubble-reactions">
+                  <button
+                    v-for="r in m.reactions"
+                    :key="r.emoji"
+                    class="reaction-chip"
+                    :class="{ mine: r.users.includes(me) }"
+                    @click.stop="addReaction(m, r.emoji)"
+                  >
+                    <span class="rc-emoji">{{ r.emoji }}</span>
+                    <span v-if="r.users.length > 1" class="rc-count">{{ r.users.length }}</span>
+                  </button>
+                </div>
 
                 <div class="chat-meta">
                   <span v-if="m.editedAt" class="chat-edited">изм.</span>
@@ -679,24 +691,24 @@ watch(open, (v) => { if (v) askNotifications(); });
                   >{{ m.readAt ? '✓✓' : '✓' }}</span>
                 </div>
               </div>
-
-              <!-- ✅ Реакции -->
-              <div v-if="m.reactions?.length" class="msg-reactions">
-                <button
-                  v-for="r in m.reactions"
-                  :key="r.emoji"
-                  class="reaction-chip"
-                  :class="{ mine: r.users.includes(me) }"
-                  @click.stop="addReaction(m, r.emoji)"
-                >
-                  <span class="rc-emoji">{{ r.emoji }}</span>
-                  <span class="rc-count">{{ r.users.length }}</span>
-                </button>
-              </div>
             </div>
           </template>
         </template>
       </div>
+
+      <!-- Кнопка «вниз» -->
+      <Transition name="scroll-down">
+        <button
+          v-if="showScrollDown"
+          class="scroll-down-btn"
+          @click="scrollToBottom(true)"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="18" height="18">
+            <path d="M12 5v14M19 12l-7 7-7-7" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span v-if="newBelowCount > 0" class="sd-badge">{{ newBelowCount }}</span>
+        </button>
+      </Transition>
 
       <!-- Reply preview -->
       <div v-if="replyTo" class="chat-reply-preview">
@@ -746,11 +758,7 @@ watch(open, (v) => { if (v) askNotifications(); });
             @input="onInput"
             @keydown="onKeydown"
           />
-          <button
-            class="chat-send"
-            :disabled="!text.trim() || sending"
-            @click="send"
-          >
+          <button class="chat-send" :disabled="!text.trim() || sending" @click="send">
             <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
               <path d="M2.01 21 23 12 2.01 3 2 10l15 2-15 2z"/>
             </svg>
@@ -760,38 +768,7 @@ watch(open, (v) => { if (v) askNotifications(); });
     </div>
   </Transition>
 
-  <!-- ✅ Панель реакций -->
-  <Teleport to="body">
-    <Transition name="ctx-menu">
-      <div
-        v-if="reactionsPanel.open"
-        class="ctx-backdrop"
-        @click="closeReactions"
-        @contextmenu.prevent="closeReactions"
-      >
-        <div
-          class="reactions-panel"
-          :style="{ left: reactionsPanel.x + 'px', top: reactionsPanel.y + 'px' }"
-          @click.stop
-          @touchstart.stop
-          @touchend.stop
-        >
-          <button
-            v-for="e in ['❤️','👍','🔥','😂','😮','😢','👎','🎉']"
-            :key="e"
-            class="reaction-btn"
-            @click="addReaction(reactionsPanel.message, e); closeReactions()"
-          >{{ e }}</button>
-
-          <button class="reaction-btn reaction-btn-more" @click="openMenu({ clientX: reactionsPanel.x, clientY: reactionsPanel.y + 60, cancelable: false, preventDefault: () => {}, stopPropagation: () => {} }, reactionsPanel.message); closeReactions()" title="Ещё">
-            ⋯
-          </button>
-        </div>
-      </div>
-    </Transition>
-  </Teleport>
-
-  <!-- Контекстное меню -->
+  <!-- ✅ Объединённая панель: реакции + контекстное меню -->
   <Teleport to="body">
     <Transition name="ctx-menu">
       <div
@@ -808,6 +785,18 @@ watch(open, (v) => { if (v) askNotifications(); });
           @touchend.stop
           @contextmenu.prevent
         >
+          <!-- ✅ Строка с реакциями -->
+          <div class="reactions-row">
+            <button
+              v-for="e in ['❤️','👍','🔥','😂','😮','😢','👎','🎉']"
+              :key="e"
+              class="reaction-btn"
+              :class="{ active: currentUserReactionOn === e }"
+              @click="addReaction(menu.message, e)"
+            >{{ e }}</button>
+          </div>
+
+          <!-- Пункты меню -->
           <button class="ctx-item" @click="startReply(menu.message)">
             <span class="ctx-icon">↩️</span>
             <span class="ctx-label">Ответить</span>
@@ -921,9 +910,7 @@ $chat-font-lg: 13px;
 /* Header */
 .chat-head {
   position: relative;
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  display: flex; align-items: center; gap: 6px;
   padding: 10px 12px;
   background: rgba(249, 250, 251, 0.96);
   backdrop-filter: blur(20px) saturate(180%);
@@ -1071,6 +1058,54 @@ $chat-font-lg: 13px;
   gap: 3px;
   background: #f2f2f7;
   -webkit-overflow-scrolling: touch;
+  position: relative;
+}
+
+/* ✅ Пагинация */
+.loading-older {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  color: #8e8e93;
+  font-size: $chat-font-sm;
+}
+
+.spinner {
+  width: 12px; height: 12px;
+  border: 2px solid rgba(120, 120, 128, 0.25);
+  border-top-color: #007aff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.history-start {
+  text-align: center;
+  padding: 8px;
+  color: #8e8e93;
+  font-size: $chat-font-sm;
+  opacity: 0.7;
+}
+
+/* ✅ Разделитель «Новые» */
+.unread-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  color: #007aff;
+  font-size: $chat-font-sm;
+  font-weight: 600;
+
+  &::before, &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: rgba(0, 122, 255, 0.35);
+  }
 }
 
 .chat-empty {
@@ -1123,7 +1158,7 @@ $chat-font-lg: 13px;
       border-radius: 16px 16px 4px 16px;
       box-shadow: 0 1px 2px rgba(0, 122, 255, 0.3);
     }
-    .chat-meta { color: rgba(255, 255, 255, 0.85); }
+    .chat-meta { color: rgba(255, 255, 255, 0.7); }
   }
 
   &.highlight .chat-bubble { animation: msgHighlight 1.2s ease-out; }
@@ -1159,7 +1194,7 @@ $chat-font-lg: 13px;
   font-size: $chat-font;
 }
 
-/* ✅ Стилизация ссылок/markdown */
+/* Ссылки/markdown */
 .chat-text :deep(a.md-link),
 .chat-text :deep(a.md-phone) {
   color: inherit;
@@ -1217,69 +1252,136 @@ $chat-font-lg: 13px;
   font-weight: 500;
 }
 
-.chat-meta {
-  display: flex; align-items: center; justify-content: flex-end;
-  gap: 3px;
-  font-size: $chat-font-sm;
-  font-weight: 500;
-  margin-top: 2px;
-  line-height: 1;
-}
-
-.chat-edited { font-style: italic; opacity: 0.85; font-size: 9px; }
-
-.chat-time {
-  font-family: -apple-system, "SF Pro Text", var(--mono);
-  opacity: 0.9;
-  font-size: $chat-font-sm;
-}
-
-.chat-read {
-  font-size: $chat-font;
-  opacity: 0.7;
-  margin-left: 2px;
-  &.read { opacity: 1; }
-}
-
-/* ✅ Реакции */
-.msg-reactions {
+/* ✅ Реакции ВНУТРИ bubble — как в Telegram */
+.bubble-reactions {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px;
-  margin-top: 3px;
-  padding: 0 2px;
+  gap: 3px;
+  margin-top: 4px;
+  margin-bottom: 1px;
+  padding: 3px 6px;
+  margin-left: -6px;
+  margin-right: -6px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.05);
+  width: fit-content;
+  max-width: 100%;
+
+  .chat-msg.out & {
+    background: rgba(255, 255, 255, 0.18);
+  }
 }
 
-.chat-msg.out .msg-reactions { justify-content: flex-end; }
+.chat-msg.out .bubble-reactions {
+  margin-left: auto;
+  margin-right: -6px;
+}
 
 .reaction-chip {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
-  padding: 2px 7px;
-  border-radius: 999px;
-  border: 1px solid rgba(60, 60, 67, 0.18);
-  background: #ffffff;
+  gap: 2px;
+  padding: 0;
+  border: none;
+  background: transparent;
   cursor: pointer;
   font-family: inherit;
-  transition: all 0.12s;
+  transition: transform 0.12s;
 
-  &:hover {
-    background: rgba(0, 122, 255, 0.1);
-    border-color: #007aff;
-  }
-
-  &.mine {
-    background: rgba(0, 122, 255, 0.15);
-    border-color: #007aff;
-  }
+  &:hover { transform: scale(1.15); }
 }
 
-.rc-emoji { font-size: 11px; line-height: 1; }
+.rc-emoji { font-size: 12px; line-height: 1; }
 .rc-count {
   font-size: $chat-font-sm;
   font-weight: 700;
   color: #007aff;
+
+  .chat-msg.out & { color: #ffffff; }
+}
+
+/* ✅ Время сообщения — меньше и прозрачнее, но читаемое */
+.chat-meta {
+  display: flex; align-items: center; justify-content: flex-end;
+  gap: 3px;
+  font-size: 9px;
+  font-weight: 500;
+  margin-top: 2px;
+  line-height: 1;
+  opacity: 0.65;
+}
+
+.chat-edited {
+  font-style: italic;
+  font-size: 9px;
+  opacity: 0.85;
+}
+
+.chat-time {
+  font-family: -apple-system, "SF Pro Text", var(--mono);
+  font-size: 9.5px;
+  letter-spacing: 0.02em;
+}
+
+.chat-read {
+  font-size: $chat-font;
+  opacity: 0.75;
+  margin-left: 2px;
+  &.read { opacity: 1; }
+}
+
+/* Кнопка «вниз» */
+.scroll-down-btn {
+  position: absolute;
+  right: 14px;
+  bottom: calc(100% + 14px);
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid rgba(60, 60, 67, 0.15);
+  background: rgba(255, 255, 255, 0.98);
+  color: #007aff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 8px 24px -6px rgba(15, 23, 42, 0.25);
+  z-index: 20;
+  position: relative;
+  margin-bottom: 6px;
+  align-self: flex-end;
+  transition: transform 0.15s;
+
+  &:hover { transform: scale(1.08); }
+  &:active { transform: scale(0.94); }
+}
+
+.sd-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #007aff;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 122, 255, 0.5);
+}
+
+.scroll-down-enter-active,
+.scroll-down-leave-active {
+  transition: opacity 0.18s, transform 0.22s cubic-bezier(.34,1.56,.64,1);
+}
+.scroll-down-enter-from,
+.scroll-down-leave-to {
+  opacity: 0;
+  transform: translateY(8px) scale(0.9);
 }
 
 /* Reply / Edit preview */
@@ -1333,7 +1435,7 @@ $chat-font-lg: 13px;
   &:hover { background: rgba(255, 59, 48, 0.15); color: #ff3b30; }
 }
 
-/* Input */
+/* ✅ Input: ТОЧНО ТАКОЙ ЖЕ шрифт, как у сообщений */
 .chat-input-row {
   display: flex;
   align-items: flex-end;
@@ -1354,9 +1456,12 @@ $chat-font-lg: 13px;
   border: 0.5px solid rgba(60, 60, 67, 0.2);
   background: #ffffff;
   color: #000;
-  font-family: -apple-system, "SF Pro Text", inherit;
+  /* ✅ Тот же шрифт, что у .chat-text */
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
   font-size: $chat-font;
-  line-height: 1.3;
+  font-weight: 400;
+  line-height: 1.4;
+  letter-spacing: normal;
   resize: none;
   outline: none;
 
@@ -1413,16 +1518,61 @@ $chat-font-lg: 13px;
   background: rgba(0, 0, 0, 0.05);
 }
 
+/* ✅ Объединённое меню: реакции + пункты */
 .ctx-menu {
   position: absolute;
-  min-width: 170px;
+  min-width: 220px;
+  max-width: 340px;
   padding: 6px;
   background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(20px) saturate(180%);
-  border-radius: 12px;
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-radius: 14px;
   box-shadow: 0 12px 40px -8px rgba(15, 23, 42, 0.3), 0 4px 12px -4px rgba(15, 23, 42, 0.15);
   border: 0.5px solid rgba(60, 60, 67, 0.15);
   overflow: hidden;
+}
+
+/* Строка реакций сверху */
+.reactions-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px 6px 8px;
+  border-bottom: 0.5px solid rgba(60, 60, 67, 0.12);
+  margin-bottom: 4px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+
+  &::-webkit-scrollbar { display: none; }
+}
+
+.reaction-btn {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.12s, background 0.12s;
+
+  &:hover {
+    transform: scale(1.2);
+    background: rgba(0, 122, 255, 0.08);
+  }
+
+  &.active {
+    background: rgba(0, 122, 255, 0.15);
+    box-shadow: inset 0 0 0 1.5px #007aff;
+  }
+
+  &:active { transform: scale(0.9); }
 }
 
 .ctx-item {
@@ -1470,53 +1620,6 @@ $chat-font-lg: 13px;
   transform: scale(0.9);
 }
 
-/* ✅ Панель реакций */
-.reactions-panel {
-  position: absolute;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 6px 8px;
-  background: rgba(255, 255, 255, 0.98);
-  backdrop-filter: blur(20px) saturate(180%);
-  border-radius: 999px;
-  box-shadow: 0 12px 40px -8px rgba(15, 23, 42, 0.3), 0 4px 12px -4px rgba(15, 23, 42, 0.15);
-  border: 0.5px solid rgba(60, 60, 67, 0.15);
-  white-space: nowrap;
-}
-
-.reaction-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-size: 18px;
-  line-height: 1;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.12s, background 0.12s;
-
-  &:hover {
-    transform: scale(1.25);
-    background: rgba(0, 122, 255, 0.08);
-  }
-
-  &:active { transform: scale(0.9); }
-}
-
-.reaction-btn-more {
-  font-size: 16px;
-  color: #8e8e93;
-  border-left: 1px solid rgba(60, 60, 67, 0.15);
-  border-radius: 0 50% 50% 0;
-  padding-left: 4px;
-  margin-left: 2px;
-  width: 28px;
-}
-
 /* ✅ МОБИЛЬНЫЙ */
 @media (max-width: 700px) {
   .chat-fab {
@@ -1557,15 +1660,24 @@ $chat-font-lg: 13px;
   .chat-text { font-size: $chat-font-lg; }
   .chat-input { font-size: $chat-font-lg; }
 
-  .reactions-panel {
-    left: 50% !important;
-    transform: translateX(-50%);
-    bottom: calc(90px + env(safe-area-inset-bottom, 0));
+  /* Меню в Telegram-стиле — прижато к низу */
+  .ctx-menu {
+    left: 8px !important;
+    right: 8px !important;
     top: auto !important;
-    max-width: calc(100vw - 20px);
-    overflow-x: auto;
+    bottom: calc(8px + env(safe-area-inset-bottom, 0));
+    max-width: none;
+    width: auto;
+    border-radius: 18px;
   }
 
-  .reaction-btn { width: 34px; height: 34px; font-size: 20px; }
+  .reaction-btn { width: 38px; height: 38px; font-size: 22px; }
+  .reactions-row { justify-content: space-between; padding: 6px 2px 10px; }
+
+  .scroll-down-btn {
+    right: 12px;
+    width: 40px;
+    height: 40px;
+  }
 }
 </style>
