@@ -1004,12 +1004,17 @@ const byUser = computed(() => {
   }
 
   /* Убираем стрелки у number-input */
-  &::-webkit-outer-spin-button,
-  &::-webkit-inner-spin-button {
-    -webkit-appearance: none;
-    margin: 0;
-  }
-  &[type="number"] { -moz-appearance: textfield; }
+/* убираем стрелки у number-input */
+&::-webkit-outer-spin-button,
+&::-webkit-inner-spin-button {
+  appearance: none;
+  -webkit-appearance: none;
+  margin: 0;
+}
+&[type="number"] {
+  appearance: textfield;
+  -moz-appearance: textfield;
+}
 }
 
 .dt-del,
