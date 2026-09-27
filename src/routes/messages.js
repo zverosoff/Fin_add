@@ -2,7 +2,7 @@
 import { Router } from 'express';
 import db from '../db/index.js';
 import { requireAuth } from '../middleware/auth.js';
-import { runMigrations } from '../db/migrate.js';   // ✅ NEW
+import { runMigrations } from '../db/migrate.js';
 
 // ✅ Убеждаемся, что схема актуальна (идемпотентно)
 runMigrations();
@@ -108,30 +108,6 @@ router.post('/heartbeat', requireAuth, (req, res) => {
 });
 
 // ============================================================
-// GET /api/messages?peer=Саша&limit=200
-// ============================================================
-router.get('/', requireAuth, (req, res) => {
-  try {
-    const me = req.user;
-    const peer = String(req.query.peer || '').trim();
-    const limit = Math.min(Number(req.query.limit) || 200, 500);
-
-    if (!peer || !USERS.includes(peer)) {
-      return res.status(400).json({ ok: false, error: 'peer обязателен' });
-    }
-    if (peer === me) {
-      return res.status(400).json({ ok: false, error: 'Нельзя писать самому себе' });
-    }
-
-    const rows = listByUserStmt.all({ user: me, peer, limit });
-    res.json({ ok: true, messages: rows.map(rowToMessage) });
-  } catch (err) {
-    console.error('[messages] GET ошибка:', err.message);
-    res.status(500).json({ ok: false, error: err.message });
-  }
-});
-
-// ============================================================
 // GET /api/messages/conversations
 // ============================================================
 router.get('/conversations', requireAuth, (req, res) => {
@@ -192,6 +168,30 @@ router.get('/unread', requireAuth, (req, res) => {
 });
 
 // ============================================================
+// GET /api/messages?peer=Саша&limit=200
+// ============================================================
+router.get('/', requireAuth, (req, res) => {
+  try {
+    const me = req.user;
+    const peer = String(req.query.peer || '').trim();
+    const limit = Math.min(Number(req.query.limit) || 200, 500);
+
+    if (!peer || !USERS.includes(peer)) {
+      return res.status(400).json({ ok: false, error: 'peer обязателен' });
+    }
+    if (peer === me) {
+      return res.status(400).json({ ok: false, error: 'Нельзя писать самому себе' });
+    }
+
+    const rows = listByUserStmt.all({ user: me, peer, limit });
+    res.json({ ok: true, messages: rows.map(rowToMessage) });
+  } catch (err) {
+    console.error('[messages] GET ошибка:', err.message);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ============================================================
 // POST /api/messages
 // ============================================================
 router.post('/', requireAuth, (req, res) => {
@@ -239,7 +239,62 @@ router.post('/', requireAuth, (req, res) => {
 });
 
 // ============================================================
+// PATCH /api/messages/read-all?peer=Саша
+// ✅ ВАЖНО: ДОЛЖЕН БЫТЬ ВЫШЕ PATCH /:id
+// ============================================================
+router.patch('/read-all', requireAuth, (req, res) => {
+  try {
+    const me = req.user;
+    const peer = String(req.query.peer || '').trim();
+
+    if (!peer || !USERS.includes(peer)) {
+      return res.status(400).json({ ok: false, error: 'peer обязателен' });
+    }
+
+    const readAt = new Date().toISOString();
+    const result = markReadStmt.run({ peer, user: me, readAt });
+
+    const io = req.app.get('io');
+    if (io) io.emit('message:read-all', { peer, by: me, readAt });
+
+    res.json({ ok: true, count: result.changes, readAt });
+  } catch (err) {
+    console.error('[messages] read-all ошибка:', err.message);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ============================================================
+// PATCH /api/messages/:id/read
+// ✅ ВАЖНО: ДОЛЖЕН БЫТЬ ВЫШЕ PATCH /:id
+// ============================================================
+router.patch('/:id/read', requireAuth, (req, res) => {
+  try {
+    const me = req.user;
+    const { id } = req.params;
+
+    const row = getMsgStmt.get(id);
+    if (!row) return res.status(404).json({ ok: false, error: 'Не найдено' });
+    if (row.to_user !== me) {
+      return res.status(403).json({ ok: false, error: 'Нет доступа' });
+    }
+
+    const readAt = new Date().toISOString();
+    db.prepare('UPDATE messages SET read_at = ? WHERE id = ?').run(readAt, id);
+
+    const io = req.app.get('io');
+    if (io) io.emit('message:read', { id, readAt, by: me });
+
+    res.json({ ok: true, id, readAt });
+  } catch (err) {
+    console.error('[messages] read ошибка:', err.message);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ============================================================
 // PATCH /api/messages/:id — редактирование
+// ✅ ВАЖНО: ПОСЛЕ /read-all и /:id/read
 // ============================================================
 router.patch('/:id', requireAuth, (req, res) => {
   try {
@@ -334,58 +389,6 @@ router.post('/:id/pin', requireAuth, (req, res) => {
     res.json({ ok: true, message: updated, pinned: !wasPinned });
   } catch (err) {
     console.error('[messages] pin ошибка:', err.message);
-    res.status(500).json({ ok: false, error: err.message });
-  }
-});
-
-// ============================================================
-// PATCH /api/messages/:id/read
-// ============================================================
-router.patch('/:id/read', requireAuth, (req, res) => {
-  try {
-    const me = req.user;
-    const { id } = req.params;
-
-    const row = getMsgStmt.get(id);
-    if (!row) return res.status(404).json({ ok: false, error: 'Не найдено' });
-    if (row.to_user !== me) {
-      return res.status(403).json({ ok: false, error: 'Нет доступа' });
-    }
-
-    const readAt = new Date().toISOString();
-    db.prepare('UPDATE messages SET read_at = ? WHERE id = ?').run(readAt, id);
-
-    const io = req.app.get('io');
-    if (io) io.emit('message:read', { id, readAt, by: me });
-
-    res.json({ ok: true, id, readAt });
-  } catch (err) {
-    console.error('[messages] read ошибка:', err.message);
-    res.status(500).json({ ok: false, error: err.message });
-  }
-});
-
-// ============================================================
-// PATCH /api/messages/read-all?peer=Саша
-// ============================================================
-router.patch('/read-all', requireAuth, (req, res) => {
-  try {
-    const me = req.user;
-    const peer = String(req.query.peer || '').trim();
-
-    if (!peer || !USERS.includes(peer)) {
-      return res.status(400).json({ ok: false, error: 'peer обязателен' });
-    }
-
-    const readAt = new Date().toISOString();
-    const result = markReadStmt.run({ peer, user: me, readAt });
-
-    const io = req.app.get('io');
-    if (io) io.emit('message:read-all', { peer, by: me, readAt });
-
-    res.json({ ok: true, count: result.changes, readAt });
-  } catch (err) {
-    console.error('[messages] read-all ошибка:', err.message);
     res.status(500).json({ ok: false, error: err.message });
   }
 });
