@@ -2,12 +2,30 @@ import jwt from 'jsonwebtoken';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me';
 
-/**
- * Подключаем Socket.IO к HTTP-серверу.
- * Проверяем JWT перед установкой соединения.
- */
+// ✅ Карта: userId → Set<socketId>
+const onlineUsers = new Map();
+
+function addOnline(userId, socketId) {
+  if (!onlineUsers.has(userId)) onlineUsers.set(userId, new Set());
+  onlineUsers.get(userId).add(socketId);
+}
+
+function removeOnline(userId, socketId) {
+  const set = onlineUsers.get(userId);
+  if (!set) return;
+  set.delete(socketId);
+  if (set.size === 0) onlineUsers.delete(userId);
+}
+
+function isOnline(userId) {
+  return onlineUsers.has(userId) && onlineUsers.get(userId).size > 0;
+}
+
+function getOnlineList() {
+  return Array.from(onlineUsers.keys());
+}
+
 export function attachSocket(io) {
-  // Middleware — выполняется ДО соединения
   io.use((socket, next) => {
     const token =
       socket.handshake.auth?.token ||
@@ -26,10 +44,26 @@ export function attachSocket(io) {
   });
 
   io.on('connection', (socket) => {
-    console.log(`[ws] ✓ подключился ${socket.user} (${socket.id})`);
+    const user = socket.user;
+    console.log(`[ws] ✓ подключился ${user} (${socket.id})`);
+
+    addOnline(user, socket.id);
+
+    // ✅ Отправляем всем список онлайн
+    io.emit('users:online', getOnlineList());
+
+    // ✅ Отправляем пользователю его непрочитанные
+    // (клиент сам запросит /api/messages/unread, если нужно)
 
     socket.on('disconnect', (reason) => {
-      console.log(`[ws] ✗ отключился ${socket.user} (${reason})`);
+      console.log(`[ws] ✗ отключился ${user} (${reason})`);
+      removeOnline(user, socket.id);
+      io.emit('users:online', getOnlineList());
+    });
+
+    // ✅ Пинг-понг для поддержания соединения
+    socket.on('ping:client', () => {
+      socket.emit('pong:server', { t: Date.now() });
     });
   });
 }

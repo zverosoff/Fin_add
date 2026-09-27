@@ -2,6 +2,7 @@ import { io } from 'socket.io-client';
 import { ref } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useAccountsStore } from '@/stores/accounts';
+import { useMessagesStore } from '@/stores/messages';
 
 let socket = null;
 const connected = ref(false);
@@ -9,11 +10,11 @@ const connected = ref(false);
 export function useWebSocket() {
   const auth = useAuthStore();
   const accounts = useAccountsStore();
+  const messages = useMessagesStore();
 
   function connect() {
     if (socket) return;
 
-    // ✅ Если VITE_WS_URL не задан или '/' — подключаемся к текущему origin
     const rawUrl = import.meta.env.VITE_WS_URL;
     const wsUrl = (!rawUrl || rawUrl === '/') ? undefined : rawUrl;
 
@@ -36,6 +37,34 @@ export function useWebSocket() {
       accounts.setFromWS(state);
     });
 
+    // ============================================================
+    // ✅ Сообщения
+    // ============================================================
+    socket.on('message:new', (msg) => {
+      console.log('[ws] message:new', msg);
+      messages.onIncoming(msg);
+    });
+
+    socket.on('message:read', (payload) => {
+      console.log('[ws] message:read', payload);
+      messages.onRead(payload);
+    });
+
+    socket.on('message:read-all', (payload) => {
+      console.log('[ws] message:read-all', payload);
+      messages.onReadAll(payload);
+    });
+
+    socket.on('message:deleted', (payload) => {
+      console.log('[ws] message:deleted', payload);
+      messages.onDeleted(payload);
+    });
+
+    socket.on('users:online', (list) => {
+      messages.setOnline(list);
+    });
+
+    // ============================================================
     socket.on('disconnect', (reason) => {
       connected.value = false;
       console.log('[ws] отключились:', reason);
