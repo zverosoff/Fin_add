@@ -880,12 +880,40 @@ watch(open, (v) => { if (v) askNotifications(); });
                         title="Не отправлено — нажмите, чтобы повторить"
                         @click.stop="onRetry(m)"
                       >!</span>
-                      <span
-                        v-else-if="m.from === me"
-                        key="read"
-                        class="chat-read"
-                        :class="{ read: !!m.readAt }"
-                      >{{ m.readAt ? '✓✓' : '✓' }}</span>
+                  <span
+                    v-if="m.from === me"
+                    class="chat-read"
+                    :class="{ read: !!m.readAt }"
+                    :title="m.readAt ? 'Прочитано' : 'Отправлено'"
+                  >
+                    <!-- одна галочка -->
+                    <svg
+                      v-if="!m.readAt"
+                      viewBox="0 0 16 11"
+                      width="14" height="10"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M2 6l3.5 3.5L13 2"/>
+                    </svg>
+                    <!-- двойная галочка -->
+                    <svg
+                      v-else
+                      viewBox="0 0 20 11"
+                      width="18" height="10"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="1.6"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    >
+                      <path d="M2 6l3.5 3.5L13 2"/>
+                      <path d="M7 6l3.5 3.5L18 2"/>
+                    </svg>
+                  </span>
                     </Transition>
                   </div>
 
@@ -1627,31 +1655,64 @@ $chat-font-lg: 13px;
 }
 
 .chat-read {
-  font-size: $chat-font;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 3px;
+  color: currentColor;
   opacity: 0.75;
-  margin-left: 2px;
-  &.read { opacity: 1; }
-}
-
-.chat-status {
-  font-size: $chat-font;
-  margin-left: 2px;
-  font-weight: 700;
-  &.pending { opacity: 0.6; display: inline-flex; align-items: center; }
-  &.failed {
-    color: #ff3b30;
-    cursor: pointer;
-    padding: 0 4px;
-    border-radius: 4px;
-    background: rgba(255, 59, 48, 0.15);
-    font-weight: 900;
-    animation: failPulse 1.6s ease-in-out infinite;
+  transition: opacity 0.2s ease, color 0.2s ease;
+  
+  svg {
+    display: block;
+    transition: transform 0.25s cubic-bezier(.34,1.56,.64,1);
+  }
+  
+  &.read {
+    opacity: 1;
+    /* ✅ Читается — обе галочки чёткие, приятный бирюзовый оттенок как в Telegram */
+    color: #4fc3f7;
+  }
+  
+  /* ✅ Плавное появление второй галочки при прочтении */
+  &.read svg {
+    animation: readPop 0.35s cubic-bezier(.34,1.56,.64,1);
   }
 }
 
-.chat-msg.out .chat-status.failed {
-  color: #ffcc00;
-  background: rgba(255, 204, 0, 0.2);
+@keyframes readPop {
+  0%   { transform: scale(0.7); opacity: 0.5; }
+  60%  { transform: scale(1.15); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* ✅ В исходящих сообщениях галочка белая на синем */
+.chat-msg.out .chat-read {
+  color: rgba(255, 255, 255, 0.85);
+  &.read { color: #7dd3fc; }
+}
+
+/* ✅ Во входящих — серая */
+.chat-msg.in .chat-read {
+  color: var(--chat-text-muted);
+  &.read { color: #4fc3f7; }
+}
+
+/* ✅ Когда есть реакции — сдвигаем meta, чтобы не перекрывалось */
+.chat-bubble.has-reactions .chat-meta {
+  padding-right: 34px; /* ширина плашки реакции + зазор */
+}
+
+/* ✅ Для исходящих с реакциями слева — сдвиг влево */
+.chat-msg.out .chat-bubble.has-reactions .chat-meta {
+  padding-right: 0;
+  padding-left: 34px;
+  /* у исходящих реакции слева — сдвигаем правый край времени */
+  justify-content: flex-end;
+}
+
+/* ✅ Реакции справа у входящих — время уходит влево от них */
+.chat-msg.in .chat-bubble.has-reactions .chat-meta {
+  padding-right: 34px;
 }
 
 @keyframes failPulse {
