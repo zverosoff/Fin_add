@@ -61,7 +61,8 @@ function isDarkTheme(id) {
 function applyToDom() {
   const resolved = resolveTheme(theme.value);
 
-  document.documentElement.dataset.theme = resolved;
+  // ✅ Пишем тему чата в отдельный data-атрибут — не трогаем общую тему страницы
+  document.documentElement.dataset.chatTheme = resolved;
   document.documentElement.dataset.bg = background.value;
 
   const bgConfig = BACKGROUNDS.find(b => b.id === background.value);
