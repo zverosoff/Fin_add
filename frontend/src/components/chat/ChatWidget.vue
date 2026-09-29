@@ -20,7 +20,11 @@ import {
 const messages = useMessagesStore();
 const auth = useAuthStore();
 const toast = useToast();
-const { theme, background, setTheme, setBackground, THEMES, BACKGROUNDS } = useTheme();
+const {
+  theme, background, fontSize, fontFamily,
+  setTheme, setBackground, setFontSize, setFontFamily,
+  THEMES, BACKGROUNDS, FONT_SIZES, FONT_FAMILIES,
+} = useTheme();
 
 const open = ref(false);
 const text = ref('');
@@ -116,6 +120,17 @@ function swipeStyle(m) {
     return { transform: `translateX(${dx}px)` };
   }
   return {};
+}
+
+// ✅ Клик по полю/телу чата закрывает открытые панели
+function onInputFocus() {
+  activePanel.value = 'keyboard';
+}
+
+function onBodyClick() {
+  if (activePanel.value !== 'keyboard') {
+    activePanel.value = 'keyboard';
+  }
 }
 
 // ============================================================
@@ -230,10 +245,8 @@ function scrollToBottom(smooth = false) {
     if (smooth) {
       el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
     } else {
-      // ✅ Мгновенно и принудительно — без CSS smooth
       el.style.scrollBehavior = 'auto';
       el.scrollTop = el.scrollHeight;
-      // сброс — вернём к CSS-значению
       requestAnimationFrame(() => {
         el.scrollTop = el.scrollHeight;
         el.style.scrollBehavior = '';
@@ -278,7 +291,7 @@ async function onScroll() {
 }
 
 // ============================================================
-// Открытие/закрытие — БЕЗ фокуса на поле ввода
+// Открытие/закрытие
 // ============================================================
 async function toggle() {
   open.value = !open.value;
@@ -308,7 +321,6 @@ async function toggle() {
       await updateBadge(messages.totalUnread);
     } catch (e) {}
 
-    // ✅ Финальная прокрутка в самый низ после всех обновлений
     await nextTick();
     requestAnimationFrame(() => scrollToBottom(false));
 
@@ -632,7 +644,6 @@ function onViewportResize() { updateViewport(); }
 function onNetworkOnline() { messages.setNetworkOnline(true); }
 function onNetworkOffline() { messages.setNetworkOnline(false); }
 
-// ✅ При открытии чата принудительно убираем фокус с input
 watch(open, async (v) => {
   if (v) {
     await nextTick();
@@ -804,7 +815,7 @@ watch(open, (v) => { if (v) askNotifications(); });
         </div>
       </Transition>
 
-      <div ref="scrollEl" class="chat-body" @scroll.passive="onScroll">
+      <div ref="scrollEl" class="chat-body" @scroll.passive="onScroll" @click="onBodyClick">
         <Transition name="fade-slow">
           <div v-if="loadingOlder" class="loading-older">
             <span class="spinner"></span> Загрузка…
@@ -881,40 +892,39 @@ watch(open, (v) => { if (v) askNotifications(); });
                         title="Не отправлено — нажмите, чтобы повторить"
                         @click.stop="onRetry(m)"
                       >!</span>
-                  <span
-                    v-if="m.from === me"
-                    class="chat-read"
-                    :class="{ read: !!m.readAt }"
-                    :title="m.readAt ? 'Прочитано' : 'Отправлено'"
-                  >
-                    <!-- одна галочка -->
-                    <svg
-                      v-if="!m.readAt"
-                      viewBox="0 0 16 11"
-                      width="14" height="10"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.6"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <path d="M2 6l3.5 3.5L13 2"/>
-                    </svg>
-                    <!-- двойная галочка -->
-                    <svg
-                      v-else
-                      viewBox="0 0 20 11"
-                      width="18" height="10"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="1.6"
-                      stroke-linecap="round"
-                      stroke-linejoin="round"
-                    >
-                      <path d="M2 6l3.5 3.5L13 2"/>
-                      <path d="M7 6l3.5 3.5L18 2"/>
-                    </svg>
-                  </span>
+                      <span
+                        v-else-if="m.from === me"
+                        key="read"
+                        class="chat-read"
+                        :class="{ read: !!m.readAt }"
+                        :title="m.readAt ? 'Прочитано' : 'Отправлено'"
+                      >
+                        <svg
+                          v-if="!m.readAt"
+                          viewBox="0 0 16 11"
+                          width="14" height="10"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.6"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <path d="M2 6l3.5 3.5L13 2"/>
+                        </svg>
+                        <svg
+                          v-else
+                          viewBox="0 0 20 11"
+                          width="18" height="10"
+                          fill="none"
+                          stroke="currentColor"
+                          stroke-width="1.6"
+                          stroke-linecap="round"
+                          stroke-linejoin="round"
+                        >
+                          <path d="M2 6l3.5 3.5L13 2"/>
+                          <path d="M7 6l3.5 3.5L18 2"/>
+                        </svg>
+                      </span>
                     </Transition>
                   </div>
 
@@ -1037,7 +1047,8 @@ watch(open, (v) => { if (v) askNotifications(); });
             autocapitalize="sentences"
             @input="onInput"
             @keydown="onKeydown"
-            @focus="activePanel = 'keyboard'"
+            @focus="onInputFocus"
+            @click="onInputFocus"
           />
 
           <Transition name="send-pop" mode="out-in">
@@ -1114,6 +1125,38 @@ watch(open, (v) => { if (v) askNotifications(); });
                 @click="setBackground(b.id)"
               >
                 <span v-if="!b.style" class="bg-default-mark">Aa</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-title">Размер шрифта</div>
+            <div class="theme-grid">
+              <button
+                v-for="f in FONT_SIZES"
+                :key="f.id"
+                class="theme-btn"
+                :class="{ active: fontSize === f.id }"
+                @click="setFontSize(f.id)"
+              >
+                <span class="theme-icon">Aa</span>
+                <span class="theme-label">{{ f.label }}</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="settings-section">
+            <div class="settings-title">Шрифт</div>
+            <div class="theme-grid">
+              <button
+                v-for="f in FONT_FAMILIES"
+                :key="f.id"
+                class="theme-btn"
+                :class="{ active: fontFamily === f.id }"
+                @click="setFontFamily(f.id)"
+              >
+                <span class="theme-icon" :style="{ fontFamily: f.family }">Aa</span>
+                <span class="theme-label">{{ f.label }}</span>
               </button>
             </div>
           </div>
@@ -1317,14 +1360,15 @@ $chat-font-lg: 13px;
 .chat-user-info { min-width: 0; flex: 1; }
 
 .chat-user-name {
-  font-size: $chat-font-lg;
+  font-family: var(--chat-font-family, -apple-system, "SF Pro Text", sans-serif);
+  font-size: calc(#{$chat-font-lg} * var(--chat-font-scale, 1));
   font-weight: 600;
   color: var(--chat-text);
   line-height: 1.2;
 }
 
 .chat-user-status {
-  font-size: $chat-font;
+  font-size: calc(#{$chat-font} * var(--chat-font-scale, 1));
   color: var(--chat-text-muted);
   font-weight: 400;
   margin-top: 1px;
@@ -1349,23 +1393,17 @@ $chat-font-lg: 13px;
   &.active { background: var(--chat-menu-hover); }
 }
 
-/* ============================================================
-   Offline banner
-   ============================================================ */
 .chat-offline {
   padding: 6px 12px;
   background: rgba(255, 149, 0, 0.15);
   color: #b45309;
-  font-size: $chat-font-sm;
+  font-size: calc(#{$chat-font-sm} * var(--chat-font-scale, 1));
   font-weight: 600;
   text-align: center;
   border-bottom: 0.5px solid var(--chat-border);
   flex-shrink: 0;
 }
 
-/* ============================================================
-   Pinned
-   ============================================================ */
 .chat-pinned {
   display: flex; align-items: center; gap: 10px;
   padding: 6px 12px;
@@ -1403,7 +1441,7 @@ $chat-font-lg: 13px;
 }
 
 .pinned-text {
-  font-size: $chat-font;
+  font-size: calc(#{$chat-font} * var(--chat-font-scale, 1));
   color: var(--chat-text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -1443,7 +1481,6 @@ $chat-font-lg: 13px;
   background-attachment: local;
   -webkit-overflow-scrolling: touch;
   position: relative;
-  /* ✅ scroll-behavior убран — управляем через JS */
 }
 
 .loading-older {
@@ -1471,7 +1508,7 @@ $chat-font-lg: 13px;
 }
 
 .chat-empty-icon { font-size: 38px; opacity: 0.5; }
-.chat-empty-text { font-size: $chat-font; font-weight: 500; }
+.chat-empty-text { font-size: calc(#{$chat-font} * var(--chat-font-scale, 1)); font-weight: 500; }
 .chat-empty-hint { font-size: $chat-font-sm; opacity: 0.75; }
 
 .chat-day {
@@ -1528,6 +1565,41 @@ $chat-font-lg: 13px;
   }
 }
 
+/* ✅ Системные сообщения от «Приложение» */
+.chat-msg.from-system {
+  max-width: 100% !important;
+  align-self: center !important;
+  margin-left: auto;
+  margin-right: auto;
+  align-items: center;
+
+  .chat-bubble {
+    background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%) !important;
+    color: #4338ca !important;
+    border: 1px solid rgba(99, 102, 241, 0.25) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 4px 14px -6px rgba(99, 102, 241, 0.25) !important;
+    font-style: italic;
+    text-align: center;
+    max-width: 90%;
+  }
+
+  .chat-meta { color: #6366f1 !important; justify-content: center; }
+  .chat-read { display: none; }
+}
+
+:global(:root[data-theme="dark"]) .chat-msg.from-system,
+:global(:root[data-theme="night"]) .chat-msg.from-system,
+:global(:root[data-theme="sunset-dark"]) .chat-msg.from-system,
+:global(:root[data-theme="ocean-dark"]) .chat-msg.from-system {
+  .chat-bubble {
+    background: linear-gradient(135deg, #1e2732 0%, #2b3546 100%) !important;
+    color: #a5b4fc !important;
+    border-color: rgba(165, 180, 252, 0.25) !important;
+  }
+  .chat-meta { color: #a5b4fc !important; }
+}
+
 @keyframes msgHighlight {
   0%, 100% { box-shadow: 0 0 0 0 rgba(255, 149, 0, 0); }
   30%      { box-shadow: 0 0 0 4px rgba(255, 149, 0, 0.5); }
@@ -1539,7 +1611,7 @@ $chat-font-lg: 13px;
   max-width: 100%;
   word-wrap: break-word;
   overflow-wrap: anywhere;
-  font-size: $chat-font;
+  font-size: calc(#{$chat-font} * var(--chat-font-scale, 1));
   line-height: 1.4;
   cursor: default;
   transition: opacity 0.25s, box-shadow 0.25s;
@@ -1573,8 +1645,10 @@ $chat-font-lg: 13px;
 }
 
 .chat-text {
+  font-family: var(--chat-font-family, -apple-system, "SF Pro Text", sans-serif);
   white-space: pre-wrap;
-  font-size: $chat-font;
+  font-size: calc(#{$chat-font} * var(--chat-font-scale, 1));
+  line-height: 1.45;
 }
 
 .chat-text :deep(a.md-link),
@@ -1604,53 +1678,6 @@ $chat-font-lg: 13px;
 
 .chat-msg.out .chat-text :deep(code.md-code) {
   background: rgba(255, 255, 255, 0.22);
-}
-
-/* ✅ Системные сообщения от «Приложение» — по центру, светлый пузырь */
-.chat-msg.from-system {
-  max-width: 100% !important;
-  align-self: center !important;
-  margin-left: auto;
-  margin-right: auto;
-  align-items: center;
-
-  .chat-bubble {
-    background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%) !important;
-    color: #4338ca !important;
-    border: 1px solid rgba(99, 102, 241, 0.25) !important;
-    border-radius: 16px !important;
-    box-shadow: 0 4px 14px -6px rgba(99, 102, 241, 0.25) !important;
-    font-style: italic;
-    text-align: center;
-    max-width: 90%;
-  }
-
-  .chat-meta {
-    color: #6366f1 !important;
-    justify-content: center;
-  }
-
-  .chat-read { display: none; }
-}
-
-/* В тёмных темах — светлое на тёмном */
-:global(:root[data-theme="dark"]) .chat-msg.from-system,
-:global(:root[data-theme="night"]) .chat-msg.from-system {
-  .chat-bubble {
-    background: linear-gradient(135deg, #1e2732 0%, #2b3546 100%) !important;
-    color: #a5b4fc !important;
-    border-color: rgba(165, 180, 252, 0.25) !important;
-  }
-  .chat-meta { color: #a5b4fc !important; }
-}
-
-:global(:root[data-theme="sunset"]) .chat-msg.from-system {
-  .chat-bubble {
-    background: linear-gradient(135deg, #2d1a2e 0%, #3a2030 100%) !important;
-    color: #fdba74 !important;
-    border-color: rgba(251, 146, 60, 0.25) !important;
-  }
-  .chat-meta { color: #fb923c !important; }
 }
 
 .bubble-reply {
@@ -1717,11 +1744,9 @@ $chat-font-lg: 13px;
   
   &.read {
     opacity: 1;
-    /* ✅ Читается — обе галочки чёткие, приятный бирюзовый оттенок как в Telegram */
     color: #4fc3f7;
   }
   
-  /* ✅ Плавное появление второй галочки при прочтении */
   &.read svg {
     animation: readPop 0.35s cubic-bezier(.34,1.56,.64,1);
   }
@@ -1733,34 +1758,35 @@ $chat-font-lg: 13px;
   100% { transform: scale(1); opacity: 1; }
 }
 
-/* ✅ В исходящих сообщениях галочка белая на синем */
 .chat-msg.out .chat-read {
   color: rgba(255, 255, 255, 0.85);
   &.read { color: #7dd3fc; }
 }
 
-/* ✅ Во входящих — серая */
 .chat-msg.in .chat-read {
   color: var(--chat-text-muted);
   &.read { color: #4fc3f7; }
 }
 
-/* ✅ Когда есть реакции — сдвигаем meta, чтобы не перекрывалось */
-.chat-bubble.has-reactions .chat-meta {
-  padding-right: 34px; /* ширина плашки реакции + зазор */
+.chat-status {
+  font-size: $chat-font;
+  margin-left: 2px;
+  font-weight: 700;
+  &.pending { opacity: 0.6; display: inline-flex; align-items: center; }
+  &.failed {
+    color: #ff3b30;
+    cursor: pointer;
+    padding: 0 4px;
+    border-radius: 4px;
+    background: rgba(255, 59, 48, 0.15);
+    font-weight: 900;
+    animation: failPulse 1.6s ease-in-out infinite;
+  }
 }
 
-/* ✅ Для исходящих с реакциями слева — сдвиг влево */
-.chat-msg.out .chat-bubble.has-reactions .chat-meta {
-  padding-right: 0;
-  padding-left: 34px;
-  /* у исходящих реакции слева — сдвигаем правый край времени */
-  justify-content: flex-end;
-}
-
-/* ✅ Реакции справа у входящих — время уходит влево от них */
-.chat-msg.in .chat-bubble.has-reactions .chat-meta {
-  padding-right: 34px;
+.chat-msg.out .chat-status.failed {
+  color: #ffcc00;
+  background: rgba(255, 204, 0, 0.2);
 }
 
 @keyframes failPulse {
@@ -1779,10 +1805,9 @@ $chat-font-lg: 13px;
 
 @keyframes clockSpin { to { transform: rotate(360deg); } }
 
-/* ✅ Реакции — круглый пузырёк, прижат к нижнему-левому углу bubble */
 .bubble-reactions {
   position: absolute;
-  left: -18px;
+  left: -10px;
   bottom: -10px;
   display: inline-flex;
   align-items: center;
@@ -1799,10 +1824,14 @@ $chat-font-lg: 13px;
   box-sizing: border-box;
 }
 
-/* ✅ Для входящих — реакции справа */
 .chat-msg.in .bubble-reactions {
   left: auto;
   right: -10px;
+}
+
+.chat-msg.out .bubble-reactions {
+  left: -10px;
+  right: auto;
 }
 
 .reaction-chip {
@@ -1907,7 +1936,7 @@ $chat-font-lg: 13px;
 .cep-icon { font-size: $chat-font; flex-shrink: 0; }
 
 .crp-text, .cep-text {
-  font-size: $chat-font;
+  font-size: calc(#{$chat-font} * var(--chat-font-scale, 1));
   color: var(--chat-text);
   opacity: 0.85;
   overflow: hidden;
@@ -2019,8 +2048,8 @@ $chat-font-lg: 13px;
   border: 0.5px solid var(--chat-input-border);
   background: var(--chat-input-bg);
   color: var(--chat-text);
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
-  font-size: $chat-font;
+  font-family: var(--chat-font-family, -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif);
+  font-size: calc(#{$chat-font} * var(--chat-font-scale, 1));
   font-weight: 400;
   line-height: 1.4;
   resize: none;
@@ -2154,7 +2183,7 @@ $chat-font-lg: 13px;
 }
 
 .settings-panel {
-  max-height: 280px;
+  max-height: 420px;
   overflow-y: auto;
   padding: 12px 14px 14px;
   display: flex;
@@ -2178,7 +2207,7 @@ $chat-font-lg: 13px;
 
 .theme-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   gap: 6px;
 }
 
@@ -2187,15 +2216,15 @@ $chat-font-lg: 13px;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
-  padding: 10px 6px;
-  border-radius: 12px;
+  gap: 3px;
+  padding: 8px 4px;
+  border-radius: 10px;
   border: 1.5px solid var(--chat-border);
   background: var(--chat-input-bg);
   color: var(--chat-text);
   cursor: pointer;
   font-family: inherit;
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   transition: border-color 0.15s, background 0.15s, color 0.15s, transform 0.15s;
   &:hover { border-color: var(--chat-accent); transform: translateY(-1px); }
@@ -2207,8 +2236,19 @@ $chat-font-lg: 13px;
   }
 }
 
-.theme-icon { font-size: 18px; }
-.theme-label { font-size: 10px; font-weight: 600; }
+.theme-icon {
+  font-size: 16px;
+  line-height: 1;
+  font-weight: 700;
+}
+.theme-label {
+  font-size: 9.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
 
 .bg-grid {
   display: grid;
@@ -2371,7 +2411,6 @@ $chat-font-lg: 13px;
 /* ============================================================
    ANIMATIONS
    ============================================================ */
-
 .chat-panel-enter-active { transition: opacity 0.28s ease, transform 0.38s cubic-bezier(.34,1.56,.64,1); }
 .chat-panel-leave-active { transition: opacity 0.2s ease, transform 0.25s cubic-bezier(.4,0,.6,1); }
 .chat-panel-enter-from,
@@ -2438,7 +2477,7 @@ $chat-font-lg: 13px;
 .slide-up-enter-from,
 .slide-up-leave-to { opacity: 0; transform: translateY(12px); }
 
-.panel-slide-enter-active { transition: max-height 0.28s cubic-bezier(.34,1.56,.64,1), opacity 0.22s ease; max-height: 280px; }
+.panel-slide-enter-active { transition: max-height 0.28s cubic-bezier(.34,1.56,.64,1), opacity 0.22s ease; max-height: 420px; }
 .panel-slide-leave-active { transition: max-height 0.22s ease, opacity 0.18s ease; max-height: 0; }
 .panel-slide-enter-from,
 .panel-slide-leave-to { max-height: 0; opacity: 0; }
@@ -2462,7 +2501,6 @@ $chat-font-lg: 13px;
    Mobile
    ============================================================ */
 @media (max-width: 700px) {
-  /* ✅ Глобально сбрасываем min-height у кнопок чата */
   .chat-input-icon,
   .chat-send,
   .chat-input-btn,
@@ -2517,11 +2555,10 @@ $chat-font-lg: 13px;
   }
 
   .chat-msg { max-width: 85%; }
-  .chat-bubble { font-size: $chat-font-lg; }
-  .chat-text { font-size: $chat-font-lg; }
-  .chat-input { font-size: $chat-font-lg; }
+  .chat-bubble { font-size: calc(#{$chat-font-lg} * var(--chat-font-scale, 1)); }
+  .chat-text { font-size: calc(#{$chat-font-lg} * var(--chat-font-scale, 1)); }
+  .chat-input { font-size: calc(#{$chat-font-lg} * var(--chat-font-scale, 1)); }
 
-  /* ✅ Явные размеры круглых кнопок на мобиле */
   .chat-input-icon { width: 36px; height: 36px; min-width: 36px; min-height: 36px; }
   .chat-send { width: 36px; height: 36px; min-width: 36px; min-height: 36px; }
   .chat-input-btn { width: 36px; height: 36px; min-width: 36px; min-height: 36px; }
@@ -2545,5 +2582,6 @@ $chat-font-lg: 13px;
 
   .emoji-grid { max-height: 220px; }
   .bg-grid { grid-template-columns: repeat(6, 1fr); }
+  .theme-grid { grid-template-columns: repeat(4, 1fr); }
 }
 </style>
