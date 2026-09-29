@@ -20,7 +20,6 @@ const owners = computed(() => {
     emoji: owner === 'Сергей' ? '👨' : '👩',
     balance: accounts.getCash(owner),
     savings: accounts.getCashSavings(owner),
-    stats: accounts.cashStats(owner, 30),
   }));
 });
 
@@ -92,38 +91,30 @@ function openModal(owner = '', mode = 'add') {
           <span>Сверка</span>
         </button>
       </div>
+    </div>
 
-      <!-- ✅ По пользователям — внутри купюры -->
-      <div class="cn-owners">
-        <div class="cn-owners-title">По пользователям</div>
+    <!-- ✅ Отрывной билет по пользователям -->
+    <div class="cash-stub">
+      <div class="cs-perf"></div>
 
-        <button
+      <div class="cs-perforation" aria-hidden="true">
+        <span v-for="n in 12" :key="n" class="cs-dot"></span>
+      </div>
+
+      <div class="cs-owners">
+        <div
           v-for="o in owners"
           :key="o.owner"
-          type="button"
-          class="cn-owner"
-          @click="openModal(o.owner, 'add')"
+          class="cs-owner"
         >
-          <span class="cn-owner-avatar">{{ o.emoji }}</span>
-
-          <span class="cn-owner-main">
-            <span class="cn-owner-name">{{ o.owner }}</span>
-            <span class="cn-owner-meta">
-              <span class="cn-owner-balance">
-                👛 {{ fmt(o.balance) }} ₽
-              </span>
-              <span class="cn-owner-savings">
-                🏦 {{ fmt(o.savings) }} ₽
-              </span>
-            </span>
-          </span>
-
-          <span class="cn-owner-stats">
-            <span class="cn-owner-stat income">+{{ fmt(o.stats.income) }}</span>
-            <span class="cn-owner-stat expense">−{{ fmt(o.stats.expense) }}</span>
-            <span class="cn-owner-stat-label">30д</span>
-          </span>
-        </button>
+          <div class="cs-owner-top">
+            <span class="cs-owner-avatar">{{ o.emoji }}</span>
+            <span class="cs-owner-name">{{ o.owner }}</span>
+          </div>
+          <div class="cs-owner-balance">
+            {{ fmt(o.balance) }} ₽
+          </div>
+        </div>
       </div>
     </div>
 
@@ -139,7 +130,7 @@ function openModal(owner = '', mode = 'add') {
 .cash-block {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
 }
 
 /* ============================================================
@@ -147,7 +138,7 @@ function openModal(owner = '', mode = 'add') {
    ============================================================ */
 .cash-note {
   position: relative;
-  border-radius: 18px;
+  border-radius: 18px 18px 0 0;
   padding: 18px 20px 16px;
   overflow: hidden;
 
@@ -174,9 +165,10 @@ function openModal(owner = '', mode = 'add') {
 .cash-note::before {
   content: '';
   position: absolute;
-  inset: 6px;
-  border-radius: 14px;
+  inset: 6px 6px 6px 6px;
+  border-radius: 14px 14px 4px 4px;
   border: 1.5px dashed rgba(255, 255, 255, 0.35);
+  border-bottom: none;
   pointer-events: none;
 }
 
@@ -347,119 +339,116 @@ function openModal(owner = '', mode = 'add') {
 }
 
 /* ============================================================
-   ✅ ПО ПОЛЬЗОВАТЕЛЯМ — внутри купюры
+   ✅ ОТРЫВНОЙ БИЛЕТ
    ============================================================ */
-.cn-owners {
+.cash-stub {
   position: relative;
-  margin-top: 14px;
-  padding-top: 12px;
-  border-top: 1px dashed rgba(255, 255, 255, 0.3);
+  margin-top: -1px;
+
+  background:
+    radial-gradient(circle at 10% 100%, rgba(16, 185, 129, 0.06), transparent 40%),
+    linear-gradient(180deg, #ecfdf5 0%, #f0fdf4 100%);
+  border: 1px solid rgba(5, 150, 105, 0.25);
+  border-top: none;
+  border-radius: 0 0 16px 16px;
+  padding: 14px 14px 14px;
+
+  box-shadow:
+    0 10px 30px -18px rgba(16, 185, 129, 0.45),
+    0 4px 12px -8px rgba(5, 150, 105, 0.2);
+}
+
+/* Перфорация сверху — как оторванный край */
+.cs-perforation {
+  position: absolute;
+  top: -1px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 6px;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.cs-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--bg, #eef2f8);
+  transform: translateY(-50%);
+  box-shadow: inset 0 -1px 0 rgba(5, 150, 105, 0.2);
+}
+
+/* Вертикальная перфорация по центру — разделение двух билетов */
+.cs-perf {
+  position: absolute;
+  left: 50%;
+  top: 12px;
+  bottom: 12px;
+  width: 0;
+  border-left: 2px dashed rgba(5, 150, 105, 0.3);
+  transform: translateX(-1px);
+  pointer-events: none;
+}
+
+/* Контейнер двух билетов */
+.cs-owners {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding-left: 0;
+}
+
+/* Билет одного пользователя */
+.cs-owner {
   display: flex;
   flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 8px;
+  border-radius: 12px;
+  background: #ffffff;
+  border: 1px solid rgba(5, 150, 105, 0.15);
+  box-shadow:
+    0 2px 6px -2px rgba(5, 150, 105, 0.15),
+    inset 0 -1px 0 rgba(5, 150, 105, 0.05);
+  text-align: center;
+  user-select: none;
+  cursor: default;
+}
+
+.cs-owner-top {
+  display: flex;
+  align-items: center;
   gap: 6px;
 }
 
-.cn-owners-title {
-  font-size: 9.5px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  opacity: 0.75;
-  padding: 0 2px 2px;
-}
-
-.cn-owner {
-  position: relative;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 10px;
-  align-items: center;
-  padding: 8px 10px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  background: rgba(255, 255, 255, 0.1);
-  color: #ffffff;
-  font-family: inherit;
-  text-align: left;
-  cursor: pointer;
-  transition: all 0.15s;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-
-  &:hover {
-    background: rgba(255, 255, 255, 0.2);
-    border-color: rgba(255, 255, 255, 0.4);
-    transform: translateY(-1px);
-  }
-  &:active { transform: scale(0.99); }
-}
-
-.cn-owner-avatar {
-  font-size: 20px;
+.cs-owner-avatar {
+  font-size: 16px;
   line-height: 1;
-  flex-shrink: 0;
 }
 
-.cn-owner-main {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.cn-owner-name {
-  font-size: 12.5px;
+.cs-owner-name {
+  font-size: 12px;
   font-weight: 800;
+  color: #065f46;
   letter-spacing: 0.01em;
 }
 
-.cn-owner-meta {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
+.cs-owner-balance {
   font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 700;
-  opacity: 0.9;
-}
-
-.cn-owner-balance { white-space: nowrap; }
-.cn-owner-savings {
-  white-space: nowrap;
-  opacity: 0.85;
-}
-
-.cn-owner-stats {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.cn-owner-stat {
-  font-family: var(--mono);
-  font-size: 11px;
+  font-size: 17px;
   font-weight: 800;
-  padding: 2px 6px;
-  border-radius: 6px;
+  letter-spacing: -0.02em;
+  color: #047857;
+  line-height: 1.1;
   white-space: nowrap;
-
-  &.income {
-    background: rgba(255, 255, 255, 0.18);
-    color: #d1fae5;
-  }
-  &.expense {
-    background: rgba(0, 0, 0, 0.18);
-    color: #fecaca;
-  }
-}
-
-.cn-owner-stat-label {
-  font-size: 9px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  opacity: 0.65;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
 }
 
 /* ============================================================
@@ -468,7 +457,7 @@ function openModal(owner = '', mode = 'add') {
 @media (max-width: 700px) {
   .cash-note {
     padding: 14px 16px 12px;
-    border-radius: 16px;
+    border-radius: 16px 16px 0 0;
   }
 
   .cn-total-value { font-size: 22px; }
@@ -491,27 +480,34 @@ function openModal(owner = '', mode = 'add') {
 
   .cn-watermark { font-size: 110px; bottom: -24px; right: -8px; }
 
-  /* По пользователям */
-  .cn-owners { margin-top: 10px; padding-top: 10px; gap: 5px; }
-  .cn-owners-title { font-size: 9px; letter-spacing: 0.1em; }
-
-  .cn-owner {
-    padding: 7px 8px;
-    gap: 8px;
-    border-radius: 9px;
+  /* Отрывной билет */
+  .cash-stub {
+    padding: 12px 12px 12px;
+    border-radius: 0 0 14px 14px;
   }
-  .cn-owner-avatar { font-size: 17px; }
-  .cn-owner-name { font-size: 11.5px; }
-  .cn-owner-meta { font-size: 10px; gap: 6px; }
 
-  .cn-owner-stats { gap: 4px; }
-  .cn-owner-stat { font-size: 10px; padding: 2px 5px; }
-  .cn-owner-stat-label { font-size: 8px; }
+  .cs-dot { width: 8px; height: 8px; }
+
+  .cs-owners { gap: 6px; }
+
+  .cs-owner {
+    padding: 8px 6px;
+    gap: 4px;
+    border-radius: 10px;
+  }
+
+  .cs-owner-avatar { font-size: 14px; }
+  .cs-owner-name { font-size: 11px; }
+  .cs-owner-balance { font-size: 15px; }
 }
 
 @media (max-width: 380px) {
   .cn-total-value { font-size: 19px; }
   .cn-act { font-size: 10px; }
-  .cn-owner-meta { flex-direction: column; gap: 1px; }
+
+  .cs-owner { padding: 7px 4px; }
+  .cs-owner-avatar { font-size: 13px; }
+  .cs-owner-name { font-size: 10.5px; }
+  .cs-owner-balance { font-size: 13px; }
 }
 </style>
