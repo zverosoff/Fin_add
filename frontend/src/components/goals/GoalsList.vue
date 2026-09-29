@@ -2,7 +2,14 @@
 import { useGoalsStore } from '@/stores/goals';
 import GoalCard from './GoalCard.vue';
 
-const emit = defineEmits(['add', 'edit', 'delete', 'contribute', 'edit-contrib']);
+const emit = defineEmits([
+  'add',
+  'edit',
+  'delete',
+  'contribute',
+  'edit-contrib',
+  'set-primary',
+]);
 
 const goalsStore = useGoalsStore();
 </script>
@@ -18,6 +25,7 @@ const goalsStore = useGoalsStore();
         @delete="(g) => emit('delete', g)"
         @contribute="(g) => emit('contribute', g)"
         @edit-contrib="(payload) => emit('edit-contrib', payload)"
+        @set-primary="(g) => emit('set-primary', g)"
       />
     </div>
 

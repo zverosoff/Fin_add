@@ -88,6 +88,20 @@ async function onDeleteGoal(goal) {
   }
 }
 
+async function onSetPrimary(goal) {
+  try {
+    if (goal.primary) {
+      await goalsStore.clearPrimary();
+      toast.info('☆ Основная цель снята');
+    } else {
+      await goalsStore.setPrimary(goal.id);
+      toast.success(`⭐ «${goal.name}» — основная цель`);
+    }
+  } catch (e) {
+    toast.error('Ошибка: ' + e.message);
+  }
+}
+
 function openContribute(goal) {
   contributeGoal.value = goal;
   contributeModalOpen.value = true;
@@ -165,6 +179,7 @@ function openEditContrib({ goal, user }) {
             @delete="onDeleteGoal"
             @contribute="openContribute"
             @edit-contrib="openEditContrib"
+            @set-primary="onSetPrimary"
           />
         </section>
       </div>
