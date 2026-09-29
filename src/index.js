@@ -84,6 +84,35 @@ app.get('/api/health', (_req, res) => {
   res.json({ ok: true, time: new Date().toISOString() });
 });
 
+// ============================================================
+// Socket.IO — создаём ЗАРАНЕЕ, до тестового роута, чтобы `io`
+// была доступна внутри него
+// ============================================================
+const io = new SocketServer(server, {
+  cors: { origin: ALLOWED_ORIGINS, credentials: true },
+});
+attachSocket(io);
+app.set('io', io);
+
+// ============================================================
+// ✅ ВРЕМЕННЫЙ тестовый роут — для проверки напоминания.
+//    ОБЯЗАТЕЛЬНО до app.use('/api/*'), иначе 404 перехватит.
+//    УДАЛИТЬ после проверки!
+// ============================================================
+app.post('/api/_test/reminder', async (req, res) => {
+  try {
+    const { sendDailyReminder } = await import('./services/dailyReminder.js');
+    await sendDailyReminder(io);
+    res.json({ ok: true });
+  } catch (e) {
+    console.error('[test] reminder error:', e);
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// ============================================================
+// 404 для остальных /api/*
+// ============================================================
 app.use('/api/*', (_req, res) => {
   res.status(404).json({ ok: false, error: 'Not found' });
 });
@@ -117,25 +146,6 @@ app.use((err, _req, res, _next) => {
   res.status(500).json({ ok: false, error: err.message || 'Internal error' });
 });
 
-// ============================================================
-// Socket.IO
-// ============================================================
-const io = new SocketServer(server, {
-  cors: { origin: ALLOWED_ORIGINS, credentials: true },
-});
-attachSocket(io);
-app.set('io', io);
-
-// ВРЕМЕННО — для теста напоминания
-app.post('/api/_test/reminder', async (req, res) => {
-  try {
-    const { sendDailyReminder } = await import('./services/dailyReminder.js');
-    await sendDailyReminder(io);
-    res.json({ ok: true });
-  } catch (e) {
-    res.status(500).json({ ok: false, error: e.message });
-  }
-});
 // ============================================================
 // Запуск
 // ============================================================
