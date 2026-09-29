@@ -226,7 +226,7 @@ input, select, textarea {
    ТЕМЫ ЧАТА
    ============================================================ */
 :root,
-:root[data-theme="light"] {
+:root[data-chat-theme="light"] {
   --chat-bg: #f2f2f7;
   --chat-header-bg: rgba(249, 250, 251, 0.96);
   --chat-border: rgba(60, 60, 67, 0.15);
@@ -247,7 +247,7 @@ input, select, textarea {
   --chat-bg-pattern: none;
 }
 
-:root[data-theme="dark"] {
+:root[data-chat-theme="dark"] {
   --chat-bg: #0f1419;
   --chat-header-bg: rgba(22, 26, 32, 0.96);
   --chat-border: rgba(255, 255, 255, 0.08);
@@ -268,7 +268,7 @@ input, select, textarea {
   --chat-bg-pattern: none;
 }
 
-:root[data-theme="sunset"] {
+:root[data-chat-theme="sunset"] {
   --chat-bg: #fff5eb;
   --chat-header-bg: rgba(255, 248, 240, 0.96);
   --chat-border: rgba(194, 65, 12, 0.15);
@@ -289,7 +289,7 @@ input, select, textarea {
   --chat-bg-pattern: none;
 }
 
-:root[data-theme="sunset-dark"] {
+:root[data-chat-theme="sunset-dark"] {
   --chat-bg: #140810;
   --chat-header-bg: rgba(28, 14, 24, 0.96);
   --chat-border: rgba(255, 200, 150, 0.10);
@@ -310,7 +310,7 @@ input, select, textarea {
   --chat-bg-pattern: none;
 }
 
-:root[data-theme="night"] {
+:root[data-chat-theme="night"] {
   --chat-bg: #070b14;
   --chat-header-bg: rgba(12, 18, 30, 0.96);
   --chat-border: rgba(120, 180, 255, 0.1);
@@ -331,7 +331,7 @@ input, select, textarea {
   --chat-bg-pattern: none;
 }
 
-:root[data-theme="ocean"] {
+:root[data-chat-theme="ocean"] {
   --chat-bg: #eaf6fb;
   --chat-header-bg: rgba(240, 249, 255, 0.96);
   --chat-border: rgba(14, 116, 144, 0.15);
@@ -352,7 +352,7 @@ input, select, textarea {
   --chat-bg-pattern: none;
 }
 
-:root[data-theme="ocean-dark"] {
+:root[data-chat-theme="ocean-dark"] {
   --chat-bg: #041e2b;
   --chat-header-bg: rgba(6, 32, 46, 0.96);
   --chat-border: rgba(56, 189, 248, 0.10);
