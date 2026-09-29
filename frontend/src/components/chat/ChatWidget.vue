@@ -834,6 +834,7 @@ watch(open, (v) => { if (v) askNotifications(); });
                 :class="{
                   out: m.from === me,
                   in: m.from !== me,
+                  'from-system': m.from === 'Приложение',
                   swiping: swipeState.active && swipeState.id === m.id && swipeState.dx > 0,
                   'is-pending': m.pending,
                   'is-failed': m.failed,
@@ -1603,6 +1604,53 @@ $chat-font-lg: 13px;
 
 .chat-msg.out .chat-text :deep(code.md-code) {
   background: rgba(255, 255, 255, 0.22);
+}
+
+/* ✅ Системные сообщения от «Приложение» — по центру, светлый пузырь */
+.chat-msg.from-system {
+  max-width: 100% !important;
+  align-self: center !important;
+  margin-left: auto;
+  margin-right: auto;
+  align-items: center;
+
+  .chat-bubble {
+    background: linear-gradient(135deg, #eef2ff 0%, #f5f3ff 100%) !important;
+    color: #4338ca !important;
+    border: 1px solid rgba(99, 102, 241, 0.25) !important;
+    border-radius: 16px !important;
+    box-shadow: 0 4px 14px -6px rgba(99, 102, 241, 0.25) !important;
+    font-style: italic;
+    text-align: center;
+    max-width: 90%;
+  }
+
+  .chat-meta {
+    color: #6366f1 !important;
+    justify-content: center;
+  }
+
+  .chat-read { display: none; }
+}
+
+/* В тёмных темах — светлое на тёмном */
+:global(:root[data-theme="dark"]) .chat-msg.from-system,
+:global(:root[data-theme="night"]) .chat-msg.from-system {
+  .chat-bubble {
+    background: linear-gradient(135deg, #1e2732 0%, #2b3546 100%) !important;
+    color: #a5b4fc !important;
+    border-color: rgba(165, 180, 252, 0.25) !important;
+  }
+  .chat-meta { color: #a5b4fc !important; }
+}
+
+:global(:root[data-theme="sunset"]) .chat-msg.from-system {
+  .chat-bubble {
+    background: linear-gradient(135deg, #2d1a2e 0%, #3a2030 100%) !important;
+    color: #fdba74 !important;
+    border-color: rgba(251, 146, 60, 0.25) !important;
+  }
+  .chat-meta { color: #fb923c !important; }
 }
 
 .bubble-reply {

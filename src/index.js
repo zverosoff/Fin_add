@@ -18,6 +18,7 @@ import txRoutes from './routes/transactions.js';
 import messagesRoutes from './routes/messages.js';
 import pushRoutes from './routes/push.js';
 import { attachSocket } from './services/wsService.js';
+import { startDailyReminderCron } from './services/dailyReminder.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -136,3 +137,6 @@ server.listen(PORT, () => {
   console.log(`  🩺 Health check:  http://localhost:${PORT}/api/health`);
   console.log('='.repeat(60));
 });
+
+// ✅ Ежедневное напоминание вечером
+startDailyReminderCron(io);

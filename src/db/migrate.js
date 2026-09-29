@@ -75,8 +75,7 @@ export function runMigrations() {
   }
 
   // ============================================================
-  // message_reactions
-  // ============================================================
+  // message_reactions  // ============================================================
   const hasReactions = db.prepare(`
     SELECT name FROM sqlite_master
     WHERE type='table' AND name='message_reactions'
@@ -121,6 +120,16 @@ export function runMigrations() {
     `);
     console.log('[migrate] ✅ таблица push_subscriptions создана');
   }
+
+  // ============================================================
+  // ✅ Регистрация системного пользователя «Приложение»
+  // ============================================================
+  const now = new Date().toISOString();
+  db.prepare(`
+    INSERT INTO user_presence (user, last_seen, updated_at)
+    VALUES ('Приложение', @now, @now)
+    ON CONFLICT(user) DO NOTHING
+  `).run({ now });
 
   console.log('[migrate] ✅ все миграции применены');
 }
