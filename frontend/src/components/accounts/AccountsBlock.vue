@@ -14,13 +14,6 @@ const LS_KEY = 'financeProAccountsExpanded_v1';
 const userName = computed(() => auth.user || 'Сергей');
 const userEmoji = computed(() => userName.value === 'Сергей' ? '👨' : '👩');
 
-const cardHolder = computed(() => {
-  const u = userName.value;
-  if (u === 'Сергей') return 'SERGEY';
-  if (u === 'Саша') return 'SASHA';
-  return String(u).toUpperCase();
-});
-
 const totalBalance = computed(() => accounts.total);
 
 const ownersSorted = computed(() => {
@@ -33,7 +26,6 @@ const ownersSorted = computed(() => {
   });
 });
 
-// Раскрытие счетов сохраняется в localStorage
 const expandedOwners = ref({});
 
 onMounted(() => {
@@ -76,7 +68,6 @@ function isMe(owner) {
 
 <template>
   <section class="accounts-block">
-    <!-- ✅ ДЕБЕТОВАЯ КАРТА -->
     <div class="debit-card">
       <!-- Глянцевые слои -->
       <div class="dc-shine" aria-hidden="true"></div>
@@ -85,7 +76,7 @@ function isMe(owner) {
       <div class="dc-watermark" aria-hidden="true">₽</div>
       <div class="dc-frame" aria-hidden="true"></div>
 
-      <!-- Верхняя строка -->
+      <!-- Верхняя строка: аватар + issuer -->
       <div class="dc-top">
         <div class="dc-avatar">
           <span class="dc-avatar-emoji">{{ userEmoji }}</span>
@@ -96,17 +87,13 @@ function isMe(owner) {
         </div>
       </div>
 
-      <!-- Баланс -->
+      <!-- ✅ Баланс по центру и крупно -->
       <div class="dc-balance">
-        <div class="dc-balance-label">Ваш общий баланс</div>
         <div class="dc-balance-value">{{ fmt(totalBalance) }} ₽</div>
       </div>
 
-      <!-- Владелец -->
-      <div class="dc-holder">
-        <span class="dc-holder-label">Владелец</span>
-        <span class="dc-holder-value">{{ cardHolder }}</span>
-      </div>
+      <!-- ✅ Подпись «Ваш общий баланс» вместо «Владелец» -->
+      <div class="dc-caption">Ваш общий баланс</div>
 
       <!-- Счета по владельцам -->
       <div class="dc-accounts">
@@ -176,7 +163,6 @@ function isMe(owner) {
   padding: 18px 20px 16px;
   overflow: hidden;
 
-  /* ✅ Сине-фиолетовый градиент, как «купюра», но в другой палитре */
   background:
     radial-gradient(circle at 15% 0%, rgba(255, 255, 255, 0.25), transparent 55%),
     radial-gradient(circle at 95% 100%, rgba(255, 255, 255, 0.18), transparent 60%),
@@ -194,7 +180,6 @@ function isMe(owner) {
   flex-direction: column;
   gap: 10px;
 
-  /* ✅ Изолируем контекст для псевдо-слоёв */
   isolation: isolate;
 }
 
@@ -205,10 +190,8 @@ function isMe(owner) {
 }
 
 /* ============================================================
-   ✅ ГЛЯНЦЕВЫЕ СЛОИ — как будто карту крутят в руках
+   ГЛЯНЦЕВЫЕ СЛОИ
    ============================================================ */
-
-/* Основной бегущий блик — диагональная полоса света */
 .dc-shine {
   position: absolute;
   inset: -50%;
@@ -235,7 +218,6 @@ function isMe(owner) {
   100% { transform: translateX(200%); opacity: 0; }
 }
 
-/* Второй, более мягкий блик — общий глянец */
 .dc-gloss {
   position: absolute;
   inset: 0;
@@ -267,7 +249,6 @@ function isMe(owner) {
   }
 }
 
-/* Тонкий паттерн (штриховка) — как на купюре */
 .dc-pattern {
   position: absolute;
   inset: 0;
@@ -281,7 +262,6 @@ function isMe(owner) {
   z-index: 0;
 }
 
-/* ✅ Внутренняя пунктирная рамка — как у купюры */
 .dc-frame {
   position: absolute;
   inset: 6px;
@@ -291,7 +271,6 @@ function isMe(owner) {
   z-index: 1;
 }
 
-/* Watermark ₽ */
 .dc-watermark {
   position: absolute;
   right: -10px;
@@ -311,7 +290,7 @@ function isMe(owner) {
    ============================================================ */
 .dc-top,
 .dc-balance,
-.dc-holder,
+.dc-caption,
 .dc-accounts {
   position: relative;
   z-index: 2;
@@ -369,62 +348,39 @@ function isMe(owner) {
 }
 
 /* ============================================================
-   БАЛАНС
+   ✅ БАЛАНС — по центру, крупно
    ============================================================ */
 .dc-balance {
-  margin-top: 4px;
-}
-
-.dc-balance-label {
-  font-size: 9.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  opacity: 0.8;
+  margin-top: 12px;
+  text-align: center;
 }
 
 .dc-balance-value {
   font-family: var(--mono);
-  font-size: 30px;
+  font-size: 40px;
   font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-  margin-top: 4px;
-  text-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  text-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
 }
 
-/* ============================================================
-   ВЛАДЕЛЕЦ
-   ============================================================ */
-.dc-holder {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.dc-holder-label {
-  font-size: 8.5px;
+/* ✅ Подпись «Ваш общий баланс» */
+.dc-caption {
+  text-align: center;
+  font-size: 10.5px;
   font-weight: 700;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
-  letter-spacing: 0.1em;
-  opacity: 0.7;
-}
-
-.dc-holder-value {
-  font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  opacity: 0.75;
+  margin-top: -2px;
+  margin-bottom: 4px;
 }
 
 /* ============================================================
    СЧЕТА ВНУТРИ КАРТЫ
    ============================================================ */
 .dc-accounts {
-  margin-top: 6px;
+  margin-top: 4px;
   padding-top: 10px;
   border-top: 1px solid rgba(255, 255, 255, 0.2);
   display: flex;
@@ -602,11 +558,9 @@ function isMe(owner) {
   .dc-issuer-name { font-size: 10.5px; letter-spacing: 0.12em; }
   .dc-issuer-sub { font-size: 8.5px; }
 
-  .dc-balance-label { font-size: 9px; }
-  .dc-balance-value { font-size: 26px; }
-
-  .dc-holder-label { font-size: 8px; }
-  .dc-holder-value { font-size: 12px; }
+  .dc-balance { margin-top: 10px; }
+  .dc-balance-value { font-size: 34px; }
+  .dc-caption { font-size: 9.5px; letter-spacing: 0.12em; }
 
   .dc-accounts { gap: 5px; padding-top: 8px; margin-top: 4px; }
   .dc-owner-row { gap: 6px; }
@@ -625,13 +579,12 @@ function isMe(owner) {
 }
 
 @media (max-width: 380px) {
-  .dc-balance-value { font-size: 22px; }
+  .dc-balance-value { font-size: 28px; }
   .dc-issuer-name { font-size: 9.5px; }
   .dc-chips { gap: 4px; }
   .dc-chip { font-size: 10px; }
 }
 
-/* ✅ Уменьшение анимаций */
 @media (prefers-reduced-motion: reduce) {
   .debit-card,
   .dc-shine,
