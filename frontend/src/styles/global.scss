@@ -13,6 +13,15 @@ html, body, #app {
   margin: 0;
 }
 
+html, body {
+  /* ✅ Отключаем выделение текста глобально */
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
   background: linear-gradient(
@@ -40,6 +49,53 @@ body {
   0%   { background-position: 0% 50%; }
   50%  { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
+}
+
+/* ============================================================
+   ✅ РАЗРЕШАЕМ ВЫДЕЛЕНИЕ там, где оно нужно
+   ============================================================ */
+input,
+textarea,
+select,
+[contenteditable="true"],
+code,
+pre,
+kbd,
+samp {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  -ms-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
+/* В чате — текст сообщений тоже можно копировать */
+.chat-text,
+.chat-text * {
+  -webkit-user-select: text;
+  -moz-user-select: text;
+  user-select: text;
+}
+
+/* ============================================================
+   ✅ TOUCH ACTION — убираем double-tap zoom, оставляем скролл
+   ============================================================ */
+* {
+  touch-action: manipulation;
+}
+
+/* Скроллящиеся области — вертикальный скролл */
+.chat-body,
+.tx-list,
+.list-scroll,
+[data-scrollable] {
+  touch-action: pan-y;
+}
+
+/* Графики и canvas — все жесты */
+canvas,
+svg.interactive {
+  touch-action: auto;
 }
 
 /* ============================================================
