@@ -1,6 +1,6 @@
 <!-- frontend/src/components/accounts/AccountsBlock.vue -->
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted, watch } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
 import { useAuthStore } from '@/stores/auth';
 import { fmt } from '@/composables/useFormat';
@@ -8,6 +8,8 @@ import { fmt } from '@/composables/useFormat';
 const emit = defineEmits(['reconcile', 'user-menu']);
 const accounts = useAccountsStore();
 const auth = useAuthStore();
+
+const LS_KEY = 'financeProAccountsExpanded_v1';
 
 const userName = computed(() => auth.user || 'Сергей');
 const userEmoji = computed(() => userName.value === 'Сергей' ? '👨' : '👩');
@@ -18,14 +20,6 @@ const cardHolder = computed(() => {
   if (u === 'Сергей') return 'SERGEY';
   if (u === 'Саша') return 'SASHA';
   return String(u).toUpperCase();
-});
-
-// ✅ Срок действия — текущий месяц/год + 2 года
-const cardExpiry = computed(() => {
-  const d = new Date();
-  const mm = String(d.getMonth() + 1).padStart(2, '0');
-  const yy = String((d.getFullYear() + 2) % 100).padStart(2, '0');
-  return `${mm}/${yy}`;
 });
 
 const totalBalance = computed(() => accounts.total);
@@ -40,7 +34,19 @@ const ownersSorted = computed(() => {
   });
 });
 
+// ✅ Раскрытие счетов сохраняется в localStorage
 const expandedOwners = ref({});
+
+onMounted(() => {
+  try {
+    const saved = localStorage.getItem(LS_KEY);
+    if (saved) expandedOwners.value = JSON.parse(saved) || {};
+  } catch (e) {}
+});
+
+watch(expandedOwners, (val) => {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(val)); } catch (e) {}
+}, { deep: true });
 
 function isExpanded(owner) {
   return !!expandedOwners.value[owner];
@@ -73,22 +79,15 @@ function isMe(owner) {
   <section class="accounts-block">
     <!-- ✅ ДЕБЕТОВАЯ КАРТА -->
     <div class="debit-card">
-      <!-- Чип -->
-      <div class="dc-chip" aria-hidden="true">
-        <div class="dc-chip-line"></div>
-        <div class="dc-chip-line"></div>
-        <div class="dc-chip-line"></div>
-      </div>
-
-      <!-- Логотип банка-эмитента -->
-      <div class="dc-issuer">VAS FINANCE PRO+</div>
-
-      <!-- Номер карты -->
-      <div class="dc-number">
-        <span class="dc-number-group">••••</span>
-        <span class="dc-number-group">••••</span>
-        <span class="dc-number-group">••••</span>
-        <span class="dc-number-group dc-number-last">7777</span>
+      <!-- Верхняя строка: аватар слева, issuer справа -->
+      <div class="dc-top">
+        <div class="dc-avatar">
+          <span class="dc-avatar-emoji">{{ userEmoji }}</span>
+        </div>
+        <div class="dc-issuer">
+          <div class="dc-issuer-name">VAS FINANCE PRO+</div>
+          <div class="dc-issuer-sub">дебетовая</div>
+        </div>
       </div>
 
       <!-- Баланс -->
@@ -97,67 +96,58 @@ function isMe(owner) {
         <div class="dc-balance-value">{{ fmt(totalBalance) }} ₽</div>
       </div>
 
-      <!-- Владелец и срок -->
-      <div class="dc-footer">
-        <div class="dc-holder">
-          <div class="dc-holder-label">Владелец</div>
-          <div class="dc-holder-value">{{ cardHolder }}</div>
-        </div>
-        <div class="dc-expiry">
-          <div class="dc-expiry-label">Действует до</div>
-          <div class="dc-expiry-value">{{ cardExpiry }}</div>
-        </div>
-        <div class="dc-avatar">
-          <div class="dc-avatar-inner">{{ userEmoji }}</div>
-        </div>
+      <!-- Владелец -->
+      <div class="dc-holder">
+        <span class="dc-holder-label">Владелец</span>
+        <span class="dc-holder-value">{{ cardHolder }}</span>
       </div>
-    </div>
 
-    <!-- ✅ Счёта по владельцам (оставляем раскрывающиеся чипы) -->
-    <div class="bc-accounts">
-      <div
-        v-for="owner in ownersSorted"
-        :key="owner"
-        class="bc-owner-row"
-        :class="{ 'is-me': isMe(owner), 'is-expanded': isExpanded(owner) }"
-      >
-        <button
-          class="bc-owner-name"
-          type="button"
-          @click="toggleOwner(owner)"
-          :aria-expanded="isExpanded(owner)"
+      <!-- ✅ Счета по владельцам — ВНУТРИ карты -->
+      <div class="dc-accounts">
+        <div
+          v-for="owner in ownersSorted"
+          :key="owner"
+          class="dc-owner-row"
+          :class="{ 'is-me': isMe(owner), 'is-expanded': isExpanded(owner) }"
         >
-          <span class="bc-owner-emoji">{{ owner === 'Сергей' ? '👨' : '👩' }}</span>
-          <span class="bc-owner-text">{{ owner }}</span>
-          <span v-if="isMe(owner)" class="bc-owner-you">вы</span>
-          <svg class="bc-owner-chev" :class="{ open: isExpanded(owner) }" viewBox="0 0 24 24">
-            <path d="M7 10l5 5 5-5z" fill="currentColor"/>
-          </svg>
-        </button>
-
-        <div v-if="isExpanded(owner)" class="bc-chips">
           <button
-            v-for="acc in accounts.byOwner[owner]"
-            :key="acc.id"
+            class="dc-owner-name"
             type="button"
-            class="bc-chip"
-            @click="emit('reconcile', acc)"
+            @click="toggleOwner(owner)"
+            :aria-expanded="isExpanded(owner)"
           >
-            <img
-              v-if="bankLogo(acc.id)"
-              :src="bankLogo(acc.id)"
-              class="bc-chip-logo"
-              :alt="acc.name"
-            />
-            <span v-else class="bc-chip-logo-fallback">
-              {{ acc.id.startsWith('sber') ? 'С' : 'Т' }}
-            </span>
-            <span class="bc-chip-value">{{ fmt(acc.value) }} ₽</span>
+            <span class="dc-owner-emoji">{{ owner === 'Сергей' ? '👨' : '👩' }}</span>
+            <span class="dc-owner-text">{{ owner }}</span>
+            <span v-if="isMe(owner)" class="dc-owner-you">вы</span>
+            <svg class="dc-owner-chev" :class="{ open: isExpanded(owner) }" viewBox="0 0 24 24">
+              <path d="M7 10l5 5 5-5z" fill="currentColor"/>
+            </svg>
           </button>
-        </div>
 
-        <div v-else class="bc-owner-total">
-          {{ fmt(ownerTotal(accounts.byOwner[owner])) }} ₽
+          <div v-if="isExpanded(owner)" class="dc-chips">
+            <button
+              v-for="acc in accounts.byOwner[owner]"
+              :key="acc.id"
+              type="button"
+              class="dc-chip"
+              @click="emit('reconcile', acc)"
+            >
+              <img
+                v-if="bankLogo(acc.id)"
+                :src="bankLogo(acc.id)"
+                class="dc-chip-logo"
+                :alt="acc.name"
+              />
+              <span v-else class="dc-chip-logo-fallback">
+                {{ acc.id.startsWith('sber') ? 'С' : 'Т' }}
+              </span>
+              <span class="dc-chip-value">{{ fmt(acc.value) }} ₽</span>
+            </button>
+          </div>
+
+          <div v-else class="dc-owner-total">
+            {{ fmt(ownerTotal(accounts.byOwner[owner])) }} ₽
+          </div>
         </div>
       </div>
     </div>
@@ -176,9 +166,8 @@ function isMe(owner) {
    ============================================================ */
 .debit-card {
   position: relative;
-  aspect-ratio: 1.586 / 1;
   border-radius: 22px;
-  padding: 20px 22px 18px;
+  padding: 18px 20px 16px;
   overflow: hidden;
 
   background:
@@ -196,7 +185,7 @@ function isMe(owner) {
 
   display: flex;
   flex-direction: column;
-  justify-content: space-between;
+  gap: 10px;
 }
 
 @keyframes gradientShift {
@@ -205,73 +194,69 @@ function isMe(owner) {
   100% { background-position: 0% 0%, 100% 100%, 0% 50%; }
 }
 
-/* Чип */
-.dc-chip {
-  position: absolute;
-  top: 20px;
-  left: 22px;
-  width: 42px;
-  height: 32px;
-  border-radius: 6px;
-  background: linear-gradient(135deg, #fcd34d 0%, #f59e0b 50%, #d97706 100%);
-  box-shadow:
-    inset 0 0 0 1px rgba(255, 255, 255, 0.35),
-    0 2px 6px -2px rgba(0, 0, 0, 0.4);
+/* ============================================================
+   ВЕРХ: аватар + issuer
+   ============================================================ */
+.dc-top {
   display: flex;
-  flex-direction: column;
-  justify-content: space-evenly;
-  padding: 5px 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
 }
 
-.dc-chip-line {
-  height: 1px;
-  background: rgba(120, 53, 15, 0.55);
-  margin: 0 4px;
-  border-radius: 1px;
+.dc-avatar {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow:
+    0 8px 20px -6px rgba(0, 0, 0, 0.4),
+    0 0 0 3px rgba(255, 255, 255, 0.35);
 }
 
-/* Логотип */
+.dc-avatar-emoji {
+  font-size: 22px;
+  line-height: 1;
+}
+
 .dc-issuer {
-  position: absolute;
-  top: 20px;
-  right: 22px;
-  font-size: 11px;
+  text-align: right;
+  min-width: 0;
+}
+
+.dc-issuer-name {
+  font-size: 11.5px;
   font-weight: 800;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  opacity: 0.9;
-  text-align: right;
-  max-width: 55%;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
 
-/* Номер карты */
-.dc-number {
-  position: relative;
-  display: flex;
-  gap: 14px;
-  margin-top: 62px;
-  font-family: var(--mono);
-  font-size: 19px;
+.dc-issuer-sub {
+  font-size: 9px;
   font-weight: 700;
-  letter-spacing: 0.08em;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.7;
+  margin-top: 2px;
 }
 
-.dc-number-group { opacity: 0.85; }
-.dc-number-last { opacity: 1; font-weight: 800; }
-
-/* Баланс */
+/* ============================================================
+   БАЛАНС
+   ============================================================ */
 .dc-balance {
-  position: relative;
-  margin-top: auto;
-  margin-bottom: 10px;
+  margin-top: 4px;
 }
 
 .dc-balance-label {
-  font-size: 10px;
+  font-size: 9.5px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.12em;
@@ -288,25 +273,16 @@ function isMe(owner) {
   text-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
 }
 
-/* Футер: владелец, срок, аватар */
-.dc-footer {
-  position: relative;
+/* ============================================================
+   ВЛАДЕЛЕЦ
+   ============================================================ */
+.dc-holder {
   display: flex;
-  align-items: flex-end;
-  gap: 16px;
+  align-items: baseline;
+  gap: 8px;
 }
 
-.dc-holder, .dc-expiry {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.dc-expiry { margin-left: auto; }
-
-.dc-holder-label,
-.dc-expiry-label {
+.dc-holder-label {
   font-size: 8.5px;
   font-weight: 700;
   text-transform: uppercase;
@@ -314,122 +290,93 @@ function isMe(owner) {
   opacity: 0.7;
 }
 
-.dc-holder-value,
-.dc-expiry-value {
+.dc-holder-value {
   font-family: var(--mono);
   font-size: 13px;
   font-weight: 800;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.dc-avatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: #ffffff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  box-shadow:
-    0 10px 24px -8px rgba(0, 0, 0, 0.35),
-    0 0 0 3px rgba(255, 255, 255, 0.35);
-  margin-left: auto;
-}
-
-.dc-avatar-inner {
-  width: 100%;
-  height: 100%;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 22px;
-  background: linear-gradient(135deg, #f0f9ff 0%, #f5f3ff 100%);
-}
-
 /* ============================================================
-   СЧЕТА ПО ВЛАДЕЛЬЦАМ
+   СЧЕТА ВНУТРИ КАРТЫ
    ============================================================ */
-.bc-accounts {
+.dc-accounts {
+  margin-top: 6px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding-top: 6px;
+  gap: 6px;
 }
 
-.bc-owner-row {
+.dc-owner-row {
   display: flex;
   align-items: center;
   gap: 8px;
   min-width: 0;
-  padding: 4px;
-  border-radius: 10px;
-  transition: background 0.25s;
 }
 
-.bc-owner-name {
+.dc-owner-name {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   padding: 4px 8px 4px 6px;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 999px;
-  background: #f8fafc;
-  color: var(--text);
+  background: rgba(255, 255, 255, 0.1);
+  color: #ffffff;
   font-family: inherit;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 700;
   cursor: pointer;
   flex-shrink: 0;
   transition: all 0.15s;
   white-space: nowrap;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 
   &:hover {
-    background: rgba(99, 102, 241, 0.08);
-    border-color: rgba(99, 102, 241, 0.4);
-    color: #4f46e5;
+    background: rgba(255, 255, 255, 0.2);
     transform: translateY(-1px);
   }
-
   &:active { transform: scale(0.97); }
 
   .is-me & {
-    border-color: rgba(99, 102, 241, 0.5);
+    border-color: rgba(255, 255, 255, 0.55);
     font-weight: 800;
-    box-shadow: 0 0 0 1.5px rgba(99, 102, 241, 0.2);
+    box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.35);
   }
 }
 
-.bc-owner-emoji { font-size: 13px; }
-.bc-owner-text { line-height: 1; }
+.dc-owner-emoji { font-size: 13px; }
+.dc-owner-text { line-height: 1; }
 
-.bc-owner-you {
+.dc-owner-you {
   margin-left: 4px;
   padding: 1px 6px;
   border-radius: 999px;
-  background: #4f46e5;
-  color: #ffffff;
+  background: rgba(255, 255, 255, 0.95);
+  color: #4f46e5;
   font-size: 9px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
 
-.bc-owner-chev {
+.dc-owner-chev {
   width: 14px;
   height: 14px;
   margin-left: 2px;
-  color: var(--muted);
+  color: rgba(255, 255, 255, 0.75);
   transition: transform 0.25s cubic-bezier(.34,1.56,.64,1);
 
   &.open { transform: rotate(180deg); }
 }
 
-.bc-chips {
+.dc-chips {
   display: flex;
   align-items: center;
   gap: 6px;
@@ -445,33 +392,33 @@ function isMe(owner) {
   to   { opacity: 1; transform: translateY(0); }
 }
 
-.bc-chip {
+.dc-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 5px 12px 5px 5px;
+  padding: 4px 10px 4px 4px;
   border-radius: 999px;
-  border: 1px solid var(--border);
-  background: #ffffff;
-  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.18);
+  color: #ffffff;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s;
   white-space: nowrap;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 
   &:hover {
-    background: #f8fafc;
-    border-color: rgba(99, 102, 241, 0.4);
+    background: rgba(255, 255, 255, 0.32);
     transform: translateY(-1px);
-    box-shadow: 0 6px 16px -6px rgba(15, 23, 42, 0.15);
+    box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.35);
   }
-
   &:active { transform: scale(0.96); }
 }
 
-.bc-chip-logo {
+.dc-chip-logo {
   width: 18px;
   height: 18px;
   border-radius: 50%;
@@ -482,11 +429,11 @@ function isMe(owner) {
   flex-shrink: 0;
 }
 
-.bc-chip-logo-fallback {
+.dc-chip-logo-fallback {
   width: 18px;
   height: 18px;
   border-radius: 50%;
-  background: #f1f5f9;
+  background: #ffffff;
   color: #4f46e5;
   display: flex;
   align-items: center;
@@ -496,26 +443,26 @@ function isMe(owner) {
   flex-shrink: 0;
 }
 
-.bc-chip-value {
+.dc-chip-value {
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 800;
   letter-spacing: -0.02em;
 }
 
-.bc-owner-total {
+.dc-owner-total {
   margin-left: auto;
-  padding: 4px 12px;
+  padding: 3px 10px;
   border-radius: 999px;
-  background: #f1f5f9;
+  background: rgba(255, 255, 255, 0.92);
   color: #4f46e5;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 800;
   letter-spacing: -0.02em;
   white-space: nowrap;
   flex-shrink: 0;
-  border: 1px solid var(--border);
+  box-shadow: 0 4px 10px -4px rgba(0, 0, 0, 0.25);
   animation: chipsIn 0.25s ease;
 }
 
@@ -524,44 +471,41 @@ function isMe(owner) {
    ============================================================ */
 @media (max-width: 700px) {
   .debit-card {
-    padding: 16px 18px 14px;
+    padding: 14px 16px 12px;
     border-radius: 20px;
+    gap: 8px;
   }
-
-  .dc-chip { top: 16px; left: 18px; width: 36px; height: 28px; }
-  .dc-issuer { top: 16px; right: 18px; font-size: 10px; letter-spacing: 0.12em; }
-
-  .dc-number {
-    margin-top: 54px;
-    font-size: 16px;
-    gap: 10px;
-  }
-
-  .dc-balance-label { font-size: 9px; }
-  .dc-balance-value { font-size: 24px; }
 
   .dc-avatar { width: 38px; height: 38px; }
-  .dc-avatar-inner { font-size: 18px; }
-  .dc-holder-value, .dc-expiry-value { font-size: 11px; }
+  .dc-avatar-emoji { font-size: 18px; }
 
-  .bc-accounts { gap: 6px; padding-top: 4px; }
-  .bc-owner-row { gap: 6px; padding: 3px; }
-  .bc-owner-name { font-size: 11px; padding: 3px 7px 3px 5px; }
-  .bc-owner-emoji { font-size: 12px; }
-  .bc-owner-chev { width: 12px; height: 12px; }
+  .dc-issuer-name { font-size: 10.5px; letter-spacing: 0.12em; }
+  .dc-issuer-sub { font-size: 8.5px; }
 
-  .bc-chip { font-size: 11px; padding: 4px 10px 4px 4px; gap: 5px; }
-  .bc-chip-logo,
-  .bc-chip-logo-fallback { width: 16px; height: 16px; }
-  .bc-chip-value { font-size: 11px; }
+  .dc-balance-label { font-size: 9px; }
+  .dc-balance-value { font-size: 26px; }
 
-  .bc-owner-total { font-size: 11px; padding: 3px 10px; }
+  .dc-holder-label { font-size: 8px; }
+  .dc-holder-value { font-size: 12px; }
+
+  .dc-accounts { gap: 5px; padding-top: 8px; margin-top: 4px; }
+  .dc-owner-row { gap: 6px; }
+  .dc-owner-name { font-size: 10.5px; padding: 3px 7px 3px 5px; }
+  .dc-owner-emoji { font-size: 12px; }
+  .dc-owner-chev { width: 12px; height: 12px; }
+
+  .dc-chip { font-size: 11px; padding: 3px 9px 3px 3px; gap: 5px; }
+  .dc-chip-logo,
+  .dc-chip-logo-fallback { width: 16px; height: 16px; }
+  .dc-chip-value { font-size: 11px; }
+
+  .dc-owner-total { font-size: 11px; padding: 2px 9px; }
 }
 
 @media (max-width: 380px) {
-  .dc-balance-value { font-size: 20px; }
-  .dc-number { font-size: 14px; gap: 8px; }
-  .bc-chips { gap: 4px; }
-  .bc-chip { font-size: 10px; }
+  .dc-balance-value { font-size: 22px; }
+  .dc-issuer-name { font-size: 9.5px; }
+  .dc-chips { gap: 4px; }
+  .dc-chip { font-size: 10px; }
 }
 </style>
