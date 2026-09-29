@@ -14,7 +14,6 @@ html, body, #app {
 }
 
 html, body {
-  /* ✅ Отключаем выделение текста глобально */
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
@@ -52,7 +51,7 @@ body {
 }
 
 /* ============================================================
-   ✅ РАЗРЕШАЕМ ВЫДЕЛЕНИЕ там, где оно нужно
+   РАЗРЕШАЕМ ВЫДЕЛЕНИЕ там, где оно нужно
    ============================================================ */
 input,
 textarea,
@@ -69,7 +68,6 @@ samp {
   -webkit-touch-callout: default;
 }
 
-/* В чате — текст сообщений тоже можно копировать */
 .chat-text,
 .chat-text * {
   -webkit-user-select: text;
@@ -78,13 +76,12 @@ samp {
 }
 
 /* ============================================================
-   ✅ TOUCH ACTION — убираем double-tap zoom, оставляем скролл
+   TOUCH ACTION — убираем double-tap zoom, оставляем скролл
    ============================================================ */
 * {
   touch-action: manipulation;
 }
 
-/* Скроллящиеся области — вертикальный скролл */
 .chat-body,
 .tx-list,
 .list-scroll,
@@ -92,7 +89,6 @@ samp {
   touch-action: pan-y;
 }
 
-/* Графики и canvas — все жесты */
 canvas,
 svg.interactive {
   touch-action: auto;
@@ -273,22 +269,43 @@ input, select, textarea {
 }
 
 :root[data-theme="sunset"] {
-  --chat-bg: #1a0f1f;
-  --chat-header-bg: rgba(36, 18, 40, 0.96);
-  --chat-border: rgba(255, 200, 150, 0.12);
-  --chat-text: #ffe9d6;
-  --chat-text-muted: #b89a8a;
-  --chat-bubble-in-bg: #2d1a2e;
-  --chat-bubble-in-text: #ffe9d6;
-  --chat-bubble-out-bg: #c2410c;
+  --chat-bg: #fff5eb;
+  --chat-header-bg: rgba(255, 248, 240, 0.96);
+  --chat-border: rgba(194, 65, 12, 0.15);
+  --chat-text: #431407;
+  --chat-text-muted: #9a5a3a;
+  --chat-bubble-in-bg: #ffffff;
+  --chat-bubble-in-text: #431407;
+  --chat-bubble-out-bg: #ea580c;
   --chat-bubble-out-text: #fff7ed;
-  --chat-input-bg: #2d1a2e;
-  --chat-input-border: rgba(255, 200, 150, 0.15);
+  --chat-input-bg: #ffffff;
+  --chat-input-border: rgba(194, 65, 12, 0.2);
+  --chat-accent: #ea580c;
+  --chat-reactions-bg: rgba(194, 65, 12, 0.05);
+  --chat-reactions-out-bg: rgba(255, 255, 255, 0.18);
+  --chat-menu-bg: rgba(255, 255, 255, 0.98);
+  --chat-menu-text: #431407;
+  --chat-menu-hover: rgba(234, 88, 12, 0.1);
+  --chat-bg-pattern: none;
+}
+
+:root[data-theme="sunset-dark"] {
+  --chat-bg: #140810;
+  --chat-header-bg: rgba(28, 14, 24, 0.96);
+  --chat-border: rgba(255, 200, 150, 0.10);
+  --chat-text: #ffe0cc;
+  --chat-text-muted: #a08479;
+  --chat-bubble-in-bg: #22101a;
+  --chat-bubble-in-text: #ffe0cc;
+  --chat-bubble-out-bg: #7c2d12;
+  --chat-bubble-out-text: #fff1e6;
+  --chat-input-bg: #22101a;
+  --chat-input-border: rgba(255, 200, 150, 0.12);
   --chat-accent: #fb923c;
-  --chat-reactions-bg: rgba(255, 200, 150, 0.08);
-  --chat-reactions-out-bg: rgba(255, 255, 255, 0.12);
-  --chat-menu-bg: rgba(45, 26, 46, 0.98);
-  --chat-menu-text: #ffe9d6;
+  --chat-reactions-bg: rgba(255, 200, 150, 0.06);
+  --chat-reactions-out-bg: rgba(255, 255, 255, 0.10);
+  --chat-menu-bg: rgba(40, 20, 32, 0.98);
+  --chat-menu-text: #ffe0cc;
   --chat-menu-hover: rgba(251, 146, 60, 0.15);
   --chat-bg-pattern: none;
 }
@@ -311,6 +328,48 @@ input, select, textarea {
   --chat-menu-bg: rgba(16, 26, 46, 0.98);
   --chat-menu-text: #d6e4ff;
   --chat-menu-hover: rgba(96, 165, 250, 0.15);
+  --chat-bg-pattern: none;
+}
+
+:root[data-theme="ocean"] {
+  --chat-bg: #eaf6fb;
+  --chat-header-bg: rgba(240, 249, 255, 0.96);
+  --chat-border: rgba(14, 116, 144, 0.15);
+  --chat-text: #082f49;
+  --chat-text-muted: #0e7490;
+  --chat-bubble-in-bg: #ffffff;
+  --chat-bubble-in-text: #082f49;
+  --chat-bubble-out-bg: #0891b2;
+  --chat-bubble-out-text: #ffffff;
+  --chat-input-bg: #ffffff;
+  --chat-input-border: rgba(14, 116, 144, 0.2);
+  --chat-accent: #0891b2;
+  --chat-reactions-bg: rgba(14, 116, 144, 0.05);
+  --chat-reactions-out-bg: rgba(255, 255, 255, 0.18);
+  --chat-menu-bg: rgba(255, 255, 255, 0.98);
+  --chat-menu-text: #082f49;
+  --chat-menu-hover: rgba(8, 145, 178, 0.1);
+  --chat-bg-pattern: none;
+}
+
+:root[data-theme="ocean-dark"] {
+  --chat-bg: #041e2b;
+  --chat-header-bg: rgba(6, 32, 46, 0.96);
+  --chat-border: rgba(56, 189, 248, 0.10);
+  --chat-text: #cffafe;
+  --chat-text-muted: #5a8a9c;
+  --chat-bubble-in-bg: #0a3145;
+  --chat-bubble-in-text: #cffafe;
+  --chat-bubble-out-bg: #0e7490;
+  --chat-bubble-out-text: #e0f2fe;
+  --chat-input-bg: #0a3145;
+  --chat-input-border: rgba(56, 189, 248, 0.12);
+  --chat-accent: #38bdf8;
+  --chat-reactions-bg: rgba(56, 189, 248, 0.06);
+  --chat-reactions-out-bg: rgba(255, 255, 255, 0.10);
+  --chat-menu-bg: rgba(10, 49, 69, 0.98);
+  --chat-menu-text: #cffafe;
+  --chat-menu-hover: rgba(56, 189, 248, 0.15);
   --chat-bg-pattern: none;
 }
 
