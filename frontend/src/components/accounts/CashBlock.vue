@@ -12,51 +12,37 @@ const cashModalOpen = ref(false);
 const cashModalOwner = ref('');
 const cashModalMode = ref('add');
 
-// ✅ Всего наличных
 const totalCash = computed(() => accounts.totalCash);
 
-// ✅ Основная цель (одна из goals с флагом primary)
 const primaryGoal = computed(() =>
   goalsStore.enrichedGoals.find(g => g.primary) || null
 );
 
-// ✅ Прогресс основной цели: сколько уже есть наличных / target
 const primaryProgress = computed(() => {
   const g = primaryGoal.value;
   if (!g || !g.target) return 0;
   return Math.min(100, (totalCash.value / g.target) * 100);
 });
 
-// ✅ Осталось накопить
 const primaryLeft = computed(() => {
   const g = primaryGoal.value;
   if (!g) return 0;
   return Math.max(0, g.target - totalCash.value);
 });
 
-// ✅ Второстепенные цели (без основной), максимум 4
-const secondaryGoals = computed(() =>
-  goalsStore.enrichedGoals
-    .filter(g => !g.primary)
-    .slice(0, 4)
+// ✅ Суммы наличных по пользователям
+const owners = computed(() =>
+  ['Сергей', 'Саша'].map(owner => ({
+    owner,
+    emoji: owner === 'Сергей' ? '👨' : '👩',
+    balance: accounts.getCash(owner),
+  }))
 );
-
-// ✅ Прогресс второстепенной цели — тоже относительно totalCash
-function goalProgress(goal) {
-  if (!goal.target) return 0;
-  return Math.min(100, (totalCash.value / goal.target) * 100);
-}
 
 function openModal(owner = '', mode = 'add') {
   cashModalOwner.value = owner;
   cashModalMode.value = mode;
   cashModalOpen.value = true;
-}
-
-// Заглушка — открывает модалку целей на странице аналитики
-function goToGoals() {
-  // ничего не делаем — цель задаётся в разделе «Аналитика → Цели»
-  // если хочешь — можно emit и роутить
 }
 </script>
 
@@ -106,25 +92,16 @@ function goToGoals() {
         </template>
       </div>
 
-      <!-- ✅ ВТОРОСТЕПЕННЫЕ ЦЕЛИ -->
-      <div v-if="secondaryGoals.length" class="cn-secondary">
-        <div class="cn-secondary-title">Другие цели</div>
+      <!-- ✅ НАЛИЧНЫЕ ПО ПОЛЬЗОВАТЕЛЯМ -->
+      <div class="cn-owners">
         <div
-          v-for="g in secondaryGoals"
-          :key="g.id"
-          class="cn-secondary-item"
+          v-for="o in owners"
+          :key="o.owner"
+          class="cn-owner"
         >
-          <div class="cn-secondary-head">
-            <span class="cn-secondary-icon">{{ g.emoji || '🎯' }}</span>
-            <span class="cn-secondary-name">{{ g.name }}</span>
-            <span class="cn-secondary-pct">{{ goalProgress(g).toFixed(0) }}%</span>
-          </div>
-          <div class="cn-secondary-track">
-            <div
-              class="cn-secondary-fill"
-              :style="{ width: goalProgress(g) + '%' }"
-            ></div>
-          </div>
+          <span class="cn-owner-emoji">{{ o.emoji }}</span>
+          <span class="cn-owner-name">{{ o.owner }}</span>
+          <span class="cn-owner-value">{{ fmt(o.balance) }} ₽</span>
         </div>
       </div>
 
@@ -275,7 +252,7 @@ function goToGoals() {
    ============================================================ */
 .cn-goal {
   position: relative;
-  margin: 4px 0 12px;
+  margin: 4px 0 10px;
   padding: 12px 14px;
   border-radius: 12px;
   background: rgba(0, 0, 0, 0.15);
@@ -368,71 +345,47 @@ function goToGoals() {
 .cn-goal-empty-text { font-style: italic; }
 
 /* ============================================================
-   ДРУГИЕ ЦЕЛИ (компактно)
+   ✅ НАЛИЧНЫЕ ПО ПОЛЬЗОВАТЕЛЯМ
    ============================================================ */
-.cn-secondary {
+.cn-owners {
   position: relative;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
   padding-top: 10px;
   border-top: 1px dashed rgba(255, 255, 255, 0.25);
   display: flex;
   flex-direction: column;
-  gap: 8px;
-}
-
-.cn-secondary-title {
-  font-size: 9.5px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  opacity: 0.7;
-}
-
-.cn-secondary-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.cn-secondary-head {
-  display: flex;
-  align-items: center;
   gap: 6px;
-  font-size: 11.5px;
+}
+
+.cn-owner {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.cn-owner-emoji {
+  font-size: 16px;
+  line-height: 1;
+}
+
+.cn-owner-name {
+  font-size: 12.5px;
   font-weight: 700;
+  letter-spacing: 0.01em;
 }
 
-.cn-secondary-icon { font-size: 12px; }
-
-.cn-secondary-name {
-  flex: 1;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  opacity: 0.92;
-}
-
-.cn-secondary-pct {
+.cn-owner-value {
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 13.5px;
   font-weight: 800;
-  color: #fde68a;
-  flex-shrink: 0;
-}
-
-.cn-secondary-track {
-  height: 5px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.15);
-  overflow: hidden;
-}
-
-.cn-secondary-fill {
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #6ee7b7, #a7f3d0);
-  transition: width 0.5s cubic-bezier(.22,.61,.36,1);
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  white-space: nowrap;
 }
 
 /* ============================================================
@@ -443,7 +396,7 @@ function goToGoals() {
   display: grid;
   grid-template-columns: 1.3fr 1fr 1fr;
   gap: 6px;
-  margin-top: 12px;
+  margin-top: 8px;
 }
 
 .cn-act {
@@ -504,17 +457,19 @@ function goToGoals() {
   .cn-label { font-size: 9.5px; letter-spacing: 0.1em; }
   .cn-icon { font-size: 14px; }
 
-  .cn-goal { padding: 10px 12px; margin: 4px 0 10px; }
+  .cn-goal { padding: 10px 12px; margin: 4px 0 8px; }
   .cn-goal-name { font-size: 12.5px; }
   .cn-goal-title { font-size: 9px; }
   .cn-goal-meta { font-size: 10px; }
   .cn-goal-pct { font-size: 11px; }
 
-  .cn-secondary-item { gap: 3px; }
-  .cn-secondary-head { font-size: 11px; }
-  .cn-secondary-pct { font-size: 10px; }
+  .cn-owners { padding-top: 8px; margin-bottom: 8px; gap: 5px; }
+  .cn-owner { padding: 5px 8px; gap: 8px; border-radius: 9px; }
+  .cn-owner-emoji { font-size: 14px; }
+  .cn-owner-name { font-size: 11.5px; }
+  .cn-owner-value { font-size: 12.5px; }
 
-  .cn-actions { gap: 5px; margin-top: 10px; }
+  .cn-actions { gap: 5px; margin-top: 6px; }
   .cn-act { padding: 7px 4px; font-size: 10.5px; gap: 4px; }
   .cn-act-icon { font-size: 12px; }
 
@@ -524,6 +479,7 @@ function goToGoals() {
 @media (max-width: 380px) {
   .cn-total-value { font-size: 19px; }
   .cn-act { font-size: 10px; }
-  .cn-goal-name { font-size: 11.5px; }
+  .cn-owner-name { font-size: 11px; }
+  .cn-owner-value { font-size: 12px; }
 }
 </style>
