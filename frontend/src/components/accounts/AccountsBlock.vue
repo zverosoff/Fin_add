@@ -14,7 +14,6 @@ const LS_KEY = 'financeProAccountsExpanded_v1';
 const userName = computed(() => auth.user || 'Сергей');
 const userEmoji = computed(() => userName.value === 'Сергей' ? '👨' : '👩');
 
-// ✅ Имя владельца латиницей, капсом
 const cardHolder = computed(() => {
   const u = userName.value;
   if (u === 'Сергей') return 'SERGEY';
@@ -34,7 +33,7 @@ const ownersSorted = computed(() => {
   });
 });
 
-// ✅ Раскрытие счетов сохраняется в localStorage
+// Раскрытие счетов сохраняется в localStorage
 const expandedOwners = ref({});
 
 onMounted(() => {
@@ -79,7 +78,14 @@ function isMe(owner) {
   <section class="accounts-block">
     <!-- ✅ ДЕБЕТОВАЯ КАРТА -->
     <div class="debit-card">
-      <!-- Верхняя строка: аватар слева, issuer справа -->
+      <!-- Глянцевые слои -->
+      <div class="dc-shine" aria-hidden="true"></div>
+      <div class="dc-gloss" aria-hidden="true"></div>
+      <div class="dc-pattern" aria-hidden="true"></div>
+      <div class="dc-watermark" aria-hidden="true">₽</div>
+      <div class="dc-frame" aria-hidden="true"></div>
+
+      <!-- Верхняя строка -->
       <div class="dc-top">
         <div class="dc-avatar">
           <span class="dc-avatar-emoji">{{ userEmoji }}</span>
@@ -102,7 +108,7 @@ function isMe(owner) {
         <span class="dc-holder-value">{{ cardHolder }}</span>
       </div>
 
-      <!-- ✅ Счета по владельцам — ВНУТРИ карты -->
+      <!-- Счета по владельцам -->
       <div class="dc-accounts">
         <div
           v-for="owner in ownersSorted"
@@ -170,22 +176,26 @@ function isMe(owner) {
   padding: 18px 20px 16px;
   overflow: hidden;
 
+  /* ✅ Сине-фиолетовый градиент, как «купюра», но в другой палитре */
   background:
-    radial-gradient(circle at 15% 0%, rgba(255, 255, 255, 0.22), transparent 55%),
-    radial-gradient(circle at 95% 100%, rgba(255, 255, 255, 0.14), transparent 60%),
-    linear-gradient(135deg, #06b6d4 0%, #3b82f6 30%, #7c3aed 60%, #06b6d4 100%);
+    radial-gradient(circle at 15% 0%, rgba(255, 255, 255, 0.25), transparent 55%),
+    radial-gradient(circle at 95% 100%, rgba(255, 255, 255, 0.18), transparent 60%),
+    linear-gradient(135deg, #4338ca 0%, #6366f1 30%, #8b5cf6 60%, #4f46e5 100%);
   background-size: 100% 100%, 100% 100%, 300% 300%;
-  animation: gradientShift 12s ease-in-out infinite;
+  animation: gradientShift 14s ease-in-out infinite;
 
   color: #ffffff;
   box-shadow:
-    0 24px 48px -18px rgba(59, 130, 246, 0.65),
-    0 12px 24px -10px rgba(124, 58, 237, 0.45),
+    0 24px 48px -18px rgba(79, 70, 229, 0.65),
+    0 12px 24px -10px rgba(139, 92, 246, 0.45),
     inset 0 0 0 1px rgba(255, 255, 255, 0.15);
 
   display: flex;
   flex-direction: column;
   gap: 10px;
+
+  /* ✅ Изолируем контекст для псевдо-слоёв */
+  isolation: isolate;
 }
 
 @keyframes gradientShift {
@@ -195,8 +205,118 @@ function isMe(owner) {
 }
 
 /* ============================================================
+   ✅ ГЛЯНЦЕВЫЕ СЛОИ — как будто карту крутят в руках
+   ============================================================ */
+
+/* Основной бегущий блик — диагональная полоса света */
+.dc-shine {
+  position: absolute;
+  inset: -50%;
+  background: linear-gradient(
+    115deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.08) 45%,
+    rgba(255, 255, 255, 0.35) 50%,
+    rgba(255, 255, 255, 0.08) 55%,
+    transparent 70%
+  );
+  transform: translateX(-100%) rotate(0deg);
+  animation: shineMove 6s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+  mix-blend-mode: overlay;
+}
+
+@keyframes shineMove {
+  0%   { transform: translateX(-100%); opacity: 0; }
+  15%  { opacity: 1; }
+  50%  { transform: translateX(100%); opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translateX(200%); opacity: 0; }
+}
+
+/* Второй, более мягкий блик — общий глянец */
+.dc-gloss {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(
+      ellipse 60% 40% at 20% 10%,
+      rgba(255, 255, 255, 0.35),
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse 50% 30% at 90% 100%,
+      rgba(139, 92, 246, 0.4),
+      transparent 60%
+    );
+  animation: glossRotate 12s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+  mix-blend-mode: overlay;
+}
+
+@keyframes glossRotate {
+  0%, 100% {
+    background-position: 0% 0%, 100% 100%;
+    opacity: 0.9;
+  }
+  50% {
+    background-position: 100% 100%, 0% 0%;
+    opacity: 1;
+  }
+}
+
+/* Тонкий паттерн (штриховка) — как на купюре */
+.dc-pattern {
+  position: absolute;
+  inset: 0;
+  background-image:
+    repeating-linear-gradient(
+      45deg,
+      rgba(255, 255, 255, 0.045) 0 2px,
+      transparent 2px 8px
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ✅ Внутренняя пунктирная рамка — как у купюры */
+.dc-frame {
+  position: absolute;
+  inset: 6px;
+  border-radius: 16px;
+  border: 1.5px dashed rgba(255, 255, 255, 0.32);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Watermark ₽ */
+.dc-watermark {
+  position: absolute;
+  right: -10px;
+  bottom: -30px;
+  font-size: 140px;
+  font-weight: 900;
+  color: rgba(255, 255, 255, 0.08);
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  font-family: var(--mono);
+  z-index: 0;
+}
+
+/* ============================================================
    ВЕРХ: аватар + issuer
    ============================================================ */
+.dc-top,
+.dc-balance,
+.dc-holder,
+.dc-accounts {
+  position: relative;
+  z-index: 2;
+}
+
 .dc-top {
   display: flex;
   align-items: center;
@@ -500,6 +620,8 @@ function isMe(owner) {
   .dc-chip-value { font-size: 11px; }
 
   .dc-owner-total { font-size: 11px; padding: 2px 9px; }
+
+  .dc-watermark { font-size: 110px; bottom: -24px; right: -8px; }
 }
 
 @media (max-width: 380px) {
@@ -507,5 +629,14 @@ function isMe(owner) {
   .dc-issuer-name { font-size: 9.5px; }
   .dc-chips { gap: 4px; }
   .dc-chip { font-size: 10px; }
+}
+
+/* ✅ Уменьшение анимаций */
+@media (prefers-reduced-motion: reduce) {
+  .debit-card,
+  .dc-shine,
+  .dc-gloss {
+    animation: none !important;
+  }
 }
 </style>
