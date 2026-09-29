@@ -10,16 +10,15 @@ const cashModalOpen = ref(false);
 const cashModalOwner = ref('');
 const cashModalMode = ref('add');
 
+// ✅ «Всего наличных» = сумма кошельков обоих пользователей
+// (копилка с бэка не удаляется, но в UI не отображается)
 const totalBalance = computed(() => accounts.totalCash);
-const totalSavings = computed(() => accounts.totalCashSavings);
-const totalAll = computed(() => accounts.totalCashAll);
 
 const owners = computed(() => {
   return ['Сергей', 'Саша'].map(owner => ({
     owner,
     emoji: owner === 'Сергей' ? '👨' : '👩',
     balance: accounts.getCash(owner),
-    savings: accounts.getCashSavings(owner),
     stats: accounts.cashStats(owner, 30),
   }));
 });
@@ -44,24 +43,18 @@ function openModal(owner = '', mode = 'add') {
           <span class="cn-label">НАЛИЧНЫЕ</span>
         </div>
         <div class="cn-total">
-          <div class="cn-total-value">{{ fmt(totalAll) }} ₽</div>
+          <div class="cn-total-value">{{ fmt(totalBalance) }} ₽</div>
           <div class="cn-total-label">всего на руках</div>
         </div>
       </div>
 
+      <!-- ✅ Одна полоса: общая сумма без разбивки кошелёк/копилка -->
       <div class="cn-middle">
-        <div class="cn-part">
+        <div class="cn-part cn-part-full">
           <div class="cn-part-icon">👛</div>
           <div class="cn-part-info">
             <div class="cn-part-value">{{ fmt(totalBalance) }} ₽</div>
-            <div class="cn-part-label">в кошельке</div>
-          </div>
-        </div>
-        <div class="cn-part">
-          <div class="cn-part-icon">🏦</div>
-          <div class="cn-part-info">
-            <div class="cn-part-value">{{ fmt(totalSavings) }} ₽</div>
-            <div class="cn-part-label">в копилке</div>
+            <div class="cn-part-label">наличные на руках</div>
           </div>
         </div>
       </div>
@@ -78,10 +71,10 @@ function openModal(owner = '', mode = 'add') {
         <button
           class="cn-act"
           type="button"
-          @click="openModal('', 'savings-to')"
+          @click="openModal('', 'withdraw')"
         >
-          <span class="cn-act-icon">🏦</span>
-          <span>В копилку</span>
+          <span class="cn-act-icon">−</span>
+          <span>Убрать</span>
         </button>
         <button
           class="cn-act"
@@ -96,12 +89,10 @@ function openModal(owner = '', mode = 'add') {
 
     <!-- ✅ Отрывной билет по пользователям -->
     <div class="cash-stub">
-      <!-- Частая перфорация сверху -->
       <div class="cs-perforation" aria-hidden="true">
         <span v-for="n in 40" :key="n" class="cs-dot"></span>
       </div>
 
-      <!-- Вертикальный пунктир по центру -->
       <div class="cs-perf"></div>
 
       <div class="cs-owners">
@@ -117,12 +108,6 @@ function openModal(owner = '', mode = 'add') {
 
           <div class="cs-owner-balance">
             <span class="cs-owner-balance-value">{{ fmt(o.balance) }} ₽</span>
-            <span class="cs-owner-balance-label">кошелёк</span>
-          </div>
-
-          <div class="cs-owner-savings">
-            <span class="cs-owner-savings-icon">🏦</span>
-            <span class="cs-owner-savings-value">{{ fmt(o.savings) }} ₽</span>
           </div>
 
           <div class="cs-owner-stats">
@@ -261,10 +246,11 @@ function openModal(owner = '', mode = 'add') {
   margin-top: 2px;
 }
 
+/* ✅ Одна полоса на всю ширину */
 .cn-middle {
   position: relative;
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 8px;
   padding: 10px 0 12px;
   border-top: 1px solid rgba(255, 255, 255, 0.2);
@@ -274,9 +260,13 @@ function openModal(owner = '', mode = 'add') {
 .cn-part {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   padding: 4px 8px;
   border-radius: 10px;
+
+  &.cn-part-full {
+    justify-content: flex-start;
+  }
 }
 
 .cn-part-icon { font-size: 20px; flex-shrink: 0; }
@@ -374,7 +364,6 @@ function openModal(owner = '', mode = 'add') {
     0 4px 12px -8px rgba(5, 150, 105, 0.2);
 }
 
-/* ✅ Частая перфорация сверху */
 .cs-perforation {
   position: absolute;
   top: -1px;
@@ -397,7 +386,6 @@ function openModal(owner = '', mode = 'add') {
   flex-shrink: 0;
 }
 
-/* Вертикальная перфорация по центру */
 .cs-perf {
   position: absolute;
   left: 50%;
@@ -409,7 +397,6 @@ function openModal(owner = '', mode = 'add') {
   pointer-events: none;
 }
 
-/* Контейнер двух билетов */
 .cs-owners {
   position: relative;
   display: grid;
@@ -417,7 +404,6 @@ function openModal(owner = '', mode = 'add') {
   gap: 6px;
 }
 
-/* Билет одного пользователя */
 .cs-owner {
   display: flex;
   flex-direction: column;
@@ -457,7 +443,7 @@ function openModal(owner = '', mode = 'add') {
   text-overflow: ellipsis;
 }
 
-/* Баланс кошелька — крупно */
+/* ✅ Только баланс, без подписи «кошелёк» */
 .cs-owner-balance {
   display: flex;
   align-items: baseline;
@@ -467,7 +453,7 @@ function openModal(owner = '', mode = 'add') {
 
 .cs-owner-balance-value {
   font-family: var(--mono);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: #047857;
@@ -477,44 +463,6 @@ function openModal(owner = '', mode = 'add') {
   text-overflow: ellipsis;
 }
 
-.cs-owner-balance-label {
-  font-size: 8.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #059669;
-  opacity: 0.7;
-  flex-shrink: 0;
-}
-
-/* Копилка */
-.cs-owner-savings {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  padding: 3px 6px;
-  border-radius: 6px;
-  background: rgba(16, 185, 129, 0.08);
-  border: 1px solid rgba(16, 185, 129, 0.18);
-  min-width: 0;
-}
-
-.cs-owner-savings-icon {
-  font-size: 10px;
-  flex-shrink: 0;
-}
-
-.cs-owner-savings-value {
-  font-family: var(--mono);
-  font-size: 10.5px;
-  font-weight: 800;
-  color: #047857;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* Статистика 30д */
 .cs-owner-stats {
   display: flex;
   align-items: center;
@@ -593,9 +541,7 @@ function openModal(owner = '', mode = 'add') {
   .cs-owner { padding: 7px 8px; gap: 4px; border-radius: 9px; }
   .cs-owner-avatar { font-size: 13px; }
   .cs-owner-name { font-size: 11px; }
-  .cs-owner-balance-value { font-size: 14px; }
-  .cs-owner-balance-label { font-size: 8px; }
-  .cs-owner-savings-value { font-size: 10px; }
+  .cs-owner-balance-value { font-size: 15px; }
   .cs-owner-stat { font-size: 9px; padding: 1px 4px; }
   .cs-owner-stat-label { font-size: 8px; }
 }
@@ -606,7 +552,7 @@ function openModal(owner = '', mode = 'add') {
 
   .cs-owner { padding: 6px 7px; }
   .cs-owner-name { font-size: 10.5px; }
-  .cs-owner-balance-value { font-size: 13px; }
+  .cs-owner-balance-value { font-size: 14px; }
   .cs-owner-stat { font-size: 8.5px; }
 }
 </style>
