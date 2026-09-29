@@ -9,14 +9,8 @@ export const useGoalsStore = defineStore('goals', () => {
 
   const loading = ref(false);
 
-  // ============================================================
-  // Источник данных — из accountsStore (приходят с /api/state)
-  // ============================================================
   const goals = computed(() => accountsStore.goals ?? []);
 
-  // ============================================================
-  // Список целей с посчитанными полями
-  // ============================================================
   const enrichedGoals = computed(() =>
     goals.value.map(goal => {
       const contributions = goal.contributions ?? {};
@@ -40,15 +34,6 @@ export const useGoalsStore = defineStore('goals', () => {
     })
   );
 
-  // ============================================================
-  // Действия
-  // ============================================================
-
-  /**
-   * Сохранить список целей ЦЕЛИКОМ.
-   * ✅ Отправляем replaceGoals: true, чтобы backend заменил список,
-   * а не мёржил (иначе удаление не работает).
-   */
   async function saveAll(newGoals) {
     loading.value = true;
     try {
@@ -63,7 +48,6 @@ export const useGoalsStore = defineStore('goals', () => {
     }
   }
 
-  /** Добавить новую цель */
   async function add(goalData) {
     const newGoal = {
       id: 'goal_' + Date.now(),
@@ -81,7 +65,6 @@ export const useGoalsStore = defineStore('goals', () => {
     return newGoal;
   }
 
-  /** Обновить цель */
   async function update(id, patch) {
     const list = goals.value.map(g =>
       g.id === id
@@ -91,13 +74,11 @@ export const useGoalsStore = defineStore('goals', () => {
     await saveAll(list);
   }
 
-  /** Удалить цель */
   async function remove(id) {
     const list = goals.value.filter(g => g.id !== id);
     await saveAll(list);
   }
 
-  /** Внести/изъять взнос */
   async function contribute(goalId, user, amount, mode = 'add') {
     const goal = goals.value.find(g => g.id === goalId);
     if (!goal) throw new Error('Цель не найдена');
@@ -116,7 +97,6 @@ export const useGoalsStore = defineStore('goals', () => {
     await update(goalId, { contributions });
   }
 
-  /** Установить конкретное значение взноса */
   async function setContribution(goalId, user, amount) {
     const goal = goals.value.find(g => g.id === goalId);
     if (!goal) throw new Error('Цель не найдена');
@@ -131,11 +111,6 @@ export const useGoalsStore = defineStore('goals', () => {
   // ============================================================
   // ✅ ОСНОВНАЯ ЦЕЛЬ
   // ============================================================
-
-  /**
-   * Установить цель как основную.
-   * Все остальные при этом теряют флаг primary (основная — одна).
-   */
   async function setPrimary(id) {
     const now = new Date().toISOString();
     const list = goals.value.map(g => {
@@ -150,9 +125,6 @@ export const useGoalsStore = defineStore('goals', () => {
     await saveAll(list);
   }
 
-  /**
-   * Убрать флаг основной цели у всех целей.
-   */
   async function clearPrimary() {
     const now = new Date().toISOString();
     const list = goals.value.map(g => {
@@ -166,7 +138,6 @@ export const useGoalsStore = defineStore('goals', () => {
     await saveAll(list);
   }
 
-  /** Текущая основная цель (или null) */
   const primaryGoal = computed(() =>
     enrichedGoals.value.find(g => g.primary) || null
   );

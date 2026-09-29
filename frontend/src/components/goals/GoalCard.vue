@@ -7,7 +7,7 @@ const props = defineProps({
   goal: { type: Object, required: true },
 });
 
-const emit = defineEmits(['edit', 'delete', 'contribute', 'edit-contrib']);
+const emit = defineEmits(['edit', 'delete', 'contribute', 'edit-contrib', 'set-primary']);
 
 const analytics = useAnalyticsStore();
 
@@ -57,23 +57,39 @@ function onEditContrib(user) {
 </script>
 
 <template>
-  <div class="goal-card" :class="{ done: goal.done }">
+  <div class="goal-card" :class="{ done: goal.done, primary: goal.primary }">
     <div class="goal-head">
       <div class="goal-title-row">
         <span class="goal-emoji">{{ goal.emoji || '🎯' }}</span>
         <span class="goal-name">{{ goal.name }}</span>
+
+        <span v-if="goal.primary" class="goal-primary-badge" title="Основная цель">
+          ⭐ Основная
+        </span>
+
         <span class="goal-owner" :class="ownerCls">
           {{ ownerEmoji }} {{ goal.owner }}
         </span>
       </div>
+
       <div class="goal-actions">
+        <button
+          class="act-primary"
+          type="button"
+          :class="{ active: goal.primary }"
+          @click="emit('set-primary', goal)"
+          :title="goal.primary ? 'Убрать основную' : 'Сделать основной'"
+        >{{ goal.primary ? '★' : '☆' }}</button>
+
         <button
           class="act-contribute"
           type="button"
           @click="emit('contribute', goal)"
           title="Внести деньги"
         >+ Внести</button>
+
         <button type="button" @click="emit('edit', goal)" title="Редактировать">✏️</button>
+
         <button
           class="danger"
           type="button"
@@ -140,7 +156,7 @@ function onEditContrib(user) {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  transition: transform 0.15s, box-shadow 0.2s;
+  transition: transform 0.15s, box-shadow 0.2s, border-color 0.2s;
   min-width: 0;
 
   &:hover {
@@ -151,6 +167,15 @@ function onEditContrib(user) {
   &.done {
     border-color: rgba(34, 197, 94, 0.4);
     background: linear-gradient(135deg, rgba(34, 197, 94, 0.04), transparent 60%), #ffffff;
+  }
+
+  /* ✅ Основная цель — золотая рамка и подсветка */
+  &.primary {
+    border-color: rgba(245, 158, 11, 0.5);
+    background:
+      linear-gradient(135deg, rgba(251, 191, 36, 0.08), rgba(245, 158, 11, 0.03)),
+      #ffffff;
+    box-shadow: 0 6px 20px -10px rgba(245, 158, 11, 0.5);
   }
 }
 
@@ -165,6 +190,7 @@ function onEditContrib(user) {
   align-items: center;
   gap: 8px;
   min-width: 0;
+  flex-wrap: wrap;
 }
 
 .goal-emoji {
@@ -174,13 +200,31 @@ function onEditContrib(user) {
 }
 
 .goal-name {
-  flex: 1;
+  flex: 1 1 auto;
   font-size: 14px;
   font-weight: 800;
   color: var(--text);
   line-height: 1.3;
   overflow-wrap: anywhere;
   min-width: 0;
+}
+
+/* ✅ Бейдж "Основная" */
+.goal-primary-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  color: #78350f;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  flex-shrink: 0;
+  box-shadow: 0 4px 10px -3px rgba(245, 158, 11, 0.5);
 }
 
 .goal-owner {
@@ -231,11 +275,40 @@ function onEditContrib(user) {
       border-color: var(--accent);
       background: rgba(56, 189, 248, 0.08);
     }
+
     &.danger:hover {
       color: var(--danger);
       border-color: var(--danger);
       background: rgba(239, 68, 68, 0.08);
     }
+
+    /* ✅ Кнопка "Сделать основной" */
+    &.act-primary {
+      min-width: 30px;
+      height: 30px;
+      padding: 0;
+      font-size: 15px;
+      font-weight: 800;
+
+      &:not(.active):hover {
+        color: #f59e0b;
+        border-color: #f59e0b;
+        background: rgba(245, 158, 11, 0.1);
+      }
+
+      &.active {
+        background: linear-gradient(135deg, #fbbf24, #f59e0b);
+        border-color: transparent;
+        color: #ffffff;
+        box-shadow: 0 6px 16px -6px rgba(245, 158, 11, 0.7);
+
+        &:hover {
+          color: #ffffff;
+          box-shadow: 0 8px 20px -6px rgba(245, 158, 11, 0.9);
+        }
+      }
+    }
+
     &.act-contribute {
       background: linear-gradient(135deg, #22c55e, #4ade80);
       border-color: transparent;
@@ -379,9 +452,6 @@ function onEditContrib(user) {
   }
 }
 
-/* ============================================================
-   МОБИЛЬНЫЙ
-   ============================================================ */
 @media (max-width: 700px) {
   .goal-card {
     padding: 12px 14px;
@@ -392,6 +462,11 @@ function onEditContrib(user) {
   .goal-title-row { gap: 6px; }
   .goal-emoji { font-size: 20px; }
   .goal-name { font-size: 13px; }
+
+  .goal-primary-badge {
+    font-size: 9px;
+    padding: 2px 6px;
+  }
 
   .goal-owner {
     font-size: 10px;
@@ -405,6 +480,12 @@ function onEditContrib(user) {
       min-width: 28px;
       height: 28px;
       font-size: 11px;
+    }
+
+    button.act-primary {
+      min-width: 28px;
+      height: 28px;
+      font-size: 14px;
     }
 
     button.act-contribute {
