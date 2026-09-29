@@ -1,3 +1,4 @@
+// frontend/src/stores/goals.js
 import { defineStore } from 'pinia';
 import { ref, computed } from 'vue';
 import { api } from '@/api/client';
@@ -71,6 +72,7 @@ export const useGoalsStore = defineStore('goals', () => {
       emoji: goalData.emoji || '🎯',
       owner: goalData.owner || 'Сергей',
       contributions: {},
+      primary: false,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
     };
@@ -126,15 +128,61 @@ export const useGoalsStore = defineStore('goals', () => {
     await update(goalId, { contributions });
   }
 
+  // ============================================================
+  // ✅ ОСНОВНАЯ ЦЕЛЬ
+  // ============================================================
+
+  /**
+   * Установить цель как основную.
+   * Все остальные при этом теряют флаг primary (основная — одна).
+   */
+  async function setPrimary(id) {
+    const now = new Date().toISOString();
+    const list = goals.value.map(g => {
+      const isPrimary = g.id === id;
+      if (g.primary === isPrimary) return g;
+      return {
+        ...g,
+        primary: isPrimary,
+        updatedAt: now,
+      };
+    });
+    await saveAll(list);
+  }
+
+  /**
+   * Убрать флаг основной цели у всех целей.
+   */
+  async function clearPrimary() {
+    const now = new Date().toISOString();
+    const list = goals.value.map(g => {
+      if (!g.primary) return g;
+      return {
+        ...g,
+        primary: false,
+        updatedAt: now,
+      };
+    });
+    await saveAll(list);
+  }
+
+  /** Текущая основная цель (или null) */
+  const primaryGoal = computed(() =>
+    enrichedGoals.value.find(g => g.primary) || null
+  );
+
   return {
     loading,
     goals,
     enrichedGoals,
+    primaryGoal,
     saveAll,
     add,
     update,
     remove,
     contribute,
     setContribution,
+    setPrimary,
+    clearPrimary,
   };
 });

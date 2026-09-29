@@ -1,38 +1,67 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
+import { useGoalsStore } from '@/stores/goals';
 import { fmt } from '@/composables/useFormat';
 import CashModal from '@/components/transactions/CashModal.vue';
 
 const accounts = useAccountsStore();
+const goalsStore = useGoalsStore();
 
 const cashModalOpen = ref(false);
 const cashModalOwner = ref('');
 const cashModalMode = ref('add');
 
-// ✅ «Всего наличных» = сумма кошельков обоих пользователей
-// (копилка с бэка не удаляется, но в UI не отображается)
-const totalBalance = computed(() => accounts.totalCash);
+// ✅ Всего наличных
+const totalCash = computed(() => accounts.totalCash);
 
-const owners = computed(() => {
-  return ['Сергей', 'Саша'].map(owner => ({
-    owner,
-    emoji: owner === 'Сергей' ? '👨' : '👩',
-    balance: accounts.getCash(owner),
-    stats: accounts.cashStats(owner, 30),
-  }));
+// ✅ Основная цель (одна из goals с флагом primary)
+const primaryGoal = computed(() =>
+  goalsStore.enrichedGoals.find(g => g.primary) || null
+);
+
+// ✅ Прогресс основной цели: сколько уже есть наличных / target
+const primaryProgress = computed(() => {
+  const g = primaryGoal.value;
+  if (!g || !g.target) return 0;
+  return Math.min(100, (totalCash.value / g.target) * 100);
 });
+
+// ✅ Осталось накопить
+const primaryLeft = computed(() => {
+  const g = primaryGoal.value;
+  if (!g) return 0;
+  return Math.max(0, g.target - totalCash.value);
+});
+
+// ✅ Второстепенные цели (без основной), максимум 4
+const secondaryGoals = computed(() =>
+  goalsStore.enrichedGoals
+    .filter(g => !g.primary)
+    .slice(0, 4)
+);
+
+// ✅ Прогресс второстепенной цели — тоже относительно totalCash
+function goalProgress(goal) {
+  if (!goal.target) return 0;
+  return Math.min(100, (totalCash.value / goal.target) * 100);
+}
 
 function openModal(owner = '', mode = 'add') {
   cashModalOwner.value = owner;
   cashModalMode.value = mode;
   cashModalOpen.value = true;
 }
+
+// Заглушка — открывает модалку целей на странице аналитики
+function goToGoals() {
+  // ничего не делаем — цель задаётся в разделе «Аналитика → Цели»
+  // если хочешь — можно emit и роутить
+}
 </script>
 
 <template>
   <section class="cash-block">
-    <!-- Купюра -->
     <div class="cash-note">
       <div class="cn-pattern"></div>
       <div class="cn-watermark">₽</div>
@@ -43,79 +72,75 @@ function openModal(owner = '', mode = 'add') {
           <span class="cn-label">НАЛИЧНЫЕ</span>
         </div>
         <div class="cn-total">
-          <div class="cn-total-value">{{ fmt(totalBalance) }} ₽</div>
+          <div class="cn-total-value">{{ fmt(totalCash) }} ₽</div>
           <div class="cn-total-label">всего на руках</div>
         </div>
       </div>
 
-      <!-- ✅ Одна полоса: общая сумма без разбивки кошелёк/копилка -->
-      <div class="cn-middle">
-        <div class="cn-part cn-part-full">
-          <div class="cn-part-icon">👛</div>
-          <div class="cn-part-info">
-            <div class="cn-part-value">{{ fmt(totalBalance) }} ₽</div>
-            <div class="cn-part-label">наличные на руках</div>
+      <!-- ✅ ОСНОВНАЯ ЦЕЛЬ -->
+      <div class="cn-goal">
+        <template v-if="primaryGoal">
+          <div class="cn-goal-head">
+            <span class="cn-goal-icon">{{ primaryGoal.emoji || '🎯' }}</span>
+            <span class="cn-goal-title">Основная цель</span>
+          </div>
+          <div class="cn-goal-name">{{ primaryGoal.name }}</div>
+          <div class="cn-goal-track">
+            <div
+              class="cn-goal-fill"
+              :style="{ width: primaryProgress + '%' }"
+            ></div>
+          </div>
+          <div class="cn-goal-meta">
+            <span class="cn-goal-pct">{{ primaryProgress.toFixed(0) }}%</span>
+            <span class="cn-goal-hint">
+              Вы скоро накопите! Осталось {{ fmt(primaryLeft) }} ₽
+            </span>
+          </div>
+        </template>
+        <template v-else>
+          <div class="cn-goal-empty">
+            <span class="cn-goal-empty-icon">🎯</span>
+            <span class="cn-goal-empty-text">Основная цель не задана</span>
+          </div>
+        </template>
+      </div>
+
+      <!-- ✅ ВТОРОСТЕПЕННЫЕ ЦЕЛИ -->
+      <div v-if="secondaryGoals.length" class="cn-secondary">
+        <div class="cn-secondary-title">Другие цели</div>
+        <div
+          v-for="g in secondaryGoals"
+          :key="g.id"
+          class="cn-secondary-item"
+        >
+          <div class="cn-secondary-head">
+            <span class="cn-secondary-icon">{{ g.emoji || '🎯' }}</span>
+            <span class="cn-secondary-name">{{ g.name }}</span>
+            <span class="cn-secondary-pct">{{ goalProgress(g).toFixed(0) }}%</span>
+          </div>
+          <div class="cn-secondary-track">
+            <div
+              class="cn-secondary-fill"
+              :style="{ width: goalProgress(g) + '%' }"
+            ></div>
           </div>
         </div>
       </div>
 
       <div class="cn-actions">
-        <button
-          class="cn-act cn-act-primary"
-          type="button"
-          @click="openModal('', 'add')"
-        >
+        <button class="cn-act cn-act-primary" type="button" @click="openModal('', 'add')">
           <span class="cn-act-icon">＋</span>
           <span>Добавить</span>
         </button>
-        <button
-          class="cn-act"
-          type="button"
-          @click="openModal('', 'withdraw')"
-        >
+        <button class="cn-act" type="button" @click="openModal('', 'withdraw')">
           <span class="cn-act-icon">−</span>
           <span>Убрать</span>
         </button>
-        <button
-          class="cn-act"
-          type="button"
-          @click="openModal('', 'set')"
-        >
+        <button class="cn-act" type="button" @click="openModal('', 'set')">
           <span class="cn-act-icon">⚖️</span>
           <span>Сверка</span>
         </button>
-      </div>
-    </div>
-
-    <!-- ✅ Отрывной билет по пользователям -->
-    <div class="cash-stub">
-      <div class="cs-perforation" aria-hidden="true">
-        <span v-for="n in 40" :key="n" class="cs-dot"></span>
-      </div>
-
-      <div class="cs-perf"></div>
-
-      <div class="cs-owners">
-        <div
-          v-for="o in owners"
-          :key="o.owner"
-          class="cs-owner"
-        >
-          <div class="cs-owner-head">
-            <span class="cs-owner-avatar">{{ o.emoji }}</span>
-            <span class="cs-owner-name">{{ o.owner }}</span>
-          </div>
-
-          <div class="cs-owner-balance">
-            <span class="cs-owner-balance-value">{{ fmt(o.balance) }} ₽</span>
-          </div>
-
-          <div class="cs-owner-stats">
-            <span class="cs-owner-stat income">+{{ fmt(o.stats.income) }}</span>
-            <span class="cs-owner-stat expense">−{{ fmt(o.stats.expense) }}</span>
-            <span class="cs-owner-stat-label">30д</span>
-          </div>
-        </div>
       </div>
     </div>
 
@@ -131,7 +156,7 @@ function openModal(owner = '', mode = 'add') {
 .cash-block {
   display: flex;
   flex-direction: column;
-  gap: 0;
+  gap: 12px;
 }
 
 /* ============================================================
@@ -139,7 +164,7 @@ function openModal(owner = '', mode = 'add') {
    ============================================================ */
 .cash-note {
   position: relative;
-  border-radius: 18px 18px 0 0;
+  border-radius: 18px;
   padding: 18px 20px 16px;
   overflow: hidden;
 
@@ -166,10 +191,9 @@ function openModal(owner = '', mode = 'add') {
 .cash-note::before {
   content: '';
   position: absolute;
-  inset: 6px 6px 6px 6px;
-  border-radius: 14px 14px 4px 4px;
+  inset: 6px;
+  border-radius: 14px;
   border: 1.5px dashed rgba(255, 255, 255, 0.35);
-  border-bottom: none;
   pointer-events: none;
 }
 
@@ -246,52 +270,174 @@ function openModal(owner = '', mode = 'add') {
   margin-top: 2px;
 }
 
-/* ✅ Одна полоса на всю ширину */
-.cn-middle {
+/* ============================================================
+   ОСНОВНАЯ ЦЕЛЬ
+   ============================================================ */
+.cn-goal {
   position: relative;
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 8px;
-  padding: 10px 0 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  margin: 4px 0 12px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.cn-part {
+.cn-goal-head {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 4px 8px;
-  border-radius: 10px;
-
-  &.cn-part-full {
-    justify-content: flex-start;
-  }
+  gap: 6px;
 }
 
-.cn-part-icon { font-size: 20px; flex-shrink: 0; }
+.cn-goal-icon {
+  font-size: 14px;
+  line-height: 1;
+}
 
-.cn-part-info { min-width: 0; }
-
-.cn-part-value {
-  font-family: var(--mono);
-  font-size: 15px;
+.cn-goal-title {
+  font-size: 9.5px;
   font-weight: 800;
-  letter-spacing: -0.02em;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  opacity: 0.8;
+}
+
+.cn-goal-name {
+  font-size: 13.5px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.cn-part-label {
-  font-size: 9.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  opacity: 0.85;
-  margin-top: 1px;
+.cn-goal-track {
+  position: relative;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.18);
+  overflow: hidden;
 }
 
+.cn-goal-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #fbbf24, #fde68a);
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.6);
+  transition: width 0.5s cubic-bezier(.22,.61,.36,1);
+}
+
+.cn-goal-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  font-size: 10.5px;
+  flex-wrap: wrap;
+}
+
+.cn-goal-pct {
+  font-family: var(--mono);
+  font-weight: 800;
+  font-size: 11.5px;
+  color: #fde68a;
+}
+
+.cn-goal-hint {
+  font-weight: 600;
+  opacity: 0.85;
+}
+
+.cn-goal-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 6px 0;
+  font-size: 12px;
+  font-weight: 700;
+  opacity: 0.8;
+}
+
+.cn-goal-empty-icon { font-size: 14px; }
+.cn-goal-empty-text { font-style: italic; }
+
+/* ============================================================
+   ДРУГИЕ ЦЕЛИ (компактно)
+   ============================================================ */
+.cn-secondary {
+  position: relative;
+  margin-bottom: 12px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cn-secondary-title {
+  font-size: 9.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  opacity: 0.7;
+}
+
+.cn-secondary-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cn-secondary-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+}
+
+.cn-secondary-icon { font-size: 12px; }
+
+.cn-secondary-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  opacity: 0.92;
+}
+
+.cn-secondary-pct {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #fde68a;
+  flex-shrink: 0;
+}
+
+.cn-secondary-track {
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.15);
+  overflow: hidden;
+}
+
+.cn-secondary-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #6ee7b7, #a7f3d0);
+  transition: width 0.5s cubic-bezier(.22,.61,.36,1);
+}
+
+/* ============================================================
+   КНОПКИ
+   ============================================================ */
 .cn-actions {
   position: relative;
   display: grid;
@@ -345,168 +491,12 @@ function openModal(owner = '', mode = 'add') {
 }
 
 /* ============================================================
-   ✅ ОТРЫВНОЙ БИЛЕТ
-   ============================================================ */
-.cash-stub {
-  position: relative;
-  margin-top: -1px;
-
-  background:
-    radial-gradient(circle at 10% 100%, rgba(16, 185, 129, 0.06), transparent 40%),
-    linear-gradient(180deg, #ecfdf5 0%, #f0fdf4 100%);
-  border: 1px solid rgba(5, 150, 105, 0.25);
-  border-top: none;
-  border-radius: 0 0 16px 16px;
-  padding: 12px 12px 12px;
-
-  box-shadow:
-    0 10px 30px -18px rgba(16, 185, 129, 0.45),
-    0 4px 12px -8px rgba(5, 150, 105, 0.2);
-}
-
-.cs-perforation {
-  position: absolute;
-  top: -1px;
-  left: 0;
-  right: 0;
-  display: flex;
-  justify-content: space-between;
-  padding: 0 2px;
-  pointer-events: none;
-  z-index: 2;
-}
-
-.cs-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--bg, #eef2f8);
-  transform: translateY(-50%);
-  box-shadow: inset 0 -1px 0 rgba(5, 150, 105, 0.2);
-  flex-shrink: 0;
-}
-
-.cs-perf {
-  position: absolute;
-  left: 50%;
-  top: 10px;
-  bottom: 10px;
-  width: 0;
-  border-left: 2px dashed rgba(5, 150, 105, 0.3);
-  transform: translateX(-1px);
-  pointer-events: none;
-}
-
-.cs-owners {
-  position: relative;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 6px;
-}
-
-.cs-owner {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  padding: 8px 9px;
-  border-radius: 10px;
-  background: #ffffff;
-  border: 1px solid rgba(5, 150, 105, 0.15);
-  box-shadow:
-    0 2px 6px -2px rgba(5, 150, 105, 0.15),
-    inset 0 -1px 0 rgba(5, 150, 105, 0.05);
-  user-select: none;
-  cursor: default;
-  min-width: 0;
-}
-
-.cs-owner-head {
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  min-width: 0;
-}
-
-.cs-owner-avatar {
-  font-size: 14px;
-  line-height: 1;
-  flex-shrink: 0;
-}
-
-.cs-owner-name {
-  font-size: 11.5px;
-  font-weight: 800;
-  color: #065f46;
-  letter-spacing: 0.01em;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-/* ✅ Только баланс, без подписи «кошелёк» */
-.cs-owner-balance {
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
-  min-width: 0;
-}
-
-.cs-owner-balance-value {
-  font-family: var(--mono);
-  font-size: 16px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  color: #047857;
-  line-height: 1.1;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.cs-owner-stats {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  min-width: 0;
-  overflow: hidden;
-}
-
-.cs-owner-stat {
-  font-family: var(--mono);
-  font-size: 9.5px;
-  font-weight: 800;
-  padding: 2px 5px;
-  border-radius: 5px;
-  white-space: nowrap;
-
-  &.income {
-    background: rgba(34, 197, 94, 0.12);
-    color: #16a34a;
-  }
-  &.expense {
-    background: rgba(239, 68, 68, 0.1);
-    color: #dc2626;
-  }
-}
-
-.cs-owner-stat-label {
-  font-size: 8.5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: #059669;
-  opacity: 0.6;
-  margin-left: auto;
-  flex-shrink: 0;
-}
-
-/* ============================================================
    МОБИЛЬНЫЙ
    ============================================================ */
 @media (max-width: 700px) {
   .cash-note {
     padding: 14px 16px 12px;
-    border-radius: 16px 16px 0 0;
+    border-radius: 16px;
   }
 
   .cn-total-value { font-size: 22px; }
@@ -514,45 +504,26 @@ function openModal(owner = '', mode = 'add') {
   .cn-label { font-size: 9.5px; letter-spacing: 0.1em; }
   .cn-icon { font-size: 14px; }
 
-  .cn-middle { padding: 8px 0 10px; }
-  .cn-part-icon { font-size: 17px; }
-  .cn-part-value { font-size: 13.5px; }
-  .cn-part-label { font-size: 8.5px; }
+  .cn-goal { padding: 10px 12px; margin: 4px 0 10px; }
+  .cn-goal-name { font-size: 12.5px; }
+  .cn-goal-title { font-size: 9px; }
+  .cn-goal-meta { font-size: 10px; }
+  .cn-goal-pct { font-size: 11px; }
+
+  .cn-secondary-item { gap: 3px; }
+  .cn-secondary-head { font-size: 11px; }
+  .cn-secondary-pct { font-size: 10px; }
 
   .cn-actions { gap: 5px; margin-top: 10px; }
-  .cn-act {
-    padding: 7px 4px;
-    font-size: 10.5px;
-    gap: 4px;
-  }
+  .cn-act { padding: 7px 4px; font-size: 10.5px; gap: 4px; }
   .cn-act-icon { font-size: 12px; }
 
   .cn-watermark { font-size: 110px; bottom: -24px; right: -8px; }
-
-  .cash-stub {
-    padding: 10px 10px 10px;
-    border-radius: 0 0 14px 14px;
-  }
-
-  .cs-dot { width: 5px; height: 5px; }
-
-  .cs-owners { gap: 5px; }
-
-  .cs-owner { padding: 7px 8px; gap: 4px; border-radius: 9px; }
-  .cs-owner-avatar { font-size: 13px; }
-  .cs-owner-name { font-size: 11px; }
-  .cs-owner-balance-value { font-size: 15px; }
-  .cs-owner-stat { font-size: 9px; padding: 1px 4px; }
-  .cs-owner-stat-label { font-size: 8px; }
 }
 
 @media (max-width: 380px) {
   .cn-total-value { font-size: 19px; }
   .cn-act { font-size: 10px; }
-
-  .cs-owner { padding: 6px 7px; }
-  .cs-owner-name { font-size: 10.5px; }
-  .cs-owner-balance-value { font-size: 14px; }
-  .cs-owner-stat { font-size: 8.5px; }
+  .cn-goal-name { font-size: 11.5px; }
 }
 </style>
