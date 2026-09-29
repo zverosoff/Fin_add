@@ -126,6 +126,16 @@ const io = new SocketServer(server, {
 attachSocket(io);
 app.set('io', io);
 
+// ВРЕМЕННО — для теста напоминания
+app.post('/api/_test/reminder', async (req, res) => {
+  try {
+    const { sendDailyReminder } = await import('./services/dailyReminder.js');
+    await sendDailyReminder(io);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
 // ============================================================
 // Запуск
 // ============================================================
