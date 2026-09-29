@@ -10,6 +10,7 @@ runMigrations();
 const router = Router();
 
 const USERS = ['Сергей', 'Саша'];
+const SYSTEM_USER = 'Приложение';
 const ALLOWED_EMOJI = ['❤️', '👍', '🔥', '😂', '😮', '😢', '👎', '🎉'];
 
 function rowToMessage(row, reactionsMap) {
@@ -28,6 +29,7 @@ function rowToMessage(row, reactionsMap) {
     replyTo: row.reply_to,
     payload: row.payload ? JSON.parse(row.payload) : null,
     reactions,
+    system: row.from_user === SYSTEM_USER,
   };
 }
 
@@ -64,10 +66,14 @@ const insertMsg = db.prepare(`
     (@id, @from, @to, @text, @image, @createdAt, NULL, NULL, NULL, NULL, @replyTo, @payload)
 `);
 
+// ✅ Включаем системные сообщения от «Приложение» к текущему пользователю
 const listByUserStmt = db.prepare(`
   SELECT * FROM messages
-  WHERE ((from_user = @user AND to_user = @peer)
-      OR (from_user = @peer AND to_user = @user))
+  WHERE (
+      ((from_user = @user AND to_user = @peer)
+    OR (from_user = @peer AND to_user = @user))
+    OR (from_user = 'Приложение' AND to_user = @user)
+  )
     AND deleted_at IS NULL
   ORDER BY created_at ASC
   LIMIT @limit
@@ -75,8 +81,11 @@ const listByUserStmt = db.prepare(`
 
 const listByUserBeforeStmt = db.prepare(`
   SELECT * FROM messages
-  WHERE ((from_user = @user AND to_user = @peer)
-      OR (from_user = @peer AND to_user = @user))
+  WHERE (
+      ((from_user = @user AND to_user = @peer)
+    OR (from_user = @peer AND to_user = @user))
+    OR (from_user = 'Приложение' AND to_user = @user)
+  )
     AND deleted_at IS NULL
     AND created_at < @before
   ORDER BY created_at DESC
@@ -333,7 +342,6 @@ router.post('/', requireAuth, async (req, res) => {
       io.emit('typing:update', { from: me, to, typing: false });
     }
 
-    // ✅ Настоящий Web Push получателю
     try {
       await sendPushToUser(to, {
         title: `${me}`,
@@ -419,6 +427,13 @@ router.patch('/read-all', requireAuth, (req, res) => {
 
     const readAt = new Date().toISOString();
     const result = markReadStmt.run({ peer, user: me, readAt });
+
+    // ✅ Отметить системные сообщения от «Приложение» как прочитанные
+    db.prepare(`
+      UPDATE messages
+      SET read_at = ?
+      WHERE from_user = 'Приложение' AND to_user = ? AND read_at IS NULL AND deleted_at IS NULL
+    `).run(readAt, me);
 
     const io = req.app.get('io');
     if (io) io.emit('message:read-all', { peer, by: me, readAt });
