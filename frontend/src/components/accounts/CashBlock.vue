@@ -20,6 +20,7 @@ const owners = computed(() => {
     emoji: owner === 'Сергей' ? '👨' : '👩',
     balance: accounts.getCash(owner),
     savings: accounts.getCashSavings(owner),
+    stats: accounts.cashStats(owner, 30),
   }));
 });
 
@@ -95,11 +96,13 @@ function openModal(owner = '', mode = 'add') {
 
     <!-- ✅ Отрывной билет по пользователям -->
     <div class="cash-stub">
-      <div class="cs-perf"></div>
-
+      <!-- Частая перфорация сверху -->
       <div class="cs-perforation" aria-hidden="true">
-        <span v-for="n in 12" :key="n" class="cs-dot"></span>
+        <span v-for="n in 40" :key="n" class="cs-dot"></span>
       </div>
+
+      <!-- Вертикальный пунктир по центру -->
+      <div class="cs-perf"></div>
 
       <div class="cs-owners">
         <div
@@ -107,12 +110,25 @@ function openModal(owner = '', mode = 'add') {
           :key="o.owner"
           class="cs-owner"
         >
-          <div class="cs-owner-top">
+          <div class="cs-owner-head">
             <span class="cs-owner-avatar">{{ o.emoji }}</span>
             <span class="cs-owner-name">{{ o.owner }}</span>
           </div>
+
           <div class="cs-owner-balance">
-            {{ fmt(o.balance) }} ₽
+            <span class="cs-owner-balance-value">{{ fmt(o.balance) }} ₽</span>
+            <span class="cs-owner-balance-label">кошелёк</span>
+          </div>
+
+          <div class="cs-owner-savings">
+            <span class="cs-owner-savings-icon">🏦</span>
+            <span class="cs-owner-savings-value">{{ fmt(o.savings) }} ₽</span>
+          </div>
+
+          <div class="cs-owner-stats">
+            <span class="cs-owner-stat income">+{{ fmt(o.stats.income) }}</span>
+            <span class="cs-owner-stat expense">−{{ fmt(o.stats.expense) }}</span>
+            <span class="cs-owner-stat-label">30д</span>
           </div>
         </div>
       </div>
@@ -351,14 +367,14 @@ function openModal(owner = '', mode = 'add') {
   border: 1px solid rgba(5, 150, 105, 0.25);
   border-top: none;
   border-radius: 0 0 16px 16px;
-  padding: 14px 14px 14px;
+  padding: 12px 12px 12px;
 
   box-shadow:
     0 10px 30px -18px rgba(16, 185, 129, 0.45),
     0 4px 12px -8px rgba(5, 150, 105, 0.2);
 }
 
-/* Перфорация сверху — как оторванный край */
+/* ✅ Частая перфорация сверху */
 .cs-perforation {
   position: absolute;
   top: -1px;
@@ -366,26 +382,27 @@ function openModal(owner = '', mode = 'add') {
   right: 0;
   display: flex;
   justify-content: space-between;
-  padding: 0 6px;
+  padding: 0 2px;
   pointer-events: none;
   z-index: 2;
 }
 
 .cs-dot {
-  width: 10px;
-  height: 10px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--bg, #eef2f8);
   transform: translateY(-50%);
   box-shadow: inset 0 -1px 0 rgba(5, 150, 105, 0.2);
+  flex-shrink: 0;
 }
 
-/* Вертикальная перфорация по центру — разделение двух билетов */
+/* Вертикальная перфорация по центру */
 .cs-perf {
   position: absolute;
   left: 50%;
-  top: 12px;
-  bottom: 12px;
+  top: 10px;
+  bottom: 10px;
   width: 0;
   border-left: 2px dashed rgba(5, 150, 105, 0.3);
   transform: translateX(-1px);
@@ -397,50 +414,60 @@ function openModal(owner = '', mode = 'add') {
   position: relative;
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  padding-left: 0;
+  gap: 6px;
 }
 
 /* Билет одного пользователя */
 .cs-owner {
   display: flex;
   flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-  padding: 10px 8px;
-  border-radius: 12px;
+  gap: 5px;
+  padding: 8px 9px;
+  border-radius: 10px;
   background: #ffffff;
   border: 1px solid rgba(5, 150, 105, 0.15);
   box-shadow:
     0 2px 6px -2px rgba(5, 150, 105, 0.15),
     inset 0 -1px 0 rgba(5, 150, 105, 0.05);
-  text-align: center;
   user-select: none;
   cursor: default;
+  min-width: 0;
 }
 
-.cs-owner-top {
+.cs-owner-head {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
+  min-width: 0;
 }
 
 .cs-owner-avatar {
-  font-size: 16px;
+  font-size: 14px;
   line-height: 1;
+  flex-shrink: 0;
 }
 
 .cs-owner-name {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 800;
   color: #065f46;
   letter-spacing: 0.01em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
+/* Баланс кошелька — крупно */
 .cs-owner-balance {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cs-owner-balance-value {
   font-family: var(--mono);
-  font-size: 17px;
+  font-size: 15px;
   font-weight: 800;
   letter-spacing: -0.02em;
   color: #047857;
@@ -448,7 +475,81 @@ function openModal(owner = '', mode = 'add') {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 100%;
+}
+
+.cs-owner-balance-label {
+  font-size: 8.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #059669;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+/* Копилка */
+.cs-owner-savings {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 6px;
+  border-radius: 6px;
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.18);
+  min-width: 0;
+}
+
+.cs-owner-savings-icon {
+  font-size: 10px;
+  flex-shrink: 0;
+}
+
+.cs-owner-savings-value {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  font-weight: 800;
+  color: #047857;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Статистика 30д */
+.cs-owner-stats {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.cs-owner-stat {
+  font-family: var(--mono);
+  font-size: 9.5px;
+  font-weight: 800;
+  padding: 2px 5px;
+  border-radius: 5px;
+  white-space: nowrap;
+
+  &.income {
+    background: rgba(34, 197, 94, 0.12);
+    color: #16a34a;
+  }
+  &.expense {
+    background: rgba(239, 68, 68, 0.1);
+    color: #dc2626;
+  }
+}
+
+.cs-owner-stat-label {
+  font-size: 8.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #059669;
+  opacity: 0.6;
+  margin-left: auto;
+  flex-shrink: 0;
 }
 
 /* ============================================================
@@ -480,34 +581,32 @@ function openModal(owner = '', mode = 'add') {
 
   .cn-watermark { font-size: 110px; bottom: -24px; right: -8px; }
 
-  /* Отрывной билет */
   .cash-stub {
-    padding: 12px 12px 12px;
+    padding: 10px 10px 10px;
     border-radius: 0 0 14px 14px;
   }
 
-  .cs-dot { width: 8px; height: 8px; }
+  .cs-dot { width: 5px; height: 5px; }
 
-  .cs-owners { gap: 6px; }
+  .cs-owners { gap: 5px; }
 
-  .cs-owner {
-    padding: 8px 6px;
-    gap: 4px;
-    border-radius: 10px;
-  }
-
-  .cs-owner-avatar { font-size: 14px; }
+  .cs-owner { padding: 7px 8px; gap: 4px; border-radius: 9px; }
+  .cs-owner-avatar { font-size: 13px; }
   .cs-owner-name { font-size: 11px; }
-  .cs-owner-balance { font-size: 15px; }
+  .cs-owner-balance-value { font-size: 14px; }
+  .cs-owner-balance-label { font-size: 8px; }
+  .cs-owner-savings-value { font-size: 10px; }
+  .cs-owner-stat { font-size: 9px; padding: 1px 4px; }
+  .cs-owner-stat-label { font-size: 8px; }
 }
 
 @media (max-width: 380px) {
   .cn-total-value { font-size: 19px; }
   .cn-act { font-size: 10px; }
 
-  .cs-owner { padding: 7px 4px; }
-  .cs-owner-avatar { font-size: 13px; }
+  .cs-owner { padding: 6px 7px; }
   .cs-owner-name { font-size: 10.5px; }
-  .cs-owner-balance { font-size: 13px; }
+  .cs-owner-balance-value { font-size: 13px; }
+  .cs-owner-stat { font-size: 8.5px; }
 }
 </style>
