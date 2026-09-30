@@ -17,7 +17,6 @@ const avatarUrl = computed(() => auth.avatar || null);
 const userEmoji = computed(() => userName.value === 'Сергей' ? '👨' : '👩');
 const totalBalance = computed(() => accounts.total);
 
-// ✅ Отображаемое имя по техническому ключу
 function displayOwner(owner) {
   if (!owner) return '';
   if (owner === userName.value) return displayName.value;
@@ -52,7 +51,7 @@ function bankLogo(id) {
 function isMe(owner) { return owner === userName.value; }
 
 // ============================================================
-// 3D-наклон карты
+// 3D-наклон
 // ============================================================
 const cardEl = ref(null);
 const tilt = ref({ rx: 0, ry: 0, mx: 50, my: 50 });
@@ -152,12 +151,15 @@ watch(expandedOwners, (val) => {
       @touchend="onTouchEnd"
       @touchcancel="onTouchEnd"
     >
-      <!-- ✅ Аватар на всю левую сторону карты -->
+      <!-- ============================================================
+           ✅ ФОТО — на всю карту, под всеми слоями
+           ============================================================ -->
       <div v-if="avatarUrl" class="dc-avatar-bg" aria-hidden="true">
         <img :src="avatarUrl" alt="" />
         <div class="dc-avatar-bg-fade"></div>
       </div>
 
+      <!-- Атмосферные слои поверх фото -->
       <div class="dc-shine-cursor" :style="shineStyle" aria-hidden="true"></div>
       <div class="dc-gloss" aria-hidden="true"></div>
       <div class="dc-pattern" aria-hidden="true"></div>
@@ -165,7 +167,7 @@ watch(expandedOwners, (val) => {
       <div class="dc-frame" aria-hidden="true"></div>
 
       <!-- ============================================================
-           ВЕРХНЯЯ ЧАСТЬ: issuer справа
+           ВЕРХ: issuer справа
            ============================================================ -->
       <div class="dc-top">
         <div class="dc-issuer">
@@ -184,7 +186,7 @@ watch(expandedOwners, (val) => {
       <div class="dc-caption">ВАШ ОБЩИЙ БАЛАНС</div>
 
       <!-- ============================================================
-           ВЛАДЕЛЬЦЫ
+           ВЛАДЕЛЬЦЫ — поверх фото, полупрозрачные
            ============================================================ -->
       <div class="dc-accounts">
         <div
@@ -250,6 +252,7 @@ watch(expandedOwners, (val) => {
   border-radius: 22px;
   padding: 18px 20px 16px;
   overflow: hidden;
+  isolation: isolate;         /* ✅ создаёт новый stacking context */
 
   background:
     radial-gradient(circle at 15% 0%, rgba(255, 255, 255, 0.25), transparent 55%),
@@ -288,16 +291,14 @@ watch(expandedOwners, (val) => {
 }
 
 /* ============================================================
-   ✅ АВАТАР НА ВСЮ ЛЕВУЮ СТОРОНУ КАРТЫ
+   ✅ ФОТО — на всю карту, под всеми слоями
+   z-index: -1 гарантирует, что оно ниже background карты
+   (но благодаря isolation контексту — ниже только внутри карты)
    ============================================================ */
 .dc-avatar-bg {
   position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  width: 42%;           /* ~половина карты */
-  max-width: 200px;
-  z-index: 1;
+  inset: 0;
+  z-index: 0;                 /* ✅ под всеми остальными слоями */
   overflow: hidden;
   pointer-events: none;
 
@@ -307,43 +308,61 @@ watch(expandedOwners, (val) => {
     object-fit: cover;
     object-position: center top;
     display: block;
-    /* Лёгкая десатурация, чтобы не перетягивать внимание */
-    filter: saturate(0.9) contrast(1.05) brightness(0.95);
+    filter: saturate(0.9) contrast(1.05) brightness(0.92);
+    /* Мягкое увеличение, чтобы был запас для градиентов */
+    transform: scale(1.02);
   }
 }
 
-/* ✅ Плавное затухание справа и снизу — чтобы фото растворялось в карте */
+/* ============================================================
+   ✅ ОЧЕНЬ ПЛАВНОЕ ЗАТУХАНИЕ ФОТО
+   Смешиваем 3 градиента:
+   - по горизонтали (правое затухание)
+   - по вертикали (нижнее затухание)
+   - радиальное (общее затемнение к краям)
+   ============================================================ */
 .dc-avatar-bg-fade {
   position: absolute;
   inset: 0;
+  pointer-events: none;
   background:
+    /* Горизонтальное: фото полностью видно слева (0–35%), плавно исчезает к 85% */
     linear-gradient(
       90deg,
-      transparent 0%,
-      transparent 55%,
-      rgba(99, 102, 241, 0.55) 85%,
+      rgba(99, 102, 241, 0) 0%,
+      rgba(99, 102, 241, 0) 35%,
+      rgba(99, 102, 241, 0.25) 55%,
+      rgba(99, 102, 241, 0.65) 72%,
+      rgba(99, 102, 241, 0.92) 88%,
       rgba(99, 102, 241, 1) 100%
     ),
+    /* Вертикальное: сверху фото чуть-чуть затемнено, снизу — сильно */
     linear-gradient(
       180deg,
-      transparent 0%,
-      transparent 80%,
-      rgba(99, 102, 241, 0.3) 95%,
-      rgba(99, 102, 241, 0.6) 100%
+      rgba(99, 102, 241, 0.15) 0%,
+      rgba(99, 102, 241, 0) 20%,
+      rgba(99, 102, 241, 0) 55%,
+      rgba(99, 102, 241, 0.35) 78%,
+      rgba(99, 102, 241, 0.8) 95%,
+      rgba(99, 102, 241, 1) 100%
+    ),
+    /* Радиальное: общий «виньет» по краям */
+    radial-gradient(
+      ellipse 90% 80% at 25% 40%,
+      rgba(99, 102, 241, 0) 0%,
+      rgba(99, 102, 241, 0.15) 60%,
+      rgba(99, 102, 241, 0.5) 100%
     );
-  pointer-events: none;
 }
 
-/* Верх карты — небольшой градиент, чтобы issuer читался */
-.has-avatar .dc-top {
-  padding-left: 44%;
-}
-
+/* ============================================================
+   Атмосферные слои (shine, gloss, pattern, watermark, frame)
+   ============================================================ */
 .dc-shine-cursor {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 2;
+  z-index: 3;
   mix-blend-mode: overlay;
 }
 
@@ -355,7 +374,7 @@ watch(expandedOwners, (val) => {
     radial-gradient(ellipse 50% 30% at 90% 100%, rgba(139, 92, 246, 0.4), transparent 60%);
   animation: glossRotate 12s ease-in-out infinite;
   pointer-events: none;
-  z-index: 2;
+  z-index: 3;
   mix-blend-mode: overlay;
 }
 @keyframes glossRotate {
@@ -368,16 +387,8 @@ watch(expandedOwners, (val) => {
   inset: 0;
   background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.045) 0 2px, transparent 2px 8px);
   pointer-events: none;
-  z-index: 0;
-}
-
-.dc-frame {
-  position: absolute;
-  inset: 6px;
-  border-radius: 16px;
-  border: 1.5px dashed rgba(255, 255, 255, 0.32);
-  pointer-events: none;
-  z-index: 3;
+  z-index: 4;
+  mix-blend-mode: overlay;
 }
 
 .dc-watermark {
@@ -386,25 +397,35 @@ watch(expandedOwners, (val) => {
   bottom: -30px;
   font-size: 140px;
   font-weight: 900;
-  color: rgba(255, 255, 255, 0.08);
+  color: rgba(255, 255, 255, 0.06);
   line-height: 1;
   pointer-events: none;
   user-select: none;
   font-family: var(--mono);
-  z-index: 0;
+  z-index: 4;
+}
+
+.dc-frame {
+  position: absolute;
+  inset: 6px;
+  border-radius: 16px;
+  border: 1.5px dashed rgba(255, 255, 255, 0.28);
+  pointer-events: none;
+  z-index: 5;
 }
 
 /* ============================================================
-   ВЕРХ: только issuer справа
+   Контент поверх всего
    ============================================================ */
 .dc-top {
   position: relative;
-  z-index: 2;
+  z-index: 6;
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
   gap: 10px;
   padding-top: 4px;
+  padding-left: 45%;          /* чтобы issuer не лез на лицо */
 }
 
 .dc-issuer {
@@ -420,23 +441,21 @@ watch(expandedOwners, (val) => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
 }
 .dc-issuer-sub {
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  opacity: 0.7;
+  opacity: 0.75;
   margin-top: 2px;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
-/* ============================================================
-   БАЛАНС
-   ============================================================ */
 .dc-balance {
   position: relative;
-  z-index: 2;
+  z-index: 6;
   margin-top: 12px;
   text-align: center;
 }
@@ -446,45 +465,55 @@ watch(expandedOwners, (val) => {
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.05;
-  text-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  text-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.55),
+    0 2px 6px rgba(0, 0, 0, 0.4);
 }
 .dc-caption {
   position: relative;
-  z-index: 2;
+  z-index: 6;
   text-align: center;
   font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  opacity: 0.75;
+  opacity: 0.85;
   margin-top: -2px;
   margin-bottom: 4px;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
 }
 
 /* ============================================================
-   ВЛАДЕЛЬЦЫ
+   ✅ ВЛАДЕЛЬЦЫ — поверх фото, полупрозрачные плашки,
+   фото просвечивает сквозь них
    ============================================================ */
 .dc-accounts {
   position: relative;
-  z-index: 2;
+  z-index: 6;
   margin-top: 4px;
   padding-top: 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  border-top: 1px solid rgba(255, 255, 255, 0.25);
   display: flex;
   flex-direction: column;
   gap: 6px;
 }
 
-.dc-owner-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.dc-owner-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
 
 .dc-owner-name {
   display: inline-flex;
   align-items: center;
   gap: 5px;
   padding: 4px 8px 4px 4px;
-  border: 1px solid rgba(255, 255, 255, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.1);
+  /* ✅ Полупрозрачная плашка — фото просвечивает */
+  background: rgba(255, 255, 255, 0.14);
   color: #ffffff;
   font-family: inherit;
   font-size: 11px;
@@ -493,16 +522,17 @@ watch(expandedOwners, (val) => {
   flex-shrink: 0;
   transition: all 0.15s;
   white-space: nowrap;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
 
-  &:hover { background: rgba(255, 255, 255, 0.2); transform: translateY(-1px); }
+  &:hover { background: rgba(255, 255, 255, 0.25); transform: translateY(-1px); }
   &:active { transform: scale(0.97); }
 
   .is-me & {
-    border-color: rgba(255, 255, 255, 0.55);
+    border-color: rgba(255, 255, 255, 0.6);
     font-weight: 800;
-    box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.35);
+    box-shadow: 0 0 0 1.5px rgba(255, 255, 255, 0.4);
   }
 }
 
@@ -526,11 +556,12 @@ watch(expandedOwners, (val) => {
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
+  text-shadow: none;
 }
 .dc-owner-chev {
   width: 14px; height: 14px;
   margin-left: 2px;
-  color: rgba(255, 255, 255, 0.75);
+  color: rgba(255, 255, 255, 0.85);
   transition: transform 0.25s cubic-bezier(.34,1.56,.64,1);
   &.open { transform: rotate(180deg); }
 }
@@ -556,8 +587,9 @@ watch(expandedOwners, (val) => {
   gap: 6px;
   padding: 4px 10px 4px 4px;
   border-radius: 999px;
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  /* ✅ Полупрозрачная плашка — фото просвечивает */
+  background: rgba(255, 255, 255, 0.16);
   color: #ffffff;
   font-family: inherit;
   font-size: 11.5px;
@@ -565,10 +597,11 @@ watch(expandedOwners, (val) => {
   cursor: pointer;
   transition: all 0.15s;
   white-space: nowrap;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
 
-  &:hover { background: rgba(255, 255, 255, 0.32); transform: translateY(-1px); }
+  &:hover { background: rgba(255, 255, 255, 0.3); transform: translateY(-1px); }
   &:active { transform: scale(0.96); }
 }
 
@@ -604,7 +637,8 @@ watch(expandedOwners, (val) => {
   margin-left: auto;
   padding: 3px 10px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.92);
+  /* ✅ Полупрозрачная плашка — фото просвечивает */
+  background: rgba(255, 255, 255, 0.85);
   color: #4f46e5;
   font-family: var(--mono);
   font-size: 11.5px;
@@ -612,8 +646,10 @@ watch(expandedOwners, (val) => {
   letter-spacing: -0.02em;
   white-space: nowrap;
   flex-shrink: 0;
-  box-shadow: 0 4px 10px -4px rgba(0, 0, 0, 0.25);
+  box-shadow: 0 4px 10px -4px rgba(0, 0, 0, 0.3);
   animation: chipsIn 0.25s ease;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 
 /* ============================================================
@@ -622,12 +658,9 @@ watch(expandedOwners, (val) => {
 @media (max-width: 700px) {
   .debit-card { padding: 14px 16px 12px; border-radius: 20px; gap: 8px; }
 
-  /* ✅ Аватар всё ещё на всю левую сторону, но уже */
-  .dc-avatar-bg {
-    width: 38%;
-    max-width: 140px;
-  }
-  .has-avatar .dc-top { padding-left: 40%; }
+  .dc-avatar-bg img { object-position: center 20%; }
+
+  .dc-top { padding-left: 42%; }
 
   .dc-issuer { padding-top: 4px; }
   .dc-issuer-name { font-size: 10.5px; letter-spacing: 0.12em; }
@@ -652,8 +685,6 @@ watch(expandedOwners, (val) => {
 }
 
 @media (max-width: 380px) {
-  .dc-avatar-bg { width: 36%; max-width: 120px; }
-  .has-avatar .dc-top { padding-left: 38%; }
   .dc-balance-value { font-size: 28px; }
   .dc-issuer-name { font-size: 9.5px; }
   .dc-chips { gap: 4px; }
