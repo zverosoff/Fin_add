@@ -2,6 +2,7 @@
 import { ref, computed, watch, onMounted } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
 import { useFiltersStore } from '@/stores/filters';
+import { useAuthStore } from '@/stores/auth';
 import {
   fmt,
   categoryIcon,
@@ -19,6 +20,7 @@ const emit = defineEmits(['edit', 'delete']);
 
 const accounts = useAccountsStore();
 const filters = useFiltersStore();
+const auth = useAuthStore();
 
 const accountName = computed(() => accounts.getAccountName(props.tx.accountId));
 const bank = computed(() => accounts.getBank(props.tx.accountId));
@@ -27,6 +29,9 @@ const amountSign = computed(() => (props.tx.type === 'income' ? '+' : '−'));
 const amountClass = computed(() => (props.tx.type === 'income' ? 'income' : 'expense'));
 const icon = computed(() => categoryIcon(props.tx.category));
 const userClass = computed(() => (props.tx.user === 'Сергей' ? 'sergey' : 'sasha'));
+
+// ✅ Отображаемое имя (displayName для текущего пользователя)
+const displayUserName = computed(() => auth.nameFor(props.tx.user));
 
 // Анимации
 const appearing = ref(props.isNew);
@@ -203,7 +208,8 @@ function itemStyle() {
     <div class="tx-main">
       <div class="tx-name">{{ tx.name || 'Без названия' }}</div>
       <div class="tx-meta">
-        <span class="who" @click.stop="onFilter('user', tx.user)">{{ tx.user }}</span>
+        <!-- ✅ Фильтр работает на техническом ключе, показываем displayName -->
+        <span class="who" @click.stop="onFilter('user', tx.user)">{{ displayUserName }}</span>
         <span class="cat" @click.stop="onFilter('category', tx.category)">
           {{ icon }} {{ tx.category || 'Прочее' }}
         </span>
