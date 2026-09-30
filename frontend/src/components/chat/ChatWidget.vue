@@ -671,6 +671,37 @@ watch(history, async (newList, oldList) => {
   }
 }, { deep: false });
 
+// ✅ НОВОЕ: автоскролл при новом сообщении (простая длина)
+watch(
+  () => history.value.length,
+  async (newLen, oldLen) => {
+    if (!open.value) return;
+    if (newLen <= (oldLen || 0)) return;
+    const wasNearBottom = isNearBottom();
+    await nextTick();
+    if (wasNearBottom) {
+      scrollToBottom(true);
+    } else {
+      newBelowCount.value += (newLen - (oldLen || 0));
+      showScrollDown.value = true;
+    }
+  }
+);
+
+// ✅ НОВОЕ: автоскролл когда собеседник начал печатать
+watch(peerTyping, async (isTyping, wasTyping) => {
+  if (!open.value) return;
+  if (!isTyping || wasTyping) return;
+  await nextTick();
+  scrollToBottom(true);
+});
+
+watch(totalUnread, (n, old) => {
+  if (!open.value && !props.embedMode && n > old) {
+    triggerFreshMessage();
+  }
+});
+
 watch(totalUnread, (n, old) => {
   if (!open.value && !props.embedMode && n > old) {
     triggerFreshMessage();
