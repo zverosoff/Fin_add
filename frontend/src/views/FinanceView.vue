@@ -7,7 +7,6 @@ import { useWebSocket } from '@/composables/useWebSocket';
 import { useToast } from '@/composables/useToast';
 import { notifySaved, notifyError } from '@/composables/useDataStatus';
 
-import PageHero from '@/components/ui/PageHero.vue';
 import AccountsBlock from '@/components/accounts/AccountsBlock.vue';
 import CashBlock from '@/components/accounts/CashBlock.vue';
 import ReconcileBanner from '@/components/accounts/ReconcileBanner.vue';
@@ -63,8 +62,6 @@ function onUserMenu(owner) {
 
 <template>
   <div class="finance-page">
-    <PageHero title="Финансы PRO+" />
-
     <div class="finance-grid">
       <aside class="finance-side">
         <AccountsBlock @reconcile="onReconcile" @user-menu="onUserMenu" />
