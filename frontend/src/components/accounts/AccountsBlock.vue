@@ -167,12 +167,19 @@ watch(expandedOwners, (val) => {
     >
       <div class="dc-bg" aria-hidden="true">
         <div class="dc-bg-photo">
-          <!-- ✅ ОДИН слой + CSS-фильтры вместо 4-х img -->
-          <div
-            v-if="myAvatar"
-            class="dc-photo-glitch"
-            :style="{ backgroundImage: `url(${myAvatar})` }"
-          ></div>
+          <template v-if="myAvatar">
+            <!-- ✅ Слой Кен Бёрнса — медленный zoom + pan -->
+            <div
+              class="dc-photo-kenburns"
+              :style="{ backgroundImage: `url(${myAvatar})` }"
+            ></div>
+
+            <!-- ✅ Слой глитча — поверх Кен Бёрнса -->
+            <div
+              class="dc-photo-glitch"
+              :style="{ backgroundImage: `url(${myAvatar})` }"
+            ></div>
+          </template>
           <div v-else class="dc-bg-placeholder">
             <span class="dc-bg-emoji">{{ userName === 'Сергей' ? '👨' : '👩' }}</span>
           </div>
@@ -182,7 +189,7 @@ watch(expandedOwners, (val) => {
           <div class="dc-bg-scanlines"></div>
         </div>
 
-        <!-- ✅ RGB-расслоение через 2 псевдоэлемента -->
+        <!-- ✅ RGB-расслоение на границе -->
         <div class="dc-bg-chroma dc-bg-chroma-cyan"></div>
         <div class="dc-bg-chroma dc-bg-chroma-magenta"></div>
 
@@ -268,10 +275,6 @@ watch(expandedOwners, (val) => {
 <style scoped lang="scss">
 .accounts-block { display: flex; flex-direction: column; gap: 12px; }
 
-/* ============================================================
-   КАРТА
-   ✅ contain: layout paint — изолирует рендеринг
-   ============================================================ */
 .debit-card {
   position: relative;
   border-radius: 22px;
@@ -321,11 +324,9 @@ watch(expandedOwners, (val) => {
 }
 
 /* ============================================================
-   ✅ ФОТО ГЛИТЧ — ОДИН слой с CSS-фильтрами + анимация
-   Вместо 4-х <img> слоёв — один div с backgroundImage
-   Экономия ~4 GPU-слоя и 4 запросов на картинку
+   ✅ КЕН БЁРНС — медленный zoom + pan
    ============================================================ */
-.dc-photo-glitch {
+.dc-photo-kenburns {
   position: absolute;
   inset: 0;
   background-size: cover;
@@ -333,51 +334,71 @@ watch(expandedOwners, (val) => {
   background-repeat: no-repeat;
   opacity: 0.85;
   filter: saturate(0.9) contrast(1.05) brightness(0.92);
-  transform: translateZ(0);
-  will-change: transform, filter;
+  transform: translateZ(0) scale(1.02);
+  transform-origin: center 25%;
+  will-change: transform;
+  animation: kenBurns 20s ease-in-out infinite;
+}
+
+@keyframes kenBurns {
+  0%   { transform: translateZ(0) scale(1.02) translate(0%, 0%); }
+  25%  { transform: translateZ(0) scale(1.08) translate(-1.5%, -1%); }
+  50%  { transform: translateZ(0) scale(1.12) translate(1.5%, 0.5%); }
+  75%  { transform: translateZ(0) scale(1.08) translate(-1%, 1%); }
+  100% { transform: translateZ(0) scale(1.02) translate(0%, 0%); }
+}
+
+/* ============================================================
+   ✅ ГЛИТЧ — поверх Кен Бёрнса
+   ============================================================ */
+.dc-photo-glitch {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center 25%;
+  background-repeat: no-repeat;
+  opacity: 0;
+  mix-blend-mode: screen;
+  pointer-events: none;
+  will-change: opacity, filter;
   animation: glitchShift 6s steps(1, end) infinite;
 }
 
-/* ✅ Один keyframe на 6s — управляет всем глитчем через filter + transform */
 @keyframes glitchShift {
-  0%, 88% {
-    transform: translateZ(0) translateX(0);
-    filter: saturate(0.9) contrast(1.05) brightness(0.92) hue-rotate(0deg);
+  0%, 88%, 100% {
+    opacity: 0;
+    transform: translateX(0);
+    filter: saturate(2.5) hue-rotate(-15deg) contrast(1.2);
   }
-
-  /* Пик 1 — красный оттенок */
   89% {
-    transform: translateZ(0) translateX(-2px);
-    filter: saturate(2.5) contrast(1.2) brightness(0.95) hue-rotate(-15deg);
+    opacity: 0.85;
+    transform: translateX(-3px);
+    filter: saturate(3) hue-rotate(-25deg) contrast(1.3);
   }
   90% {
-    transform: translateZ(0) translateX(2px);
-    filter: saturate(2.5) contrast(1.2) brightness(0.95) hue-rotate(15deg);
+    opacity: 0.9;
+    transform: translateX(3px);
+    filter: saturate(3) hue-rotate(20deg) contrast(1.3);
   }
-
-  /* Пик 2 — голубой оттенок */
   91% {
-    transform: translateZ(0) translateX(-3px);
-    filter: saturate(2.5) contrast(1.2) brightness(0.9) hue-rotate(160deg);
+    opacity: 0.85;
+    transform: translateX(-2px);
+    filter: saturate(3) hue-rotate(160deg) contrast(1.3);
   }
   92% {
-    transform: translateZ(0) translateX(3px);
-    filter: saturate(2.5) contrast(1.2) brightness(0.9) hue-rotate(200deg);
+    opacity: 0.9;
+    transform: translateX(2px);
+    filter: saturate(3) hue-rotate(200deg) contrast(1.3);
   }
-
-  /* Пик 3 — рывок */
   93% {
-    transform: translateZ(0) translateX(-1px);
-    filter: saturate(3) contrast(1.3) brightness(1) hue-rotate(90deg);
+    opacity: 0.7;
+    transform: translateX(-1px);
+    filter: saturate(2.5) hue-rotate(90deg) contrast(1.2);
   }
   94% {
-    transform: translateZ(0) translateX(1px);
-    filter: saturate(3) contrast(1.3) brightness(1) hue-rotate(-90deg);
-  }
-
-  95%, 100% {
-    transform: translateZ(0) translateX(0);
-    filter: saturate(0.9) contrast(1.05) brightness(0.92) hue-rotate(0deg);
+    opacity: 0.4;
+    transform: translateX(1px);
+    filter: saturate(2) hue-rotate(-90deg) contrast(1.1);
   }
 }
 
@@ -448,7 +469,7 @@ watch(expandedOwners, (val) => {
 }
 
 /* ============================================================
-   ✅ RGB-РАССЛОЕНИЕ — 2 псевдослоя, простые
+   RGB-РАССЛОЕНИЕ
    ============================================================ */
 .dc-bg-chroma {
   position: absolute;
@@ -485,7 +506,6 @@ watch(expandedOwners, (val) => {
   animation: chromaPulse 3s ease-in-out infinite 0.15s;
 }
 
-/* ✅ Только opacity — GPU-friendly */
 @keyframes chromaPulse {
   0%, 100% { opacity: 0.4; }
   50%      { opacity: 0.8; }
@@ -798,8 +818,7 @@ watch(expandedOwners, (val) => {
 }
 
 /* ============================================================
-   МОБИЛЬНЫЙ — то же самое, но чуть меньше размеры
-   Анимации сохранены (как на ПК)
+   МОБИЛЬНЫЙ — всё то же, что и на ПК, только меньше размеры
    ============================================================ */
 @media (max-width: 700px) {
   .debit-card { padding: 14px 16px 12px; border-radius: 20px; gap: 8px; min-height: 200px; }
@@ -841,13 +860,17 @@ watch(expandedOwners, (val) => {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .dc-photo-kenburns,
   .dc-photo-glitch,
   .dc-bg-chroma-cyan,
   .dc-bg-chroma-magenta {
     animation: none !important;
   }
+  .dc-photo-kenburns {
+    transform: translateZ(0) scale(1.05) !important;
+  }
   .dc-photo-glitch {
-    filter: saturate(0.9) contrast(1.05) brightness(0.92) !important;
+    opacity: 0 !important;
   }
   .dc-bg-chroma-cyan,
   .dc-bg-chroma-magenta {
