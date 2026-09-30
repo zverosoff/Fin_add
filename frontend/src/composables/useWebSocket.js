@@ -47,12 +47,11 @@ export function useWebSocket() {
     socket.on('users:online',    (list) => messages.setOnline(list));
     socket.on('presence:update', (p)    => messages.onPresence(p));
 
-    // ✅ profile:update — может быть и от другого пользователя
+    // ✅ Профиль обновлён — может быть и от другого пользователя
     socket.on('profile:update', (payload) => {
       console.log('[ws] profile:update', payload);
       if (!payload) return;
       if (payload.user && payload.user !== auth.user) {
-        // обновляем профиль другого
         auth.setPeerProfile(payload.user, {
           displayName: payload.displayName,
           avatar: payload.avatar,
