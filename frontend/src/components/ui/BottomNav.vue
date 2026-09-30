@@ -15,12 +15,13 @@ const LOADING_MS = 2500;
 const SUCCESS_MS = 1500;
 const fabPhase = ref('loading');
 
+// ✅ "Летящая иконка" при переходе
+const flyingIcon = ref(null);   // { icon, x, y }
+
 onMounted(() => {
   setTimeout(() => {
     fabPhase.value = 'success';
-    setTimeout(() => {
-      fabPhase.value = 'ready';
-    }, SUCCESS_MS);
+    setTimeout(() => { fabPhase.value = 'ready'; }, SUCCESS_MS);
   }, LOADING_MS);
 });
 
@@ -67,7 +68,6 @@ function updateIndicator() {
   }
   const el = tabRefs.value[to];
   if (!el) return;
-
   indicatorStyle.value = {
     opacity: 1,
     left: el.offsetLeft + 'px',
@@ -91,7 +91,21 @@ function isActive(item) {
 }
 
 function go(item) {
-  if (route.path !== item.to) router.push(item.to);
+  if (route.path === item.to) return;
+
+  // ✅ Запускаем "летящую иконку" из текущей позиции кнопки
+  const el = tabRefs.value[item.to];
+  if (el) {
+    const rect = el.getBoundingClientRect();
+    flyingIcon.value = {
+      icon: item.icon,
+      x: rect.left + rect.width / 2,
+      y: rect.top + rect.height / 2,
+    };
+    setTimeout(() => { flyingIcon.value = null; }, 500);
+  }
+
+  router.push(item.to);
 }
 
 function handleFabClick() {
@@ -128,15 +142,12 @@ function handleFabClick() {
           <svg v-if="serverStatus === 'loading'" class="bn-fab-spinner" viewBox="0 0 50 50">
             <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
           </svg>
-
           <svg v-else-if="serverStatus === 'success'" class="bn-fab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="20 6 9 17 4 12" />
           </svg>
-
           <svg v-else-if="serverStatus === 'ok'" class="bn-fab-icon" viewBox="0 0 24 24" fill="currentColor">
             <path d="M9 3 7.17 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.17L15 3H9zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
           </svg>
-
           <svg v-else class="bn-fab-icon" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2 1 21h22L12 2zm1 16h-2v-2h2v2zm0-4h-2V9h2v5z"/>
           </svg>
@@ -156,13 +167,21 @@ function handleFabClick() {
         <span class="bn-label">{{ item.label }}</span>
       </button>
     </div>
+
+    <!-- ✅ Летящая иконка при переходе -->
+    <Teleport to="body">
+      <Transition name="icon-fly">
+        <div
+          v-if="flyingIcon"
+          class="bn-flying-icon"
+          :style="{ left: flyingIcon.x + 'px', top: flyingIcon.y + 'px' }"
+        >{{ flyingIcon.icon }}</div>
+      </Transition>
+    </Teleport>
   </nav>
 </template>
 
 <style scoped lang="scss">
-/* ============================================================
-   BASE — общий контейнер
-   ============================================================ */
 .bottom-nav {
   position: fixed;
   left: 50%;
@@ -171,10 +190,7 @@ function handleFabClick() {
   z-index: 900;
   width: 100%;
   max-width: 500px;
-
-  /* ✅ Открепляем от низа */
   padding: 0 12px calc(12px + env(safe-area-inset-bottom, 0));
-
   background: transparent;
   pointer-events: none;
 }
@@ -185,29 +201,21 @@ function handleFabClick() {
   grid-template-columns: 1fr 1fr auto 1fr 1fr;
   align-items: end;
   width: 100%;
-
-  /* ✅ Сама плашка — отдельный элемент с закруглением снизу */
   padding: 8px 8px 6px;
   border-radius: 24px;
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
-
-  /* ✅ Современные тени */
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.6) inset,
     0 -1px 0 rgba(148, 163, 184, 0.08) inset,
     0 12px 32px -8px rgba(15, 23, 42, 0.18),
     0 4px 12px -4px rgba(15, 23, 42, 0.10),
     0 24px 60px -20px rgba(99, 102, 241, 0.25);
-
   border: 1px solid rgba(148, 163, 184, 0.12);
   pointer-events: auto;
 }
 
-/* ============================================================
-   ✅ Индикатор активной вкладки — сине-фиолетовый градиент
-   ============================================================ */
 .bn-indicator {
   position: absolute;
   top: 6px;
@@ -215,18 +223,12 @@ function handleFabClick() {
   border-radius: 18px;
   pointer-events: none;
   z-index: 1;
-
-  /* ✅ Градиент */
   background: linear-gradient(120deg, #3b82f6 0%, #6366f1 40%, #8b5cf6 70%, #3b82f6 100%);
   background-size: 300% 300%;
   animation: indGradientShift 6s ease-in-out infinite;
-
-  /* ✅ Мягкая тень под цвет градиента */
   box-shadow:
     0 6px 18px -4px rgba(99, 102, 241, 0.55),
     0 2px 6px -2px rgba(59, 130, 246, 0.4);
-
-  /* ✅ Плавный сдвиг между вкладками */
   transition:
     left 0.45s cubic-bezier(.34,1.56,.64,1),
     width 0.45s cubic-bezier(.34,1.56,.64,1),
@@ -239,9 +241,6 @@ function handleFabClick() {
   100% { background-position: 0% 50%; }
 }
 
-/* ============================================================
-   Пункты меню
-   ============================================================ */
 .bn-item {
   position: relative;
   z-index: 2;
@@ -265,29 +264,13 @@ function handleFabClick() {
   &:hover { color: #64748b; }
   &:active { transform: scale(0.94); }
 
-  /* ✅ Активная вкладка — белый текст поверх градиента */
   &.active {
     color: #ffffff;
-
-    .bn-icon {
-      transform: translateY(-2px) scale(1.12);
-      filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35));
-    }
-
-    .bn-label {
-      font-weight: 800;
-      color: #ffffff;
-      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
-    }
+    .bn-icon { transform: translateY(-2px) scale(1.12); filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35)); }
+    .bn-label { font-weight: 800; color: #ffffff; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); }
   }
 }
-
-.bn-icon {
-  font-size: 22px;
-  line-height: 1;
-  transition: transform 0.35s cubic-bezier(.34,1.56,.64,1), filter 0.25s;
-}
-
+.bn-icon { font-size: 22px; line-height: 1; transition: transform 0.35s cubic-bezier(.34,1.56,.64,1), filter 0.25s; }
 .bn-label {
   font-size: 10.5px;
   font-weight: 700;
@@ -298,9 +281,6 @@ function handleFabClick() {
   transition: color 0.25s;
 }
 
-/* ============================================================
-   FAB (камера)
-   ============================================================ */
 .bn-fab-wrapper {
   display: flex;
   justify-content: center;
@@ -309,7 +289,6 @@ function handleFabClick() {
   position: relative;
   z-index: 2;
 }
-
 .bn-fab {
   width: 64px;
   height: 64px;
@@ -321,98 +300,89 @@ function handleFabClick() {
   cursor: pointer;
   color: #fff;
   margin-top: -30px;
-  transition:
-    background 0.35s ease,
-    box-shadow 0.35s ease,
-    transform 0.18s ease;
+  transition: background 0.35s ease, box-shadow 0.35s ease, transform 0.18s ease;
   position: relative;
   z-index: 2;
-
   &:active { transform: scale(0.94); }
-
   &.is-loading {
     background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-    box-shadow:
-      0 10px 28px -8px rgba(59, 130, 246, 0.75),
-      0 0 0 5px rgba(255, 255, 255, 0.75);
+    box-shadow: 0 10px 28px -8px rgba(59, 130, 246, 0.75), 0 0 0 5px rgba(255, 255, 255, 0.75);
     cursor: wait;
   }
-
   &.is-success {
     background: linear-gradient(135deg, #22c55e, #16a34a);
-    box-shadow:
-      0 10px 28px -8px rgba(34, 197, 94, 0.8),
-      0 0 0 5px rgba(255, 255, 255, 0.75);
+    box-shadow: 0 10px 28px -8px rgba(34, 197, 94, 0.8), 0 0 0 5px rgba(255, 255, 255, 0.75);
     animation: fabSuccessPop 0.35s cubic-bezier(.34,1.56,.64,1);
   }
-
   &.is-ok {
     background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-    box-shadow:
-      0 10px 28px -8px rgba(59, 130, 246, 0.75),
-      0 0 0 5px rgba(255, 255, 255, 0.75);
+    box-shadow: 0 10px 28px -8px rgba(59, 130, 246, 0.75), 0 0 0 5px rgba(255, 255, 255, 0.75);
   }
-
   &.is-error {
     background: linear-gradient(135deg, #ef4444, #dc2626);
-    box-shadow:
-      0 10px 28px -8px rgba(239, 68, 68, 0.75),
-      0 0 0 5px rgba(255, 255, 255, 0.75);
+    box-shadow: 0 10px 28px -8px rgba(239, 68, 68, 0.75), 0 0 0 5px rgba(255, 255, 255, 0.75);
   }
 }
-
 @keyframes fabSuccessPop {
   0%   { transform: scale(0.85); }
   60%  { transform: scale(1.1); }
   100% { transform: scale(1); }
 }
-
 .bn-fab-spinner {
   width: 28px;
   height: 28px;
   animation: spinFab 1s linear infinite;
   color: #fff;
-
   circle {
     stroke-dasharray: 90, 150;
     stroke-dashoffset: 0;
     animation: dashFab 1.5s ease-in-out infinite;
   }
 }
-
 @keyframes spinFab { to { transform: rotate(360deg); } }
-
 @keyframes dashFab {
   0%   { stroke-dasharray: 1, 150; stroke-dashoffset: 0; }
   50%  { stroke-dasharray: 90, 150; stroke-dashoffset: -35; }
   100% { stroke-dasharray: 90, 150; stroke-dashoffset: -124; }
 }
-
-.bn-fab-icon {
-  width: 28px;
-  height: 28px;
-}
-
+.bn-fab-icon { width: 28px; height: 28px; }
 .bn-fab.is-success .bn-fab-icon {
   width: 32px;
   height: 32px;
   animation: checkDraw 0.4s ease-out;
 }
-
 @keyframes checkDraw {
   from { stroke-dasharray: 30; stroke-dashoffset: 30; }
   to   { stroke-dasharray: 30; stroke-dashoffset: 0; }
 }
 
-/* ============================================================
-   ✅ ДЕСКТОП — увеличиваем, центрируем, отступ снизу больше
-   ============================================================ */
-@media (min-width: 701px) {
-  .bottom-nav {
-    max-width: 640px;
-    padding: 0 24px 24px;
-  }
+/* ✅ Летящая иконка */
+.bn-flying-icon {
+  position: fixed;
+  transform: translate(-50%, -50%) scale(1);
+  font-size: 26px;
+  pointer-events: none;
+  z-index: 9999;
+  filter: drop-shadow(0 6px 20px rgba(99, 102, 241, 0.6));
+}
 
+.icon-fly-enter-active {
+  transition: transform 0.5s cubic-bezier(.4,0,.2,1), opacity 0.5s ease;
+}
+.icon-fly-leave-active {
+  transition: transform 0.5s cubic-bezier(.4,0,.2,1), opacity 0.5s ease;
+}
+.icon-fly-enter-from {
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.4);
+}
+.icon-fly-leave-to {
+  opacity: 0;
+  transform: translate(-50%, -50%) translateY(-120px) scale(1.6);
+}
+
+@media (min-width: 701px) {
+  .bottom-nav { max-width: 640px; padding: 0 24px 24px; }
   .bn-inner {
     padding: 10px 12px 8px;
     border-radius: 28px;
@@ -423,41 +393,23 @@ function handleFabClick() {
       0 6px 16px -4px rgba(15, 23, 42, 0.10),
       0 30px 80px -30px rgba(99, 102, 241, 0.35);
   }
-
   .bn-item {
     padding: 10px 6px;
     font-size: 12px;
     gap: 4px;
-
     .bn-icon { font-size: 26px; }
     .bn-label { font-size: 12px; }
   }
-
   .bn-fab-wrapper { padding: 0 12px 6px; }
-
-  .bn-fab {
-    width: 76px;
-    height: 76px;
-    border-width: 5px;
-    margin-top: -38px;
-  }
-
+  .bn-fab { width: 76px; height: 76px; border-width: 5px; margin-top: -38px; }
   .bn-fab-icon { width: 34px; height: 34px; }
   .bn-fab-spinner { width: 34px; height: 34px; }
   .bn-fab.is-success .bn-fab-icon { width: 38px; height: 38px; }
-
   .bn-indicator { border-radius: 20px; top: 8px; bottom: 8px; }
 }
 
-/* ============================================================
-   ✅ МОБИЛЬНЫЙ
-   ============================================================ */
 @media (max-width: 700px) {
-  .bottom-nav {
-    max-width: 100%;
-    padding: 0 8px calc(8px + env(safe-area-inset-bottom, 0));
-  }
-
+  .bottom-nav { max-width: 100%; padding: 0 8px calc(8px + env(safe-area-inset-bottom, 0)); }
   .bn-inner {
     padding: 6px 6px 4px;
     border-radius: 22px;
@@ -467,19 +419,18 @@ function handleFabClick() {
       0 4px 10px -4px rgba(15, 23, 42, 0.10),
       0 20px 50px -20px rgba(99, 102, 241, 0.22);
   }
-
   .bn-icon { font-size: 20px; }
   .bn-label { font-size: 10px; }
-
-  .bn-fab {
-    width: 60px;
-    height: 60px;
-    margin-top: -26px;
-  }
+  .bn-fab { width: 60px; height: 60px; margin-top: -26px; }
   .bn-fab-icon { width: 26px; height: 26px; }
   .bn-fab-spinner { width: 26px; height: 26px; }
   .bn-fab.is-success .bn-fab-icon { width: 30px; height: 30px; }
-
   .bn-indicator { border-radius: 16px; top: 4px; bottom: 4px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bn-indicator,
+  .bn-fab,
+  .bn-flying-icon { animation: none !important; transition: none !important; }
 }
 </style>

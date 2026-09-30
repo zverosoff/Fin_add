@@ -9,35 +9,52 @@ const props = defineProps({
 const route = useRoute();
 
 const hidden = ref(false);
+const scrollOffset = ref(0);
 
 let hideTimer = null;
+let rafId = null;
 
 function startHideTimer() {
   if (hideTimer) clearTimeout(hideTimer);
-  hideTimer = setTimeout(() => {
-    hidden.value = true;
-  }, 1500);
+  hideTimer = setTimeout(() => { hidden.value = true; }, 1500);
+}
+
+// ✅ Параллакс: заголовок уезжает быстрее контента
+function onScroll() {
+  if (rafId) return;
+  rafId = requestAnimationFrame(() => {
+    rafId = null;
+    const y = window.scrollY || 0;
+    scrollOffset.value = Math.min(120, y * 0.6);
+  });
 }
 
 onMounted(() => {
   startHideTimer();
   window.scrollTo({ top: 0, behavior: 'instant' });
+  window.addEventListener('scroll', onScroll, { passive: true });
 });
 
 onUnmounted(() => {
   if (hideTimer) clearTimeout(hideTimer);
+  if (rafId) cancelAnimationFrame(rafId);
+  window.removeEventListener('scroll', onScroll);
 });
 
-// При смене маршрута — снова показать
 watch(() => route.path, () => {
   hidden.value = false;
+  scrollOffset.value = 0;
   window.scrollTo({ top: 0, behavior: 'instant' });
   startHideTimer();
 });
 </script>
 
 <template>
-  <div class="hero-block" :class="{ hidden }">
+  <div
+    class="hero-block"
+    :class="{ hidden }"
+    :style="{ transform: `translateY(-${scrollOffset}px) scale(${1 - scrollOffset / 800})` }"
+  >
     <h1>{{ title }}</h1>
   </div>
 </template>
@@ -55,8 +72,8 @@ watch(() => route.path, () => {
   margin: 0 0 16px;
   padding-top: 4px;
   opacity: 1;
-  /* ✅ Не перехватывает клики, даже когда видим */
   pointer-events: none;
+  will-change: transform;
   transition:
     max-height 0.35s cubic-bezier(.22,.61,.36,1),
     margin 0.35s cubic-bezier(.22,.61,.36,1),
@@ -98,11 +115,14 @@ h1 {
     padding-top: 2px;
     gap: 8px;
   }
-
   h1 {
     font-size: 18px;
     white-space: normal;
     padding: 0 12px;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-block { transition: none !important; transform: none !important; }
 }
 </style>

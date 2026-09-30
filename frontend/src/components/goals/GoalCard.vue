@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue';
+import { computed, ref, watch, onMounted } from 'vue';
 import { useAnalyticsStore } from '@/stores/analytics';
 import { fmt } from '@/composables/useFormat';
 
@@ -28,9 +28,68 @@ function plural(n, one, few, many) {
   return many;
 }
 
+// ✅ ETA-счётчик — «печатает» число
+const etaDisplay = ref(0);
+const etaVisible = computed(() => eta.value != null);
+
+watch(eta, (val) => {
+  if (val == null) { etaDisplay.value = 0; return; }
+  const target = val;
+  const duration = 600;
+  const from = etaDisplay.value;
+  const startTs = performance.now();
+  function tick(ts) {
+    const t = Math.min(1, (ts - startTs) / duration);
+    const eased = 1 - Math.pow(1 - t, 3);
+    etaDisplay.value = Math.round(from + (target - from) * eased);
+    if (t < 1) requestAnimationFrame(tick);
+  }
+  requestAnimationFrame(tick);
+}, { immediate: true });
+
 const etaText = computed(() => {
-  if (!eta.value) return '';
-  return `≈ ${eta.value} ${plural(eta.value, 'месяц', 'месяца', 'месяцев')}`;
+  if (!etaVisible.value) return '';
+  const n = etaDisplay.value;
+  if (n <= 0) return '';
+  return `≈ ${n} ${plural(n, 'месяц', 'месяца', 'месяцев')}`;
+});
+
+// ✅ Конфетти при достижении 100%
+const confettiActive = ref(false);
+const confettiParticles = ref([]);
+
+function spawnConfetti() {
+  const colors = ['#fbbf24', '#f97316', '#22c55e', '#3b82f6', '#ec4899', '#8b5cf6'];
+  const particles = [];
+  for (let i = 0; i < 60; i++) {
+    particles.push({
+      id: i,
+      x: 0,
+      y: 0,
+      angle: Math.random() * 360,
+      distance: 60 + Math.random() * 120,
+      size: 4 + Math.random() * 6,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      delay: Math.random() * 0.15,
+      duration: 0.8 + Math.random() * 0.6,
+    });
+  }
+  confettiParticles.value = particles;
+  confettiActive.value = true;
+  setTimeout(() => {
+    confettiActive.value = false;
+    confettiParticles.value = [];
+  }, 1800);
+}
+
+onMounted(() => {
+  if (props.goal.done) {
+    setTimeout(spawnConfetti, 300);
+  }
+});
+
+watch(() => props.goal.done, (isDone, wasDone) => {
+  if (isDone && !wasDone) spawnConfetti();
 });
 
 const contributors = computed(() =>
@@ -44,29 +103,43 @@ const contributors = computed(() =>
     }))
 );
 
-const ownerEmoji = computed(() =>
-  props.goal.owner === 'Сергей' ? '👨' : '👩'
-);
-const ownerCls = computed(() =>
-  props.goal.owner === 'Сергей' ? 'sergey' : 'sasha'
-);
+const ownerEmoji = computed(() => props.goal.owner === 'Сергей' ? '👨' : '👩');
+const ownerCls = computed(() => props.goal.owner === 'Сергей' ? 'sergey' : 'sasha');
 
 function onEditContrib(user) {
   emit('edit-contrib', { goal: props.goal, user });
 }
+
+// Уникальный id для градиента волны
+const waveId = computed(() => 'wave-' + props.goal.id);
 </script>
 
 <template>
   <div class="goal-card" :class="{ done: goal.done, primary: goal.primary }">
+    <!-- ✅ Конфетти при 100% -->
+    <div v-if="confettiActive" class="goal-confetti" aria-hidden="true">
+      <span
+        v-for="p in confettiParticles"
+        :key="p.id"
+        class="confetti-particle"
+        :style="{
+          '--x': p.distance + 'px',
+          '--angle': p.angle + 'deg',
+          '--size': p.size + 'px',
+          '--color': p.color,
+          '--delay': p.delay + 's',
+          '--duration': p.duration + 's',
+        }"
+      />
+    </div>
+
     <div class="goal-head">
       <div class="goal-title-row">
         <span class="goal-emoji">{{ goal.emoji || '🎯' }}</span>
         <span class="goal-name">{{ goal.name }}</span>
-
         <span v-if="goal.primary" class="goal-primary-badge" title="Основная цель">
           ⭐ Основная
         </span>
-
         <span class="goal-owner" :class="ownerCls">
           {{ ownerEmoji }} {{ goal.owner }}
         </span>
@@ -89,13 +162,7 @@ function onEditContrib(user) {
         >+ Внести</button>
 
         <button type="button" @click="emit('edit', goal)" title="Редактировать">✏️</button>
-
-        <button
-          class="danger"
-          type="button"
-          @click="emit('delete', goal)"
-          title="Удалить"
-        >✕</button>
+        <button class="danger" type="button" @click="emit('delete', goal)" title="Удалить">✕</button>
       </div>
     </div>
 
@@ -104,12 +171,15 @@ function onEditContrib(user) {
       <span class="target">из {{ fmt(goal.target) }} ₽</span>
     </div>
 
+    <!-- ✅ Прогресс-бар с волной -->
     <div class="goal-track">
       <div
         class="goal-fill"
         :class="{ done: goal.done }"
         :style="{ width: goal.pct + '%' }"
-      ></div>
+      >
+        <div class="goal-wave" :class="{ done: goal.done }"></div>
+      </div>
     </div>
 
     <div class="goal-foot">
@@ -149,6 +219,7 @@ function onEditContrib(user) {
 
 <style scoped lang="scss">
 .goal-card {
+  position: relative;
   padding: 14px 16px;
   background: #ffffff;
   border: 1px solid var(--border);
@@ -158,6 +229,7 @@ function onEditContrib(user) {
   gap: 10px;
   transition: transform 0.15s, box-shadow 0.2s, border-color 0.2s;
   min-width: 0;
+  overflow: hidden;
 
   &:hover {
     transform: translateY(-2px);
@@ -169,7 +241,6 @@ function onEditContrib(user) {
     background: linear-gradient(135deg, rgba(34, 197, 94, 0.04), transparent 60%), #ffffff;
   }
 
-  /* ✅ Основная цель — золотая рамка и подсветка */
   &.primary {
     border-color: rgba(245, 158, 11, 0.5);
     background:
@@ -179,11 +250,44 @@ function onEditContrib(user) {
   }
 }
 
-.goal-head {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+/* ✅ Конфетти */
+.goal-confetti {
+  position: absolute;
+  left: 30px;
+  top: 50%;
+  pointer-events: none;
+  z-index: 10;
 }
+
+.confetti-particle {
+  position: absolute;
+  width: var(--size);
+  height: var(--size);
+  border-radius: 50%;
+  background: var(--color);
+  animation: confettiBurst var(--duration) cubic-bezier(.22,.61,.36,1) var(--delay) forwards;
+  transform: translate(0, 0);
+  opacity: 0;
+}
+
+@keyframes confettiBurst {
+  0% {
+    transform: translate(0, 0) rotate(0deg) scale(0.3);
+    opacity: 1;
+  }
+  20% { opacity: 1; }
+  100% {
+    transform:
+      translate(
+        calc(cos(var(--angle)) * var(--x)),
+        calc(sin(var(--angle)) * var(--x))
+      )
+      rotate(540deg) scale(1);
+    opacity: 0;
+  }
+}
+
+.goal-head { display: flex; flex-direction: column; gap: 6px; }
 
 .goal-title-row {
   display: flex;
@@ -192,13 +296,7 @@ function onEditContrib(user) {
   min-width: 0;
   flex-wrap: wrap;
 }
-
-.goal-emoji {
-  font-size: 22px;
-  line-height: 1;
-  flex-shrink: 0;
-}
-
+.goal-emoji { font-size: 22px; line-height: 1; flex-shrink: 0; }
 .goal-name {
   flex: 1 1 auto;
   font-size: 14px;
@@ -208,8 +306,6 @@ function onEditContrib(user) {
   overflow-wrap: anywhere;
   min-width: 0;
 }
-
-/* ✅ Бейдж "Основная" */
 .goal-primary-badge {
   display: inline-flex;
   align-items: center;
@@ -226,7 +322,6 @@ function onEditContrib(user) {
   flex-shrink: 0;
   box-shadow: 0 4px 10px -3px rgba(245, 158, 11, 0.5);
 }
-
 .goal-owner {
   display: inline-flex;
   align-items: center;
@@ -237,15 +332,8 @@ function onEditContrib(user) {
   border-radius: 999px;
   white-space: nowrap;
   flex-shrink: 0;
-
-  &.sergey {
-    color: #2563eb;
-    background: rgba(59, 130, 246, 0.12);
-  }
-  &.sasha {
-    color: #ec4899;
-    background: rgba(236, 72, 153, 0.12);
-  }
+  &.sergey { color: #2563eb; background: rgba(59, 130, 246, 0.12); }
+  &.sasha  { color: #ec4899; background: rgba(236, 72, 153, 0.12); }
 }
 
 .goal-actions {
@@ -270,42 +358,21 @@ function onEditContrib(user) {
     transition: all 0.15s;
     font-family: inherit;
 
-    &:hover {
-      color: var(--accent);
-      border-color: var(--accent);
-      background: rgba(56, 189, 248, 0.08);
-    }
+    &:hover { color: var(--accent); border-color: var(--accent); background: rgba(56, 189, 248, 0.08); }
+    &.danger:hover { color: var(--danger); border-color: var(--danger); background: rgba(239, 68, 68, 0.08); }
 
-    &.danger:hover {
-      color: var(--danger);
-      border-color: var(--danger);
-      background: rgba(239, 68, 68, 0.08);
-    }
-
-    /* ✅ Кнопка "Сделать основной" */
     &.act-primary {
       min-width: 30px;
       height: 30px;
       padding: 0;
       font-size: 15px;
       font-weight: 800;
-
-      &:not(.active):hover {
-        color: #f59e0b;
-        border-color: #f59e0b;
-        background: rgba(245, 158, 11, 0.1);
-      }
-
+      &:not(.active):hover { color: #f59e0b; border-color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
       &.active {
         background: linear-gradient(135deg, #fbbf24, #f59e0b);
         border-color: transparent;
         color: #ffffff;
         box-shadow: 0 6px 16px -6px rgba(245, 158, 11, 0.7);
-
-        &:hover {
-          color: #ffffff;
-          box-shadow: 0 8px 20px -6px rgba(245, 158, 11, 0.9);
-        }
       }
     }
 
@@ -317,12 +384,7 @@ function onEditContrib(user) {
       font-weight: 700;
       width: auto;
       padding: 0 12px;
-
-      &:hover {
-        color: #fff;
-        transform: translateY(-1px);
-        box-shadow: 0 6px 16px -4px rgba(34, 197, 94, 0.7);
-      }
+      &:hover { color: #fff; transform: translateY(-1px); box-shadow: 0 6px 16px -4px rgba(34, 197, 94, 0.7); }
     }
   }
 }
@@ -333,39 +395,52 @@ function onEditContrib(user) {
   justify-content: space-between;
   gap: 8px;
   flex-wrap: wrap;
-
-  .current {
-    font-family: var(--mono);
-    font-size: 16px;
-    font-weight: 800;
-    color: var(--accent);
-  }
-  .target {
-    font-family: var(--mono);
-    font-size: 11.5px;
-    font-weight: 700;
-    color: var(--muted);
-  }
+  .current { font-family: var(--mono); font-size: 16px; font-weight: 800; color: var(--accent); }
+  .target  { font-family: var(--mono); font-size: 11.5px; font-weight: 700; color: var(--muted); }
 }
 
+/* ✅ Прогресс-бар с волной */
 .goal-track {
-  height: 8px;
-  border-radius: 4px;
+  position: relative;
+  height: 10px;
+  border-radius: 5px;
   background: rgba(148, 163, 184, 0.15);
   overflow: hidden;
 }
-
 .goal-fill {
+  position: relative;
   height: 100%;
-  border-radius: 4px;
+  border-radius: 5px;
   background: linear-gradient(90deg, #38bdf8, #8b5cf6);
   transition: width 0.6s cubic-bezier(.22,.61,.36,1);
   box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+  overflow: hidden;
 
   &.done {
     background: linear-gradient(90deg, #22c55e, #4ade80);
     box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
   }
+}
+.goal-wave {
+  position: absolute;
+  inset: 0;
+  background:
+    repeating-linear-gradient(
+      120deg,
+      transparent 0,
+      transparent 12px,
+      rgba(255, 255, 255, 0.35) 12px,
+      rgba(255, 255, 255, 0.35) 20px,
+      transparent 20px,
+      transparent 32px
+    );
+  animation: waveSlide 1.6s linear infinite;
+  pointer-events: none;
+  &.done { animation-duration: 0.9s; }
+}
+@keyframes waveSlide {
+  0%   { background-position: 0 0; }
+  100% { background-position: 64px 0; }
 }
 
 .goal-foot {
@@ -377,11 +452,10 @@ function onEditContrib(user) {
   font-weight: 600;
   gap: 8px;
   flex-wrap: wrap;
-
   .goal-pct {
     font-weight: 800;
     color: var(--accent);
-
+    font-variant-numeric: tabular-nums;
     &.done { color: #22c55e; }
   }
 }
@@ -393,7 +467,6 @@ function onEditContrib(user) {
   padding-top: 8px;
   border-top: 1px dashed var(--border);
 }
-
 .goal-contrib {
   display: inline-flex;
   align-items: center;
@@ -406,31 +479,12 @@ function onEditContrib(user) {
   background: rgba(148, 163, 184, 0.1);
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.2s;
-
-  &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px -4px rgba(15, 23, 42, 0.15);
-  }
-
+  &:hover { transform: translateY(-1px); box-shadow: 0 4px 12px -4px rgba(15, 23, 42, 0.15); }
   .name { color: var(--muted); font-weight: 600; }
-  .amount {
-    font-family: var(--mono);
-    font-weight: 800;
-    color: var(--text);
-  }
-
-  &.sergey {
-    background: rgba(59, 130, 246, 0.08);
-    border-color: rgba(59, 130, 246, 0.25);
-    .amount { color: #2563eb; }
-  }
-  &.sasha {
-    background: rgba(236, 72, 153, 0.08);
-    border-color: rgba(236, 72, 153, 0.25);
-    .amount { color: #db2777; }
-  }
+  .amount { font-family: var(--mono); font-weight: 800; color: var(--text); }
+  &.sergey { background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.25); .amount { color: #2563eb; } }
+  &.sasha  { background: rgba(236, 72, 153, 0.08); border-color: rgba(236, 72, 153, 0.25); .amount { color: #db2777; } }
 }
-
 .goal-empty-contribs {
   display: flex;
   align-items: center;
@@ -443,81 +497,36 @@ function onEditContrib(user) {
   font-size: 11px;
   font-style: italic;
   text-align: center;
-
   .emoji { font-style: normal; }
-  .hint {
-    color: var(--accent);
-    font-weight: 600;
-    font-style: normal;
-  }
+  .hint { color: var(--accent); font-weight: 600; font-style: normal; }
 }
 
 @media (max-width: 700px) {
-  .goal-card {
-    padding: 12px 14px;
-    gap: 8px;
-    border-radius: 12px;
-  }
-
+  .goal-card { padding: 12px 14px; gap: 8px; border-radius: 12px; }
   .goal-title-row { gap: 6px; }
   .goal-emoji { font-size: 20px; }
   .goal-name { font-size: 13px; }
-
-  .goal-primary-badge {
-    font-size: 9px;
-    padding: 2px 6px;
-  }
-
-  .goal-owner {
-    font-size: 10px;
-    padding: 2px 7px;
-  }
-
+  .goal-primary-badge { font-size: 9px; padding: 2px 6px; }
+  .goal-owner { font-size: 10px; padding: 2px 7px; }
   .goal-actions {
     gap: 4px;
-
-    button {
-      min-width: 28px;
-      height: 28px;
-      font-size: 11px;
-    }
-
-    button.act-primary {
-      min-width: 28px;
-      height: 28px;
-      font-size: 14px;
-    }
-
-    button.act-contribute {
-      padding: 0 10px;
-      font-size: 11px;
-      height: 28px;
-    }
+    button { min-width: 28px; height: 28px; font-size: 11px; }
+    button.act-primary { min-width: 28px; height: 28px; font-size: 14px; }
+    button.act-contribute { padding: 0 10px; font-size: 11px; height: 28px; }
   }
-
-  .goal-progress {
-    .current { font-size: 15px; }
-    .target  { font-size: 11px; }
-  }
-
+  .goal-progress { .current { font-size: 15px; } .target { font-size: 11px; } }
   .goal-foot { font-size: 11px; }
-
   .goal-contribs { gap: 5px; padding-top: 6px; }
-
-  .goal-contrib {
-    font-size: 10.5px;
-    padding: 3px 8px;
-    gap: 4px;
-  }
-
-  .goal-empty-contribs {
-    font-size: 10.5px;
-    padding: 5px 8px;
-  }
+  .goal-contrib { font-size: 10.5px; padding: 3px 8px; gap: 4px; }
+  .goal-empty-contribs { font-size: 10.5px; padding: 5px 8px; }
 }
 
 @media (max-width: 380px) {
   .goal-name { font-size: 12.5px; }
   .goal-progress .current { font-size: 14px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .goal-wave, .confetti-particle { animation: none !important; }
 }
 </style>
