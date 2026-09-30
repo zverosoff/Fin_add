@@ -126,19 +126,6 @@ const shineStyle = computed(() => {
   };
 });
 
-// ✅ Маскированный номер карты (псевдослучайный, но стабильный)
-const cardNumber = computed(() => {
-  // 4 последние цифры детерминированно из userName
-  const seed = userName.value
-    .split('')
-    .reduce((s, ch) => s + ch.charCodeAt(0), 0);
-  const last4 = String((seed * 7919) % 10000).padStart(4, '0');
-  return `•••• •••• •••• ${last4}`;
-});
-
-// ✅ Срок действия (MM/YY) — фиксированный
-const cardExpiry = computed(() => '12/28');
-
 onMounted(() => {
   try {
     const saved = localStorage.getItem(LS_KEY);
@@ -156,7 +143,7 @@ watch(expandedOwners, (val) => {
     <div
       ref="cardEl"
       class="debit-card"
-      :class="{ 'is-tilting': isTilting }"
+      :class="{ 'is-tilting': isTilting, 'has-avatar': !!avatarUrl }"
       :style="cardStyle"
       @mousemove="onMouseMove"
       @mouseleave="onMouseLeave"
@@ -165,6 +152,12 @@ watch(expandedOwners, (val) => {
       @touchend="onTouchEnd"
       @touchcancel="onTouchEnd"
     >
+      <!-- ✅ Аватар на всю левую сторону карты -->
+      <div v-if="avatarUrl" class="dc-avatar-bg" aria-hidden="true">
+        <img :src="avatarUrl" alt="" />
+        <div class="dc-avatar-bg-fade"></div>
+      </div>
+
       <div class="dc-shine-cursor" :style="shineStyle" aria-hidden="true"></div>
       <div class="dc-gloss" aria-hidden="true"></div>
       <div class="dc-pattern" aria-hidden="true"></div>
@@ -172,16 +165,9 @@ watch(expandedOwners, (val) => {
       <div class="dc-frame" aria-hidden="true"></div>
 
       <!-- ============================================================
-           ✅ ВЕРХНЯЯ ЧАСТЬ: аватар слева + issuer справа
+           ВЕРХНЯЯ ЧАСТЬ: issuer справа
            ============================================================ -->
       <div class="dc-top">
-        <!-- ✅ Крупный прямоугольный аватар слева сверху -->
-        <div class="dc-avatar-big">
-          <img v-if="avatarUrl" :src="avatarUrl" alt="avatar" />
-          <span v-else class="dc-avatar-big-emoji">{{ userEmoji }}</span>
-        </div>
-
-        <!-- ✅ Issuer справа -->
         <div class="dc-issuer">
           <div class="dc-issuer-name">VAS FINANCE PRO+</div>
           <div class="dc-issuer-sub">дебетовая</div>
@@ -189,7 +175,7 @@ watch(expandedOwners, (val) => {
       </div>
 
       <!-- ============================================================
-           БАЛАНС — крупно по центру
+           БАЛАНС
            ============================================================ -->
       <div class="dc-balance">
         <div class="dc-balance-value">{{ fmt(totalBalance) }} ₽</div>
@@ -198,33 +184,7 @@ watch(expandedOwners, (val) => {
       <div class="dc-caption">ВАШ ОБЩИЙ БАЛАНС</div>
 
       <!-- ============================================================
-           ✅ НИЖНЯЯ ЧАСТЬ: чип + номер карты + срок + владельцы
-           ============================================================ -->
-      <div class="dc-bottom">
-        <!-- Чип -->
-        <div class="dc-chip-icon" aria-hidden="true">
-          <svg viewBox="0 0 40 30" width="34" height="26">
-            <rect x="1" y="1" width="38" height="28" rx="4"
-                  fill="none" stroke="currentColor" stroke-width="1.5"/>
-            <path d="M13 1 V29 M27 1 V29 M1 15 H39" 
-                  stroke="currentColor" stroke-width="1" opacity="0.7"/>
-            <path d="M13 8 H27 M13 22 H27" 
-                  stroke="currentColor" stroke-width="0.8" opacity="0.5"/>
-          </svg>
-        </div>
-
-        <!-- Номер + срок -->
-        <div class="dc-card-info">
-          <div class="dc-card-number">{{ cardNumber }}</div>
-          <div class="dc-card-expiry">
-            <span class="dc-exp-label">VALID THRU</span>
-            <span class="dc-exp-value">{{ cardExpiry }}</span>
-          </div>
-        </div>
-      </div>
-
-      <!-- ============================================================
-           ВЛАДЕЛЬЦЫ — внизу, отдельными строками
+           ВЛАДЕЛЬЦЫ
            ============================================================ -->
       <div class="dc-accounts">
         <div
@@ -327,11 +287,63 @@ watch(expandedOwners, (val) => {
   100% { background-position: 0% 0%, 100% 100%, 0% 50%; }
 }
 
+/* ============================================================
+   ✅ АВАТАР НА ВСЮ ЛЕВУЮ СТОРОНУ КАРТЫ
+   ============================================================ */
+.dc-avatar-bg {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 42%;           /* ~половина карты */
+  max-width: 200px;
+  z-index: 1;
+  overflow: hidden;
+  pointer-events: none;
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center top;
+    display: block;
+    /* Лёгкая десатурация, чтобы не перетягивать внимание */
+    filter: saturate(0.9) contrast(1.05) brightness(0.95);
+  }
+}
+
+/* ✅ Плавное затухание справа и снизу — чтобы фото растворялось в карте */
+.dc-avatar-bg-fade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      90deg,
+      transparent 0%,
+      transparent 55%,
+      rgba(99, 102, 241, 0.55) 85%,
+      rgba(99, 102, 241, 1) 100%
+    ),
+    linear-gradient(
+      180deg,
+      transparent 0%,
+      transparent 80%,
+      rgba(99, 102, 241, 0.3) 95%,
+      rgba(99, 102, 241, 0.6) 100%
+    );
+  pointer-events: none;
+}
+
+/* Верх карты — небольшой градиент, чтобы issuer читался */
+.has-avatar .dc-top {
+  padding-left: 44%;
+}
+
 .dc-shine-cursor {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 1;
+  z-index: 2;
   mix-blend-mode: overlay;
 }
 
@@ -343,7 +355,7 @@ watch(expandedOwners, (val) => {
     radial-gradient(ellipse 50% 30% at 90% 100%, rgba(139, 92, 246, 0.4), transparent 60%);
   animation: glossRotate 12s ease-in-out infinite;
   pointer-events: none;
-  z-index: 1;
+  z-index: 2;
   mix-blend-mode: overlay;
 }
 @keyframes glossRotate {
@@ -365,7 +377,7 @@ watch(expandedOwners, (val) => {
   border-radius: 16px;
   border: 1.5px dashed rgba(255, 255, 255, 0.32);
   pointer-events: none;
-  z-index: 1;
+  z-index: 3;
 }
 
 .dc-watermark {
@@ -383,42 +395,16 @@ watch(expandedOwners, (val) => {
 }
 
 /* ============================================================
-   ВЕРХНЯЯ ЧАСТЬ: аватар + issuer
+   ВЕРХ: только issuer справа
    ============================================================ */
 .dc-top {
   position: relative;
   z-index: 2;
   display: flex;
   align-items: flex-start;
-  justify-content: space-between;
+  justify-content: flex-end;
   gap: 10px;
-}
-
-/* ✅ Крупный прямоугольный аватар слева сверху */
-.dc-avatar-big {
-  width: 56px;
-  height: 56px;
-  border-radius: 12px;
-  overflow: hidden;
-  flex-shrink: 0;
-  background: linear-gradient(135deg, #a5b4fc, #818cf8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow:
-    0 8px 20px -6px rgba(0, 0, 0, 0.45),
-    0 0 0 2px rgba(255, 255, 255, 0.5);
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    display: block;
-  }
-}
-.dc-avatar-big-emoji {
-  font-size: 30px;
-  line-height: 1;
+  padding-top: 4px;
 }
 
 .dc-issuer {
@@ -434,7 +420,7 @@ watch(expandedOwners, (val) => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
 }
 .dc-issuer-sub {
   font-size: 9px;
@@ -451,7 +437,7 @@ watch(expandedOwners, (val) => {
 .dc-balance {
   position: relative;
   z-index: 2;
-  margin-top: 8px;
+  margin-top: 12px;
   text-align: center;
 }
 .dc-balance-value {
@@ -460,7 +446,7 @@ watch(expandedOwners, (val) => {
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.05;
-  text-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  text-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
 }
 .dc-caption {
   position: relative;
@@ -473,62 +459,6 @@ watch(expandedOwners, (val) => {
   opacity: 0.75;
   margin-top: -2px;
   margin-bottom: 4px;
-}
-
-/* ============================================================
-   ✅ НИЖНЯЯ ЧАСТЬ: чип + номер + срок
-   ============================================================ */
-.dc-bottom {
-  position: relative;
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 6px 4px 0;
-}
-
-.dc-chip-icon {
-  color: rgba(255, 255, 255, 0.75);
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
-}
-
-.dc-card-info {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.dc-card-number {
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  color: rgba(255, 255, 255, 0.9);
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
-  white-space: nowrap;
-}
-
-.dc-card-expiry {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 8.5px;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: rgba(255, 255, 255, 0.7);
-  text-transform: uppercase;
-}
-.dc-exp-label { opacity: 0.7; }
-.dc-exp-value {
-  font-family: var(--mono);
-  font-size: 10px;
-  letter-spacing: 0.05em;
-  color: rgba(255, 255, 255, 0.95);
 }
 
 /* ============================================================
@@ -692,27 +622,20 @@ watch(expandedOwners, (val) => {
 @media (max-width: 700px) {
   .debit-card { padding: 14px 16px 12px; border-radius: 20px; gap: 8px; }
 
-  /* ✅ Уменьшаем аватар, но оставляем прямоугольным */
-  .dc-avatar-big {
-    width: 46px;
-    height: 46px;
-    border-radius: 10px;
+  /* ✅ Аватар всё ещё на всю левую сторону, но уже */
+  .dc-avatar-bg {
+    width: 38%;
+    max-width: 140px;
   }
-  .dc-avatar-big-emoji { font-size: 24px; }
+  .has-avatar .dc-top { padding-left: 40%; }
 
   .dc-issuer { padding-top: 4px; }
   .dc-issuer-name { font-size: 10.5px; letter-spacing: 0.12em; }
   .dc-issuer-sub { font-size: 8.5px; }
 
-  .dc-balance { margin-top: 6px; }
+  .dc-balance { margin-top: 8px; }
   .dc-balance-value { font-size: 34px; }
   .dc-caption { font-size: 9.5px; letter-spacing: 0.12em; }
-
-  .dc-bottom { gap: 10px; padding-top: 4px; }
-  .dc-chip-icon svg { width: 28px; height: 22px; }
-  .dc-card-number { font-size: 10.5px; letter-spacing: 0.08em; }
-  .dc-card-expiry { font-size: 8px; }
-  .dc-exp-value { font-size: 9px; }
 
   .dc-accounts { gap: 5px; padding-top: 8px; margin-top: 4px; }
   .dc-owner-row { gap: 6px; }
@@ -729,8 +652,8 @@ watch(expandedOwners, (val) => {
 }
 
 @media (max-width: 380px) {
-  .dc-avatar-big { width: 40px; height: 40px; border-radius: 9px; }
-  .dc-avatar-big-emoji { font-size: 20px; }
+  .dc-avatar-bg { width: 36%; max-width: 120px; }
+  .has-avatar .dc-top { padding-left: 38%; }
   .dc-balance-value { font-size: 28px; }
   .dc-issuer-name { font-size: 9.5px; }
   .dc-chips { gap: 4px; }

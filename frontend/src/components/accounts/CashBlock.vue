@@ -28,14 +28,9 @@ const owners = computed(() =>
 // ============================================================
 // ✅ ОСНОВНАЯ ЦЕЛЬ — учитываем наличные как накопления
 // ============================================================
-
-// Наличные в кошельках
 const cashInWallets = computed(() => accounts.totalCash);
-
-// Наличные в копилках
 const cashInSavings = computed(() => accounts.totalCashSavings);
 
-// Взносы в цель из goals store
 const goalContributionsSum = computed(() => {
   const goal = goalsStore.primaryGoal;
   if (!goal) return 0;
@@ -43,19 +38,16 @@ const goalContributionsSum = computed(() => {
     .reduce((s, v) => s + (Number(v) || 0), 0);
 });
 
-// Всего накоплено = кошелёк + копилка + взносы в цель
 const totalSaved = computed(() =>
   cashInWallets.value + cashInSavings.value + goalContributionsSum.value
 );
 
-// Сколько осталось накопить
 const remaining = computed(() => {
   const goal = goalsStore.primaryGoal;
   if (!goal) return 0;
   return Math.max(0, (Number(goal.target) || 0) - totalSaved.value);
 });
 
-// Прогресс %
 const progressPct = computed(() => {
   const goal = goalsStore.primaryGoal;
   if (!goal) return 0;
@@ -64,15 +56,7 @@ const progressPct = computed(() => {
   return Math.min(100, (totalSaved.value / target) * 100);
 });
 
-// Готово ли
 const isDone = computed(() => progressPct.value >= 100);
-
-// Разбивка по источникам — для отображения деталей
-const savedBreakdown = computed(() => ({
-  wallet: cashInWallets.value,
-  savings: cashInSavings.value,
-  goal: goalContributionsSum.value,
-}));
 
 // ============================================================
 // Модалка
@@ -83,7 +67,7 @@ function openModal(owner = '', mode = 'add') {
   cashModalOpen.value = true;
 }
 
-// ✅ Список падающих купюр — генерируется один раз, дальше просто рендерится
+// Купюры
 const fallingBills = [
   { id: 1,  left: '6%',   delay: '0s',    duration: '14s', rotate: -12, scale: 0.75 },
   { id: 2,  left: '18%',  delay: '2.5s',  duration: '18s', rotate: 8,   scale: 0.9 },
@@ -101,7 +85,6 @@ const fallingBills = [
 <template>
   <section class="cash-block">
     <div class="cash-note">
-      <!-- ✅ Слой с падающими купюрами -->
       <div class="cn-falling" aria-hidden="true">
         <div
           v-for="b in fallingBills"
@@ -144,7 +127,6 @@ const fallingBills = [
         </div>
       </div>
 
-      <!-- ✅ Суммы наличных по пользователям -->
       <div class="cn-owners">
         <div
           v-for="o in owners"
@@ -173,14 +155,14 @@ const fallingBills = [
       </div>
 
       <!-- ============================================================
-           ✅ ОСНОВНАЯ ЦЕЛЬ — учитываем наличные как накопления
+           ✅ ОСНОВНАЯ ЦЕЛЬ — компактная
            ============================================================ -->
-      <div v-if="goalsStore.primaryGoal" class="cn-goal">
+      <div v-if="goalsStore.primaryGoal" class="cn-goal" :class="{ done: isDone }">
         <div class="cn-goal-head">
           <span class="cn-goal-emoji">{{ goalsStore.primaryGoal.emoji || '🎯' }}</span>
           <span class="cn-goal-name">{{ goalsStore.primaryGoal.name }}</span>
           <span class="cn-goal-badge" :class="{ done: isDone }">
-            {{ isDone ? '✅ ГОТОВО' : '⭐ ОСНОВНАЯ' }}
+            {{ isDone ? '✅' : '⭐' }}
           </span>
         </div>
 
@@ -192,30 +174,12 @@ const fallingBills = [
               :style="{ width: progressPct + '%' }"
             ></div>
           </div>
-          <div class="cn-goal-pct">{{ progressPct.toFixed(1) }}%</div>
-        </div>
-
-        <div class="cn-goal-numbers">
-          <div class="cn-goal-row">
-            <span class="cn-goal-label">Накоплено</span>
-            <span class="cn-goal-value saved">{{ fmt(totalSaved) }} ₽</span>
+          <div class="cn-goal-info">
+            <span class="cn-goal-left">
+              {{ isDone ? 'Цель достигнута!' : `Осталось ${fmt(remaining)} ₽` }}
+            </span>
+            <span class="cn-goal-target">из {{ fmt(goalsStore.primaryGoal.target) }} ₽</span>
           </div>
-          <div class="cn-goal-row">
-            <span class="cn-goal-label">Осталось</span>
-            <span class="cn-goal-value left">{{ fmt(remaining) }} ₽</span>
-          </div>
-          <div class="cn-goal-row cn-goal-target">
-            <span class="cn-goal-label">Цель</span>
-            <span class="cn-goal-value target">{{ fmt(goalsStore.primaryGoal.target) }} ₽</span>
-          </div>
-        </div>
-
-        <div class="cn-goal-breakdown">
-          💵 Кошелёк {{ fmt(savedBreakdown.wallet) }} ₽ ·
-          🏦 Копилка {{ fmt(savedBreakdown.savings) }} ₽
-          <template v-if="savedBreakdown.goal > 0">
-            · 🎯 Взносы {{ fmt(savedBreakdown.goal) }} ₽
-          </template>
         </div>
       </div>
     </div>
@@ -481,14 +445,14 @@ const fallingBills = [
 }
 
 /* ============================================================
-   ✅ ОСНОВНАЯ ЦЕЛЬ — блок под кнопками
+   ✅ ОСНОВНАЯ ЦЕЛЬ — компактная
    ============================================================ */
 .cn-goal {
   position: relative;
   z-index: 3;
-  margin-top: 12px;
-  padding: 12px 14px;
-  border-radius: 14px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
   background: rgba(255, 255, 255, 0.12);
   border: 1.5px dashed rgba(255, 255, 255, 0.45);
   backdrop-filter: blur(10px);
@@ -496,6 +460,12 @@ const fallingBills = [
   display: flex;
   flex-direction: column;
   gap: 8px;
+
+  &.done {
+    border-style: solid;
+    border-color: rgba(34, 197, 94, 0.7);
+    background: rgba(34, 197, 94, 0.15);
+  }
 }
 
 .cn-goal-head {
@@ -506,14 +476,14 @@ const fallingBills = [
 }
 
 .cn-goal-emoji {
-  font-size: 18px;
+  font-size: 16px;
   line-height: 1;
   flex-shrink: 0;
 }
 
 .cn-goal-name {
   flex: 1;
-  font-size: 13.5px;
+  font-size: 13px;
   font-weight: 800;
   color: #ffffff;
   overflow: hidden;
@@ -523,33 +493,31 @@ const fallingBills = [
 }
 
 .cn-goal-badge {
-  padding: 3px 9px;
-  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
   background: linear-gradient(135deg, #fbbf24, #f59e0b);
-  color: #78350f;
-  font-size: 9.5px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  white-space: nowrap;
+  font-size: 12px;
   flex-shrink: 0;
   box-shadow: 0 4px 10px -3px rgba(245, 158, 11, 0.6);
 
   &.done {
     background: linear-gradient(135deg, #22c55e, #16a34a);
-    color: #ffffff;
+    box-shadow: 0 4px 10px -3px rgba(34, 197, 94, 0.6);
   }
 }
 
 .cn-goal-progress {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  flex-direction: column;
+  gap: 6px;
 }
 
 .cn-goal-track {
-  flex: 1;
-  height: 8px;
+  height: 7px;
   border-radius: 4px;
   background: rgba(255, 255, 255, 0.2);
   overflow: hidden;
@@ -569,62 +537,28 @@ const fallingBills = [
   }
 }
 
-.cn-goal-pct {
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 800;
-  color: #ffffff;
-  white-space: nowrap;
-  min-width: 50px;
-  text-align: right;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-}
-
-.cn-goal-numbers {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.cn-goal-row {
+.cn-goal-info {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
   gap: 8px;
-
-  &.cn-goal-target {
-    padding-top: 4px;
-    border-top: 1px dashed rgba(255, 255, 255, 0.2);
-  }
+  font-size: 12px;
+  line-height: 1.2;
 }
 
-.cn-goal-label {
+.cn-goal-left {
+  font-family: var(--mono);
+  font-weight: 800;
+  color: #ffffff;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  white-space: nowrap;
+}
+
+.cn-goal-target {
   font-size: 11px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.85);
-  letter-spacing: 0.03em;
-  text-transform: uppercase;
-}
-
-.cn-goal-value {
-  font-family: var(--mono);
-  font-size: 13px;
-  font-weight: 800;
-  white-space: nowrap;
-  color: #ffffff;
-
-  &.saved { color: #86efac; }
-  &.left  { color: #fca5a5; }
-  &.target { color: #fef3c7; }
-}
-
-.cn-goal-breakdown {
-  font-size: 10.5px;
   color: rgba(255, 255, 255, 0.75);
-  text-align: center;
-  line-height: 1.4;
-  padding-top: 6px;
-  border-top: 1px dashed rgba(255, 255, 255, 0.15);
+  white-space: nowrap;
 }
 
 /* ============================================================
@@ -652,15 +586,13 @@ const fallingBills = [
 
   .cn-bill { width: 36px; height: 22px; }
 
-  /* ✅ Основная цель на мобилке */
-  .cn-goal { padding: 10px 12px; gap: 6px; border-radius: 12px; }
-  .cn-goal-emoji { font-size: 16px; }
-  .cn-goal-name { font-size: 12.5px; }
-  .cn-goal-badge { font-size: 9px; padding: 2px 7px; }
-  .cn-goal-pct { font-size: 11px; min-width: 44px; }
-  .cn-goal-label { font-size: 10px; }
-  .cn-goal-value { font-size: 12px; }
-  .cn-goal-breakdown { font-size: 9.5px; }
+  .cn-goal { padding: 9px 11px; gap: 6px; border-radius: 11px; margin-top: 8px; }
+  .cn-goal-emoji { font-size: 14px; }
+  .cn-goal-name { font-size: 12px; }
+  .cn-goal-badge { width: 20px; height: 20px; font-size: 10px; }
+  .cn-goal-left { font-size: 11.5px; }
+  .cn-goal-target { font-size: 10.5px; }
+  .cn-goal-track { height: 6px; }
 }
 
 @media (max-width: 380px) {
@@ -668,8 +600,8 @@ const fallingBills = [
   .cn-act { font-size: 10px; }
   .cn-owner-name { font-size: 11px; }
   .cn-owner-value { font-size: 12px; }
-  .cn-goal-name { font-size: 12px; }
-  .cn-goal-value { font-size: 11.5px; }
+  .cn-goal-name { font-size: 11.5px; }
+  .cn-goal-left { font-size: 11px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
