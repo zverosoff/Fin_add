@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted } from 'vue';
 import { useAuthStore } from '@/stores/auth';
 import { useToast } from '@/composables/useToast';
 import ChatWidget from '@/components/chat/ChatWidget.vue';
@@ -17,12 +17,18 @@ const loading = ref(true);
 
 const fileEl = ref(null);
 
+// ============================================================
+// Статистика (пример — замени на свои реальные данные)
+// ============================================================
 const stats = computed(() => ({
   balance: 2823,
   accounts: 4,
   operations: 298,
 }));
 
+// ============================================================
+// Загрузка профиля
+// ============================================================
 async function loadProfile() {
   loading.value = true;
   try {
@@ -32,6 +38,9 @@ async function loadProfile() {
       displayName.value = data.profile.displayName || me.value;
       avatar.value = data.profile.avatar || null;
       avatarPreview.value = data.profile.avatar || null;
+
+      // ✅ Обновляем глобальный стейт (чтобы на других страницах было новое имя)
+      auth.setDisplayName(displayName.value);
     } else {
       displayName.value = me.value;
     }
@@ -43,6 +52,9 @@ async function loadProfile() {
   }
 }
 
+// ============================================================
+// Аватар
+// ============================================================
 function openFilePicker() {
   fileEl.value?.click();
 }
@@ -100,6 +112,9 @@ async function onFileChange(e) {
   e.target.value = '';
 }
 
+// ============================================================
+// Сохранение
+// ============================================================
 async function save() {
   const clean = displayName.value.trim();
   if (!clean) {
@@ -116,6 +131,10 @@ async function save() {
     });
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || 'Ошибка сохранения');
+
+    // ✅ Обновляем глобальный стейт — теперь везде будет новое имя
+    auth.setDisplayName(clean);
+
     toast.success('✅ Профиль сохранён');
   } catch (e) {
     toast.error('Не удалось сохранить: ' + e.message);
@@ -124,21 +143,51 @@ async function save() {
   }
 }
 
+// ============================================================
+// Метаданные
+// ============================================================
 const lastLogin = ref(new Date().toLocaleString('ru-RU', {
   day: 'numeric', month: 'long', year: 'numeric',
   hour: '2-digit', minute: '2-digit',
 }));
 
+// ============================================================
+// Слушатель обновлений профиля из других вкладок (WebSocket)
+// ============================================================
+let unsubProfile = null;
+
 onMounted(() => {
   loadProfile();
+
+  const handler = (e) => {
+    const p = e.detail;
+    if (!p) return;
+    if (p.displayName) {
+      displayName.value = p.displayName;
+      auth.setDisplayName(p.displayName);
+    }
+    if (p.avatar !== undefined) {
+      avatar.value = p.avatar;
+      avatarPreview.value = p.avatar;
+    }
+  };
+  window.addEventListener('profile:updated', handler);
+  unsubProfile = () => window.removeEventListener('profile:updated', handler);
+});
+
+onUnmounted(() => {
+  if (unsubProfile) unsubProfile();
 });
 </script>
 
 <template>
   <div class="profile-page">
-    <!-- ЛЕВАЯ КОЛОНКА -->
+    <!-- ============================================================
+         ЛЕВАЯ КОЛОНКА — профиль
+         ============================================================ -->
     <div class="profile-col profile-col-left">
       <div class="profile-card">
+        <!-- Аватар -->
         <div class="avatar-wrap">
           <div class="avatar" @click="openFilePicker">
             <img v-if="avatarPreview" :src="avatarPreview" alt="avatar" />
@@ -156,9 +205,11 @@ onMounted(() => {
           />
         </div>
 
+        <!-- Имя и подпись -->
         <h1 class="profile-name">{{ displayName || me }}</h1>
         <p class="profile-sub">Пользователь приложения</p>
 
+        <!-- Метаданные -->
         <div class="meta">
           <div class="meta-row">
             <span class="meta-icon">🕐</span>
@@ -171,6 +222,7 @@ onMounted(() => {
         </div>
       </div>
 
+      <!-- Редактирование -->
       <div class="profile-card">
         <label class="field-label">Имя</label>
         <div class="field">
@@ -190,6 +242,7 @@ onMounted(() => {
         </button>
       </div>
 
+      <!-- Статистика -->
       <div class="profile-card">
         <h2 class="card-title">📊 СТАТИСТИКА</h2>
         <div class="stats-grid">
@@ -209,12 +262,16 @@ onMounted(() => {
       </div>
     </div>
 
-    <!-- ПРАВАЯ КОЛОНКА -->
+    <!-- ============================================================
+         ПРАВАЯ КОЛОНКА — мессенджер + заглушка Instagram
+         ============================================================ -->
     <div class="profile-col profile-col-right">
+      <!-- Мессенджер (встроенный, сразу открытый) -->
       <div class="embed-chat">
         <ChatWidget :start-open="true" :embed-mode="true" />
       </div>
 
+      <!-- Заглушка «в разработке» в стиле Instagram -->
       <div class="insta-stub">
         <div class="insta-header">
           <div class="insta-avatar">
@@ -251,7 +308,9 @@ onMounted(() => {
 }
 
 @media (max-width: 980px) {
-  .profile-page { grid-template-columns: 1fr; }
+  .profile-page {
+    grid-template-columns: 1fr;
+  }
 }
 
 .profile-col {
@@ -289,7 +348,9 @@ onMounted(() => {
   border: 4px solid #ffffff;
   box-shadow: 0 8px 24px -6px rgba(99, 102, 241, 0.45);
   transition: transform 0.2s;
+
   &:hover { transform: scale(1.03); }
+
   img { width: 100%; height: 100%; object-fit: cover; }
 }
 
@@ -311,6 +372,7 @@ onMounted(() => {
   align-items: center;
   justify-content: center;
   transition: transform 0.15s;
+
   &:active { transform: scale(0.9); }
 }
 
@@ -377,6 +439,7 @@ onMounted(() => {
   font-weight: 500;
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
+
   &:focus {
     border-color: #6366f1;
     background: #ffffff;
@@ -406,6 +469,7 @@ onMounted(() => {
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.2s, opacity 0.2s;
   box-shadow: 0 8px 20px -6px rgba(239, 68, 68, 0.5);
+
   &:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 10px 26px -6px rgba(239, 68, 68, 0.65); }
   &:active:not(:disabled) { transform: scale(0.98); }
   &:disabled { opacity: 0.6; cursor: not-allowed; }
@@ -489,6 +553,7 @@ onMounted(() => {
   border: 2px solid #ffffff;
   box-shadow: 0 4px 12px -4px rgba(245, 158, 11, 0.5);
   font-size: 28px;
+
   img { width: 100%; height: 100%; object-fit: cover; }
 }
 

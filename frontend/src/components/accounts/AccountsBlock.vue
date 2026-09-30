@@ -11,7 +11,21 @@ const auth = useAuthStore();
 
 const LS_KEY = 'financeProAccountsExpanded_v1';
 
+// ✅ Технический ключ (для сравнений, группировки)
 const userName = computed(() => auth.user || 'Сергей');
+
+// ✅ Отображаемое имя (для UI)
+const displayName = computed(() => auth.displayName || userName.value);
+
+// ✅ Хелпер: как показать владельца в UI
+function displayOwner(owner) {
+  if (!owner) return '';
+  // Для текущего пользователя — displayName
+  if (owner === userName.value) return displayName.value;
+  // Для остальных — технический ключ
+  return owner;
+}
+
 const userEmoji = computed(() => userName.value === 'Сергей' ? '👨' : '👩');
 const totalBalance = computed(() => accounts.total);
 
@@ -178,7 +192,8 @@ watch(expandedOwners, (val) => {
             @click="toggleOwner(owner)"
           >
             <span class="dc-owner-emoji">{{ owner === 'Сергей' ? '👨' : '👩' }}</span>
-            <span class="dc-owner-text">{{ owner }}</span>
+            <!-- ✅ Отображаем displayName для текущего пользователя -->
+            <span class="dc-owner-text">{{ displayOwner(owner) }}</span>
             <span v-if="isMe(owner)" class="dc-owner-you">вы</span>
             <svg class="dc-owner-chev" :class="{ open: isExpanded(owner) }" viewBox="0 0 24 24">
               <path d="M7 10l5 5 5-5z" fill="currentColor"/>
