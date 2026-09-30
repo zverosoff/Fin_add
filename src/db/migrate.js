@@ -75,7 +75,8 @@ export function runMigrations() {
   }
 
   // ============================================================
-  // message_reactions  // ============================================================
+  // message_reactions
+  // ============================================================
   const hasReactions = db.prepare(`
     SELECT name FROM sqlite_master
     WHERE type='table' AND name='message_reactions'
@@ -119,6 +120,27 @@ export function runMigrations() {
       CREATE INDEX idx_push_user ON push_subscriptions(user);
     `);
     console.log('[migrate] ✅ таблица push_subscriptions создана');
+  }
+
+  // ============================================================
+  // ✅ НОВОЕ: user_profiles
+  // ============================================================
+  const hasProfiles = db.prepare(`
+    SELECT name FROM sqlite_master
+    WHERE type='table' AND name='user_profiles'
+  `).get();
+
+  if (!hasProfiles) {
+    console.log('[migrate] создаю таблицу user_profiles…');
+    db.exec(`
+      CREATE TABLE user_profiles (
+        user TEXT PRIMARY KEY,
+        display_name TEXT,
+        avatar TEXT,
+        updated_at TEXT NOT NULL
+      );
+    `);
+    console.log('[migrate] ✅ таблица user_profiles создана');
   }
 
   // ============================================================

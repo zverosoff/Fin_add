@@ -17,6 +17,7 @@ import stateRoutes from './routes/state.js';
 import txRoutes from './routes/transactions.js';
 import messagesRoutes from './routes/messages.js';
 import pushRoutes from './routes/push.js';
+import profileRoutes from './routes/profile.js';   // ✅ НОВОЕ
 import { attachSocket } from './services/wsService.js';
 import { startDailyReminderCron } from './services/dailyReminder.js';
 
@@ -79,14 +80,14 @@ app.use('/api/state', stateRoutes);
 app.use('/api/transactions', txRoutes);
 app.use('/api/messages', messagesRoutes);
 app.use('/api/push', pushRoutes);
+app.use('/api/profile', profileRoutes);   // ✅ НОВОЕ
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, time: new Date().toISOString() });
 });
 
 // ============================================================
-// Socket.IO — создаём ЗАРАНЕЕ, до тестового роута, чтобы `io`
-// была доступна внутри него
+// Socket.IO
 // ============================================================
 const io = new SocketServer(server, {
   cors: { origin: ALLOWED_ORIGINS, credentials: true },
@@ -142,5 +143,4 @@ server.listen(PORT, () => {
   console.log('='.repeat(60));
 });
 
-// ✅ Ежедневное напоминание вечером
 startDailyReminderCron(io);
