@@ -148,7 +148,7 @@ watch(expandedOwners, (val) => {
       @touchend="onTouchEnd"
       @touchcancel="onTouchEnd"
     >
-      <!-- Фон: фото слева + фиолетовая часть с абстрактным срезом -->
+      <!-- Фон: фото слева + фиолетовая часть с диагональным срезом -->
       <div class="dc-bg" aria-hidden="true">
         <div class="dc-bg-photo">
           <img v-if="avatarUrl" :src="avatarUrl" alt="" />
@@ -160,7 +160,11 @@ watch(expandedOwners, (val) => {
           <div class="dc-bg-photo-shade"></div>
         </div>
 
+        <!-- ✅ Фиолетовая часть с диагональным срезом + полосы -->
         <div class="dc-bg-solid"></div>
+
+        <!-- ✅ Дополнительные полосы поверх границы -->
+        <div class="dc-bg-ribbon"></div>
       </div>
 
       <!-- Атмосферные слои -->
@@ -275,19 +279,16 @@ watch(expandedOwners, (val) => {
 }
 
 /* ============================================================
-   ✅ ФОН — растянут за padding карты через отрицательные inset
+   ФОН — растянут за padding карты
    ============================================================ */
 .dc-bg {
   position: absolute;
-  /* ✅ Отрицательные значения = размер padding карты */
   inset: -18px -20px -16px;
   z-index: 0;
   pointer-events: none;
   overflow: hidden;
-  /* border-radius убран — родитель обрежет по своему */
 }
 
-/* Левая часть — фото */
 .dc-bg-photo {
   position: absolute;
   top: 0;
@@ -322,22 +323,18 @@ watch(expandedOwners, (val) => {
   filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.35));
 }
 
-/* Диагональные световые полосы */
+/* Диагональные полосы поверх фото */
 .dc-bg-stripes {
   position: absolute;
   inset: 0;
   pointer-events: none;
   background:
     repeating-linear-gradient(
-      -30deg,
+      -35deg,
       rgba(255, 255, 255, 0) 0px,
-      rgba(255, 255, 255, 0) 14px,
-      rgba(255, 255, 255, 0.14) 14px,
-      rgba(255, 255, 255, 0.14) 16px,
-      rgba(255, 255, 255, 0) 16px,
-      rgba(255, 255, 255, 0) 30px,
-      rgba(139, 92, 246, 0.2) 30px,
-      rgba(139, 92, 246, 0.2) 32px
+      rgba(255, 255, 255, 0) 12px,
+      rgba(255, 255, 255, 0.12) 12px,
+      rgba(255, 255, 255, 0.12) 14px
     );
   mix-blend-mode: overlay;
   opacity: 0.85;
@@ -363,13 +360,17 @@ watch(expandedOwners, (val) => {
     );
 }
 
-/* Правая фиолетовая часть с абстрактным срезом */
+/* ============================================================
+   ✅ ФИОЛЕТОВАЯ ЧАСТЬ — ДИАГОНАЛЬНЫЙ СРЕЗ (полосы, не зигзаг)
+   Левая граница — ровная диагональ. Плюс 2 узких "полосы"
+   для декора.
+   ============================================================ */
 .dc-bg-solid {
   position: absolute;
   top: 0;
   right: 0;
   bottom: 0;
-  width: 65%;
+  width: 70%;
   background:
     radial-gradient(circle at 85% 15%, rgba(255, 255, 255, 0.15), transparent 55%),
     radial-gradient(circle at 95% 100%, rgba(255, 255, 255, 0.1), transparent 60%),
@@ -377,23 +378,13 @@ watch(expandedOwners, (val) => {
   background-size: 100% 100%, 100% 100%, 300% 300%;
   animation: gradientShift 14s ease-in-out infinite;
 
+  /* ✅ Диагональный срез — верхняя точка 22%, нижняя 8%.
+     Ровная линия, никакого зигзага. */
   clip-path: polygon(
     22% 0%,
     100% 0%,
     100% 100%,
-    18% 100%,
-    8%  92%,
-    20% 84%,
-    4%  74%,
-    18% 68%,
-    2%  58%,
-    22% 48%,
-    6%  38%,
-    20% 30%,
-    8%  22%,
-    26% 14%,
-    14% 8%,
-    22% 0%
+    8% 100%
   );
 }
 
@@ -401,6 +392,54 @@ watch(expandedOwners, (val) => {
   0%   { background-position: 0% 0%, 100% 100%, 0% 50%; }
   50%  { background-position: 0% 0%, 100% 100%, 100% 50%; }
   100% { background-position: 0% 0%, 100% 100%, 0% 50%; }
+}
+
+/* ============================================================
+   ✅ ПОЛОСЫ ПОВЕРХ ГРАНИЦЫ — 3 тонкие диагональные полосы
+   Идут параллельно основному срезу, создают «расслоение»
+   ============================================================ */
+.dc-bg-ribbon {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 70%;
+  pointer-events: none;
+  opacity: 0.7;
+  mix-blend-mode: screen;
+
+  background:
+    /* Первая полоса — тонкая, ближе к срезу */
+    linear-gradient(
+      160deg,
+      transparent 0%,
+      transparent 14.5%,
+      rgba(255, 255, 255, 0.35) 15%,
+      rgba(255, 255, 255, 0.35) 16%,
+      transparent 16.5%,
+
+      /* Вторая полоса — чуть правее */
+      transparent 20%,
+      rgba(255, 255, 255, 0.22) 20.5%,
+      rgba(255, 255, 255, 0.22) 21.5%,
+      transparent 22%,
+
+      /* Третья полоса — тонкая, ещё правее */
+      transparent 26%,
+      rgba(255, 255, 255, 0.15) 26.5%,
+      rgba(255, 255, 255, 0.15) 27.2%,
+      transparent 27.7%,
+
+      transparent 100%
+    );
+
+  /* Обрезаем по тому же срезу, что и основная фиолетовая часть */
+  clip-path: polygon(
+    22% 0%,
+    100% 0%,
+    100% 100%,
+    8% 100%
+  );
 }
 
 /* ============================================================
@@ -694,11 +733,11 @@ watch(expandedOwners, (val) => {
 @media (max-width: 700px) {
   .debit-card { padding: 14px 16px 12px; border-radius: 20px; gap: 8px; min-height: 200px; }
 
-  /* ✅ Отрицательный inset под мобильный padding */
   .dc-bg { inset: -14px -16px -12px; }
 
   .dc-bg-photo { width: 52%; }
-  .dc-bg-solid { width: 62%; }
+  .dc-bg-solid { width: 68%; }
+  .dc-bg-ribbon { width: 68%; }
   .dc-bg-emoji { font-size: 64px; }
 
   .dc-issuer-name { font-size: 10.5px; letter-spacing: 0.12em; }
