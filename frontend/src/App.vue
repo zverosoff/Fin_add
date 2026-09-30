@@ -32,7 +32,14 @@ const manualOpen = ref(false);
 const pdfOpen = ref(false);
 
 const showBottomNav = computed(() => route.name !== 'login');
-const showChat = computed(() => route.name !== 'login' && auth.isAuthenticated);
+
+// ✅ Чат НЕ показываем на /login и /profile.
+// На /profile встроенный чат рендерится внутри ProfileView (embedMode).
+const showChat = computed(() =>
+  route.name !== 'login' &&
+  route.name !== 'profile' &&
+  auth.isAuthenticated
+);
 
 const TAB_ORDER = ['finance', 'analytics', 'deposits', 'profile'];
 const transitionName = ref('fade-page');

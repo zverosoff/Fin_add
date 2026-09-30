@@ -1,3 +1,4 @@
+// frontend/src/composables/useWebSocket.js
 import { io } from 'socket.io-client';
 import { ref } from 'vue';
 import { useAuthStore } from '@/stores/auth';
@@ -41,11 +42,19 @@ export function useWebSocket() {
     socket.on('message:pinned',   (msg) => messages.onPinned(msg));
     socket.on('message:read',     (p)   => messages.onRead(p));
     socket.on('message:read-all', (p)   => messages.onReadAll(p));
-    socket.on('reaction:update',  (p)   => messages.onReaction(p));   // ✅ NEW
-    socket.on('typing:update',    (p)   => messages.onTyping(p));     // ✅ NEW
+    socket.on('reaction:update',  (p)   => messages.onReaction(p));
+    socket.on('typing:update',    (p)   => messages.onTyping(p));
 
     socket.on('users:online',    (list) => messages.setOnline(list));
     socket.on('presence:update', (p)    => messages.onPresence(p));
+
+    // ✅ НОВОЕ: обновление профиля (имя/аватар)
+    // Бэкенд шлёт: { user, displayName, avatar }
+    // Прокидываем через CustomEvent, чтобы ProfileView мог отреагировать.
+    socket.on('profile:update', (payload) => {
+      console.log('[ws] profile:update', payload);
+      window.dispatchEvent(new CustomEvent('profile:updated', { detail: payload }));
+    });
 
     socket.on('disconnect', (reason) => {
       connected.value = false;
