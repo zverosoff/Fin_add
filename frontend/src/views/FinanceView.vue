@@ -63,16 +63,30 @@ function onUserMenu(owner) {
 <template>
   <div class="finance-page">
     <div class="finance-grid">
+      <!-- ✅ Каскадное появление блоков в левой колонке -->
       <aside class="finance-side">
-        <AccountsBlock @reconcile="onReconcile" @user-menu="onUserMenu" />
-        <CashBlock />
-        <MonthNav />
-        <SummaryCompact />
+        <div class="anim-block" style="--delay: 0ms">
+          <AccountsBlock @reconcile="onReconcile" @user-menu="onUserMenu" />
+        </div>
+        <div class="anim-block" style="--delay: 70ms">
+          <CashBlock />
+        </div>
+        <div class="anim-block" style="--delay: 140ms">
+          <MonthNav />
+        </div>
+        <div class="anim-block" style="--delay: 210ms">
+          <SummaryCompact />
+        </div>
       </aside>
 
+      <!-- ✅ Каскадное появление в правой колонке -->
       <main class="finance-main">
-        <ReconcileBanner @reconcile="onReconcileUser" />
-        <TransactionList />
+        <div v-if="accounts.hasAnyDiff" class="anim-block" style="--delay: 100ms">
+          <ReconcileBanner @reconcile="onReconcileUser" />
+        </div>
+        <div class="anim-block" style="--delay: 180ms">
+          <TransactionList />
+        </div>
       </main>
     </div>
 
@@ -115,6 +129,30 @@ function onUserMenu(owner) {
   min-width: 0;
 }
 
+/* ============================================================
+   ✅ КАСКАДНОЕ ПОЯВЛЕНИЕ — как на странице Анализ
+   ============================================================ */
+.anim-block {
+  animation: cardEnter 0.55s cubic-bezier(.34,1.56,.64,1) both;
+  animation-delay: var(--delay, 0ms);
+}
+
+@keyframes cardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.95);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
+/* ============================================================
+   Мобильный
+   ============================================================ */
 @media (max-width: 1100px) {
   .finance-grid {
     grid-template-columns: 1fr;
@@ -129,5 +167,11 @@ function onUserMenu(owner) {
   .finance-grid { gap: 10px; }
   .finance-side,
   .finance-main { gap: 10px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .anim-block {
+    animation: none !important;
+  }
 }
 </style>
