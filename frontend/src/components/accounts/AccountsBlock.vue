@@ -149,87 +149,94 @@ watch(expandedOwners, (val) => {
       @touchcancel="onTouchEnd"
     >
       <!-- ============================================================
-           ✅ ФОТО СЛЕВА ОТ КАРТЫ с зигзагом по правому краю
+           ✅ ФОТО на весь фон карты + фиолетовая часть справа с зигзагом
            ============================================================ -->
-      <div class="dc-photo" aria-hidden="true">
-        <img v-if="avatarUrl" :src="avatarUrl" alt="" />
-        <div v-else class="dc-photo-placeholder">
-          <span class="dc-photo-emoji">{{ userEmoji }}</span>
+      <div class="dc-bg" aria-hidden="true">
+        <!-- Левая часть с фото -->
+        <div class="dc-bg-photo">
+          <img v-if="avatarUrl" :src="avatarUrl" alt="" />
+          <div v-else class="dc-bg-placeholder">
+            <span class="dc-bg-emoji">{{ userEmoji }}</span>
+          </div>
+          <div class="dc-bg-photo-shade"></div>
         </div>
-        <div class="dc-photo-shade"></div>
+
+        <!-- ✅ Правая фиолетовая часть с зигзагом по левому краю -->
+        <div class="dc-bg-solid"></div>
       </div>
 
-      <!-- Правая часть карты — контент -->
-      <div class="dc-content">
-        <div class="dc-shine-cursor" :style="shineStyle" aria-hidden="true"></div>
-        <div class="dc-gloss" aria-hidden="true"></div>
-        <div class="dc-pattern" aria-hidden="true"></div>
-        <div class="dc-watermark" aria-hidden="true">₽</div>
-        <div class="dc-frame" aria-hidden="true"></div>
+      <!-- Атмосферные слои -->
+      <div class="dc-shine-cursor" :style="shineStyle" aria-hidden="true"></div>
+      <div class="dc-gloss" aria-hidden="true"></div>
+      <div class="dc-pattern" aria-hidden="true"></div>
+      <div class="dc-watermark" aria-hidden="true">₽</div>
+      <div class="dc-frame" aria-hidden="true"></div>
 
-        <div class="dc-top">
-          <div class="dc-issuer">
-            <div class="dc-issuer-name">VAS FINANCE PRO+</div>
-            <div class="dc-issuer-sub">дебетовая</div>
-          </div>
+      <!-- ============================================================
+           ✅ ВЕСЬ КОНТЕНТ — в тех же позициях, поверх фото
+           ============================================================ -->
+      <div class="dc-top">
+        <div class="dc-issuer">
+          <div class="dc-issuer-name">VAS FINANCE PRO+</div>
+          <div class="dc-issuer-sub">дебетовая</div>
         </div>
+      </div>
 
-        <div class="dc-balance">
-          <div class="dc-balance-value">{{ fmt(totalBalance) }} ₽</div>
-        </div>
+      <div class="dc-balance">
+        <div class="dc-balance-value">{{ fmt(totalBalance) }} ₽</div>
+      </div>
 
-        <div class="dc-caption">ВАШ ОБЩИЙ БАЛАНС</div>
+      <div class="dc-caption">ВАШ ОБЩИЙ БАЛАНС</div>
 
-        <div class="dc-accounts">
-          <div
-            v-for="owner in ownersSorted"
-            :key="owner"
-            class="dc-owner-row"
-            :class="{ 'is-me': isMe(owner), 'is-expanded': isExpanded(owner) }"
+      <div class="dc-accounts">
+        <div
+          v-for="owner in ownersSorted"
+          :key="owner"
+          class="dc-owner-row"
+          :class="{ 'is-me': isMe(owner), 'is-expanded': isExpanded(owner) }"
+        >
+          <button
+            class="dc-owner-name"
+            type="button"
+            @click="toggleOwner(owner)"
           >
+            <img
+              v-if="isMe(owner) && avatarUrl"
+              :src="avatarUrl"
+              alt="avatar"
+              class="dc-owner-avatar-img"
+            />
+            <span v-else class="dc-owner-emoji">{{ owner === 'Сергей' ? '👨' : '👩' }}</span>
+            <span class="dc-owner-text">{{ displayOwner(owner) }}</span>
+            <span v-if="isMe(owner)" class="dc-owner-you">вы</span>
+            <svg class="dc-owner-chev" :class="{ open: isExpanded(owner) }" viewBox="0 0 24 24">
+              <path d="M7 10l5 5 5-5z" fill="currentColor"/>
+            </svg>
+          </button>
+
+          <div v-if="isExpanded(owner)" class="dc-chips">
             <button
-              class="dc-owner-name"
+              v-for="acc in accounts.byOwner[owner]"
+              :key="acc.id"
               type="button"
-              @click="toggleOwner(owner)"
+              class="dc-chip"
+              @click="emit('reconcile', acc)"
             >
               <img
-                v-if="isMe(owner) && avatarUrl"
-                :src="avatarUrl"
-                alt="avatar"
-                class="dc-owner-avatar-img"
+                v-if="bankLogo(acc.id)"
+                :src="bankLogo(acc.id)"
+                class="dc-chip-logo"
+                :alt="acc.name"
               />
-              <span v-else class="dc-owner-emoji">{{ owner === 'Сергей' ? '👨' : '👩' }}</span>
-              <span class="dc-owner-text">{{ displayOwner(owner) }}</span>
-              <span v-if="isMe(owner)" class="dc-owner-you">вы</span>
-              <svg class="dc-owner-chev" :class="{ open: isExpanded(owner) }" viewBox="0 0 24 24">
-                <path d="M7 10l5 5 5-5z" fill="currentColor"/>
-              </svg>
+              <span v-else class="dc-chip-logo-fallback">
+                {{ acc.id.startsWith('sber') ? 'С' : 'Т' }}
+              </span>
+              <span class="dc-chip-value">{{ fmt(acc.value) }} ₽</span>
             </button>
+          </div>
 
-            <div v-if="isExpanded(owner)" class="dc-chips">
-              <button
-                v-for="acc in accounts.byOwner[owner]"
-                :key="acc.id"
-                type="button"
-                class="dc-chip"
-                @click="emit('reconcile', acc)"
-              >
-                <img
-                  v-if="bankLogo(acc.id)"
-                  :src="bankLogo(acc.id)"
-                  class="dc-chip-logo"
-                  :alt="acc.name"
-                />
-                <span v-else class="dc-chip-logo-fallback">
-                  {{ acc.id.startsWith('sber') ? 'С' : 'Т' }}
-                </span>
-                <span class="dc-chip-value">{{ fmt(acc.value) }} ₽</span>
-              </button>
-            </div>
-
-            <div v-else class="dc-owner-total">
-              {{ fmt(ownerTotal(accounts.byOwner[owner])) }} ₽
-            </div>
+          <div v-else class="dc-owner-total">
+            {{ fmt(ownerTotal(accounts.byOwner[owner])) }} ₽
           </div>
         </div>
       </div>
@@ -246,23 +253,16 @@ watch(expandedOwners, (val) => {
   overflow: hidden;
   isolation: isolate;
 
-  background:
-    radial-gradient(circle at 15% 100%, rgba(255, 255, 255, 0.18), transparent 55%),
-    radial-gradient(circle at 95% 100%, rgba(255, 255, 255, 0.12), transparent 60%),
-    linear-gradient(135deg, #4338ca 0%, #6366f1 30%, #8b5cf6 60%, #4f46e5 100%);
-  background-size: 100% 100%, 100% 100%, 300% 300%;
-  animation: gradientShift 14s ease-in-out infinite;
-
   color: #ffffff;
   box-shadow:
     0 24px 48px -18px rgba(79, 70, 229, 0.65),
     0 12px 24px -10px rgba(139, 92, 246, 0.45),
     inset 0 0 0 1px rgba(255, 255, 255, 0.15);
 
-  /* ✅ flex-раскладка: фото слева + контент справа */
   display: flex;
-  flex-direction: row;
-  align-items: stretch;
+  flex-direction: column;
+  padding: 18px 20px 16px;
+  gap: 10px;
   min-height: 240px;
 
   transform-style: preserve-3d;
@@ -278,52 +278,38 @@ watch(expandedOwners, (val) => {
   }
 }
 
-@keyframes gradientShift {
-  0%   { background-position: 0% 0%, 100% 100%, 0% 50%; }
-  50%  { background-position: 0% 0%, 100% 100%, 100% 50%; }
-  100% { background-position: 0% 0%, 100% 100%, 0% 50%; }
-}
-
 /* ============================================================
-   ✅ ФОТО СЛЕВА — 40% ширины, зигзаг по правому краю
+   ✅ ФОН КАРТЫ — фото слева + фиолетовая часть справа с зигзагом
    ============================================================ */
-.dc-photo {
-  position: relative;
-  z-index: 1;
-  flex: 0 0 40%;              /* фиксированная ширина 40% */
-  max-width: 220px;
+.dc-bg {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
   overflow: hidden;
-  flex-shrink: 0;
-
-  /* ✅ Вертикальный зигзаг по правому краю фото
-     Правый край «гуляет» между 78% и 100% ширины фото */
-  clip-path: polygon(
-    0% 0%,
-    100% 0%,                   /* верх — ровный */
-    100% 8%,                   /* правая грань */
-    78% 16%,
-    100% 26%,
-    76% 38%,
-    98% 50%,
-    76% 62%,
-    100% 72%,
-    80% 82%,
-    100% 92%,
-    100% 100%,                 /* низ — ровный */
-    0% 100%                    /* левый край — ровный */
-  );
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    object-position: center 25%;
-    display: block;
-    filter: saturate(0.95) contrast(1.05) brightness(0.95);
-  }
+  border-radius: 22px;
 }
 
-.dc-photo-placeholder {
+/* Левая часть — фото */
+.dc-bg-photo {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 50%;
+  overflow: hidden;
+}
+
+.dc-bg-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center 25%;
+  display: block;
+  filter: saturate(0.95) contrast(1.05) brightness(0.95);
+}
+
+.dc-bg-placeholder {
   width: 100%;
   height: 100%;
   background: linear-gradient(135deg, #818cf8, #a5b4fc);
@@ -331,49 +317,74 @@ watch(expandedOwners, (val) => {
   align-items: center;
   justify-content: center;
 }
-.dc-photo-emoji {
-  font-size: 72px;
+.dc-bg-emoji {
+  font-size: 88px;
   line-height: 1;
   filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.35));
 }
 
-/* Тёмная вуаль — для контраста и чтобы фото не «перебивало» карту */
-.dc-photo-shade {
+/* Тёмная вуаль по краям фото — чтобы контент читался */
+.dc-bg-photo-shade {
   position: absolute;
   inset: 0;
-  pointer-events: none;
   background:
     linear-gradient(
       90deg,
-      rgba(15, 23, 42, 0.25) 0%,
-      rgba(15, 23, 42, 0.05) 30%,
-      rgba(15, 23, 42, 0.15) 80%,
-      rgba(79, 70, 229, 0.4) 100%
+      rgba(15, 23, 42, 0.35) 0%,
+      rgba(15, 23, 42, 0.15) 25%,
+      rgba(15, 23, 42, 0.05) 55%,
+      rgba(15, 23, 42, 0.2) 100%
     ),
     linear-gradient(
       180deg,
-      rgba(15, 23, 42, 0.25) 0%,
-      rgba(15, 23, 42, 0) 30%,
-      rgba(15, 23, 42, 0) 70%,
-      rgba(15, 23, 42, 0.3) 100%
+      rgba(15, 23, 42, 0.3) 0%,
+      rgba(15, 23, 42, 0) 25%,
+      rgba(15, 23, 42, 0) 65%,
+      rgba(15, 23, 42, 0.4) 100%
     );
 }
 
-/* ============================================================
-   ПРАВАЯ ЧАСТЬ — КОНТЕНТ
-   ============================================================ */
-.dc-content {
-  position: relative;
-  flex: 1;
-  min-width: 0;
-  padding: 16px 20px 16px 12px;
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  overflow: hidden;
-  isolation: isolate;
+/* Правая фиолетовая часть с зигзагом по левому краю */
+.dc-bg-solid {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 65%;
+  background:
+    radial-gradient(circle at 85% 15%, rgba(255, 255, 255, 0.15), transparent 55%),
+    radial-gradient(circle at 95% 100%, rgba(255, 255, 255, 0.1), transparent 60%),
+    linear-gradient(135deg, #4338ca 0%, #6366f1 30%, #8b5cf6 60%, #4f46e5 100%);
+  background-size: 100% 100%, 100% 100%, 300% 300%;
+  animation: gradientShift 14s ease-in-out infinite;
+
+  /* ✅ Зигзаг по ЛЕВОМУ краю фиолетовой части */
+  clip-path: polygon(
+    14% 0%,                /* верхний край: сдвиг вправо */
+    100% 0%,
+    100% 100%,
+    14% 100%,              /* нижний край: тот же сдвиг */
+    14% 92%,
+    4%  84%,
+    16% 74%,
+    2%  62%,
+    15% 50%,
+    2%  38%,
+    16% 26%,
+    4%  16%,
+    14% 8%
+  );
 }
 
+@keyframes gradientShift {
+  0%   { background-position: 0% 0%, 100% 100%, 0% 50%; }
+  50%  { background-position: 0% 0%, 100% 100%, 100% 50%; }
+  100% { background-position: 0% 0%, 100% 100%, 0% 50%; }
+}
+
+/* ============================================================
+   Атмосферные слои
+   ============================================================ */
 .dc-shine-cursor {
   position: absolute;
   inset: 0;
@@ -430,12 +441,17 @@ watch(expandedOwners, (val) => {
   z-index: 5;
 }
 
+/* ============================================================
+   КОНТЕНТ — все те же позиции, поверх фото
+   ============================================================ */
 .dc-top {
   position: relative;
   z-index: 6;
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
+  gap: 10px;
+  padding-top: 4px;
 }
 
 .dc-issuer { text-align: right; min-width: 0; }
@@ -447,51 +463,52 @@ watch(expandedOwners, (val) => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.65);
 }
 .dc-issuer-sub {
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  opacity: 0.75;
+  opacity: 0.8;
   margin-top: 2px;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
 }
 
 .dc-balance {
   position: relative;
   z-index: 6;
-  margin-top: auto;
-  text-align: right;
+  margin-top: 12px;
+  text-align: center;
 }
 .dc-balance-value {
   font-family: var(--mono);
-  font-size: 40px;
+  font-size: 44px;
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.05;
   text-shadow:
-    0 6px 20px rgba(0, 0, 0, 0.55),
-    0 2px 6px rgba(0, 0, 0, 0.4);
+    0 6px 20px rgba(0, 0, 0, 0.65),
+    0 2px 6px rgba(0, 0, 0, 0.5);
 }
 .dc-caption {
   position: relative;
   z-index: 6;
-  text-align: right;
-  font-size: 10px;
+  text-align: center;
+  font-size: 10.5px;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  opacity: 0.85;
+  opacity: 0.9;
   margin-top: -2px;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+  margin-bottom: 4px;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
 }
 
 .dc-accounts {
   position: relative;
   z-index: 6;
-  margin-top: 6px;
+  margin-top: 4px;
   padding-top: 10px;
   border-top: 1px solid rgba(255, 255, 255, 0.25);
   display: flex;
@@ -524,7 +541,7 @@ watch(expandedOwners, (val) => {
   white-space: nowrap;
   backdrop-filter: blur(10px) saturate(140%);
   -webkit-backdrop-filter: blur(10px) saturate(140%);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
 
   &:hover { background: rgba(255, 255, 255, 0.25); transform: translateY(-1px); }
   &:active { transform: scale(0.97); }
@@ -598,7 +615,7 @@ watch(expandedOwners, (val) => {
   white-space: nowrap;
   backdrop-filter: blur(12px) saturate(140%);
   -webkit-backdrop-filter: blur(12px) saturate(140%);
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 
   &:hover { background: rgba(255, 255, 255, 0.3); transform: translateY(-1px); }
   &:active { transform: scale(0.96); }
@@ -644,28 +661,27 @@ watch(expandedOwners, (val) => {
   letter-spacing: -0.02em;
   white-space: nowrap;
   flex-shrink: 0;
-  box-shadow: 0 4px 10px -4px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 10px -4px rgba(0, 0, 0, 0.35);
   animation: chipsIn 0.25s ease;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
 
 /* ============================================================
-   МОБИЛЬНЫЙ — фото тоже слева, но уже
+   МОБИЛЬНЫЙ
    ============================================================ */
 @media (max-width: 700px) {
-  .debit-card { border-radius: 20px; min-height: 200px; }
+  .debit-card { padding: 14px 16px 12px; border-radius: 20px; gap: 8px; min-height: 200px; }
 
-  .dc-photo { flex: 0 0 38%; max-width: 160px; }
-  .dc-photo-emoji { font-size: 50px; }
-
-  .dc-content { padding: 12px 14px 12px 10px; gap: 6px; }
+  .dc-bg-solid { width: 68%; }
+  .dc-bg-emoji { font-size: 64px; }
 
   .dc-issuer-name { font-size: 10.5px; letter-spacing: 0.12em; }
   .dc-issuer-sub { font-size: 8.5px; }
 
-  .dc-balance-value { font-size: 28px; }
-  .dc-caption { font-size: 9px; letter-spacing: 0.12em; }
+  .dc-balance { margin-top: 8px; }
+  .dc-balance-value { font-size: 34px; }
+  .dc-caption { font-size: 9.5px; letter-spacing: 0.12em; }
 
   .dc-accounts { gap: 5px; padding-top: 8px; margin-top: 4px; }
   .dc-owner-row { gap: 6px; }
@@ -682,16 +698,15 @@ watch(expandedOwners, (val) => {
 }
 
 @media (max-width: 380px) {
-  .dc-photo { flex: 0 0 36%; max-width: 130px; }
-  .dc-photo-emoji { font-size: 42px; }
-  .dc-balance-value { font-size: 24px; }
+  .dc-bg-emoji { font-size: 52px; }
+  .dc-balance-value { font-size: 28px; }
   .dc-issuer-name { font-size: 9.5px; }
   .dc-chips { gap: 4px; }
   .dc-chip { font-size: 10px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .debit-card,
+  .dc-bg-solid,
   .dc-gloss {
     animation: none !important;
   }
