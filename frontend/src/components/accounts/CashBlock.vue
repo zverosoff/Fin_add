@@ -1,36 +1,17 @@
 <script setup>
 import { computed, ref } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
-import { useGoalsStore } from '@/stores/goals';
 import { fmt } from '@/composables/useFormat';
 import CashModal from '@/components/transactions/CashModal.vue';
 
 const accounts = useAccountsStore();
-const goalsStore = useGoalsStore();
 
 const cashModalOpen = ref(false);
 const cashModalOwner = ref('');
 const cashModalMode = ref('add');
 
-const totalCash = computed(() => accounts.totalCash);
+const totalBalance = computed(() => accounts.totalCash);
 
-const primaryGoal = computed(() =>
-  goalsStore.enrichedGoals.find(g => g.primary) || null
-);
-
-const primaryProgress = computed(() => {
-  const g = primaryGoal.value;
-  if (!g || !g.target) return 0;
-  return Math.min(100, (totalCash.value / g.target) * 100);
-});
-
-const primaryLeft = computed(() => {
-  const g = primaryGoal.value;
-  if (!g) return 0;
-  return Math.max(0, g.target - totalCash.value);
-});
-
-// ✅ Суммы наличных по пользователям
 const owners = computed(() =>
   ['Сергей', 'Саша'].map(owner => ({
     owner,
@@ -38,6 +19,20 @@ const owners = computed(() =>
     balance: accounts.getCash(owner),
   }))
 );
+
+// ✅ Список падающих купюр — генерируется один раз, дальше просто рендерится
+const fallingBills = [
+  { id: 1,  left: '6%',   delay: '0s',    duration: '14s', rotate: -12, scale: 0.75, delaySec: 0 },
+  { id: 2,  left: '18%',  delay: '2.5s',  duration: '18s', rotate: 8,   scale: 0.9,  delaySec: 2.5 },
+  { id: 3,  left: '32%',  delay: '5s',    duration: '12s', rotate: -20, scale: 0.7,  delaySec: 5 },
+  { id: 4,  left: '48%',  delay: '1.2s',  duration: '16s', rotate: 15,  scale: 1,    delaySec: 1.2 },
+  { id: 5,  left: '62%',  delay: '3.8s',  duration: '20s', rotate: -8,  scale: 0.85, delaySec: 3.8 },
+  { id: 6,  left: '76%',  delay: '6.5s',  duration: '13s', rotate: 22,  scale: 0.72, delaySec: 6.5 },
+  { id: 7,  left: '88%',  delay: '0.8s',  duration: '17s', rotate: -14, scale: 0.95, delaySec: 0.8 },
+  { id: 8,  left: '25%',  delay: '7.2s',  duration: '15s', rotate: 10,  scale: 0.8,  delaySec: 7.2 },
+  { id: 9,  left: '55%',  delay: '8s',    duration: '19s', rotate: -18, scale: 0.75, delaySec: 8 },
+  { id: 10, left: '70%',  delay: '4.5s',  duration: '11s', rotate: 6,   scale: 0.9,  delaySec: 4.5 },
+];
 
 function openModal(owner = '', mode = 'add') {
   cashModalOwner.value = owner;
@@ -49,6 +44,44 @@ function openModal(owner = '', mode = 'add') {
 <template>
   <section class="cash-block">
     <div class="cash-note">
+      <!-- ✅ Слой с падающими купюрами -->
+      <div class="cn-falling" aria-hidden="true">
+        <div
+          v-for="b in fallingBills"
+          :key="b.id"
+          class="cn-bill"
+          :style="{
+            left: b.left,
+            animationDelay: b.delay,
+            animationDuration: b.duration,
+            '--rot': b.rotate + 'deg',
+            '--scale': b.scale,
+          }"
+        >
+          <svg viewBox="0 0 40 24" class="cn-bill-svg">
+            <!-- Силуэт купюры -->
+            <rect x="1" y="1" width="38" height="22" rx="2.5"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.2"/>
+            <circle cx="20" cy="12" r="4"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="0.9"/>
+            <text x="20" y="15.5"
+                  text-anchor="middle"
+                  font-size="6.5"
+                  font-weight="800"
+                  fill="currentColor"
+                  font-family="Arial, sans-serif">₽</text>
+            <path d="M4 20 L6 4 M8 20 L10 4 M30 20 L32 4 M34 20 L36 4"
+                  stroke="currentColor"
+                  stroke-width="0.4"
+                  opacity="0.6"/>
+          </svg>
+        </div>
+      </div>
+
       <div class="cn-pattern"></div>
       <div class="cn-watermark">₽</div>
 
@@ -58,41 +91,12 @@ function openModal(owner = '', mode = 'add') {
           <span class="cn-label">НАЛИЧНЫЕ</span>
         </div>
         <div class="cn-total">
-          <div class="cn-total-value">{{ fmt(totalCash) }} ₽</div>
+          <div class="cn-total-value">{{ fmt(totalBalance) }} ₽</div>
           <div class="cn-total-label">всего на руках</div>
         </div>
       </div>
 
-      <!-- ✅ ОСНОВНАЯ ЦЕЛЬ -->
-      <div class="cn-goal">
-        <template v-if="primaryGoal">
-          <div class="cn-goal-head">
-            <span class="cn-goal-icon">{{ primaryGoal.emoji || '🎯' }}</span>
-            <span class="cn-goal-title">Основная цель</span>
-          </div>
-          <div class="cn-goal-name">{{ primaryGoal.name }}</div>
-          <div class="cn-goal-track">
-            <div
-              class="cn-goal-fill"
-              :style="{ width: primaryProgress + '%' }"
-            ></div>
-          </div>
-          <div class="cn-goal-meta">
-            <span class="cn-goal-pct">{{ primaryProgress.toFixed(0) }}%</span>
-            <span class="cn-goal-hint">
-              Вы скоро накопите! Осталось {{ fmt(primaryLeft) }} ₽
-            </span>
-          </div>
-        </template>
-        <template v-else>
-          <div class="cn-goal-empty">
-            <span class="cn-goal-empty-icon">🎯</span>
-            <span class="cn-goal-empty-text">Основная цель не задана</span>
-          </div>
-        </template>
-      </div>
-
-      <!-- ✅ НАЛИЧНЫЕ ПО ПОЛЬЗОВАТЕЛЯМ -->
+      <!-- ✅ Суммы наличных по пользователям -->
       <div class="cn-owners">
         <div
           v-for="o in owners"
@@ -172,6 +176,7 @@ function openModal(owner = '', mode = 'add') {
   border-radius: 14px;
   border: 1.5px dashed rgba(255, 255, 255, 0.35);
   pointer-events: none;
+  z-index: 4;
 }
 
 .cn-watermark {
@@ -185,6 +190,7 @@ function openModal(owner = '', mode = 'add') {
   pointer-events: none;
   user-select: none;
   font-family: var(--mono);
+  z-index: 0;
 }
 
 .cn-pattern {
@@ -195,10 +201,84 @@ function openModal(owner = '', mode = 'add') {
       rgba(255, 255, 255, 0.04) 0 2px,
       transparent 2px 8px);
   pointer-events: none;
+  z-index: 1;
 }
 
+/* ============================================================
+   ✅ ПАДАЮЩИЕ КУПЮРЫ
+   ============================================================ */
+.cn-falling {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 2;
+  /* мягкое затухание сверху и снизу, чтобы купюры не «выныривали» резко */
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    transparent 0%,
+    #000 12%,
+    #000 88%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    180deg,
+    transparent 0%,
+    #000 12%,
+    #000 88%,
+    transparent 100%
+  );
+}
+
+.cn-bill {
+  position: absolute;
+  top: -40px;
+  width: 44px;
+  height: 26px;
+  color: rgba(255, 255, 255, 0.35);
+  opacity: 0;
+  animation-name: billFall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+  animation-fill-mode: both;
+  will-change: transform, opacity;
+}
+
+.cn-bill-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.15));
+}
+
+@keyframes billFall {
+  0% {
+    transform: translate3d(0, -20px, 0) rotate(var(--rot, 0deg)) scale(var(--scale, 1));
+    opacity: 0;
+  }
+  8% {
+    opacity: 0.85;
+  }
+  50% {
+    /* лёгкое покачивание в сторону по горизонтали */
+    transform: translate3d(14px, 55vh, 0) rotate(calc(var(--rot, 0deg) + 15deg)) scale(var(--scale, 1));
+    opacity: 0.75;
+  }
+  92% {
+    opacity: 0.5;
+  }
+  100% {
+    transform: translate3d(-10px, 110%, 0) rotate(calc(var(--rot, 0deg) - 20deg)) scale(var(--scale, 1));
+    opacity: 0;
+  }
+}
+
+/* ============================================================
+   ВЕРХ: НАЛИЧНЫЕ + СУММА
+   ============================================================ */
 .cn-top {
   position: relative;
+  z-index: 3;
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
@@ -248,107 +328,11 @@ function openModal(owner = '', mode = 'add') {
 }
 
 /* ============================================================
-   ОСНОВНАЯ ЦЕЛЬ
-   ============================================================ */
-.cn-goal {
-  position: relative;
-  margin: 4px 0 10px;
-  padding: 12px 14px;
-  border-radius: 12px;
-  background: rgba(0, 0, 0, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.cn-goal-head {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-}
-
-.cn-goal-icon {
-  font-size: 14px;
-  line-height: 1;
-}
-
-.cn-goal-title {
-  font-size: 9.5px;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.12em;
-  opacity: 0.8;
-}
-
-.cn-goal-name {
-  font-size: 13.5px;
-  font-weight: 800;
-  letter-spacing: -0.01em;
-  line-height: 1.2;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.cn-goal-track {
-  position: relative;
-  height: 8px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.18);
-  overflow: hidden;
-}
-
-.cn-goal-fill {
-  height: 100%;
-  border-radius: 999px;
-  background: linear-gradient(90deg, #fbbf24, #fde68a);
-  box-shadow: 0 0 8px rgba(251, 191, 36, 0.6);
-  transition: width 0.5s cubic-bezier(.22,.61,.36,1);
-}
-
-.cn-goal-meta {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  font-size: 10.5px;
-  flex-wrap: wrap;
-}
-
-.cn-goal-pct {
-  font-family: var(--mono);
-  font-weight: 800;
-  font-size: 11.5px;
-  color: #fde68a;
-}
-
-.cn-goal-hint {
-  font-weight: 600;
-  opacity: 0.85;
-}
-
-.cn-goal-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  padding: 6px 0;
-  font-size: 12px;
-  font-weight: 700;
-  opacity: 0.8;
-}
-
-.cn-goal-empty-icon { font-size: 14px; }
-.cn-goal-empty-text { font-style: italic; }
-
-/* ============================================================
-   ✅ НАЛИЧНЫЕ ПО ПОЛЬЗОВАТЕЛЯМ
+   НАЛИЧНЫЕ ПО ПОЛЬЗОВАТЕЛЯМ
    ============================================================ */
 .cn-owners {
   position: relative;
+  z-index: 3;
   margin-bottom: 10px;
   padding-top: 10px;
   border-top: 1px dashed rgba(255, 255, 255, 0.25);
@@ -366,6 +350,8 @@ function openModal(owner = '', mode = 'add') {
   border-radius: 10px;
   background: rgba(255, 255, 255, 0.08);
   border: 1px solid rgba(255, 255, 255, 0.15);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 .cn-owner-emoji {
@@ -393,6 +379,7 @@ function openModal(owner = '', mode = 'add') {
    ============================================================ */
 .cn-actions {
   position: relative;
+  z-index: 3;
   display: grid;
   grid-template-columns: 1.3fr 1fr 1fr;
   gap: 6px;
@@ -457,12 +444,6 @@ function openModal(owner = '', mode = 'add') {
   .cn-label { font-size: 9.5px; letter-spacing: 0.1em; }
   .cn-icon { font-size: 14px; }
 
-  .cn-goal { padding: 10px 12px; margin: 4px 0 8px; }
-  .cn-goal-name { font-size: 12.5px; }
-  .cn-goal-title { font-size: 9px; }
-  .cn-goal-meta { font-size: 10px; }
-  .cn-goal-pct { font-size: 11px; }
-
   .cn-owners { padding-top: 8px; margin-bottom: 8px; gap: 5px; }
   .cn-owner { padding: 5px 8px; gap: 8px; border-radius: 9px; }
   .cn-owner-emoji { font-size: 14px; }
@@ -474,6 +455,12 @@ function openModal(owner = '', mode = 'add') {
   .cn-act-icon { font-size: 12px; }
 
   .cn-watermark { font-size: 110px; bottom: -24px; right: -8px; }
+
+  /* Чуть меньше купюр на мобиле, чтобы не отвлекали */
+  .cn-bill {
+    width: 36px;
+    height: 22px;
+  }
 }
 
 @media (max-width: 380px) {
@@ -481,5 +468,16 @@ function openModal(owner = '', mode = 'add') {
   .cn-act { font-size: 10px; }
   .cn-owner-name { font-size: 11px; }
   .cn-owner-value { font-size: 12px; }
+}
+
+/* ✅ Уменьшение анимаций — при системной настройке отключаем */
+@media (prefers-reduced-motion: reduce) {
+  .cash-note {
+    animation: none !important;
+  }
+  .cn-bill {
+    animation: none !important;
+    opacity: 0;
+  }
 }
 </style>
