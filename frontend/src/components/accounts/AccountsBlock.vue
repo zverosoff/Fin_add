@@ -13,14 +13,15 @@ const LS_KEY = 'financeProAccountsExpanded_v1';
 
 const userName = computed(() => auth.user || 'Сергей');
 const displayName = computed(() => auth.displayName || userName.value);
-const avatarUrl = computed(() => auth.avatar || null);
-const userEmoji = computed(() => userName.value === 'Сергей' ? '👨' : '👩');
 const totalBalance = computed(() => accounts.total);
 
 function displayOwner(owner) {
   if (!owner) return '';
-  if (owner === userName.value) return displayName.value;
-  return owner;
+  return auth.nameFor(owner);
+}
+
+function ownerAvatar(owner) {
+  return auth.avatarFor(owner);
 }
 
 const ownersSorted = computed(() => {
@@ -50,6 +51,12 @@ function bankLogo(id) {
 }
 function isMe(owner) { return owner === userName.value; }
 
+// ✅ Аватар главного фото — свой
+const myAvatar = computed(() => auth.avatarFor(userName.value));
+
+// ============================================================
+// 3D-наклон
+// ============================================================
 const cardEl = ref(null);
 const tilt = ref({ rx: 0, ry: 0, mx: 50, my: 50 });
 const isTilting = ref(false);
@@ -122,11 +129,19 @@ const shineStyle = computed(() => {
   };
 });
 
-onMounted(() => {
+onMounted(async () => {
   try {
     const saved = localStorage.getItem(LS_KEY);
     if (saved) expandedOwners.value = JSON.parse(saved) || {};
   } catch (e) {}
+
+  // ✅ Загружаем профили других пользователей (все, кроме текущего)
+  const allOwners = Object.keys(accounts.byOwner || {});
+  for (const owner of allOwners) {
+    if (owner !== userName.value) {
+      auth.loadPeerProfile(owner);
+    }
+  }
 });
 
 watch(expandedOwners, (val) => {
@@ -139,7 +154,7 @@ watch(expandedOwners, (val) => {
     <div
       ref="cardEl"
       class="debit-card"
-      :class="{ 'is-tilting': isTilting, 'has-avatar': !!avatarUrl }"
+      :class="{ 'is-tilting': isTilting, 'has-avatar': !!myAvatar }"
       :style="cardStyle"
       @mousemove="onMouseMove"
       @mouseleave="onMouseLeave"
@@ -148,43 +163,37 @@ watch(expandedOwners, (val) => {
       @touchend="onTouchEnd"
       @touchcancel="onTouchEnd"
     >
-      <!-- ============================================================
-           ФОН: фото слева + фиолетовая часть справа с диагональным срезом
-           ============================================================ -->
+      <!-- Фон -->
       <div class="dc-bg" aria-hidden="true">
         <div class="dc-bg-photo">
-          <img v-if="avatarUrl" :src="avatarUrl" alt="" />
+          <template v-if="myAvatar">
+            <!-- ✅ Глитч-слои — красный и голубой -->
+            <img :src="myAvatar" alt="" class="dc-photo-layer dc-photo-r" />
+            <img :src="myAvatar" alt="" class="dc-photo-layer dc-photo-b" />
+            <img :src="myAvatar" alt="" class="dc-photo-layer dc-photo-base" />
+          </template>
           <div v-else class="dc-bg-placeholder">
-            <span class="dc-bg-emoji">{{ userEmoji }}</span>
+            <span class="dc-bg-emoji">{{ userName === 'Сергей' ? '👨' : '👩' }}</span>
           </div>
 
-          <!-- Диагональные световые полосы -->
           <div class="dc-bg-stripes"></div>
-
-          <!-- Вуаль -->
           <div class="dc-bg-photo-shade"></div>
+          <div class="dc-bg-scanlines"></div>
 
-          <!-- ✅ Розовая полоса — прижата к правому краю фото -->
+          <!-- ✅ Розовая полоса под углом скоса -->
           <div class="dc-bg-divider"></div>
         </div>
 
-        <!-- Фиолетовая часть с диагональным срезом -->
         <div class="dc-bg-solid"></div>
-
-        <!-- Полосы поверх границы -->
         <div class="dc-bg-ribbon"></div>
       </div>
 
-      <!-- Атмосферные слои -->
       <div class="dc-shine-cursor" :style="shineStyle" aria-hidden="true"></div>
       <div class="dc-gloss" aria-hidden="true"></div>
       <div class="dc-pattern" aria-hidden="true"></div>
       <div class="dc-watermark" aria-hidden="true">₽</div>
       <div class="dc-frame" aria-hidden="true"></div>
 
-      <!-- ============================================================
-           КОНТЕНТ — на тех же позициях, поверх фото
-           ============================================================ -->
       <div class="dc-top">
         <div class="dc-issuer">
           <div class="dc-issuer-name">VAS FINANCE PRO+</div>
@@ -210,9 +219,10 @@ watch(expandedOwners, (val) => {
             type="button"
             @click="toggleOwner(owner)"
           >
+            <!-- ✅ Аватар владельца (свой или чужой) -->
             <img
-              v-if="isMe(owner) && avatarUrl"
-              :src="avatarUrl"
+              v-if="ownerAvatar(owner)"
+              :src="ownerAvatar(owner)"
               alt="avatar"
               class="dc-owner-avatar-img"
             />
@@ -288,9 +298,6 @@ watch(expandedOwners, (val) => {
   }
 }
 
-/* ============================================================
-   ФОН — растянут за padding карты
-   ============================================================ */
 .dc-bg {
   position: absolute;
   inset: -18px -20px -16px;
@@ -299,7 +306,7 @@ watch(expandedOwners, (val) => {
   overflow: hidden;
 }
 
-/* Левая часть — фото */
+/* ✅ Левая часть — фото */
 .dc-bg-photo {
   position: absolute;
   top: 0;
@@ -309,14 +316,57 @@ watch(expandedOwners, (val) => {
   overflow: hidden;
 }
 
-.dc-bg-photo img {
+/* ✅ Общий слой для всех img */
+.dc-photo-layer {
+  position: absolute;
+  inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
   object-position: center 25%;
   display: block;
-  opacity: 0.82;
-  filter: saturate(0.85) contrast(1.05) brightness(0.9);
+}
+
+/* Основной слой */
+.dc-photo-base {
+  opacity: 0.85;
+  filter: saturate(0.9) contrast(1.05) brightness(0.92);
+}
+
+/* Красный канал (для глитча) */
+.dc-photo-r {
+  opacity: 0;
+  mix-blend-mode: screen;
+  filter: saturate(3) hue-rotate(-20deg) contrast(1.2);
+  animation: glitchR 7s infinite;
+  pointer-events: none;
+}
+
+/* Голубой канал */
+.dc-photo-b {
+  opacity: 0;
+  mix-blend-mode: screen;
+  filter: saturate(3) hue-rotate(160deg) contrast(1.2);
+  animation: glitchB 7s infinite;
+  pointer-events: none;
+}
+
+@keyframes glitchR {
+  0%, 92%, 100% { opacity: 0; transform: translate(0, 0); }
+  93% { opacity: 0.7; transform: translate(-3px, -1px); }
+  94% { opacity: 0.8; transform: translate(3px, 1px); }
+  95% { opacity: 0; }
+  96% { opacity: 0.65; transform: translate(-2px, 0); }
+  97% { opacity: 0; }
+}
+
+@keyframes glitchB {
+  0%, 92%, 100% { opacity: 0; transform: translate(0, 0); }
+  93% { opacity: 0.7; transform: translate(3px, 1px); }
+  94% { opacity: 0.8; transform: translate(-3px, -1px); }
+  95% { opacity: 0; }
+  96% { opacity: 0.65; transform: translate(2px, 0); }
+  97% { opacity: 0; }
 }
 
 .dc-bg-placeholder {
@@ -334,7 +384,22 @@ watch(expandedOwners, (val) => {
   filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.35));
 }
 
-/* Диагональные световые полосы поверх фото */
+/* ✅ Сканлайны для усиления глитч-эффекта */
+.dc-bg-scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0) 0px,
+    rgba(0, 0, 0, 0) 2px,
+    rgba(0, 0, 0, 0.08) 2px,
+    rgba(0, 0, 0, 0.08) 3px
+  );
+  mix-blend-mode: multiply;
+  opacity: 0.6;
+}
+
 .dc-bg-stripes {
   position: absolute;
   inset: 0;
@@ -351,7 +416,6 @@ watch(expandedOwners, (val) => {
   opacity: 0.85;
 }
 
-/* Вуаль */
 .dc-bg-photo-shade {
   position: absolute;
   inset: 0;
@@ -373,15 +437,16 @@ watch(expandedOwners, (val) => {
 }
 
 /* ============================================================
-   ✅ РОЗОВАЯ ПОЛОСА — прижата к ПРАВОМУ краю фото
-   Идёт с тем же наклоном, что и срез фиолета
+   ✅ РОЗОВАЯ ПОЛОСА — прижата к правому краю фото
+   Наклон совпадает со скосом фиолетовой части (диагональ сверху-слева
+   вниз-вправо, угол ~14deg)
    ============================================================ */
 .dc-bg-divider {
   position: absolute;
   top: 0;
   right: 0;
   bottom: 0;
-  width: 14%;                    /* ~14% от ширины фото */
+  width: 14%;
   pointer-events: none;
 
   background: linear-gradient(
@@ -391,9 +456,13 @@ watch(expandedOwners, (val) => {
     rgba(168, 85, 247, 0.5) 100%
   );
 
-  /* Наклон той же направленности, что у фиолетовой части */
-  transform: skewY(-14deg);
-  transform-origin: top right;
+  /* ✅ Тот же скос, что у фиолета — через clip-path */
+  clip-path: polygon(
+    100% 0%,
+    100% 100%,
+    0% 100%,
+    0% 8%
+  );
 
   filter: blur(0.6px);
   mix-blend-mode: screen;
@@ -401,7 +470,7 @@ watch(expandedOwners, (val) => {
 }
 
 /* ============================================================
-   ФИОЛЕТОВАЯ ЧАСТЬ — диагональный срез
+   Фиолетовая часть
    ============================================================ */
 .dc-bg-solid {
   position: absolute;
@@ -430,9 +499,6 @@ watch(expandedOwners, (val) => {
   100% { background-position: 0% 0%, 100% 100%, 0% 50%; }
 }
 
-/* ============================================================
-   ПОЛОСЫ ПОВЕРХ ГРАНИЦЫ (светлые диагонали)
-   ============================================================ */
 .dc-bg-ribbon {
   position: absolute;
   top: 0;
@@ -646,8 +712,8 @@ watch(expandedOwners, (val) => {
 
 .dc-owner-emoji { font-size: 13px; }
 .dc-owner-avatar-img {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
@@ -783,7 +849,7 @@ watch(expandedOwners, (val) => {
   .dc-owner-row { gap: 6px; }
   .dc-owner-name { font-size: 10.5px; padding: 3px 7px 3px 3px; }
   .dc-owner-emoji { font-size: 12px; }
-  .dc-owner-avatar-img { width: 14px; height: 14px; }
+  .dc-owner-avatar-img { width: 16px; height: 16px; }
   .dc-owner-chev { width: 12px; height: 12px; }
   .dc-chip { font-size: 11px; padding: 3px 9px 3px 3px; gap: 5px; }
   .dc-chip-logo,
@@ -803,8 +869,14 @@ watch(expandedOwners, (val) => {
 
 @media (prefers-reduced-motion: reduce) {
   .dc-bg-solid,
-  .dc-gloss {
+  .dc-gloss,
+  .dc-photo-r,
+  .dc-photo-b {
     animation: none !important;
+  }
+  .dc-photo-r,
+  .dc-photo-b {
+    opacity: 0 !important;
   }
 }
 </style>

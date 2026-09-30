@@ -1,3 +1,4 @@
+<!-- frontend/src/components/transactions/TransactionItem.vue -->
 <script setup>
 import { ref, computed, watch, onMounted } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
@@ -30,6 +31,7 @@ const amountClass = computed(() => (props.tx.type === 'income' ? 'income' : 'exp
 const icon = computed(() => categoryIcon(props.tx.category));
 const userClass = computed(() => (props.tx.user === 'Сергей' ? 'sergey' : 'sasha'));
 const displayUserName = computed(() => auth.nameFor(props.tx.user));
+const userAvatar = computed(() => auth.avatarFor(props.tx.user));
 
 const appearing = ref(false);
 const deleting = ref(false);
@@ -57,7 +59,7 @@ function onDelete() {
 }
 
 // ============================================================
-// Свайпы — через flex, без изменения высоты
+// Свайпы
 // ============================================================
 const el = ref(null);
 const offsetX = ref(0);
@@ -125,7 +127,7 @@ function onTouchEnd() {
 
 function itemStyle() {
   if (!offsetX.value) return {};
-  return { transform: `translateX(${offsetX.value}px)` };
+  return { transform: `translate3d(${offsetX.value}px, 0, 0)` };
 }
 </script>
 
@@ -153,8 +155,16 @@ function itemStyle() {
       class="tx-avatar"
       :class="bankLogoUrl ? 'has-bank' : ('user-' + userClass)"
     >
+      <!-- ✅ Аватар пользователя приоритетнее лого банка -->
       <img
-        v-if="bankLogoUrl"
+        v-if="userAvatar"
+        :src="userAvatar"
+        alt="avatar"
+        class="tx-bank-logo"
+        loading="lazy"
+      />
+      <img
+        v-else-if="bankLogoUrl"
         :src="bankLogoUrl"
         :alt="bankLabel(tx.accountId)"
         class="tx-bank-logo"
@@ -198,10 +208,6 @@ function itemStyle() {
 </template>
 
 <style scoped lang="scss">
-/* ============================================================
-   ✅ .tx-item — flex-раскладка, БЕЗ overflow: hidden,
-   БЕЗ min-height (высота строго по контенту + padding)
-   ============================================================ */
 .tx-item {
   position: relative;
   display: flex;
@@ -213,16 +219,14 @@ function itemStyle() {
   padding: 12px 16px;
   box-shadow: var(--shadow-sm);
   transition:
-    transform 0.25s cubic-bezier(.22,.61,.36,1),
     border-color 0.15s ease,
     box-shadow 0.15s ease,
     background 0.15s ease,
     opacity 0.25s ease;
   touch-action: pan-y;
-  will-change: transform;
+  /* ✅ УБРАНО: will-change, transform-style, overflow: hidden */
+  /* ✅ УБРАНО: transition на transform (только на opacity) */
   box-sizing: border-box;
-  /* ✅ Без overflow: hidden — чтобы псевдоэлементы свайпа не ломали раскладку */
-  /* ✅ Без min-height — размер задаётся padding + контентом */
 
   &:hover {
     border-color: var(--accent);
@@ -240,18 +244,15 @@ function itemStyle() {
 }
 
 @keyframes txAppear {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 @keyframes txDelete {
-  from { opacity: 1; transform: translateX(0); }
-  to   { opacity: 0; transform: translateX(-60px); }
+  from { opacity: 1; }
+  to   { opacity: 0; }
 }
 
-/* ============================================================
-   Свайп-прогресс
-   ============================================================ */
 .tx-swipe-progress {
   position: absolute;
   inset: 0;
@@ -306,9 +307,6 @@ function itemStyle() {
   pointer-events: none;
 }
 
-/* ============================================================
-   Аватар / контент / сумма — flex-элементы
-   ============================================================ */
 .tx-avatar {
   flex: 0 0 40px;
   width: 40px;
@@ -335,9 +333,8 @@ function itemStyle() {
 }
 .tx-bank-logo {
   width: 100%; height: 100%;
-  object-fit: contain;
-  padding: 5px;
-  box-sizing: border-box;
+  object-fit: cover;
+  display: block;
 }
 .tx-avatar-emoji { font-size: 20px; line-height: 1; }
 
@@ -469,13 +466,9 @@ function itemStyle() {
   }
 }
 
-/* ============================================================
-   МОБИЛЬНЫЙ
-   ============================================================ */
 @media (max-width: 700px) {
   .tx-item { padding: 12px 14px; gap: 10px; border-radius: 12px; }
   .tx-avatar { flex: 0 0 36px; width: 36px; height: 36px; }
-  .tx-bank-logo { padding: 4px; }
   .tx-avatar-emoji { font-size: 18px; }
   .tx-name { font-size: 14px; margin-bottom: 2px; }
   .tx-meta { font-size: 11px; gap: 5px; }

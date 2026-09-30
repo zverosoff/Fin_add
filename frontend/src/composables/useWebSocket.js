@@ -35,7 +35,6 @@ export function useWebSocket() {
 
     socket.on('state', (state) => accounts.setFromWS(state));
 
-    // Сообщения
     socket.on('message:new',      (msg) => messages.onIncoming(msg));
     socket.on('message:edited',   (msg) => messages.onEdited(msg));
     socket.on('message:deleted',  (p)   => messages.onDeleted(p));
@@ -48,11 +47,17 @@ export function useWebSocket() {
     socket.on('users:online',    (list) => messages.setOnline(list));
     socket.on('presence:update', (p)    => messages.onPresence(p));
 
-    // ✅ НОВОЕ: обновление профиля (имя/аватар)
-    // Бэкенд шлёт: { user, displayName, avatar }
-    // Прокидываем через CustomEvent, чтобы ProfileView мог отреагировать.
+    // ✅ profile:update — может быть и от другого пользователя
     socket.on('profile:update', (payload) => {
       console.log('[ws] profile:update', payload);
+      if (!payload) return;
+      if (payload.user && payload.user !== auth.user) {
+        // обновляем профиль другого
+        auth.setPeerProfile(payload.user, {
+          displayName: payload.displayName,
+          avatar: payload.avatar,
+        });
+      }
       window.dispatchEvent(new CustomEvent('profile:updated', { detail: payload }));
     });
 

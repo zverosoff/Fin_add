@@ -18,9 +18,36 @@ const upsertProfileStmt = db.prepare(`
     updated_at = excluded.updated_at
 `);
 
-// ============================================================
-// GET /api/profile — текущий профиль
-// ============================================================
+// ✅ Получить профиль ЛЮБОГО пользователя
+router.get('/:user', requireAuth, (req, res) => {
+  try {
+    const { user } = req.params;
+    if (!user) {
+      return res.status(400).json({ ok: false, error: 'user обязателен' });
+    }
+    const row = getProfileStmt.get(user);
+    if (!row) {
+      return res.json({
+        ok: true,
+        profile: { user, displayName: user, avatar: null },
+      });
+    }
+    res.json({
+      ok: true,
+      profile: {
+        user: row.user,
+        displayName: row.display_name || row.user,
+        avatar: row.avatar || null,
+        updatedAt: row.updated_at,
+      },
+    });
+  } catch (err) {
+    console.error('[profile] GET /:user ошибка:', err.message);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ✅ Текущий профиль — как было
 router.get('/', requireAuth, (req, res) => {
   try {
     const me = req.user;
@@ -46,9 +73,6 @@ router.get('/', requireAuth, (req, res) => {
   }
 });
 
-// ============================================================
-// POST /api/profile — сохранить имя и аватар
-// ============================================================
 router.post('/', requireAuth, (req, res) => {
   try {
     const me = req.user;
@@ -60,7 +84,7 @@ router.post('/', requireAuth, (req, res) => {
     }
 
     const cleanAvatar = typeof avatar === 'string' && avatar.length > 0
-      ? avatar.slice(0, 2_000_000)
+      ? avatar.slice(0, 3_000_000)
       : null;
 
     const updatedAt = new Date().toISOString();
