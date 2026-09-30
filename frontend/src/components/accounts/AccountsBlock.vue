@@ -149,19 +149,24 @@ watch(expandedOwners, (val) => {
       @touchcancel="onTouchEnd"
     >
       <!-- ============================================================
-           ✅ ФОТО на весь фон карты + фиолетовая часть справа с зигзагом
+           ✅ ФОН: фото слева + фиолетовая часть справа с зигзагом
            ============================================================ -->
       <div class="dc-bg" aria-hidden="true">
-        <!-- Левая часть с фото -->
+        <!-- Левая часть — фото -->
         <div class="dc-bg-photo">
           <img v-if="avatarUrl" :src="avatarUrl" alt="" />
           <div v-else class="dc-bg-placeholder">
             <span class="dc-bg-emoji">{{ userEmoji }}</span>
           </div>
+
+          <!-- ✅ Диагональные световые полосы поверх фото -->
+          <div class="dc-bg-stripes"></div>
+
+          <!-- Тёмная вуаль по краям -->
           <div class="dc-bg-photo-shade"></div>
         </div>
 
-        <!-- ✅ Правая фиолетовая часть с зигзагом по левому краю -->
+        <!-- ✅ Правая фиолетовая часть с ЗИГЗАГОМ по левому краю -->
         <div class="dc-bg-solid"></div>
       </div>
 
@@ -173,7 +178,7 @@ watch(expandedOwners, (val) => {
       <div class="dc-frame" aria-hidden="true"></div>
 
       <!-- ============================================================
-           ✅ ВЕСЬ КОНТЕНТ — в тех же позициях, поверх фото
+           КОНТЕНТ — на тех же позициях, поверх фото
            ============================================================ -->
       <div class="dc-top">
         <div class="dc-issuer">
@@ -279,7 +284,7 @@ watch(expandedOwners, (val) => {
 }
 
 /* ============================================================
-   ✅ ФОН КАРТЫ — фото слева + фиолетовая часть справа с зигзагом
+   ФОН
    ============================================================ */
 .dc-bg {
   position: absolute;
@@ -306,7 +311,9 @@ watch(expandedOwners, (val) => {
   object-fit: cover;
   object-position: center 25%;
   display: block;
-  filter: saturate(0.95) contrast(1.05) brightness(0.95);
+  /* ✅ Чуть прозрачный аватар */
+  opacity: 0.82;
+  filter: saturate(0.85) contrast(1.05) brightness(0.9);
 }
 
 .dc-bg-placeholder {
@@ -316,6 +323,7 @@ watch(expandedOwners, (val) => {
   display: flex;
   align-items: center;
   justify-content: center;
+  opacity: 0.82;
 }
 .dc-bg-emoji {
   font-size: 88px;
@@ -323,28 +331,50 @@ watch(expandedOwners, (val) => {
   filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.35));
 }
 
-/* Тёмная вуаль по краям фото — чтобы контент читался */
+/* ✅ Диагональные световые полосы поверх фото */
+.dc-bg-stripes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    repeating-linear-gradient(
+      -30deg,
+      rgba(255, 255, 255, 0) 0px,
+      rgba(255, 255, 255, 0) 12px,
+      rgba(255, 255, 255, 0.12) 12px,
+      rgba(255, 255, 255, 0.12) 14px,
+      rgba(255, 255, 255, 0) 14px,
+      rgba(255, 255, 255, 0) 26px,
+      rgba(139, 92, 246, 0.18) 26px,
+      rgba(139, 92, 246, 0.18) 28px
+    );
+  mix-blend-mode: overlay;
+  opacity: 0.85;
+}
+
+/* Тёмная вуаль по краям фото */
 .dc-bg-photo-shade {
   position: absolute;
   inset: 0;
   background:
     linear-gradient(
       90deg,
-      rgba(15, 23, 42, 0.35) 0%,
-      rgba(15, 23, 42, 0.15) 25%,
+      rgba(15, 23, 42, 0.4) 0%,
+      rgba(15, 23, 42, 0.18) 25%,
       rgba(15, 23, 42, 0.05) 55%,
-      rgba(15, 23, 42, 0.2) 100%
+      rgba(15, 23, 42, 0.25) 100%
     ),
     linear-gradient(
       180deg,
-      rgba(15, 23, 42, 0.3) 0%,
+      rgba(15, 23, 42, 0.35) 0%,
       rgba(15, 23, 42, 0) 25%,
       rgba(15, 23, 42, 0) 65%,
-      rgba(15, 23, 42, 0.4) 100%
+      rgba(15, 23, 42, 0.45) 100%
     );
 }
 
-/* Правая фиолетовая часть с зигзагом по левому краю */
+/* ✅ Правая фиолетовая часть с ЗИГЗАГОМ по левому краю
+   Много зубцов (~12), шаг 4% по вертикали */
 .dc-bg-solid {
   position: absolute;
   top: 0;
@@ -358,20 +388,35 @@ watch(expandedOwners, (val) => {
   background-size: 100% 100%, 100% 100%, 300% 300%;
   animation: gradientShift 14s ease-in-out infinite;
 
-  /* ✅ Зигзаг по ЛЕВОМУ краю фиолетовой части */
+  /* ✅ ~12 зубцов — шаг 4% по вертикали */
   clip-path: polygon(
-    14% 0%,                /* верхний край: сдвиг вправо */
+    14% 0%,
     100% 0%,
     100% 100%,
-    14% 100%,              /* нижний край: тот же сдвиг */
-    14% 92%,
+    14% 100%,
+
+    14% 96%,
+    5%  92%,
+    15% 88%,
     4%  84%,
-    16% 74%,
-    2%  62%,
-    15% 50%,
-    2%  38%,
-    16% 26%,
-    4%  16%,
+    15% 80%,
+    5%  76%,
+    15% 72%,
+    4%  68%,
+    15% 64%,
+    5%  60%,
+    15% 56%,
+    4%  52%,
+    15% 48%,
+    5%  44%,
+    15% 40%,
+    4%  36%,
+    15% 32%,
+    5%  28%,
+    15% 24%,
+    4%  20%,
+    15% 16%,
+    5%  12%,
     14% 8%
   );
 }
@@ -442,7 +487,7 @@ watch(expandedOwners, (val) => {
 }
 
 /* ============================================================
-   КОНТЕНТ — все те же позиции, поверх фото
+   КОНТЕНТ
    ============================================================ */
 .dc-top {
   position: relative;
