@@ -9,17 +9,14 @@ import {
 } from '@/composables/useBalance';
 
 const OWNERS = ['Сергей', 'Саша'];
-const CASH_ACCOUNT_ID = 'cash';   // одна общая «касса» наличных
+const CASH_ACCOUNT_ID = 'cash';
 
-// ✅ Нормализация наличных (legacy-число → объект)
+// ✅ Нормализация наличных — только balance (savings убрана)
 function normalizeCashOwner(raw) {
   if (raw && typeof raw === 'object') {
-    return {
-      balance: Number(raw.balance) || 0,
-      savings: Number(raw.savings) || 0,
-    };
+    return { balance: Number(raw.balance) || 0 };
   }
-  return { balance: Number(raw) || 0, savings: 0 };
+  return { balance: Number(raw) || 0 };
 }
 
 export const useAccountsStore = defineStore('accounts', () => {
@@ -27,17 +24,14 @@ export const useAccountsStore = defineStore('accounts', () => {
   const transactions = ref([]);
   const goals = ref([]);
 
-  // ✅ Наличные: { Сергей: { balance, savings }, Саша: { balance, savings } }
+  // ✅ Наличные: только balance
   const cashBalances = ref({
-    Сергей: { balance: 0, savings: 0 },
-    Саша:   { balance: 0, savings: 0 },
+    Сергей: { balance: 0 },
+    Саша:   { balance: 0 },
   });
 
   const loaded = ref(false);
 
-  // ============================================================
-  // Сортировка
-  // ============================================================
   function sortAccounts(list) {
     return [...list].sort((a, b) => {
       const bankOrder = (id) => {
@@ -53,9 +47,6 @@ export const useAccountsStore = defineStore('accounts', () => {
     });
   }
 
-  // ============================================================
-  // Базовые computed
-  // ============================================================
   const total = computed(() =>
     accounts.value.reduce((sum, a) => sum + (Number(a.value) || 0), 0)
   );
@@ -84,19 +75,9 @@ export const useAccountsStore = defineStore('accounts', () => {
     return result;
   });
 
-  // ============================================================
-  // ✅ НАЛИЧНЫЕ
-  // ============================================================
+  // ✅ НАЛИЧНЫЕ — только кошелёк
   const totalCash = computed(() =>
     OWNERS.reduce((s, o) => s + (Number(cashBalances.value[o]?.balance) || 0), 0)
-  );
-
-  const totalCashSavings = computed(() =>
-    OWNERS.reduce((s, o) => s + (Number(cashBalances.value[o]?.savings) || 0), 0)
-  );
-
-  const totalCashAll = computed(() =>
-    totalCash.value + totalCashSavings.value
   );
 
   const cashByOwner = computed(() => {
@@ -107,25 +88,11 @@ export const useAccountsStore = defineStore('accounts', () => {
     return result;
   });
 
-  const savingsByOwner = computed(() => {
-    const result = {};
-    for (const owner of OWNERS) {
-      result[owner] = Number(cashBalances.value[owner]?.savings) || 0;
-    }
-    return result;
-  });
-
   function getCash(owner) {
     return Number(cashBalances.value[owner]?.balance) || 0;
   }
 
-  function getCashSavings(owner) {
-    return Number(cashBalances.value[owner]?.savings) || 0;
-  }
-
-  // ============================================================
   // Расхождения
-  // ============================================================
   const expectedByAccount = computed(() => {
     const map = {};
     for (const acc of accounts.value) {
@@ -155,9 +122,6 @@ export const useAccountsStore = defineStore('accounts', () => {
     userDiffs.value.filter(u => u.hasDiff)
   );
 
-  // ============================================================
-  // Загрузка
-  // ============================================================
   async function load(onProgress) {
     onProgress?.(10, 'Подключение к серверу…');
     const { data } = await api.get('/state');
@@ -171,7 +135,6 @@ export const useAccountsStore = defineStore('accounts', () => {
     onProgress?.(85, 'Обработка целей…');
     goals.value = data.goals ?? [];
 
-    // ✅ Наличные
     if (data.cash && typeof data.cash === 'object') {
       cashBalances.value = {
         Сергей: normalizeCashOwner(data.cash.Сергей),
@@ -213,9 +176,6 @@ export const useAccountsStore = defineStore('accounts', () => {
     recalculate();
   }
 
-  // ============================================================
-  // Хелперы
-  // ============================================================
   function getAccountName(id) {
     if (!id) return '';
     if (id === CASH_ACCOUNT_ID) return '💵 Наличные';
@@ -231,25 +191,18 @@ export const useAccountsStore = defineStore('accounts', () => {
     return null;
   }
 
-  // ============================================================
-  // ✅ Сохранение наличных на сервер
-  // ============================================================
   async function saveCash() {
     const payload = {};
     for (const owner of OWNERS) {
-      const cur = cashBalances.value[owner] || { balance: 0, savings: 0 };
+      const cur = cashBalances.value[owner] || { balance: 0 };
       payload[owner] = {
         balance: Number(cur.balance) || 0,
-        savings: Number(cur.savings) || 0,
       };
     }
     const { data } = await api.post('/state', { cash: payload });
     if (!data?.ok) throw new Error(data?.error || 'Не удалось сохранить наличные');
   }
 
-  // ============================================================
-  // ✅ Пополнение наличных
-  // ============================================================
   async function addCash(owner, amount, comment = '') {
     const value = Number(amount);
     if (!isFinite(value) || value <= 0) {
@@ -272,26 +225,23 @@ export const useAccountsStore = defineStore('accounts', () => {
     if (!data.ok) throw new Error(data.error || 'Ошибка сохранения');
 
     transactions.value.push(data.transaction);
-    const cur = cashBalances.value[owner] || { balance: 0, savings: 0 };
+    const cur = cashBalances.value[owner] || { balance: 0 };
     cashBalances.value = {
       ...cashBalances.value,
-      [owner]: { ...cur, balance: cur.balance + value },
+      [owner]: { balance: cur.balance + value },
     };
 
     await saveCash();
     return data.transaction;
   }
 
-  // ============================================================
-  // ✅ Изъятие наличных
-  // ============================================================
   async function withdrawCash(owner, amount, comment = '') {
     const value = Number(amount);
     if (!isFinite(value) || value <= 0) {
       throw new Error('Сумма должна быть больше 0');
     }
 
-    const cur = cashBalances.value[owner] || { balance: 0, savings: 0 };
+    const cur = cashBalances.value[owner] || { balance: 0 };
     if (value > cur.balance + 0.001) {
       throw new Error(`У ${owner} только ${cur.balance.toFixed(0)} ₽`);
     }
@@ -314,23 +264,20 @@ export const useAccountsStore = defineStore('accounts', () => {
     transactions.value.push(data.transaction);
     cashBalances.value = {
       ...cashBalances.value,
-      [owner]: { ...cur, balance: cur.balance - value },
+      [owner]: { balance: cur.balance - value },
     };
 
     await saveCash();
     return data.transaction;
   }
 
-  // ============================================================
-  // ✅ Установить точный баланс наличных (сверка)
-  // ============================================================
   async function setCashBalance(owner, newValue, comment = 'Сверка наличных') {
     const value = Number(newValue);
     if (!isFinite(value) || value < 0) {
       throw new Error('Баланс не может быть отрицательным');
     }
 
-    const cur = cashBalances.value[owner] || { balance: 0, savings: 0 };
+    const cur = cashBalances.value[owner] || { balance: 0 };
     const diff = value - cur.balance;
 
     if (Math.abs(diff) < 0.01) {
@@ -355,143 +302,13 @@ export const useAccountsStore = defineStore('accounts', () => {
     transactions.value.push(data.transaction);
     cashBalances.value = {
       ...cashBalances.value,
-      [owner]: { ...cur, balance: value },
+      [owner]: { balance: value },
     };
 
     await saveCash();
     return data.transaction;
   }
 
-  // ============================================================
-  // ✅ КОПИЛКА — переложить из наличных в копилку
-  // ============================================================
-  async function toSavings(owner, amount, comment = '') {
-    const value = Number(amount);
-    if (!isFinite(value) || value <= 0) {
-      throw new Error('Сумма должна быть больше 0');
-    }
-
-    const cur = cashBalances.value[owner] || { balance: 0, savings: 0 };
-    if (value > cur.balance + 0.001) {
-      throw new Error(`У ${owner} только ${cur.balance.toFixed(0)} ₽ наличными`);
-    }
-
-    const tx = {
-      name: comment?.trim() || 'В копилку',
-      amount: value,
-      type: 'expense',
-      category: 'Внутренний перевод',
-      date: new Date().toISOString(),
-      user: owner,
-      accountId: CASH_ACCOUNT_ID,
-      fromCash: true,
-      internalTransfer: true,
-      toSavings: true,
-    };
-
-    const { data } = await api.post('/transactions', tx);
-    if (!data.ok) throw new Error(data.error || 'Ошибка сохранения');
-
-    transactions.value.push(data.transaction);
-    cashBalances.value = {
-      ...cashBalances.value,
-      [owner]: {
-        balance: cur.balance - value,
-        savings: cur.savings + value,
-      },
-    };
-
-    await saveCash();
-    return data.transaction;
-  }
-
-  // ============================================================
-  // ✅ КОПИЛКА — вернуть из копилки в наличные
-  // ============================================================
-  async function fromSavings(owner, amount, comment = '') {
-    const value = Number(amount);
-    if (!isFinite(value) || value <= 0) {
-      throw new Error('Сумма должна быть больше 0');
-    }
-
-    const cur = cashBalances.value[owner] || { balance: 0, savings: 0 };
-    if (value > cur.savings + 0.001) {
-      throw new Error(`В копилке ${owner} только ${cur.savings.toFixed(0)} ₽`);
-    }
-
-    const tx = {
-      name: comment?.trim() || 'Из копилки',
-      amount: value,
-      type: 'income',
-      category: 'Внутренний перевод',
-      date: new Date().toISOString(),
-      user: owner,
-      accountId: CASH_ACCOUNT_ID,
-      fromCash: true,
-      internalTransfer: true,
-      fromSavings: true,
-    };
-
-    const { data } = await api.post('/transactions', tx);
-    if (!data.ok) throw new Error(data.error || 'Ошибка сохранения');
-
-    transactions.value.push(data.transaction);
-    cashBalances.value = {
-      ...cashBalances.value,
-      [owner]: {
-        balance: cur.balance + value,
-        savings: cur.savings - value,
-      },
-    };
-
-    await saveCash();
-    return data.transaction;
-  }
-
-  // ============================================================
-  // ✅ КОПИЛКА — установить точный размер (сверка)
-  // ============================================================
-  async function setCashSavings(owner, newValue, comment = 'Сверка копилки') {
-    const value = Number(newValue);
-    if (!isFinite(value) || value < 0) {
-      throw new Error('Сумма не может быть отрицательной');
-    }
-
-    const cur = cashBalances.value[owner] || { balance: 0, savings: 0 };
-    if (Math.abs(value - cur.savings) < 0.01) {
-      return { ok: true, unchanged: true };
-    }
-
-    const diff = value - cur.savings;
-
-    const tx = {
-      name: comment?.trim() || 'Сверка копилки',
-      amount: Math.abs(diff),
-      type: diff > 0 ? 'expense' : 'income',
-      category: 'Внутренний перевод',
-      date: new Date().toISOString(),
-      user: owner,
-      accountId: CASH_ACCOUNT_ID,
-      fromReconcile: true,
-      internalTransfer: true,
-    };
-
-    const { data } = await api.post('/transactions', tx);
-    if (!data.ok) throw new Error(data.error || 'Ошибка сохранения');
-
-    transactions.value.push(data.transaction);
-    cashBalances.value = {
-      ...cashBalances.value,
-      [owner]: { ...cur, savings: value },
-    };
-
-    await saveCash();
-    return data.transaction;
-  }
-
-  // ============================================================
-  // ✅ Статистика наличных (доходы/расходы за N дней)
-  // ============================================================
   function cashStats(owner, periodDays = 30) {
     const since = Date.now() - periodDays * 24 * 60 * 60 * 1000;
     const ops = (transactions.value || []).filter(t =>
@@ -529,18 +346,11 @@ export const useAccountsStore = defineStore('accounts', () => {
 
     // Наличные
     totalCash,
-    totalCashSavings,
-    totalCashAll,
     cashByOwner,
-    savingsByOwner,
     getCash,
-    getCashSavings,
     addCash,
     withdrawCash,
     setCashBalance,
-    toSavings,
-    fromSavings,
-    setCashSavings,
     cashStats,
     saveCash,
 
