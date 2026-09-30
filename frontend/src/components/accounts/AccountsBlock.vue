@@ -196,8 +196,9 @@ watch(expandedOwners, (val) => {
           <div class="dc-bg-scanlines"></div>
         </div>
 
-        <!-- ✅ Розовая полоса теперь ВНЕ фото — она в координатах карты -->
-        <div class="dc-bg-divider"></div>
+        <!-- ✅ RGB-расслоение на границе — вместо белой полосы -->
+        <div class="dc-bg-chroma dc-bg-chroma-cyan"></div>
+        <div class="dc-bg-chroma dc-bg-chroma-magenta"></div>
 
         <div class="dc-bg-solid"></div>
         <div class="dc-bg-ribbon"></div>
@@ -821,53 +822,90 @@ watch(expandedOwners, (val) => {
 }
 
 /* ============================================================
-   ✅ РОЗОВАЯ ПОЛОСА — сдвинута вправо, к срезу фиолета + АНИМАЦИЯ
-   Левый край = 22%/8% — точно по границе фиолета
-   Правый край = 34%/20% — заходит на фиолет
-   Сквозь анимацию translateX — полоса плавно скользит вправо-влево
+   ✅ RGB-РАССЛОЕНИЕ НА ГРАНИЦЕ (chromatic aberration)
+   Cyan и Magenta полосы по обе стороны среза фиолета
    ============================================================ */
-.dc-bg-divider {
+.dc-bg-chroma {
   position: absolute;
   top: 0;
-  left: 0;
   right: 0;
   bottom: 0;
   pointer-events: none;
-  z-index: 9;
-
-  background: linear-gradient(
-    160deg,
-    #ffffff 0%,
-    #ffffff8a 50%,
-    #ffffff1c 100%
-  );
-
-  /* ✅ Левый край — точно на границе фиолета */
-  clip-path: polygon(
-    22% 0%,
-    34% 0%,
-    20% 100%,
-    8%  100%
-  );
-
-  filter: blur(0.6px);
   mix-blend-mode: screen;
-  opacity: 0.9;
-
-  /* ✅ Плавная анимация через transform — работает везде */
-  animation: dividerSlide 5s ease-in-out infinite;
+  opacity: 0.85;
+  filter: blur(1.2px);
   will-change: transform, opacity;
 }
 
-@keyframes dividerSlide {
+/* ✅ Cyan — сдвинут влево */
+.dc-bg-chroma-cyan {
+  width: 70%;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 255, 255, 0.75) 0%,
+    rgba(0, 255, 255, 0.5) 50%,
+    rgba(0, 255, 255, 0.75) 100%
+  );
+  clip-path: polygon(
+    21% 0%,
+    23% 0%,
+    9% 100%,
+    7% 100%
+  );
+  transform: translateX(-3px);
+  animation: chromaCyan 3s ease-in-out infinite;
+}
+
+/* ✅ Magenta — сдвинут вправо */
+.dc-bg-chroma-magenta {
+  width: 70%;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 0, 255, 0.75) 0%,
+    rgba(255, 0, 255, 0.5) 50%,
+    rgba(255, 0, 255, 0.75) 100%
+  );
+  clip-path: polygon(
+    22% 0%,
+    24% 0%,
+    10% 100%,
+    8% 100%
+  );
+  transform: translateX(3px);
+  animation: chromaMagenta 3s ease-in-out infinite;
+}
+
+/* ✅ Пульсация RGB */
+@keyframes chromaCyan {
   0%, 100% {
-    transform: translateX(0);
-    opacity: 0.85;
+    transform: translateX(-3px);
+    opacity: 0.7;
   }
   50% {
-    transform: translateX(6%);
+    transform: translateX(-5px);
     opacity: 1;
   }
+}
+
+@keyframes chromaMagenta {
+  0%, 100% {
+    transform: translateX(3px);
+    opacity: 0.7;
+  }
+  50% {
+    transform: translateX(5px);
+    opacity: 1;
+  }
+}
+
+/* ✅ При наведении усиление */
+.debit-card:hover .dc-bg-chroma-cyan {
+  animation-duration: 1.5s;
+  transform: translateX(-6px);
+}
+.debit-card:hover .dc-bg-chroma-magenta {
+  animation-duration: 1.5s;
+  transform: translateX(6px);
 }
 
 /* ============================================================
@@ -892,6 +930,7 @@ watch(expandedOwners, (val) => {
     100% 100%,
     8% 100%
   );
+  z-index: 10;
 }
 
 @keyframes gradientShift {
@@ -909,6 +948,7 @@ watch(expandedOwners, (val) => {
   pointer-events: none;
   opacity: 0.6;
   mix-blend-mode: screen;
+  z-index: 11;
 
   background:
     linear-gradient(
@@ -941,7 +981,7 @@ watch(expandedOwners, (val) => {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 10;
+  z-index: 12;
   mix-blend-mode: overlay;
 }
 
@@ -953,7 +993,7 @@ watch(expandedOwners, (val) => {
     radial-gradient(ellipse 50% 30% at 90% 100%, rgba(139, 92, 246, 0.4), transparent 60%);
   animation: glossRotate 12s ease-in-out infinite;
   pointer-events: none;
-  z-index: 10;
+  z-index: 12;
   mix-blend-mode: overlay;
 }
 @keyframes glossRotate {
@@ -966,7 +1006,7 @@ watch(expandedOwners, (val) => {
   inset: 0;
   background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.035) 0 2px, transparent 2px 8px);
   pointer-events: none;
-  z-index: 11;
+  z-index: 13;
   mix-blend-mode: overlay;
 }
 
@@ -981,7 +1021,7 @@ watch(expandedOwners, (val) => {
   pointer-events: none;
   user-select: none;
   font-family: var(--mono);
-  z-index: 11;
+  z-index: 13;
 }
 
 .dc-frame {
@@ -990,12 +1030,12 @@ watch(expandedOwners, (val) => {
   border-radius: 16px;
   border: 1.5px dashed rgba(255, 255, 255, 0.22);
   pointer-events: none;
-  z-index: 12;
+  z-index: 14;
 }
 
 .dc-top {
   position: relative;
-  z-index: 13;
+  z-index: 15;
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
@@ -1026,7 +1066,7 @@ watch(expandedOwners, (val) => {
 
 .dc-balance {
   position: relative;
-  z-index: 13;
+  z-index: 15;
   margin-top: 12px;
   text-align: center;
 }
@@ -1042,7 +1082,7 @@ watch(expandedOwners, (val) => {
 }
 .dc-caption {
   position: relative;
-  z-index: 13;
+  z-index: 15;
   text-align: center;
   font-size: 10.5px;
   font-weight: 700;
@@ -1056,7 +1096,7 @@ watch(expandedOwners, (val) => {
 
 .dc-accounts {
   position: relative;
-  z-index: 13;
+  z-index: 15;
   margin-top: 4px;
   padding-top: 10px;
   border-top: 1px solid rgba(255, 255, 255, 0.25);
@@ -1224,18 +1264,12 @@ watch(expandedOwners, (val) => {
   .dc-bg-ribbon { width: 68%; }
   .dc-bg-emoji { font-size: 64px; }
 
-  /* ✅ На мобилке — свои координаты полосы */
-.dc-bg-divider {
-  clip-path: polygon(
-    22% 0%,
-    36% 0%,
-    18% 100%,
-    6%  100%
-  );
-
-  /* На мобилке анимация реже, чтобы не отвлекала */
-  animation-duration: 8s;
-}
+  /* На мобилке — уменьшенные RGB-полосы */
+  .dc-bg-chroma-cyan,
+  .dc-bg-chroma-magenta {
+    filter: blur(1.5px);
+    opacity: 0.6;
+  }
 
   .dc-issuer-name { font-size: 10.5px; letter-spacing: 0.12em; }
   .dc-issuer-sub { font-size: 8.5px; }
@@ -1290,10 +1324,22 @@ watch(expandedOwners, (val) => {
   .dc-photo-bw,
   .gblock,
   .gbar,
-  .dc-glitch-code span {
+  .dc-glitch-code span,
+  .dc-bg-chroma-cyan,
+  .dc-bg-chroma-magenta {
     animation: none !important;
+  }
+  .dc-photo-r,
+  .dc-photo-g,
+  .dc-photo-b,
+  .dc-photo-bw,
+  .gblock,
+  .gbar,
+  .dc-glitch-code span {
     opacity: 0 !important;
   }
   .dc-photo-base { opacity: 0.85 !important; }
+  .dc-bg-chroma-cyan { transform: translateX(-3px) !important; opacity: 0.7 !important; }
+  .dc-bg-chroma-magenta { transform: translateX(3px) !important; opacity: 0.7 !important; }
 }
 </style>
