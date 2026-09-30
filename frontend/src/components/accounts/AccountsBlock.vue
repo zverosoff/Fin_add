@@ -1,6 +1,6 @@
 <!-- frontend/src/components/accounts/AccountsBlock.vue -->
 <script setup>
-import { computed, ref, onMounted, watch } from 'vue';
+import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
 import { useAuthStore } from '@/stores/auth';
 import { fmt } from '@/composables/useFormat';
@@ -28,17 +28,6 @@ const ownersSorted = computed(() => {
 
 // Раскрытие счетов сохраняется в localStorage
 const expandedOwners = ref({});
-
-onMounted(() => {
-  try {
-    const saved = localStorage.getItem(LS_KEY);
-    if (saved) expandedOwners.value = JSON.parse(saved) || {};
-  } catch (e) {}
-});
-
-watch(expandedOwners, (val) => {
-  try { localStorage.setItem(LS_KEY, JSON.stringify(val)); } catch (e) {}
-}, { deep: true });
 
 function isExpanded(owner) {
   return !!expandedOwners.value[owner];
@@ -73,7 +62,7 @@ const cardEl = ref(null);
 const tilt = ref({ rx: 0, ry: 0, mx: 50, my: 50 });
 const isTilting = ref(false);
 
-const MAX_TILT = 10;      // градусов наклона в каждую сторону
+const MAX_TILT = 10;      // градусов наклона в каждую сторону от мыши
 const RETURN_MS = 400;    // мс на возврат
 
 function updateTilt(clientX, clientY) {
@@ -84,43 +73,51 @@ function updateTilt(clientX, clientY) {
   const px = (clientX - rect.left) / rect.width;   // 0..1
   const py = (clientY - rect.top) / rect.height;   // 0..1
 
-  // -1..1 относительно центра
-  const dx = (px - 0.5) * 2;
+  const dx = (px - 0.5) * 2;   // -1..1
   const dy = (py - 0.5) * 2;
 
   tilt.value = {
-    rx: -dy * MAX_TILT,       // наклон по X (вверх/вниз)
-    ry: dx * MAX_TILT,        // наклон по Y (влево/вправо)
-    mx: px * 100,             // позиция блика по X (в %)
-    my: py * 100,             // позиция блика по Y (в %)
+    rx: -dy * MAX_TILT,
+    ry: dx * MAX_TILT,
+    mx: px * 100,
+    my: py * 100,
   };
 }
 
 function onMouseMove(e) {
+  if (gyroEnabled.value) return;  // если гироскоп — мышь не главная
   isTilting.value = true;
   updateTilt(e.clientX, e.clientY);
 }
 
 function onMouseLeave() {
   isTilting.value = false;
-  tilt.value = { rx: 0, ry: 0, mx: 50, my: 50 };
+  if (!gyroEnabled.value) {
+    tilt.value = { rx: 0, ry: 0, mx: 50, my: 50 };
+  }
 }
 
 function onTouchStart(e) {
   if (e.touches.length !== 1) return;
+  if (gyroEnabled.value) return;
+
   isTilting.value = true;
   updateTilt(e.touches[0].clientX, e.touches[0].clientY);
 }
 
 function onTouchMove(e) {
   if (e.touches.length !== 1) return;
+  if (gyroEnabled.value) return;
+
   if (e.cancelable) e.preventDefault();
   updateTilt(e.touches[0].clientX, e.touches[0].clientY);
 }
 
 function onTouchEnd() {
   isTilting.value = false;
-  tilt.value = { rx: 0, ry: 0, mx: 50, my: 50 };
+  if (!gyroEnabled.value) {
+    tilt.value = { rx: 0, ry: 0, mx: 50, my: 50 };
+  }
 }
 
 const cardStyle = computed(() => {
@@ -142,12 +139,126 @@ const shineStyle = computed(() => {
       rgba(255, 255, 255, 0.15) 25%,
       transparent 50%
     )`,
-    opacity: isTilting.value ? 1 : 0,
+    opacity: (isTilting.value || gyroEnabled.value) ? 1 : 0,
     transition: isTilting.value
       ? 'opacity 0.15s linear'
       : `opacity ${RETURN_MS}ms ease`,
   };
 });
+
+// ============================================================
+// ✅ Гироскоп — наклон карты при наклоне телефона
+// ============================================================
+const gyroEnabled = ref(false);
+const gyroSupported = ref(false);
+const gyroNeedsPermission = ref(false);
+
+const MAX_GYRO_TILT = 12;      // градусов наклона карты
+const GYRO_SENSITIVITY = 1.2;  // множитель угла устройства
+
+let gyroHandler = null;
+
+function isMobileDevice() {
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
+    || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
+}
+
+async function enableGyro() {
+  if (gyroEnabled.value) return;
+
+  // iOS 13+ требует разрешение
+  if (typeof DeviceOrientationEvent !== 'undefined'
+      && typeof DeviceOrientationEvent.requestPermission === 'function') {
+    try {
+      const res = await DeviceOrientationEvent.requestPermission();
+      if (res !== 'granted') {
+        console.warn('[gyro] разрешение не выдано');
+        return;
+      }
+    } catch (e) {
+      console.warn('[gyro] ошибка разрешения:', e);
+      return;
+    }
+  }
+
+  if (typeof DeviceOrientationEvent === 'undefined') {
+    console.warn('[gyro] DeviceOrientation не поддерживается');
+    return;
+  }
+
+  gyroHandler = (e) => {
+    if (e.beta == null || e.gamma == null) return;
+
+    // beta: -180..180 (вперёд-назад)
+    // gamma: -90..90 (влево-вправо)
+    // Считаем смещение от "дефолтного" положения телефона ~30° beta
+    const bx = Math.max(-30, Math.min(30, (e.beta || 0) - 30));
+    const gy = Math.max(-30, Math.min(30, e.gamma || 0));
+
+    const smoothing = 0.15;
+
+    tilt.value = {
+      rx: tilt.value.rx * (1 - smoothing) + (-bx * MAX_GYRO_TILT / 30) * smoothing,
+      ry: tilt.value.ry * (1 - smoothing) + (gy * MAX_GYRO_TILT / 30) * smoothing,
+      mx: 50 + (gy * 40 / 30),
+      my: 50 + (bx * 40 / 30),
+    };
+  };
+
+  window.addEventListener('deviceorientation', gyroHandler);
+  gyroEnabled.value = true;
+  console.log('[gyro] включён');
+}
+
+function disableGyro() {
+  if (gyroHandler) {
+    window.removeEventListener('deviceorientation', gyroHandler);
+    gyroHandler = null;
+  }
+  gyroEnabled.value = false;
+}
+
+// При первом тапе по карте — на iOS запрашиваем разрешение
+async function maybeAskGyro() {
+  if (!gyroNeedsPermission.value) return;
+  if (gyroEnabled.value) return;
+
+  await enableGyro();
+  if (gyroEnabled.value) {
+    gyroNeedsPermission.value = false;
+  }
+}
+
+// ============================================================
+// ✅ Жизненный цикл
+// ============================================================
+onMounted(() => {
+  try {
+    const saved = localStorage.getItem(LS_KEY);
+    if (saved) expandedOwners.value = JSON.parse(saved) || {};
+  } catch (e) {}
+
+  // Проверяем поддержку гироскопа только на мобильных
+  if (isMobileDevice() && typeof DeviceOrientationEvent !== 'undefined') {
+    gyroSupported.value = true;
+
+    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
+      // iOS — требуется явное разрешение
+      gyroNeedsPermission.value = true;
+    } else {
+      // Android — включаем сразу
+      enableGyro();
+    }
+  }
+});
+
+onUnmounted(() => {
+  disableGyro();
+});
+
+watch(expandedOwners, (val) => {
+  try { localStorage.setItem(LS_KEY, JSON.stringify(val)); } catch (e) {}
+}, { deep: true });
 </script>
 
 <template>
@@ -156,7 +267,7 @@ const shineStyle = computed(() => {
     <div
       ref="cardEl"
       class="debit-card"
-      :class="{ 'is-tilting': isTilting }"
+      :class="{ 'is-tilting': isTilting || gyroEnabled }"
       :style="cardStyle"
       @mousemove="onMouseMove"
       @mouseleave="onMouseLeave"
@@ -164,6 +275,7 @@ const shineStyle = computed(() => {
       @touchmove="onTouchMove"
       @touchend="onTouchEnd"
       @touchcancel="onTouchEnd"
+      @click="maybeAskGyro"
     >
       <!-- Блик, следующий за курсором -->
       <div class="dc-shine-cursor" :style="shineStyle" aria-hidden="true"></div>
@@ -173,6 +285,13 @@ const shineStyle = computed(() => {
       <div class="dc-pattern" aria-hidden="true"></div>
       <div class="dc-watermark" aria-hidden="true">₽</div>
       <div class="dc-frame" aria-hidden="true"></div>
+
+      <!-- ✅ Подсказка про гироскоп на iOS -->
+      <Transition name="gyro-hint">
+        <div v-if="gyroNeedsPermission && !gyroEnabled" class="dc-gyro-hint" aria-hidden="true">
+          📱 Наклоните телефон
+        </div>
+      </Transition>
 
       <!-- Верхняя строка: аватар + issuer -->
       <div class="dc-top">
@@ -204,7 +323,7 @@ const shineStyle = computed(() => {
           <button
             class="dc-owner-name"
             type="button"
-            @click="toggleOwner(owner)"
+            @click.stop="toggleOwner(owner)"
             :aria-expanded="isExpanded(owner)"
           >
             <span class="dc-owner-emoji">{{ owner === 'Сергей' ? '👨' : '👩' }}</span>
@@ -221,7 +340,7 @@ const shineStyle = computed(() => {
               :key="acc.id"
               type="button"
               class="dc-chip"
-              @click="emit('reconcile', acc)"
+              @click.stop="emit('reconcile', acc)"
             >
               <img
                 v-if="bankLogo(acc.id)"
@@ -278,7 +397,7 @@ const shineStyle = computed(() => {
   flex-direction: column;
   gap: 10px;
 
-  /* ✅ 3D-наклон */
+  /* 3D-наклон */
   transform-style: preserve-3d;
   will-change: transform;
 
@@ -302,8 +421,6 @@ const shineStyle = computed(() => {
 /* ============================================================
    ГЛЯНЦЕВЫЕ СЛОИ
    ============================================================ */
-
-/* ✅ Кастомный блик — следует за курсором/пальцем */
 .dc-shine-cursor {
   position: absolute;
   inset: 0;
@@ -380,6 +497,44 @@ const shineStyle = computed(() => {
 }
 
 /* ============================================================
+   ПОДСКАЗКА ПРО ГИРОСКОП
+   ============================================================ */
+.dc-gyro-hint {
+  position: absolute;
+  top: 12px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  white-space: nowrap;
+  z-index: 5;
+  pointer-events: none;
+  animation: gyroPulse 2s ease-in-out infinite;
+}
+
+@keyframes gyroPulse {
+  0%, 100% { opacity: 0.7; transform: translateX(-50%) scale(1); }
+  50%      { opacity: 1;   transform: translateX(-50%) scale(1.05); }
+}
+
+.gyro-hint-enter-active,
+.gyro-hint-leave-active {
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+.gyro-hint-enter-from,
+.gyro-hint-leave-to {
+  opacity: 0;
+  transform: translateX(-50%) translateY(-8px);
+}
+
+/* ============================================================
    ВЕРХ: аватар + issuer
    ============================================================ */
 .dc-top,
@@ -442,7 +597,7 @@ const shineStyle = computed(() => {
 }
 
 /* ============================================================
-   БАЛАНС — по центру, крупно
+   БАЛАНС
    ============================================================ */
 .dc-balance {
   margin-top: 12px;
@@ -669,6 +824,8 @@ const shineStyle = computed(() => {
   .dc-owner-total { font-size: 11px; padding: 2px 9px; }
 
   .dc-watermark { font-size: 110px; bottom: -24px; right: -8px; }
+
+  .dc-gyro-hint { font-size: 9.5px; padding: 3px 9px; }
 }
 
 @media (max-width: 380px) {
@@ -680,7 +837,8 @@ const shineStyle = computed(() => {
 
 @media (prefers-reduced-motion: reduce) {
   .debit-card,
-  .dc-gloss {
+  .dc-gloss,
+  .dc-gyro-hint {
     animation: none !important;
   }
 }
