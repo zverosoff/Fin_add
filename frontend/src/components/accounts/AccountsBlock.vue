@@ -1,6 +1,6 @@
 <!-- frontend/src/components/accounts/AccountsBlock.vue -->
 <script setup>
-import { computed, ref, onMounted, onUnmounted, watch } from 'vue';
+import { computed, ref, onMounted, watch } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
 import { useAuthStore } from '@/stores/auth';
 import { fmt } from '@/composables/useFormat';
@@ -43,7 +43,7 @@ function bankLogo(id) {
 function isMe(owner) { return owner === userName.value; }
 
 // ============================================================
-// ✅ 3D-наклон карты
+// 3D-наклон карты (мышь / палец)
 // ============================================================
 const cardEl = ref(null);
 const tilt = ref({ rx: 0, ry: 0, mx: 50, my: 50 });
@@ -74,7 +74,7 @@ function onMouseMove(e) {
 }
 function onMouseLeave() {
   isTilting.value = false;
-  if (!gyroEnabled.value) tilt.value = { rx: 0, ry: 0, mx: 50, my: 50 };
+  tilt.value = { rx: 0, ry: 0, mx: 50, my: 50 };
 }
 function onTouchStart(e) {
   if (e.touches.length !== 1) return;
@@ -88,7 +88,7 @@ function onTouchMove(e) {
 }
 function onTouchEnd() {
   isTilting.value = false;
-  if (!gyroEnabled.value) tilt.value = { rx: 0, ry: 0, mx: 50, my: 50 };
+  tilt.value = { rx: 0, ry: 0, mx: 50, my: 50 };
 }
 
 const cardStyle = computed(() => {
@@ -110,122 +110,19 @@ const shineStyle = computed(() => {
       rgba(255, 255, 255, 0.15) 25%,
       transparent 50%
     )`,
-    opacity: (isTilting.value || gyroEnabled.value) ? 1 : 0,
+    opacity: isTilting.value ? 1 : 0,
     transition: isTilting.value
       ? 'opacity 0.15s linear'
       : `opacity ${RETURN_MS}ms ease`,
   };
 });
 
-// ============================================================
-// ✅ ГИРОСКОП — ИСПРАВЛЕНО
-// ============================================================
-const gyroEnabled = ref(false);
-const gyroSupported = ref(false);
-const gyroNeedsPermission = ref(false);
-const gyroDebug = ref({ beta: null, gamma: null, events: 0 });
-
-const MAX_GYRO_TILT = 20;
-const SMOOTHING = 0.22;
-const BASE_BETA = 35;
-
-let gyroHandler = null;
-
-function isMobileDevice() {
-  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
-    || (window.matchMedia && window.matchMedia('(pointer: coarse)').matches);
-}
-
-async function enableGyro() {
-  if (gyroEnabled.value) return true;
-
-  console.log('[gyro] enableGyro вызван');
-
-  if (typeof DeviceOrientationEvent === 'undefined') {
-    console.warn('[gyro] DeviceOrientation не поддерживается');
-    return false;
-  }
-
-  if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-    try {
-      console.log('[gyro] запрашиваю разрешение (iOS)');
-      const res = await DeviceOrientationEvent.requestPermission();
-      console.log('[gyro] разрешение:', res);
-      if (res !== 'granted') return false;
-    } catch (e) {
-      console.warn('[gyro] ошибка разрешения:', e);
-      return false;
-    }
-  }
-
-  gyroHandler = (e) => {
-    gyroDebug.value = {
-      beta: e.beta,
-      gamma: e.gamma,
-      events: gyroDebug.value.events + 1,
-    };
-
-    if (e.beta == null && e.gamma == null) return;
-
-    const b = e.beta || 0;
-    const g = e.gamma || 0;
-
-    let bx = b - BASE_BETA;
-    if (bx > 90) bx -= 180;
-    if (bx < -90) bx += 180;
-    bx = Math.max(-30, Math.min(30, bx));
-    const gy = Math.max(-30, Math.min(30, g));
-
-    const targetRx = -bx * MAX_GYRO_TILT / 30;
-    const targetRy = gy * MAX_GYRO_TILT / 30;
-
-    tilt.value = {
-      rx: tilt.value.rx * (1 - SMOOTHING) + targetRx * SMOOTHING,
-      ry: tilt.value.ry * (1 - SMOOTHING) + targetRy * SMOOTHING,
-      mx: 50 + (gy * 40 / 30),
-      my: 50 + (bx * 40 / 30),
-    };
-  };
-
-  window.addEventListener('deviceorientation', gyroHandler, true);
-  gyroEnabled.value = true;
-  isTilting.value = true;
-  console.log('[gyro] ✅ слушатель добавлен');
-  return true;
-}
-
-function disableGyro() {
-  if (gyroHandler) {
-    window.removeEventListener('deviceorientation', gyroHandler, true);
-    gyroHandler = null;
-  }
-  gyroEnabled.value = false;
-  isTilting.value = false;
-}
-
-async function maybeAskGyro() {
-  if (gyroEnabled.value) return;
-  const ok = await enableGyro();
-  if (ok) gyroNeedsPermission.value = false;
-}
-
 onMounted(() => {
   try {
     const saved = localStorage.getItem(LS_KEY);
     if (saved) expandedOwners.value = JSON.parse(saved) || {};
   } catch (e) {}
-
-  if (isMobileDevice() && typeof DeviceOrientationEvent !== 'undefined') {
-    gyroSupported.value = true;
-    if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-      gyroNeedsPermission.value = true;
-    } else {
-      enableGyro();
-    }
-  }
 });
-
-onUnmounted(() => { disableGyro(); });
 
 watch(expandedOwners, (val) => {
   try { localStorage.setItem(LS_KEY, JSON.stringify(val)); } catch (e) {}
@@ -237,7 +134,7 @@ watch(expandedOwners, (val) => {
     <div
       ref="cardEl"
       class="debit-card"
-      :class="{ 'is-tilting': isTilting || gyroEnabled }"
+      :class="{ 'is-tilting': isTilting }"
       :style="cardStyle"
       @mousemove="onMouseMove"
       @mouseleave="onMouseLeave"
@@ -245,19 +142,12 @@ watch(expandedOwners, (val) => {
       @touchmove="onTouchMove"
       @touchend="onTouchEnd"
       @touchcancel="onTouchEnd"
-      @click="maybeAskGyro"
     >
       <div class="dc-shine-cursor" :style="shineStyle" aria-hidden="true"></div>
       <div class="dc-gloss" aria-hidden="true"></div>
       <div class="dc-pattern" aria-hidden="true"></div>
       <div class="dc-watermark" aria-hidden="true">₽</div>
       <div class="dc-frame" aria-hidden="true"></div>
-
-      <Transition name="gyro-hint">
-        <div v-if="gyroNeedsPermission && !gyroEnabled" class="dc-gyro-hint">
-          📱 Наклоните телефон
-        </div>
-      </Transition>
 
       <div class="dc-top">
         <div class="dc-avatar">
@@ -285,7 +175,7 @@ watch(expandedOwners, (val) => {
           <button
             class="dc-owner-name"
             type="button"
-            @click.stop.prevent="toggleOwner(owner)"
+            @click="toggleOwner(owner)"
           >
             <span class="dc-owner-emoji">{{ owner === 'Сергей' ? '👨' : '👩' }}</span>
             <span class="dc-owner-text">{{ owner }}</span>
@@ -301,7 +191,7 @@ watch(expandedOwners, (val) => {
               :key="acc.id"
               type="button"
               class="dc-chip"
-              @click.stop.prevent="emit('reconcile', acc)"
+              @click="emit('reconcile', acc)"
             >
               <img
                 v-if="bankLogo(acc.id)"
@@ -326,11 +216,7 @@ watch(expandedOwners, (val) => {
 </template>
 
 <style scoped lang="scss">
-.accounts-block {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
+.accounts-block { display: flex; flex-direction: column; gap: 12px; }
 
 .debit-card {
   position: relative;
@@ -393,7 +279,6 @@ watch(expandedOwners, (val) => {
   z-index: 1;
   mix-blend-mode: overlay;
 }
-
 @keyframes glossRotate {
   0%, 100% { background-position: 0% 0%, 100% 100%; opacity: 0.9; }
   50%      { background-position: 100% 100%, 0% 0%; opacity: 1; }
@@ -430,36 +315,6 @@ watch(expandedOwners, (val) => {
   z-index: 0;
 }
 
-.dc-gyro-hint {
-  position: absolute;
-  top: 12px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.2);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  color: #ffffff;
-  font-size: 10px;
-  font-weight: 700;
-  white-space: nowrap;
-  z-index: 5;
-  pointer-events: none;
-  animation: gyroPulse 2s ease-in-out infinite;
-}
-
-@keyframes gyroPulse {
-  0%, 100% { opacity: 0.7; transform: translateX(-50%) scale(1); }
-  50%      { opacity: 1;   transform: translateX(-50%) scale(1.05); }
-}
-
-.gyro-hint-enter-active,
-.gyro-hint-leave-active { transition: opacity 0.3s ease, transform 0.3s ease; }
-.gyro-hint-enter-from,
-.gyro-hint-leave-to { opacity: 0; transform: translateX(-50%) translateY(-8px); }
-
 .dc-top,
 .dc-balance,
 .dc-caption,
@@ -473,8 +328,7 @@ watch(expandedOwners, (val) => {
 }
 
 .dc-avatar {
-  width: 44px;
-  height: 44px;
+  width: 44px; height: 44px;
   border-radius: 50%;
   background: #ffffff;
   display: flex;
@@ -485,11 +339,9 @@ watch(expandedOwners, (val) => {
     0 8px 20px -6px rgba(0, 0, 0, 0.4),
     0 0 0 3px rgba(255, 255, 255, 0.35);
 }
-
 .dc-avatar-emoji { font-size: 22px; line-height: 1; }
 
 .dc-issuer { text-align: right; min-width: 0; }
-
 .dc-issuer-name {
   font-size: 11.5px;
   font-weight: 800;
@@ -500,7 +352,6 @@ watch(expandedOwners, (val) => {
   text-overflow: ellipsis;
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
 }
-
 .dc-issuer-sub {
   font-size: 9px;
   font-weight: 700;
@@ -511,7 +362,6 @@ watch(expandedOwners, (val) => {
 }
 
 .dc-balance { margin-top: 12px; text-align: center; }
-
 .dc-balance-value {
   font-family: var(--mono);
   font-size: 40px;
@@ -520,7 +370,6 @@ watch(expandedOwners, (val) => {
   line-height: 1.05;
   text-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
 }
-
 .dc-caption {
   text-align: center;
   font-size: 10.5px;
@@ -541,12 +390,7 @@ watch(expandedOwners, (val) => {
   gap: 6px;
 }
 
-.dc-owner-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
+.dc-owner-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
 
 .dc-owner-name {
   display: inline-flex;
@@ -579,7 +423,6 @@ watch(expandedOwners, (val) => {
 
 .dc-owner-emoji { font-size: 13px; }
 .dc-owner-text { line-height: 1; }
-
 .dc-owner-you {
   margin-left: 4px;
   padding: 1px 6px;
@@ -591,10 +434,8 @@ watch(expandedOwners, (val) => {
   text-transform: uppercase;
   letter-spacing: 0.05em;
 }
-
 .dc-owner-chev {
-  width: 14px;
-  height: 14px;
+  width: 14px; height: 14px;
   margin-left: 2px;
   color: rgba(255, 255, 255, 0.75);
   transition: transform 0.25s cubic-bezier(.34,1.56,.64,1);
@@ -609,6 +450,11 @@ watch(expandedOwners, (val) => {
   flex: 1;
   min-width: 0;
   justify-content: flex-end;
+  animation: chipsIn 0.25s ease;
+}
+@keyframes chipsIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .dc-chip {
@@ -629,10 +475,7 @@ watch(expandedOwners, (val) => {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 
-  &:hover {
-    background: rgba(255, 255, 255, 0.32);
-    transform: translateY(-1px);
-  }
+  &:hover { background: rgba(255, 255, 255, 0.32); transform: translateY(-1px); }
   &:active { transform: scale(0.96); }
 }
 
@@ -645,7 +488,6 @@ watch(expandedOwners, (val) => {
   box-sizing: border-box;
   flex-shrink: 0;
 }
-
 .dc-chip-logo-fallback {
   width: 18px; height: 18px;
   border-radius: 50%;
@@ -658,7 +500,6 @@ watch(expandedOwners, (val) => {
   font-weight: 800;
   flex-shrink: 0;
 }
-
 .dc-chip-value {
   font-family: var(--mono);
   font-size: 11.5px;
@@ -679,6 +520,7 @@ watch(expandedOwners, (val) => {
   white-space: nowrap;
   flex-shrink: 0;
   box-shadow: 0 4px 10px -4px rgba(0, 0, 0, 0.25);
+  animation: chipsIn 0.25s ease;
 }
 
 @media (max-width: 700px) {
@@ -701,7 +543,6 @@ watch(expandedOwners, (val) => {
   .dc-chip-value { font-size: 11px; }
   .dc-owner-total { font-size: 11px; padding: 2px 9px; }
   .dc-watermark { font-size: 110px; bottom: -24px; right: -8px; }
-  .dc-gyro-hint { font-size: 9.5px; padding: 3px 9px; }
 }
 
 @media (max-width: 380px) {
@@ -712,6 +553,9 @@ watch(expandedOwners, (val) => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .debit-card, .dc-gloss, .dc-gyro-hint { animation: none !important; }
+  .debit-card,
+  .dc-gloss {
+    animation: none !important;
+  }
 }
 </style>

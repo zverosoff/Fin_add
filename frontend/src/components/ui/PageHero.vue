@@ -10,6 +10,7 @@ const route = useRoute();
 
 const hidden = ref(false);
 const scrollOffset = ref(0);
+const receiveKey = ref(0);   // для перезапуска анимации приёма
 
 let hideTimer = null;
 let rafId = null;
@@ -19,7 +20,6 @@ function startHideTimer() {
   hideTimer = setTimeout(() => { hidden.value = true; }, 1500);
 }
 
-// ✅ Параллакс: заголовок уезжает быстрее контента
 function onScroll() {
   if (rafId) return;
   rafId = requestAnimationFrame(() => {
@@ -44,6 +44,7 @@ onUnmounted(() => {
 watch(() => route.path, () => {
   hidden.value = false;
   scrollOffset.value = 0;
+  receiveKey.value++;   // перезапуск анимации приёма
   window.scrollTo({ top: 0, behavior: 'instant' });
   startHideTimer();
 });
@@ -55,7 +56,9 @@ watch(() => route.path, () => {
     :class="{ hidden }"
     :style="{ transform: `translateY(-${scrollOffset}px) scale(${1 - scrollOffset / 800})` }"
   >
-    <h1>{{ title }}</h1>
+    <h1 :key="receiveKey">
+      <span class="hero-text">{{ title }}</span>
+    </h1>
   </div>
 </template>
 
@@ -109,6 +112,35 @@ h1 {
   50%      { background-position: 100% 50%; }
 }
 
+/* ✅ Приём летящей иконки — текст мягко появляется */
+.hero-text {
+  display: inline-block;
+  animation: heroReceive 0.7s cubic-bezier(.34,1.56,.64,1) both;
+}
+
+@keyframes heroReceive {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.85);
+    filter: blur(8px);
+  }
+  45% {
+    opacity: 0;
+    transform: translateY(8px) scale(0.92);
+    filter: blur(4px);
+  }
+  70% {
+    opacity: 1;
+    transform: translateY(-2px) scale(1.04);
+    filter: blur(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
+}
+
 @media (max-width: 700px) {
   .hero-block {
     margin: 0 0 12px;
@@ -124,5 +156,7 @@ h1 {
 
 @media (prefers-reduced-motion: reduce) {
   .hero-block { transition: none !important; transform: none !important; }
+  .hero-text { animation: none !important; }
+  h1 { animation: none !important; }
 }
 </style>

@@ -120,6 +120,7 @@ function openEditContrib({ goal, user }) {
 
     <div class="analytics-grid">
       <div class="an-col an-col-left">
+        <!-- ✅ Каскадное появление карточек -->
         <div class="metrics-grid">
           <MetricCard
             icon="💰"
@@ -128,24 +129,28 @@ function openEditContrib({ goal, user }) {
             :hint="saveMonthlyHint"
             accent
             size="big"
+            style="animation-delay: 0ms"
           />
           <MetricCard
             icon="📊"
             label="Норма сбережений"
             :value="Math.round(metrics.monthSaveRate) + '%'"
             :hint="saveRateHint"
+            style="animation-delay: 70ms"
           />
           <MetricCard
             icon="⏳"
             label="Подушка"
             :value="metrics.runway.toFixed(1) + ' мес'"
             :hint="runwayHint"
+            style="animation-delay: 140ms"
           />
           <MetricCard
             icon="🔥"
             label="Расход в день"
             :value="fmt(metrics.dailyAvg) + ' ₽'"
             :hint="'при ' + fmt(metrics.avgExpense) + ' ₽/мес'"
+            style="animation-delay: 210ms"
           />
         </div>
 
@@ -234,6 +239,12 @@ function openEditContrib({ goal, user }) {
   border: 1px solid var(--border);
   border-radius: 16px;
   box-shadow: var(--shadow-md);
+  animation: cardEnter 0.55s cubic-bezier(.34,1.56,.64,1) both;
+}
+
+@keyframes cardEnter {
+  from { opacity: 0; transform: translateY(16px) scale(0.95); filter: blur(4px); }
+  to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
 }
 
 .card-head {
@@ -270,17 +281,20 @@ function openEditContrib({ goal, user }) {
   transition: all 0.15s;
   white-space: nowrap;
 
-  &:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 10px 22px -10px rgba(59, 130, 246, 0.9);
-  }
+  &:hover { transform: translateY(-1px); box-shadow: 0 10px 22px -10px rgba(59, 130, 246, 0.9); }
+}
+
+/* ✅ Каскад карточек внутри левой колонки */
+.an-col-left .card:nth-child(3) { animation-delay: 280ms; }
+.an-col-left .card:nth-child(4) { animation-delay: 350ms; }
+.an-col-left .card:nth-child(5) { animation-delay: 420ms; }
+
+.an-col-right .card {
+  animation-delay: 300ms;
 }
 
 @media (max-width: 1100px) {
-  .analytics-grid {
-    grid-template-columns: 1fr;
-    max-width: 900px;
-  }
+  .analytics-grid { grid-template-columns: 1fr; max-width: 900px; }
   .an-col-right { position: static; }
   .metrics-grid {
     grid-template-columns: 1fr 1fr;
@@ -301,5 +315,12 @@ function openEditContrib({ goal, user }) {
 
 @media (max-width: 380px) {
   .metrics-grid { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  :deep(.metric-card) {
+    animation: none !important;
+  }
 }
 </style>

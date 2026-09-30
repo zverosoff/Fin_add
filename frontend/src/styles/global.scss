@@ -23,14 +23,12 @@ html, body {
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
-  background: linear-gradient(
+  background: var(--app-bg, linear-gradient(
     135deg,
-    #e8eefc 0%,
-    #ede9fe 25%,
-    #ffffff 50%,
-    #f3e8ff 75%,
-    #e8eefc 100%
-  );
+    #e8eefc 0%, #ede9fe 25%, #ffffff 50%, #f3e8ff 75%, #e8eefc 100%
+  ));
+  background-size: 400% 400%;
+  transition: background 0.9s cubic-bezier(.22,.61,.36,1);
   background-size: 400% 400%;
   animation: bgGradient 10s ease-in-out infinite;
   color: var(--text);
