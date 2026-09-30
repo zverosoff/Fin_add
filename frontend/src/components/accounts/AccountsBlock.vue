@@ -149,7 +149,7 @@ watch(expandedOwners, (val) => {
       @touchcancel="onTouchEnd"
     >
       <!-- ============================================================
-           ✅ ФОН: фото слева + фиолетовая часть справа с зигзагом
+           ✅ ФОН: фото слева + фиолетовая часть с абстрактным срезом
            ============================================================ -->
       <div class="dc-bg" aria-hidden="true">
         <!-- Левая часть — фото -->
@@ -159,14 +159,14 @@ watch(expandedOwners, (val) => {
             <span class="dc-bg-emoji">{{ userEmoji }}</span>
           </div>
 
-          <!-- ✅ Диагональные световые полосы поверх фото -->
+          <!-- Диагональные световые полосы -->
           <div class="dc-bg-stripes"></div>
 
-          <!-- Тёмная вуаль по краям -->
+          <!-- Вуаль -->
           <div class="dc-bg-photo-shade"></div>
         </div>
 
-        <!-- ✅ Правая фиолетовая часть с ЗИГЗАГОМ по левому краю -->
+        <!-- ✅ Правая фиолетовая часть с АБСТРАКТНЫМ срезом -->
         <div class="dc-bg-solid"></div>
       </div>
 
@@ -177,9 +177,7 @@ watch(expandedOwners, (val) => {
       <div class="dc-watermark" aria-hidden="true">₽</div>
       <div class="dc-frame" aria-hidden="true"></div>
 
-      <!-- ============================================================
-           КОНТЕНТ — на тех же позициях, поверх фото
-           ============================================================ -->
+      <!-- КОНТЕНТ -->
       <div class="dc-top">
         <div class="dc-issuer">
           <div class="dc-issuer-name">VAS FINANCE PRO+</div>
@@ -295,13 +293,12 @@ watch(expandedOwners, (val) => {
   border-radius: 22px;
 }
 
-/* Левая часть — фото */
 .dc-bg-photo {
   position: absolute;
   top: 0;
   left: 0;
   bottom: 0;
-  width: 50%;
+  width: 55%;
   overflow: hidden;
 }
 
@@ -311,7 +308,6 @@ watch(expandedOwners, (val) => {
   object-fit: cover;
   object-position: center 25%;
   display: block;
-  /* ✅ Чуть прозрачный аватар */
   opacity: 0.82;
   filter: saturate(0.85) contrast(1.05) brightness(0.9);
 }
@@ -331,7 +327,7 @@ watch(expandedOwners, (val) => {
   filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.35));
 }
 
-/* ✅ Диагональные световые полосы поверх фото */
+/* Диагональные световые полосы поверх фото */
 .dc-bg-stripes {
   position: absolute;
   inset: 0;
@@ -340,19 +336,18 @@ watch(expandedOwners, (val) => {
     repeating-linear-gradient(
       -30deg,
       rgba(255, 255, 255, 0) 0px,
-      rgba(255, 255, 255, 0) 12px,
-      rgba(255, 255, 255, 0.12) 12px,
-      rgba(255, 255, 255, 0.12) 14px,
       rgba(255, 255, 255, 0) 14px,
-      rgba(255, 255, 255, 0) 26px,
-      rgba(139, 92, 246, 0.18) 26px,
-      rgba(139, 92, 246, 0.18) 28px
+      rgba(255, 255, 255, 0.14) 14px,
+      rgba(255, 255, 255, 0.14) 16px,
+      rgba(255, 255, 255, 0) 16px,
+      rgba(255, 255, 255, 0) 30px,
+      rgba(139, 92, 246, 0.2) 30px,
+      rgba(139, 92, 246, 0.2) 32px
     );
   mix-blend-mode: overlay;
   opacity: 0.85;
 }
 
-/* Тёмная вуаль по краям фото */
 .dc-bg-photo-shade {
   position: absolute;
   inset: 0;
@@ -373,8 +368,10 @@ watch(expandedOwners, (val) => {
     );
 }
 
-/* ✅ Правая фиолетовая часть с ЗИГЗАГОМ по левому краю
-   Много зубцов (~12), шаг 4% по вертикали */
+/* ============================================================
+   ✅ Правая фиолетовая часть с АБСТРАКТНЫМ срезом
+   Крупные диагональные «ступени» — не симметричные, абстрактные
+   ============================================================ */
 .dc-bg-solid {
   position: absolute;
   top: 0;
@@ -388,36 +385,27 @@ watch(expandedOwners, (val) => {
   background-size: 100% 100%, 100% 100%, 300% 300%;
   animation: gradientShift 14s ease-in-out infinite;
 
-  /* ✅ ~12 зубцов — шаг 4% по вертикали */
+  /* ✅ Абстрактный срез — 7 крупных нерегулярных «ступеней»
+     Идут по диагонали сверху-слева к низу-справа */
   clip-path: polygon(
-    14% 0%,
+    22% 0%,                 /* верхний край — начало среза */
     100% 0%,
     100% 100%,
-    14% 100%,
+    18% 100%,               /* нижний край — конец среза */
 
-    14% 96%,
-    5%  92%,
-    15% 88%,
-    4%  84%,
-    15% 80%,
-    5%  76%,
-    15% 72%,
-    4%  68%,
-    15% 64%,
-    5%  60%,
-    15% 56%,
-    4%  52%,
-    15% 48%,
-    5%  44%,
-    15% 40%,
-    4%  36%,
-    15% 32%,
-    5%  28%,
-    15% 24%,
-    4%  20%,
-    15% 16%,
-    5%  12%,
-    14% 8%
+    /* Абстрактные «ступени» — от верха к низу */
+    8%  92%,                /* большая впадина */
+    20% 84%,
+    4%  74%,                /* глубокая впадина */
+    18% 68%,
+    2%  58%,                /* самая глубокая */
+    22% 48%,
+    6%  38%,
+    20% 30%,
+    8%  22%,
+    26% 14%,
+    14% 8%,
+    22% 0%                  /* замыкаем на верх */
   );
 }
 
@@ -718,7 +706,8 @@ watch(expandedOwners, (val) => {
 @media (max-width: 700px) {
   .debit-card { padding: 14px 16px 12px; border-radius: 20px; gap: 8px; min-height: 200px; }
 
-  .dc-bg-solid { width: 68%; }
+  .dc-bg-photo { width: 52%; }
+  .dc-bg-solid { width: 62%; }
   .dc-bg-emoji { font-size: 64px; }
 
   .dc-issuer-name { font-size: 10.5px; letter-spacing: 0.12em; }
