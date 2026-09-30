@@ -36,7 +36,6 @@ async function loadProfile() {
       avatar.value = data.profile.avatar || null;
       avatarPreview.value = data.profile.avatar || null;
 
-      // ✅ Обновляем глобальный стейт — теперь везде будет новое имя и аватар
       auth.setDisplayName(displayName.value);
       if (typeof auth.setAvatar === 'function') {
         auth.setAvatar(data.profile.avatar || null);
@@ -112,6 +111,15 @@ async function onFileChange(e) {
   e.target.value = '';
 }
 
+// ✅ Удалить аватар
+function removeAvatar() {
+  if (!avatarPreview.value) return;
+  if (!confirm('Удалить фото профиля? Будет показана стандартная иконка.')) return;
+  avatarPreview.value = null;
+  avatar.value = null;
+  toast.info('🗑 Фото удалено — нажмите Сохранить, чтобы применить');
+}
+
 // ============================================================
 // Сохранение
 // ============================================================
@@ -132,7 +140,6 @@ async function save() {
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || 'Ошибка сохранения');
 
-    // ✅ Обновляем глобальный стейт — теперь везде будет новое имя и аватар
     auth.setDisplayName(clean);
     if (typeof auth.setAvatar === 'function') {
       auth.setAvatar(avatar.value);
@@ -155,7 +162,7 @@ const lastLogin = ref(new Date().toLocaleString('ru-RU', {
 }));
 
 // ============================================================
-// Слушатель обновлений профиля из других вкладок (WebSocket)
+// Слушатель обновлений профиля из других вкладок
 // ============================================================
 let unsubProfile = null;
 
@@ -188,9 +195,7 @@ onUnmounted(() => {
 
 <template>
   <div class="profile-page">
-    <!-- ============================================================
-         ЛЕВАЯ КОЛОНКА — профиль
-         ============================================================ -->
+    <!-- ЛЕВАЯ КОЛОНКА -->
     <div class="profile-col profile-col-left">
       <div class="profile-card">
         <!-- Аватар -->
@@ -211,11 +216,30 @@ onUnmounted(() => {
           />
         </div>
 
-        <!-- Имя и подпись -->
+        <!-- ✅ Кнопки аватара -->
+        <div class="avatar-actions">
+          <button
+            class="avatar-action-btn"
+            type="button"
+            @click="openFilePicker"
+            :disabled="saving"
+          >
+            📷 {{ avatarPreview ? 'Сменить' : 'Загрузить' }}
+          </button>
+          <button
+            v-if="avatarPreview"
+            class="avatar-action-btn danger"
+            type="button"
+            @click="removeAvatar"
+            :disabled="saving"
+          >
+            🗑 Удалить фото
+          </button>
+        </div>
+
         <h1 class="profile-name">{{ displayName || me }}</h1>
         <p class="profile-sub">Пользователь приложения</p>
 
-        <!-- Метаданные -->
         <div class="meta">
           <div class="meta-row">
             <span class="meta-icon">🕐</span>
@@ -228,7 +252,6 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- Редактирование -->
       <div class="profile-card">
         <label class="field-label">Имя</label>
         <div class="field">
@@ -248,7 +271,6 @@ onUnmounted(() => {
         </button>
       </div>
 
-      <!-- Статистика -->
       <div class="profile-card">
         <h2 class="card-title">📊 СТАТИСТИКА</h2>
         <div class="stats-grid">
@@ -268,16 +290,12 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- ============================================================
-         ПРАВАЯ КОЛОНКА — мессенджер + заглушка Instagram
-         ============================================================ -->
+    <!-- ПРАВАЯ КОЛОНКА -->
     <div class="profile-col profile-col-right">
-      <!-- Мессенджер (встроенный, сразу открытый) — скрыт на мобилке -->
       <div class="embed-chat">
         <ChatWidget :start-open="true" :embed-mode="true" />
       </div>
 
-      <!-- Заглушка «в разработке» в стиле Instagram -->
       <div class="insta-stub">
         <div class="insta-header">
           <div class="insta-avatar">
@@ -383,6 +401,60 @@ onUnmounted(() => {
 }
 
 .avatar-file { display: none; }
+
+/* ✅ Кнопки под аватаром */
+.avatar-actions {
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.avatar-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 14px;
+  border-radius: 10px;
+  border: 1.5px solid #e2e8f0;
+  background: #f8fafc;
+  color: #475569;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    border-color: #6366f1;
+    color: #6366f1;
+    background: rgba(99, 102, 241, 0.06);
+    transform: translateY(-1px);
+  }
+
+  &:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  &.danger {
+    border-color: rgba(239, 68, 68, 0.35);
+    color: #dc2626;
+    background: rgba(239, 68, 68, 0.06);
+
+    &:hover:not(:disabled) {
+      border-color: #dc2626;
+      color: #dc2626;
+      background: rgba(239, 68, 68, 0.12);
+    }
+  }
+}
 
 .profile-name {
   text-align: center;
@@ -609,9 +681,6 @@ onUnmounted(() => {
   padding: 10px;
 }
 
-/* ============================================================
-   ✅ МОБИЛЬНАЯ ВЕРСИЯ — скрываем встроенный чат
-   ============================================================ */
 @media (max-width: 700px) {
   .embed-chat {
     display: none !important;
@@ -638,6 +707,11 @@ onUnmounted(() => {
   .insta-stub {
     padding: 16px;
     border-radius: 14px;
+  }
+
+  .avatar-action-btn {
+    font-size: 11.5px;
+    padding: 6px 12px;
   }
 }
 </style>

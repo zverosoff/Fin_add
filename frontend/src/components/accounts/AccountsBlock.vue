@@ -152,23 +152,20 @@ watch(expandedOwners, (val) => {
       @touchcancel="onTouchEnd"
     >
       <!-- ============================================================
-           ✅ ФОТО — на всю карту, под всеми слоями
+           ✅ ФОТО — только на левой половине, плавное затухание
            ============================================================ -->
       <div v-if="avatarUrl" class="dc-avatar-bg" aria-hidden="true">
         <img :src="avatarUrl" alt="" />
         <div class="dc-avatar-bg-fade"></div>
       </div>
 
-      <!-- Атмосферные слои поверх фото -->
       <div class="dc-shine-cursor" :style="shineStyle" aria-hidden="true"></div>
       <div class="dc-gloss" aria-hidden="true"></div>
       <div class="dc-pattern" aria-hidden="true"></div>
       <div class="dc-watermark" aria-hidden="true">₽</div>
       <div class="dc-frame" aria-hidden="true"></div>
 
-      <!-- ============================================================
-           ВЕРХ: issuer справа
-           ============================================================ -->
+      <!-- ВЕРХ -->
       <div class="dc-top">
         <div class="dc-issuer">
           <div class="dc-issuer-name">VAS FINANCE PRO+</div>
@@ -176,18 +173,14 @@ watch(expandedOwners, (val) => {
         </div>
       </div>
 
-      <!-- ============================================================
-           БАЛАНС
-           ============================================================ -->
+      <!-- БАЛАНС -->
       <div class="dc-balance">
         <div class="dc-balance-value">{{ fmt(totalBalance) }} ₽</div>
       </div>
 
       <div class="dc-caption">ВАШ ОБЩИЙ БАЛАНС</div>
 
-      <!-- ============================================================
-           ВЛАДЕЛЬЦЫ — поверх фото, полупрозрачные
-           ============================================================ -->
+      <!-- ВЛАДЕЛЬЦЫ -->
       <div class="dc-accounts">
         <div
           v-for="owner in ownersSorted"
@@ -252,7 +245,7 @@ watch(expandedOwners, (val) => {
   border-radius: 22px;
   padding: 18px 20px 16px;
   overflow: hidden;
-  isolation: isolate;         /* ✅ создаёт новый stacking context */
+  isolation: isolate;
 
   background:
     radial-gradient(circle at 15% 0%, rgba(255, 255, 255, 0.25), transparent 55%),
@@ -291,14 +284,16 @@ watch(expandedOwners, (val) => {
 }
 
 /* ============================================================
-   ✅ ФОТО — на всю карту, под всеми слоями
-   z-index: -1 гарантирует, что оно ниже background карты
-   (но благодаря isolation контексту — ниже только внутри карты)
+   ✅ ФОТО — только на левой половине, плавное затухание
    ============================================================ */
 .dc-avatar-bg {
   position: absolute;
-  inset: 0;
-  z-index: 0;                 /* ✅ под всеми остальными слоями */
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 55%;                   /* ✅ левая половина карты */
+  max-width: 260px;
+  z-index: 0;
   overflow: hidden;
   pointer-events: none;
 
@@ -306,57 +301,59 @@ watch(expandedOwners, (val) => {
     width: 100%;
     height: 100%;
     object-fit: cover;
-    object-position: center top;
+    object-position: center top;   /* лицо сверху, не обрезается */
     display: block;
-    filter: saturate(0.9) contrast(1.05) brightness(0.92);
-    /* Мягкое увеличение, чтобы был запас для градиентов */
-    transform: scale(1.02);
+    filter: saturate(0.95) contrast(1.05) brightness(0.95);
+    transform: scale(1.03);
+    transform-origin: center top;
   }
 }
 
-/* ============================================================
-   ✅ ОЧЕНЬ ПЛАВНОЕ ЗАТУХАНИЕ ФОТО
-   Смешиваем 3 градиента:
-   - по горизонтали (правое затухание)
-   - по вертикали (нижнее затухание)
-   - радиальное (общее затемнение к краям)
-   ============================================================ */
+/* ✅ ОЧЕНЬ ПЛАВНОЕ ЗАТУХАНИЕ
+   Правая половина фото растворяется в 4 слоях градиента
+   Плюс затемнение снизу и виньетка — фото «тонет» в карте */
 .dc-avatar-bg-fade {
   position: absolute;
   inset: 0;
   pointer-events: none;
   background:
-    /* Горизонтальное: фото полностью видно слева (0–35%), плавно исчезает к 85% */
+    /* 1. Горизонтальное затухание справа — самое главное */
     linear-gradient(
       90deg,
       rgba(99, 102, 241, 0) 0%,
-      rgba(99, 102, 241, 0) 35%,
-      rgba(99, 102, 241, 0.25) 55%,
-      rgba(99, 102, 241, 0.65) 72%,
-      rgba(99, 102, 241, 0.92) 88%,
+      rgba(99, 102, 241, 0) 55%,
+      rgba(99, 102, 241, 0.15) 68%,
+      rgba(99, 102, 241, 0.4) 78%,
+      rgba(99, 102, 241, 0.75) 88%,
+      rgba(99, 102, 241, 0.95) 96%,
       rgba(99, 102, 241, 1) 100%
     ),
-    /* Вертикальное: сверху фото чуть-чуть затемнено, снизу — сильно */
+    /* 2. Вертикальное затухание снизу */
     linear-gradient(
       180deg,
-      rgba(99, 102, 241, 0.15) 0%,
-      rgba(99, 102, 241, 0) 20%,
-      rgba(99, 102, 241, 0) 55%,
-      rgba(99, 102, 241, 0.35) 78%,
-      rgba(99, 102, 241, 0.8) 95%,
-      rgba(99, 102, 241, 1) 100%
-    ),
-    /* Радиальное: общий «виньет» по краям */
-    radial-gradient(
-      ellipse 90% 80% at 25% 40%,
       rgba(99, 102, 241, 0) 0%,
-      rgba(99, 102, 241, 0.15) 60%,
-      rgba(99, 102, 241, 0.5) 100%
+      rgba(99, 102, 241, 0) 45%,
+      rgba(99, 102, 241, 0.2) 70%,
+      rgba(99, 102, 241, 0.55) 88%,
+      rgba(99, 102, 241, 0.85) 100%
+    ),
+    /* 3. Лёгкое затемнение сверху — для читаемости issuer */
+    linear-gradient(
+      180deg,
+      rgba(99, 102, 241, 0.2) 0%,
+      rgba(99, 102, 241, 0) 25%
+    ),
+    /* 4. Радиальная виньетка — фото плавно уходит к краям */
+    radial-gradient(
+      ellipse 100% 90% at 20% 40%,
+      rgba(99, 102, 241, 0) 0%,
+      rgba(99, 102, 241, 0.1) 55%,
+      rgba(99, 102, 241, 0.35) 100%
     );
 }
 
 /* ============================================================
-   Атмосферные слои (shine, gloss, pattern, watermark, frame)
+   Атмосферные слои
    ============================================================ */
 .dc-shine-cursor {
   position: absolute;
@@ -415,7 +412,7 @@ watch(expandedOwners, (val) => {
 }
 
 /* ============================================================
-   Контент поверх всего
+   Контент
    ============================================================ */
 .dc-top {
   position: relative;
@@ -425,7 +422,8 @@ watch(expandedOwners, (val) => {
   justify-content: flex-end;
   gap: 10px;
   padding-top: 4px;
-  padding-left: 45%;          /* чтобы issuer не лез на лицо */
+  /* ✅ Если есть фото — issuer сдвигается вправо, чтобы не лезть на лицо */
+  padding-left: 45%;
 }
 
 .dc-issuer {
@@ -483,10 +481,6 @@ watch(expandedOwners, (val) => {
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
 }
 
-/* ============================================================
-   ✅ ВЛАДЕЛЬЦЫ — поверх фото, полупрозрачные плашки,
-   фото просвечивает сквозь них
-   ============================================================ */
 .dc-accounts {
   position: relative;
   z-index: 6;
@@ -512,7 +506,6 @@ watch(expandedOwners, (val) => {
   padding: 4px 8px 4px 4px;
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 999px;
-  /* ✅ Полупрозрачная плашка — фото просвечивает */
   background: rgba(255, 255, 255, 0.14);
   color: #ffffff;
   font-family: inherit;
@@ -588,7 +581,6 @@ watch(expandedOwners, (val) => {
   padding: 4px 10px 4px 4px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.35);
-  /* ✅ Полупрозрачная плашка — фото просвечивает */
   background: rgba(255, 255, 255, 0.16);
   color: #ffffff;
   font-family: inherit;
@@ -637,7 +629,6 @@ watch(expandedOwners, (val) => {
   margin-left: auto;
   padding: 3px 10px;
   border-radius: 999px;
-  /* ✅ Полупрозрачная плашка — фото просвечивает */
   background: rgba(255, 255, 255, 0.85);
   color: #4f46e5;
   font-family: var(--mono);
@@ -658,7 +649,12 @@ watch(expandedOwners, (val) => {
 @media (max-width: 700px) {
   .debit-card { padding: 14px 16px 12px; border-radius: 20px; gap: 8px; }
 
-  .dc-avatar-bg img { object-position: center 20%; }
+  /* ✅ Фото чуть уже на мобилке — иначе лицо слишком мелкое */
+  .dc-avatar-bg {
+    width: 50%;
+    max-width: 200px;
+  }
+  .dc-avatar-bg img { object-position: center top; }
 
   .dc-top { padding-left: 42%; }
 
@@ -685,6 +681,8 @@ watch(expandedOwners, (val) => {
 }
 
 @media (max-width: 380px) {
+  .dc-avatar-bg { width: 48%; max-width: 170px; }
+  .dc-top { padding-left: 40%; }
   .dc-balance-value { font-size: 28px; }
   .dc-issuer-name { font-size: 9.5px; }
   .dc-chips { gap: 4px; }
