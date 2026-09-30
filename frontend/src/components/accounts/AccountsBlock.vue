@@ -19,7 +19,6 @@ function displayOwner(owner) {
   if (!owner) return '';
   return auth.nameFor(owner);
 }
-
 function ownerAvatar(owner) {
   return auth.avatarFor(owner);
 }
@@ -35,7 +34,6 @@ const ownersSorted = computed(() => {
 });
 
 const expandedOwners = ref({});
-
 function isExpanded(owner) { return !!expandedOwners.value[owner]; }
 function toggleOwner(owner) {
   expandedOwners.value = { ...expandedOwners.value, [owner]: !expandedOwners.value[owner] };
@@ -53,12 +51,25 @@ function isMe(owner) { return owner === userName.value; }
 
 const myAvatar = computed(() => auth.avatarFor(userName.value));
 
+// ============================================================
+// 3D-наклон
+// ============================================================
 const cardEl = ref(null);
 const tilt = ref({ rx: 0, ry: 0, mx: 50, my: 50 });
 const isTilting = ref(false);
 
 const MAX_TILT = 10;
 const RETURN_MS = 400;
+
+let rafId = null;
+let pendingTilt = null;
+
+function applyTilt() {
+  if (!pendingTilt) return;
+  tilt.value = pendingTilt;
+  pendingTilt = null;
+  rafId = null;
+}
 
 function updateTilt(clientX, clientY) {
   const el = cardEl.value;
@@ -68,12 +79,13 @@ function updateTilt(clientX, clientY) {
   const py = (clientY - rect.top) / rect.height;
   const dx = (px - 0.5) * 2;
   const dy = (py - 0.5) * 2;
-  tilt.value = {
+  pendingTilt = {
     rx: -dy * MAX_TILT,
     ry: dx * MAX_TILT,
     mx: px * 100,
     my: py * 100,
   };
+  if (!rafId) rafId = requestAnimationFrame(applyTilt);
 }
 
 function onMouseMove(e) {
@@ -119,9 +131,6 @@ const shineStyle = computed(() => {
       transparent 50%
     )`,
     opacity: isTilting.value ? 1 : 0,
-    transition: isTilting.value
-      ? 'opacity 0.15s linear'
-      : `opacity ${RETURN_MS}ms ease`,
   };
 });
 
@@ -133,9 +142,7 @@ onMounted(async () => {
 
   const allOwners = Object.keys(accounts.byOwner || {});
   for (const owner of allOwners) {
-    if (owner !== userName.value) {
-      auth.loadPeerProfile(owner);
-    }
+    if (owner !== userName.value) auth.loadPeerProfile(owner);
   }
 });
 
@@ -160,33 +167,12 @@ watch(expandedOwners, (val) => {
     >
       <div class="dc-bg" aria-hidden="true">
         <div class="dc-bg-photo">
-          <template v-if="myAvatar">
-            <img :src="myAvatar" alt="" class="dc-photo-layer dc-photo-base" />
-            <img :src="myAvatar" alt="" class="dc-photo-layer dc-photo-r" />
-            <img :src="myAvatar" alt="" class="dc-photo-layer dc-photo-g" />
-            <img :src="myAvatar" alt="" class="dc-photo-layer dc-photo-b" />
-            <img :src="myAvatar" alt="" class="dc-photo-layer dc-photo-bw" />
-
-            <div class="dc-glitch-blocks">
-              <span class="gblock gblock-1"></span>
-              <span class="gblock gblock-2"></span>
-              <span class="gblock gblock-3"></span>
-              <span class="gblock gblock-4"></span>
-              <span class="gblock gblock-5"></span>
-            </div>
-
-            <div class="dc-glitch-code">
-              <span>10110</span>
-              <span>11001</span>
-              <span>01101</span>
-            </div>
-
-            <div class="dc-glitch-bars">
-              <span class="gbar gbar-1"></span>
-              <span class="gbar gbar-2"></span>
-              <span class="gbar gbar-3"></span>
-            </div>
-          </template>
+          <!-- ✅ ОДИН слой + CSS-фильтры вместо 4-х img -->
+          <div
+            v-if="myAvatar"
+            class="dc-photo-glitch"
+            :style="{ backgroundImage: `url(${myAvatar})` }"
+          ></div>
           <div v-else class="dc-bg-placeholder">
             <span class="dc-bg-emoji">{{ userName === 'Сергей' ? '👨' : '👩' }}</span>
           </div>
@@ -196,7 +182,7 @@ watch(expandedOwners, (val) => {
           <div class="dc-bg-scanlines"></div>
         </div>
 
-        <!-- ✅ RGB-расслоение на границе — вместо белой полосы -->
+        <!-- ✅ RGB-расслоение через 2 псевдоэлемента -->
         <div class="dc-bg-chroma dc-bg-chroma-cyan"></div>
         <div class="dc-bg-chroma dc-bg-chroma-magenta"></div>
 
@@ -282,11 +268,16 @@ watch(expandedOwners, (val) => {
 <style scoped lang="scss">
 .accounts-block { display: flex; flex-direction: column; gap: 12px; }
 
+/* ============================================================
+   КАРТА
+   ✅ contain: layout paint — изолирует рендеринг
+   ============================================================ */
 .debit-card {
   position: relative;
   border-radius: 22px;
   overflow: hidden;
   isolation: isolate;
+  contain: layout paint style;
 
   color: #ffffff;
   box-shadow:
@@ -300,7 +291,6 @@ watch(expandedOwners, (val) => {
   gap: 10px;
   min-height: 240px;
 
-  transform-style: preserve-3d;
   will-change: transform;
   user-select: none;
   -webkit-user-select: none;
@@ -330,427 +320,66 @@ watch(expandedOwners, (val) => {
   overflow: hidden;
 }
 
-.dc-photo-layer {
+/* ============================================================
+   ✅ ФОТО ГЛИТЧ — ОДИН слой с CSS-фильтрами + анимация
+   Вместо 4-х <img> слоёв — один div с backgroundImage
+   Экономия ~4 GPU-слоя и 4 запросов на картинку
+   ============================================================ */
+.dc-photo-glitch {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center 25%;
-  display: block;
-  will-change: transform, opacity;
-}
-
-.dc-photo-base {
+  background-size: cover;
+  background-position: center 25%;
+  background-repeat: no-repeat;
   opacity: 0.85;
   filter: saturate(0.9) contrast(1.05) brightness(0.92);
-  animation: glitchBase 8s infinite;
+  transform: translateZ(0);
+  will-change: transform, filter;
+  animation: glitchShift 6s steps(1, end) infinite;
 }
 
-.dc-photo-r {
-  mix-blend-mode: screen;
-  filter: saturate(4) hue-rotate(-25deg) contrast(1.3);
-  opacity: 0;
-  animation: glitchR 8s infinite;
-}
-
-.dc-photo-g {
-  mix-blend-mode: screen;
-  filter: saturate(4) hue-rotate(90deg) contrast(1.3);
-  opacity: 0;
-  animation: glitchG 8s infinite;
-}
-
-.dc-photo-b {
-  mix-blend-mode: screen;
-  filter: saturate(4) hue-rotate(170deg) contrast(1.3);
-  opacity: 0;
-  animation: glitchB 8s infinite;
-}
-
-.dc-photo-bw {
-  mix-blend-mode: difference;
-  filter: grayscale(1) invert(1) contrast(2);
-  opacity: 0;
-  animation: glitchBW 8s infinite;
-}
-
-@keyframes glitchBase {
-  0%, 5%, 100% { transform: translate(0, 0); }
-  6% { transform: translate(-2px, 1px); }
-  10% { transform: translate(3px, -1px); }
-  20% { transform: translate(-3px, 0); }
-  30% { transform: translate(2px, 1px); }
-  40% { transform: translate(-1px, -2px); }
-  50% { transform: translate(2px, 0); }
-  60% { transform: translate(0, 0); }
-  62% { transform: translate(-3px, 2px); }
-  65% { transform: translate(4px, -1px); }
-  68% { transform: translate(-2px, 1px); }
-  72% { transform: translate(3px, -2px); }
-  76% { transform: translate(-4px, 0); }
-  80% { transform: translate(2px, 2px); }
-  85% { transform: translate(-2px, -1px); }
-  90% { transform: translate(3px, 1px); }
-  95% { transform: translate(-1px, 0); }
-}
-
-@keyframes glitchR {
-  0%, 5%, 100% { opacity: 0; transform: translate(0, 0); }
-  6% { opacity: 1; transform: translate(-10px, -2px); }
-  7% { opacity: 1; transform: translate(8px, 1px); }
-  8% { opacity: 0.9; transform: translate(-5px, 0); }
-  9% { opacity: 0; transform: translate(0, 0); }
-  60% { opacity: 0; transform: translate(0, 0); }
-  62% { opacity: 1; transform: translate(-12px, -3px); }
-  65% { opacity: 1; transform: translate(10px, 2px); }
-  68% { opacity: 0.9; transform: translate(-7px, 0); }
-  70% { opacity: 1; transform: translate(9px, -2px); }
-  72% { opacity: 0.85; transform: translate(-11px, 3px); }
-  75% { opacity: 1; transform: translate(7px, 1px); }
-  78% { opacity: 0.7; transform: translate(-8px, -1px); }
-  82% { opacity: 1; transform: translate(10px, 2px); }
-  86% { opacity: 0.6; transform: translate(-5px, 0); }
-  90% { opacity: 0.8; transform: translate(8px, -1px); }
-  94% { opacity: 0.4; transform: translate(-4px, 1px); }
-  97% { opacity: 0; transform: translate(0, 0); }
-}
-
-@keyframes glitchG {
-  0%, 5%, 100% { opacity: 0; transform: translate(0, 0); }
-  6% { opacity: 0.9; transform: translate(6px, 2px); }
-  7% { opacity: 1; transform: translate(-7px, -1px); }
-  8% { opacity: 0; transform: translate(0, 0); }
-  60% { opacity: 0; transform: translate(0, 0); }
-  63% { opacity: 0.9; transform: translate(8px, 3px); }
-  66% { opacity: 1; transform: translate(-9px, -2px); }
-  69% { opacity: 0.8; transform: translate(6px, 1px); }
-  72% { opacity: 1; transform: translate(-7px, -2px); }
-  75% { opacity: 0.7; transform: translate(9px, 0); }
-  79% { opacity: 0.9; transform: translate(-6px, 2px); }
-  83% { opacity: 1; transform: translate(8px, -1px); }
-  87% { opacity: 0.5; transform: translate(-5px, 1px); }
-  91% { opacity: 0.8; transform: translate(7px, 0); }
-  95% { opacity: 0.3; transform: translate(-3px, 0); }
-  98% { opacity: 0; transform: translate(0, 0); }
-}
-
-@keyframes glitchB {
-  0%, 5%, 100% { opacity: 0; transform: translate(0, 0); }
-  6% { opacity: 1; transform: translate(10px, 2px); }
-  7% { opacity: 1; transform: translate(-8px, -1px); }
-  8% { opacity: 0.9; transform: translate(5px, 0); }
-  9% { opacity: 0; transform: translate(0, 0); }
-  60% { opacity: 0; transform: translate(0, 0); }
-  62% { opacity: 1; transform: translate(12px, 3px); }
-  65% { opacity: 1; transform: translate(-10px, -2px); }
-  68% { opacity: 0.9; transform: translate(7px, 0); }
-  71% { opacity: 1; transform: translate(-9px, 2px); }
-  74% { opacity: 0.85; transform: translate(11px, -3px); }
-  77% { opacity: 1; transform: translate(-7px, -1px); }
-  80% { opacity: 0.7; transform: translate(8px, 1px); }
-  84% { opacity: 1; transform: translate(-10px, -2px); }
-  88% { opacity: 0.6; transform: translate(5px, 0); }
-  92% { opacity: 0.8; transform: translate(-8px, 1px); }
-  95% { opacity: 0.4; transform: translate(4px, -1px); }
-  98% { opacity: 0; transform: translate(0, 0); }
-}
-
-@keyframes glitchBW {
-  0%, 5%, 100% { opacity: 0; transform: translate(0, 0); }
-  60% { opacity: 0; transform: translate(0, 0); }
-  65% { opacity: 0.6; transform: translate(15px, 0); }
-  70% { opacity: 0.8; transform: translate(-18px, 0); }
-  75% { opacity: 0.5; transform: translate(8px, 0); }
-  80% { opacity: 0.7; transform: translate(-10px, 0); }
-  85% { opacity: 0.4; transform: translate(12px, 0); }
-  90% { opacity: 0.6; transform: translate(-8px, 0); }
-  95% { opacity: 0; transform: translate(0, 0); }
-}
-
-.dc-glitch-blocks {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 3;
-  overflow: hidden;
-}
-
-.gblock {
-  position: absolute;
-  background: #00ffff;
-  mix-blend-mode: difference;
-  opacity: 0;
-  height: 6px;
-  border-radius: 1px;
-}
-
-.gblock-1 {
-  top: 15%; left: 0;
-  width: 40%;
-  animation: gblockMove1 8s infinite;
-}
-.gblock-2 {
-  top: 42%; left: 0;
-  width: 65%;
-  background: #ff00ff;
-  animation: gblockMove2 8s infinite;
-}
-.gblock-3 {
-  top: 58%; left: 0;
-  width: 30%;
-  background: #ff0055;
-  height: 10px;
-  animation: gblockMove3 8s infinite;
-}
-.gblock-4 {
-  top: 78%; left: 0;
-  width: 50%;
-  background: #00ff88;
-  animation: gblockMove4 8s infinite;
-}
-.gblock-5 {
-  top: 30%; left: 0;
-  width: 80%;
-  background: #ffffff;
-  height: 3px;
-  animation: gblockMove5 8s infinite;
-}
-
-@keyframes gblockMove1 {
-  0%, 5%, 100% { opacity: 0; transform: translateX(-100%); }
-  6% { opacity: 1; transform: translateX(20%); }
-  7% { opacity: 1; transform: translateX(60%); }
-  8% { opacity: 0; transform: translateX(120%); }
-  60% { opacity: 0; transform: translateX(-100%); }
-  63% { opacity: 1; transform: translateX(20%); }
-  66% { opacity: 1; transform: translateX(70%); }
-  69% { opacity: 0.8; transform: translateX(40%); }
-  72% { opacity: 1; transform: translateX(90%); }
-  76% { opacity: 0.7; transform: translateX(30%); }
-  80% { opacity: 1; transform: translateX(60%); }
-  85% { opacity: 0.5; transform: translateX(110%); }
-  90% { opacity: 0; transform: translateX(0); }
-}
-@keyframes gblockMove2 {
-  0%, 5%, 100% { opacity: 0; transform: translateX(100%); }
-  6% { opacity: 1; transform: translateX(40%); }
-  7% { opacity: 0.9; transform: translateX(10%); }
-  8% { opacity: 0; transform: translateX(-20%); }
-  60% { opacity: 0; transform: translateX(100%); }
-  62% { opacity: 1; transform: translateX(50%); }
-  65% { opacity: 1; transform: translateX(10%); }
-  68% { opacity: 0.9; transform: translateX(80%); }
-  72% { opacity: 1; transform: translateX(30%); }
-  76% { opacity: 0.7; transform: translateX(60%); }
-  81% { opacity: 0.9; transform: translateX(-10%); }
-  86% { opacity: 0.5; transform: translateX(90%); }
-  92% { opacity: 0; transform: translateX(0); }
-}
-@keyframes gblockMove3 {
-  0%, 5%, 100% { opacity: 0; transform: translateX(-30%) scaleY(1); }
-  6% { opacity: 1; transform: translateX(30%) scaleY(1.5); }
-  7% { opacity: 1; transform: translateX(80%) scaleY(1); }
-  8% { opacity: 0; transform: translateX(120%); }
-  60% { opacity: 0; transform: translateX(-30%); }
-  63% { opacity: 1; transform: translateX(40%) scaleY(1.5); }
-  66% { opacity: 1; transform: translateX(80%) scaleY(1); }
-  70% { opacity: 0.9; transform: translateX(20%) scaleY(2); }
-  74% { opacity: 1; transform: translateX(60%) scaleY(1); }
-  78% { opacity: 0.7; transform: translateX(10%) scaleY(1.8); }
-  82% { opacity: 1; transform: translateX(90%) scaleY(1); }
-  88% { opacity: 0; transform: translateX(0); }
-}
-@keyframes gblockMove4 {
-  0%, 5%, 100% { opacity: 0; transform: translateX(50%); }
-  6% { opacity: 1; transform: translateX(10%); }
-  7% { opacity: 0.9; transform: translateX(70%); }
-  8% { opacity: 0; transform: translateX(-40%); }
-  60% { opacity: 0; transform: translateX(50%); }
-  63% { opacity: 1; transform: translateX(15%); }
-  67% { opacity: 1; transform: translateX(75%); }
-  71% { opacity: 0.8; transform: translateX(30%); }
-  75% { opacity: 1; transform: translateX(85%); }
-  80% { opacity: 0.6; transform: translateX(20%); }
-  85% { opacity: 0.9; transform: translateX(60%); }
-  91% { opacity: 0; transform: translateX(0); }
-}
-@keyframes gblockMove5 {
-  0%, 5%, 100% { opacity: 0; transform: translateX(0); }
-  6% { opacity: 1; transform: translateX(-10%); }
-  7% { opacity: 0.8; transform: translateX(50%); }
-  8% { opacity: 0; transform: translateX(100%); }
-  60% { opacity: 0; transform: translateX(0); }
-  62% { opacity: 1; transform: translateX(-15%); }
-  65% { opacity: 0.9; transform: translateX(40%); }
-  68% { opacity: 1; transform: translateX(-5%); }
-  72% { opacity: 0.7; transform: translateX(70%); }
-  76% { opacity: 1; transform: translateX(20%); }
-  80% { opacity: 0.8; transform: translateX(90%); }
-  84% { opacity: 0.5; transform: translateX(10%); }
-  88% { opacity: 0; transform: translateX(0); }
-}
-
-.dc-glitch-code {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 4;
-  overflow: hidden;
-  font-family: 'Courier New', monospace;
-  font-size: 11px;
-  font-weight: 800;
-  color: #00ffff;
-  mix-blend-mode: screen;
-  text-shadow: 0 0 6px #00ffff, 0 0 12px #00ffff;
-
-  span {
-    position: absolute;
-    opacity: 0;
-    white-space: nowrap;
-    letter-spacing: 0.15em;
+/* ✅ Один keyframe на 6s — управляет всем глитчем через filter + transform */
+@keyframes glitchShift {
+  0%, 88% {
+    transform: translateZ(0) translateX(0);
+    filter: saturate(0.9) contrast(1.05) brightness(0.92) hue-rotate(0deg);
   }
 
-  span:nth-child(1) {
-    top: 22%;
-    left: 8%;
-    animation: codeFly1 8s infinite;
+  /* Пик 1 — красный оттенок */
+  89% {
+    transform: translateZ(0) translateX(-2px);
+    filter: saturate(2.5) contrast(1.2) brightness(0.95) hue-rotate(-15deg);
   }
-  span:nth-child(2) {
-    top: 52%;
-    left: 20%;
-    color: #ff00ff;
-    text-shadow: 0 0 6px #ff00ff, 0 0 12px #ff00ff;
-    animation: codeFly2 8s infinite;
+  90% {
+    transform: translateZ(0) translateX(2px);
+    filter: saturate(2.5) contrast(1.2) brightness(0.95) hue-rotate(15deg);
   }
-  span:nth-child(3) {
-    top: 72%;
-    left: 5%;
-    color: #00ff88;
-    text-shadow: 0 0 6px #00ff88, 0 0 12px #00ff88;
-    animation: codeFly3 8s infinite;
+
+  /* Пик 2 — голубой оттенок */
+  91% {
+    transform: translateZ(0) translateX(-3px);
+    filter: saturate(2.5) contrast(1.2) brightness(0.9) hue-rotate(160deg);
+  }
+  92% {
+    transform: translateZ(0) translateX(3px);
+    filter: saturate(2.5) contrast(1.2) brightness(0.9) hue-rotate(200deg);
+  }
+
+  /* Пик 3 — рывок */
+  93% {
+    transform: translateZ(0) translateX(-1px);
+    filter: saturate(3) contrast(1.3) brightness(1) hue-rotate(90deg);
+  }
+  94% {
+    transform: translateZ(0) translateX(1px);
+    filter: saturate(3) contrast(1.3) brightness(1) hue-rotate(-90deg);
+  }
+
+  95%, 100% {
+    transform: translateZ(0) translateX(0);
+    filter: saturate(0.9) contrast(1.05) brightness(0.92) hue-rotate(0deg);
   }
 }
-
-@keyframes codeFly1 {
-  0%, 5%, 100% { opacity: 0; transform: translateY(20px); }
-  6% { opacity: 1; transform: translateY(0); }
-  7% { opacity: 1; transform: translateY(-6px); }
-  8% { opacity: 0; transform: translateY(-30px); }
-  60% { opacity: 0; transform: translateY(20px); }
-  63% { opacity: 1; transform: translateY(0); }
-  68% { opacity: 1; transform: translateY(-10px); }
-  74% { opacity: 0.9; transform: translateY(-25px); }
-  80% { opacity: 0.7; transform: translateY(-40px); }
-  86% { opacity: 0; transform: translateY(-60px); }
-}
-@keyframes codeFly2 {
-  0%, 5%, 100% { opacity: 0; transform: translateY(15px); }
-  6% { opacity: 0.9; transform: translateY(-2px); }
-  7% { opacity: 0; transform: translateY(-25px); }
-  60% { opacity: 0; transform: translateY(15px); }
-  63% { opacity: 0.9; transform: translateY(0); }
-  67% { opacity: 1; transform: translateY(-12px); }
-  72% { opacity: 0.9; transform: translateY(-28px); }
-  78% { opacity: 0.7; transform: translateY(-45px); }
-  84% { opacity: 0; transform: translateY(-65px); }
-}
-@keyframes codeFly3 {
-  0%, 5%, 100% { opacity: 0; transform: translateY(10px); }
-  6% { opacity: 1; transform: translateY(-3px); }
-  7% { opacity: 0; transform: translateY(-28px); }
-  60% { opacity: 0; transform: translateY(10px); }
-  63% { opacity: 1; transform: translateY(-5px); }
-  68% { opacity: 0.9; transform: translateY(-15px); }
-  73% { opacity: 0.9; transform: translateY(-30px); }
-  79% { opacity: 0.6; transform: translateY(-48px); }
-  85% { opacity: 0; transform: translateY(-70px); }
-}
-
-.dc-glitch-bars {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 5;
-  overflow: hidden;
-}
-
-.gbar {
-  position: absolute;
-  left: 0;
-  right: 0;
-  height: 2px;
-  opacity: 0;
-}
-
-.gbar-1 {
-  background: #00ffff;
-  box-shadow: 0 0 8px #00ffff, 0 0 16px #00ffff;
-  animation: gbarMove1 8s infinite;
-}
-.gbar-2 {
-  background: #ff00ff;
-  box-shadow: 0 0 8px #ff00ff, 0 0 16px #ff00ff;
-  animation: gbarMove2 8s infinite;
-}
-.gbar-3 {
-  background: #ffffff;
-  box-shadow: 0 0 10px #ffffff;
-  height: 4px;
-  animation: gbarMove3 8s infinite;
-}
-
-@keyframes gbarMove1 {
-  0%, 5%, 100% { top: 30%; opacity: 0; transform: scaleX(1); }
-  6% { opacity: 1; transform: scaleX(1.1); }
-  7% { top: 32%; opacity: 1; transform: scaleX(1.4); }
-  8% { top: 34%; opacity: 0; }
-  60% { top: 20%; opacity: 0; transform: scaleX(1); }
-  63% { opacity: 1; transform: scaleX(1.2); }
-  66% { top: 30%; opacity: 1; transform: scaleX(1.5); }
-  70% { top: 40%; opacity: 0.9; transform: scaleX(1); }
-  74% { top: 50%; opacity: 1; transform: scaleX(1.3); }
-  78% { top: 60%; opacity: 0.8; transform: scaleX(1); }
-  83% { top: 70%; opacity: 0.6; transform: scaleX(1.1); }
-  88% { top: 80%; opacity: 0; transform: scaleX(1); }
-}
-@keyframes gbarMove2 {
-  0%, 5%, 100% { top: 60%; opacity: 0; transform: scaleX(1); }
-  6% { opacity: 1; transform: scaleX(1.2); }
-  7% { top: 62%; opacity: 1; }
-  8% { opacity: 0; }
-  60% { top: 80%; opacity: 0; transform: scaleX(1); }
-  63% { opacity: 1; transform: scaleX(1.3); }
-  66% { top: 75%; opacity: 1; }
-  71% { top: 65%; opacity: 0.9; transform: scaleX(1); }
-  76% { top: 55%; opacity: 1; }
-  81% { top: 45%; opacity: 0.7; }
-  86% { top: 35%; opacity: 0.5; }
-  90% { top: 25%; opacity: 0; }
-}
-@keyframes gbarMove3 {
-  0%, 5%, 100% { top: 45%; opacity: 0; }
-  6% { opacity: 1; }
-  7% { top: 50%; opacity: 1; }
-  8% { top: 60%; opacity: 0; }
-  60% { top: 10%; opacity: 0; }
-  62% { top: 15%; opacity: 1; }
-  66% { top: 25%; opacity: 1; }
-  70% { top: 40%; opacity: 0.9; }
-  75% { top: 55%; opacity: 1; }
-  80% { top: 70%; opacity: 0.8; }
-  85% { top: 85%; opacity: 0.6; }
-  90% { top: 100%; opacity: 0; }
-}
-
-.debit-card:hover .dc-photo-base { animation-duration: 4s; }
-.debit-card:hover .dc-photo-r,
-.debit-card:hover .dc-photo-g,
-.debit-card:hover .dc-photo-b,
-.debit-card:hover .dc-photo-bw { animation-duration: 4s; }
-.debit-card:hover .gblock { animation-duration: 4s; }
-.debit-card:hover .gbar { animation-duration: 4s; }
-.debit-card:hover .dc-glitch-code span { animation-duration: 4s; }
 
 .dc-bg-placeholder {
   width: 100%;
@@ -778,8 +407,7 @@ watch(expandedOwners, (val) => {
     rgba(0, 0, 0, 0.1) 2px,
     rgba(0, 0, 0, 0.1) 3px
   );
-  mix-blend-mode: multiply;
-  opacity: 0.7;
+  opacity: 0.6;
   z-index: 6;
 }
 
@@ -787,15 +415,13 @@ watch(expandedOwners, (val) => {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background:
-    repeating-linear-gradient(
-      -35deg,
-      rgba(255, 255, 255, 0) 0px,
-      rgba(255, 255, 255, 0) 12px,
-      rgba(255, 255, 255, 0.12) 12px,
-      rgba(255, 255, 255, 0.12) 14px
-    );
-  mix-blend-mode: overlay;
+  background: repeating-linear-gradient(
+    -35deg,
+    rgba(255, 255, 255, 0) 0px,
+    rgba(255, 255, 255, 0) 12px,
+    rgba(255, 255, 255, 0.12) 12px,
+    rgba(255, 255, 255, 0.12) 14px
+  );
   opacity: 0.85;
   z-index: 7;
 }
@@ -822,8 +448,7 @@ watch(expandedOwners, (val) => {
 }
 
 /* ============================================================
-   ✅ RGB-РАССЛОЕНИЕ НА ГРАНИЦЕ (chromatic aberration)
-   Cyan и Magenta полосы по обе стороны среза фиолета
+   ✅ RGB-РАССЛОЕНИЕ — 2 псевдослоя, простые
    ============================================================ */
 .dc-bg-chroma {
   position: absolute;
@@ -832,84 +457,42 @@ watch(expandedOwners, (val) => {
   bottom: 0;
   pointer-events: none;
   mix-blend-mode: screen;
-  opacity: 0.85;
-  filter: blur(1.2px);
-  will-change: transform, opacity;
+  opacity: 0.6;
+  will-change: opacity;
 }
 
-/* ✅ Cyan — сдвинут влево */
 .dc-bg-chroma-cyan {
   width: 70%;
   background: linear-gradient(
     180deg,
-    rgba(0, 255, 255, 0.75) 0%,
-    rgba(0, 255, 255, 0.5) 50%,
-    rgba(0, 255, 255, 0.75) 100%
+    rgba(0, 255, 255, 0.7) 0%,
+    rgba(0, 255, 255, 0.4) 50%,
+    rgba(0, 255, 255, 0.7) 100%
   );
-  clip-path: polygon(
-    21% 0%,
-    23% 0%,
-    9% 100%,
-    7% 100%
-  );
-  transform: translateX(-3px);
-  animation: chromaCyan 3s ease-in-out infinite;
+  clip-path: polygon(21% 0%, 23% 0%, 9% 100%, 7% 100%);
+  animation: chromaPulse 3s ease-in-out infinite;
 }
 
-/* ✅ Magenta — сдвинут вправо */
 .dc-bg-chroma-magenta {
   width: 70%;
   background: linear-gradient(
     180deg,
-    rgba(255, 0, 255, 0.75) 0%,
-    rgba(255, 0, 255, 0.5) 50%,
-    rgba(255, 0, 255, 0.75) 100%
+    rgba(255, 0, 255, 0.7) 0%,
+    rgba(255, 0, 255, 0.4) 50%,
+    rgba(255, 0, 255, 0.7) 100%
   );
-  clip-path: polygon(
-    22% 0%,
-    24% 0%,
-    10% 100%,
-    8% 100%
-  );
-  transform: translateX(3px);
-  animation: chromaMagenta 3s ease-in-out infinite;
+  clip-path: polygon(22% 0%, 24% 0%, 10% 100%, 8% 100%);
+  animation: chromaPulse 3s ease-in-out infinite 0.15s;
 }
 
-/* ✅ Пульсация RGB */
-@keyframes chromaCyan {
-  0%, 100% {
-    transform: translateX(-3px);
-    opacity: 0.7;
-  }
-  50% {
-    transform: translateX(-5px);
-    opacity: 1;
-  }
-}
-
-@keyframes chromaMagenta {
-  0%, 100% {
-    transform: translateX(3px);
-    opacity: 0.7;
-  }
-  50% {
-    transform: translateX(5px);
-    opacity: 1;
-  }
-}
-
-/* ✅ При наведении усиление */
-.debit-card:hover .dc-bg-chroma-cyan {
-  animation-duration: 1.5s;
-  transform: translateX(-6px);
-}
-.debit-card:hover .dc-bg-chroma-magenta {
-  animation-duration: 1.5s;
-  transform: translateX(6px);
+/* ✅ Только opacity — GPU-friendly */
+@keyframes chromaPulse {
+  0%, 100% { opacity: 0.4; }
+  50%      { opacity: 0.8; }
 }
 
 /* ============================================================
-   Фиолетовая часть
+   ФИОЛЕТОВАЯ ЧАСТЬ
    ============================================================ */
 .dc-bg-solid {
   position: absolute;
@@ -921,22 +504,8 @@ watch(expandedOwners, (val) => {
     radial-gradient(circle at 85% 15%, rgba(255, 255, 255, 0.15), transparent 55%),
     radial-gradient(circle at 95% 100%, rgba(255, 255, 255, 0.1), transparent 60%),
     linear-gradient(135deg, #4338ca 0%, #6366f1 30%, #8b5cf6 60%, #4f46e5 100%);
-  background-size: 100% 100%, 100% 100%, 300% 300%;
-  animation: gradientShift 14s ease-in-out infinite;
-
-  clip-path: polygon(
-    22% 0%,
-    100% 0%,
-    100% 100%,
-    8% 100%
-  );
+  clip-path: polygon(22% 0%, 100% 0%, 100% 100%, 8% 100%);
   z-index: 10;
-}
-
-@keyframes gradientShift {
-  0%   { background-position: 0% 0%, 100% 100%, 0% 50%; }
-  50%  { background-position: 0% 0%, 100% 100%, 100% 50%; }
-  100% { background-position: 0% 0%, 100% 100%, 0% 50%; }
 }
 
 .dc-bg-ribbon {
@@ -946,35 +515,23 @@ watch(expandedOwners, (val) => {
   bottom: 0;
   width: 70%;
   pointer-events: none;
-  opacity: 0.6;
+  opacity: 0.5;
   mix-blend-mode: screen;
   z-index: 11;
-
-  background:
-    linear-gradient(
-      160deg,
-      transparent 0%,
-      transparent 14.5%,
-      rgba(255, 255, 255, 0.3) 15%,
-      rgba(255, 255, 255, 0.3) 16%,
-      transparent 16.5%,
-      transparent 20%,
-      rgba(255, 255, 255, 0.18) 20.5%,
-      rgba(255, 255, 255, 0.18) 21.5%,
-      transparent 22%,
-      transparent 26%,
-      rgba(255, 255, 255, 0.12) 26.5%,
-      rgba(255, 255, 255, 0.12) 27.2%,
-      transparent 27.7%,
-      transparent 100%
-    );
-
-  clip-path: polygon(
-    22% 0%,
-    100% 0%,
-    100% 100%,
-    8% 100%
+  background: linear-gradient(
+    160deg,
+    transparent 0%,
+    transparent 14.5%,
+    rgba(255, 255, 255, 0.3) 15%,
+    rgba(255, 255, 255, 0.3) 16%,
+    transparent 16.5%,
+    transparent 20%,
+    rgba(255, 255, 255, 0.18) 20.5%,
+    rgba(255, 255, 255, 0.18) 21.5%,
+    transparent 22%,
+    transparent 100%
   );
+  clip-path: polygon(22% 0%, 100% 0%, 100% 100%, 8% 100%);
 }
 
 .dc-shine-cursor {
@@ -983,22 +540,16 @@ watch(expandedOwners, (val) => {
   pointer-events: none;
   z-index: 12;
   mix-blend-mode: overlay;
+  transition: opacity 0.15s linear;
 }
 
 .dc-gloss {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(ellipse 60% 40% at 20% 10%, rgba(255, 255, 255, 0.25), transparent 60%),
-    radial-gradient(ellipse 50% 30% at 90% 100%, rgba(139, 92, 246, 0.4), transparent 60%);
-  animation: glossRotate 12s ease-in-out infinite;
+  background: radial-gradient(ellipse 60% 40% at 20% 10%, rgba(255, 255, 255, 0.25), transparent 60%);
   pointer-events: none;
   z-index: 12;
   mix-blend-mode: overlay;
-}
-@keyframes glossRotate {
-  0%, 100% { background-position: 0% 0%, 100% 100%; opacity: 0.9; }
-  50%      { background-position: 100% 100%, 0% 0%; opacity: 1; }
 }
 
 .dc-pattern {
@@ -1007,7 +558,6 @@ watch(expandedOwners, (val) => {
   background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.035) 0 2px, transparent 2px 8px);
   pointer-events: none;
   z-index: 13;
-  mix-blend-mode: overlay;
 }
 
 .dc-watermark {
@@ -1033,6 +583,9 @@ watch(expandedOwners, (val) => {
   z-index: 14;
 }
 
+/* ============================================================
+   КОНТЕНТ
+   ============================================================ */
 .dc-top {
   position: relative;
   z-index: 15;
@@ -1119,17 +672,15 @@ watch(expandedOwners, (val) => {
   padding: 4px 8px 4px 4px;
   border: 1px solid rgba(255, 255, 255, 0.3);
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.15);
   color: #ffffff;
   font-family: inherit;
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
   flex-shrink: 0;
-  transition: all 0.15s;
+  transition: transform 0.15s, background 0.15s;
   white-space: nowrap;
-  backdrop-filter: blur(10px) saturate(140%);
-  -webkit-backdrop-filter: blur(10px) saturate(140%);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55);
 
   &:hover { background: rgba(255, 255, 255, 0.25); transform: translateY(-1px); }
@@ -1180,11 +731,6 @@ watch(expandedOwners, (val) => {
   flex: 1;
   min-width: 0;
   justify-content: flex-end;
-  animation: chipsIn 0.25s ease;
-}
-@keyframes chipsIn {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: translateY(0); }
 }
 
 .dc-chip {
@@ -1194,19 +740,17 @@ watch(expandedOwners, (val) => {
   padding: 4px 10px 4px 4px;
   border-radius: 999px;
   border: 1px solid rgba(255, 255, 255, 0.35);
-  background: rgba(255, 255, 255, 0.16);
+  background: rgba(255, 255, 255, 0.18);
   color: #ffffff;
   font-family: inherit;
   font-size: 11.5px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: transform 0.15s, background 0.15s;
   white-space: nowrap;
-  backdrop-filter: blur(12px) saturate(140%);
-  -webkit-backdrop-filter: blur(12px) saturate(140%);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 
-  &:hover { background: rgba(255, 255, 255, 0.3); transform: translateY(-1px); }
+  &:hover { background: rgba(255, 255, 255, 0.3); }
   &:active { transform: scale(0.96); }
 }
 
@@ -1242,7 +786,7 @@ watch(expandedOwners, (val) => {
   margin-left: auto;
   padding: 3px 10px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.85);
+  background: rgba(255, 255, 255, 0.9);
   color: #4f46e5;
   font-family: var(--mono);
   font-size: 11.5px;
@@ -1251,25 +795,21 @@ watch(expandedOwners, (val) => {
   white-space: nowrap;
   flex-shrink: 0;
   box-shadow: 0 4px 10px -4px rgba(0, 0, 0, 0.35);
-  animation: chipsIn 0.25s ease;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
 }
 
+/* ============================================================
+   МОБИЛЬНЫЙ — то же самое, но чуть меньше размеры
+   Анимации сохранены (как на ПК)
+   ============================================================ */
 @media (max-width: 700px) {
   .debit-card { padding: 14px 16px 12px; border-radius: 20px; gap: 8px; min-height: 200px; }
+
   .dc-bg { inset: -14px -16px -12px; }
+
   .dc-bg-photo { width: 52%; }
   .dc-bg-solid { width: 68%; }
   .dc-bg-ribbon { width: 68%; }
   .dc-bg-emoji { font-size: 64px; }
-
-  /* На мобилке — уменьшенные RGB-полосы */
-  .dc-bg-chroma-cyan,
-  .dc-bg-chroma-magenta {
-    filter: blur(1.5px);
-    opacity: 0.6;
-  }
 
   .dc-issuer-name { font-size: 10.5px; letter-spacing: 0.12em; }
   .dc-issuer-sub { font-size: 8.5px; }
@@ -1290,18 +830,6 @@ watch(expandedOwners, (val) => {
   .dc-chip-value { font-size: 11px; }
   .dc-owner-total { font-size: 11px; padding: 2px 9px; }
   .dc-watermark { font-size: 110px; bottom: -24px; right: -8px; }
-
-  .dc-photo-base,
-  .dc-photo-r,
-  .dc-photo-g,
-  .dc-photo-b,
-  .dc-photo-bw,
-  .gblock,
-  .gbar,
-  .dc-glitch-code span { animation-duration: 12s; }
-
-  .gblock-2,
-  .gblock-4 { display: none; }
 }
 
 @media (max-width: 380px) {
@@ -1313,33 +841,17 @@ watch(expandedOwners, (val) => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dc-bg-solid,
-  .dc-gloss {
-    animation: none !important;
-  }
-  .dc-photo-base,
-  .dc-photo-r,
-  .dc-photo-g,
-  .dc-photo-b,
-  .dc-photo-bw,
-  .gblock,
-  .gbar,
-  .dc-glitch-code span,
+  .dc-photo-glitch,
   .dc-bg-chroma-cyan,
   .dc-bg-chroma-magenta {
     animation: none !important;
   }
-  .dc-photo-r,
-  .dc-photo-g,
-  .dc-photo-b,
-  .dc-photo-bw,
-  .gblock,
-  .gbar,
-  .dc-glitch-code span {
-    opacity: 0 !important;
+  .dc-photo-glitch {
+    filter: saturate(0.9) contrast(1.05) brightness(0.92) !important;
   }
-  .dc-photo-base { opacity: 0.85 !important; }
-  .dc-bg-chroma-cyan { transform: translateX(-3px) !important; opacity: 0.7 !important; }
-  .dc-bg-chroma-magenta { transform: translateX(3px) !important; opacity: 0.7 !important; }
+  .dc-bg-chroma-cyan,
+  .dc-bg-chroma-magenta {
+    opacity: 0.6 !important;
+  }
 }
 </style>
