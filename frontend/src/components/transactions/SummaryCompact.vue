@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, watch, toRef } from 'vue';
+import { ref, computed, onMounted, watch } from 'vue';
 import { useTransactionsStore } from '@/stores/transactions';
 import { useAuthStore } from '@/stores/auth';
 import { fmt } from '@/composables/useFormat';
@@ -20,7 +20,6 @@ onMounted(() => {
     const saved = localStorage.getItem(LS_KEY);
     if (saved !== null) collapsed.value = saved === '1';
   } catch (e) {}
-  animateAll();
 });
 
 watch(collapsed, (val) => {
@@ -29,49 +28,13 @@ watch(collapsed, (val) => {
 
 function toggle() { collapsed.value = !collapsed.value; }
 
-// ============================================================
-// ✅ Счётчик баланса (roll-up)
-// ============================================================
-function useCounter(targetRef, duration = 800) {
-  const display = ref(0);
-  let raf = null;
-  let from = 0;
-  let startTs = 0;
-
-  function tick(ts) {
-    if (!startTs) startTs = ts;
-    const t = Math.min(1, (ts - startTs) / duration);
-    const eased = 1 - Math.pow(1 - t, 3);
-    display.value = Math.round(from + (targetRef.value - from) * eased);
-    if (t < 1) raf = requestAnimationFrame(tick);
-  }
-
-  function run(newFrom = null) {
-    if (raf) cancelAnimationFrame(raf);
-    from = newFrom !== null ? newFrom : display.value;
-    startTs = 0;
-    raf = requestAnimationFrame(tick);
-  }
-
-  return { display, run };
-}
-
-const incomeCounter = useCounter(toRef(tx.summary, 'income'));
-const expenseCounter = useCounter(toRef(tx.summary, 'expense'));
-const balanceCounter = useCounter(toRef(tx.summary, 'balance'));
-
-function animateAll() {
-  incomeCounter.run(0);
-  expenseCounter.run(0);
-  balanceCounter.run(0);
-}
-
-watch(() => tx.summary.income, (v) => incomeCounter.run());
-watch(() => tx.summary.expense, (v) => expenseCounter.run());
-watch(() => tx.summary.balance, (v) => balanceCounter.run());
+// ✅ Прямые значения из стора (без анимации-счётчика)
+const income = computed(() => Number(tx.summary?.income) || 0);
+const expense = computed(() => Number(tx.summary?.expense) || 0);
+const balance = computed(() => Number(tx.summary?.balance) || 0);
 
 const balanceClass = computed(() => {
-  const b = tx.summary.balance;
+  const b = balance.value;
   return b > 0 ? 'positive' : b < 0 ? 'negative' : '';
 });
 </script>
@@ -81,21 +44,19 @@ const balanceClass = computed(() => {
     <div class="sc-top">
       <div class="sc-item">
         <span class="sc-icon">📈</span>
-        <span class="sc-value income">{{ fmt(incomeCounter.display.value) }} ₽</span>
+        <span class="sc-value income">{{ fmt(income) }} ₽</span>
         <span class="sc-label">доходы</span>
       </div>
       <div class="sc-divider"></div>
       <div class="sc-item">
         <span class="sc-icon">📉</span>
-        <span class="sc-value expense">{{ fmt(expenseCounter.display.value) }} ₽</span>
+        <span class="sc-value expense">{{ fmt(expense) }} ₽</span>
         <span class="sc-label">расходы</span>
       </div>
       <div class="sc-divider"></div>
       <div class="sc-item">
         <span class="sc-icon">💰</span>
-        <span class="sc-value" :class="balanceClass">
-          {{ fmt(balanceCounter.display.value) }} ₽
-        </span>
+        <span class="sc-value" :class="balanceClass">{{ fmt(balance) }} ₽</span>
         <span class="sc-label">баланс</span>
       </div>
     </div>
@@ -118,7 +79,6 @@ const balanceClass = computed(() => {
         :class="user === 'Сергей' ? 'sergey' : 'sasha'"
       >
         <span class="sc-user-avatar">{{ user === 'Сергей' ? '👨' : '👩' }}</span>
-        <!-- ✅ Отображаем displayName для текущего пользователя -->
         <span class="sc-user-name">{{ displayUser(user) }}</span>
         <span class="sc-user-details">
           <span class="sc-user-inc">+{{ fmt(data.income) }} ₽</span>
