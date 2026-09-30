@@ -100,8 +100,10 @@ defineProps({
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;   /* ✅ стандартное свойство для новых браузеров */
+  overflow: hidden; /* ✅ обязательно для работы line-clamp */
 }
 
 @media (max-width: 700px) {

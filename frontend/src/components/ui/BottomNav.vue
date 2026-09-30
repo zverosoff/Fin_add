@@ -17,9 +17,6 @@ const LOADING_MS = 2500;
 const SUCCESS_MS = 1500;
 const fabPhase = ref('loading');
 
-// ✅ Летящая иконка при переходе
-const flyingIcon = ref(null);   // { icon, startX, startY, endX, endY }
-
 onMounted(() => {
   setTimeout(() => {
     fabPhase.value = 'success';
@@ -106,25 +103,6 @@ function hasDot(item) {
 
 function go(item) {
   if (route.path === item.to) return;
-
-  const el = tabRefs.value[item.to];
-  if (el) {
-    const rect = el.getBoundingClientRect();
-    const startX = rect.left + rect.width / 2;
-    const startY = rect.top + rect.height / 2;
-    const endX = window.innerWidth / 2;
-    const endY = 100;
-
-    flyingIcon.value = {
-      icon: item.icon,
-      startX,
-      startY,
-      endX,
-      endY,
-    };
-    setTimeout(() => { flyingIcon.value = null; }, 620);
-  }
-
   router.push(item.to);
 }
 
@@ -197,20 +175,6 @@ function handleFabClick() {
         <span class="bn-label">{{ item.label }}</span>
       </button>
     </div>
-
-    <!-- ✅ Летящая иконка при переходе -->
-    <Teleport to="body">
-      <div
-        v-if="flyingIcon"
-        class="bn-flying-icon"
-        :style="{
-          '--start-x': flyingIcon.startX + 'px',
-          '--start-y': flyingIcon.startY + 'px',
-          '--end-x': flyingIcon.endX + 'px',
-          '--end-y': flyingIcon.endY + 'px',
-        }"
-      >{{ flyingIcon.icon }}</div>
-    </Teleport>
   </nav>
 </template>
 
@@ -322,7 +286,7 @@ function handleFabClick() {
   transition: color 0.25s;
 }
 
-/* ✅ Пульсирующая точка */
+/* Пульсирующая точка */
 .bn-dot {
   position: absolute;
   top: -4px;
@@ -448,51 +412,6 @@ function handleFabClick() {
   to   { stroke-dasharray: 30; stroke-dashoffset: 0; }
 }
 
-/* ✅ Летящая иконка при переходе */
-.bn-flying-icon {
-  position: fixed;
-  left: 0;
-  top: 0;
-  font-size: 26px;
-  line-height: 1;
-  pointer-events: none;
-  z-index: 9999;
-  transform: translate(-50%, -50%) translate(var(--start-x), var(--start-y)) scale(1);
-  animation: iconFlyUp 0.62s cubic-bezier(.4,0,.2,1) forwards;
-  filter: drop-shadow(0 6px 20px rgba(99, 102, 241, 0.6));
-  will-change: transform, opacity;
-}
-
-@keyframes iconFlyUp {
-  0% {
-    transform:
-      translate(-50%, -50%)
-      translate(var(--start-x), var(--start-y))
-      scale(0.85);
-    opacity: 0;
-  }
-  10% {
-    opacity: 1;
-  }
-  55% {
-    transform:
-      translate(-50%, -50%)
-      translate(var(--start-x), var(--start-y))
-      translateY(-40px)
-      scale(1.25);
-    opacity: 1;
-    filter: drop-shadow(0 10px 30px rgba(99, 102, 241, 0.85));
-  }
-  100% {
-    transform:
-      translate(-50%, -50%)
-      translate(var(--end-x), var(--end-y))
-      scale(0.4);
-    opacity: 0;
-    filter: drop-shadow(0 4px 12px rgba(99, 102, 241, 0.4));
-  }
-}
-
 /* Desktop */
 @media (min-width: 701px) {
   .bottom-nav { max-width: 640px; padding: 0 24px 24px; }
@@ -546,7 +465,6 @@ function handleFabClick() {
 @media (prefers-reduced-motion: reduce) {
   .bn-indicator,
   .bn-fab,
-  .bn-flying-icon,
   .bn-dot { animation: none !important; transition: none !important; }
 }
 </style>
