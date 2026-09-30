@@ -51,7 +51,6 @@ function bankLogo(id) {
 }
 function isMe(owner) { return owner === userName.value; }
 
-// ✅ Аватар главного фото — свой
 const myAvatar = computed(() => auth.avatarFor(userName.value));
 
 // ============================================================
@@ -135,7 +134,6 @@ onMounted(async () => {
     if (saved) expandedOwners.value = JSON.parse(saved) || {};
   } catch (e) {}
 
-  // ✅ Загружаем профили других пользователей (все, кроме текущего)
   const allOwners = Object.keys(accounts.byOwner || {});
   for (const owner of allOwners) {
     if (owner !== userName.value) {
@@ -163,14 +161,40 @@ watch(expandedOwners, (val) => {
       @touchend="onTouchEnd"
       @touchcancel="onTouchEnd"
     >
-      <!-- Фон -->
       <div class="dc-bg" aria-hidden="true">
         <div class="dc-bg-photo">
           <template v-if="myAvatar">
-            <!-- ✅ Глитч-слои — красный и голубой -->
-            <img :src="myAvatar" alt="" class="dc-photo-layer dc-photo-r" />
-            <img :src="myAvatar" alt="" class="dc-photo-layer dc-photo-b" />
+            <!-- ✅ Основное фото -->
             <img :src="myAvatar" alt="" class="dc-photo-layer dc-photo-base" />
+
+            <!-- ✅ Киберпанк-глитч: 4 слоя RGB + сдвиг -->
+            <img :src="myAvatar" alt="" class="dc-photo-layer dc-photo-r" />
+            <img :src="myAvatar" alt="" class="dc-photo-layer dc-photo-g" />
+            <img :src="myAvatar" alt="" class="dc-photo-layer dc-photo-b" />
+            <img :src="myAvatar" alt="" class="dc-photo-layer dc-photo-bw" />
+
+            <!-- ✅ Цифровые артефакты (летающие блоки) -->
+            <div class="dc-glitch-blocks">
+              <span class="gblock gblock-1"></span>
+              <span class="gblock gblock-2"></span>
+              <span class="gblock gblock-3"></span>
+              <span class="gblock gblock-4"></span>
+              <span class="gblock gblock-5"></span>
+            </div>
+
+            <!-- ✅ Летающие «струны» кода -->
+            <div class="dc-glitch-code">
+              <span>10110</span>
+              <span>11001</span>
+              <span>01101</span>
+            </div>
+
+            <!-- ✅ Яркие горизонтальные полосы -->
+            <div class="dc-glitch-bars">
+              <span class="gbar gbar-1"></span>
+              <span class="gbar gbar-2"></span>
+              <span class="gbar gbar-3"></span>
+            </div>
           </template>
           <div v-else class="dc-bg-placeholder">
             <span class="dc-bg-emoji">{{ userName === 'Сергей' ? '👨' : '👩' }}</span>
@@ -179,8 +203,6 @@ watch(expandedOwners, (val) => {
           <div class="dc-bg-stripes"></div>
           <div class="dc-bg-photo-shade"></div>
           <div class="dc-bg-scanlines"></div>
-
-          <!-- ✅ Розовая полоса под углом скоса -->
           <div class="dc-bg-divider"></div>
         </div>
 
@@ -219,7 +241,6 @@ watch(expandedOwners, (val) => {
             type="button"
             @click="toggleOwner(owner)"
           >
-            <!-- ✅ Аватар владельца (свой или чужой) -->
             <img
               v-if="ownerAvatar(owner)"
               :src="ownerAvatar(owner)"
@@ -306,7 +327,6 @@ watch(expandedOwners, (val) => {
   overflow: hidden;
 }
 
-/* ✅ Левая часть — фото */
 .dc-bg-photo {
   position: absolute;
   top: 0;
@@ -325,49 +345,321 @@ watch(expandedOwners, (val) => {
   object-fit: cover;
   object-position: center 25%;
   display: block;
+  will-change: transform, opacity;
 }
 
 /* Основной слой */
 .dc-photo-base {
   opacity: 0.85;
   filter: saturate(0.9) contrast(1.05) brightness(0.92);
+  animation: glitchBase 6s infinite;
 }
 
-/* Красный канал (для глитча) */
+/* Красный канал — сильно смещается вправо/влево */
 .dc-photo-r {
-  opacity: 0;
   mix-blend-mode: screen;
-  filter: saturate(3) hue-rotate(-20deg) contrast(1.2);
-  animation: glitchR 7s infinite;
-  pointer-events: none;
+  filter: saturate(4) hue-rotate(-25deg) contrast(1.3);
+  opacity: 0;
+  animation: glitchR 6s infinite;
+}
+
+/* Зелёный канал */
+.dc-photo-g {
+  mix-blend-mode: screen;
+  filter: saturate(4) hue-rotate(90deg) contrast(1.3);
+  opacity: 0;
+  animation: glitchG 6s infinite;
 }
 
 /* Голубой канал */
 .dc-photo-b {
-  opacity: 0;
   mix-blend-mode: screen;
-  filter: saturate(3) hue-rotate(160deg) contrast(1.2);
-  animation: glitchB 7s infinite;
-  pointer-events: none;
+  filter: saturate(4) hue-rotate(170deg) contrast(1.3);
+  opacity: 0;
+  animation: glitchB 6s infinite;
 }
 
+/* Чёрно-белый инвертированный слой */
+.dc-photo-bw {
+  mix-blend-mode: difference;
+  filter: grayscale(1) invert(1) contrast(2);
+  opacity: 0;
+  animation: glitchBW 6s infinite;
+}
+
+/* ✅ Базовое фото слегка "дёргается" */
+@keyframes glitchBase {
+  0%, 88%, 100% { transform: translate(0, 0); }
+  89% { transform: translate(-2px, 1px); }
+  90% { transform: translate(3px, -1px); }
+  91% { transform: translate(-3px, 0); }
+  92% { transform: translate(2px, 1px); }
+  93% { transform: translate(-1px, -2px); }
+  94% { transform: translate(0, 0); }
+}
+
+/* ✅ Красный канал — рвётся в стороны */
 @keyframes glitchR {
-  0%, 92%, 100% { opacity: 0; transform: translate(0, 0); }
-  93% { opacity: 0.7; transform: translate(-3px, -1px); }
-  94% { opacity: 0.8; transform: translate(3px, 1px); }
-  95% { opacity: 0; }
-  96% { opacity: 0.65; transform: translate(-2px, 0); }
-  97% { opacity: 0; }
+  0%, 88%, 100% { opacity: 0; transform: translate(0, 0); }
+  89% { opacity: 1; transform: translate(-8px, -2px); }
+  90% { opacity: 1; transform: translate(6px, 1px); }
+  91% { opacity: 0.9; transform: translate(-4px, 0); }
+  92% { opacity: 1; transform: translate(5px, -1px); }
+  93% { opacity: 0.7; transform: translate(-6px, 2px); }
+  94% { opacity: 0; transform: translate(0, 0); }
 }
 
-@keyframes glitchB {
-  0%, 92%, 100% { opacity: 0; transform: translate(0, 0); }
-  93% { opacity: 0.7; transform: translate(3px, 1px); }
-  94% { opacity: 0.8; transform: translate(-3px, -1px); }
-  95% { opacity: 0; }
-  96% { opacity: 0.65; transform: translate(2px, 0); }
-  97% { opacity: 0; }
+/* ✅ Зелёный канал */
+@keyframes glitchG {
+  0%, 88%, 100% { opacity: 0; transform: translate(0, 0); }
+  89% { opacity: 0.9; transform: translate(4px, 2px); }
+  90% { opacity: 1; transform: translate(-5px, -1px); }
+  91% { opacity: 0.8; transform: translate(3px, 1px); }
+  92% { opacity: 1; transform: translate(-3px, -2px); }
+  93% { opacity: 0.6; transform: translate(4px, 0); }
+  94% { opacity: 0; transform: translate(0, 0); }
 }
+
+/* ✅ Голубой канал */
+@keyframes glitchB {
+  0%, 88%, 100% { opacity: 0; transform: translate(0, 0); }
+  89% { opacity: 1; transform: translate(8px, 2px); }
+  90% { opacity: 1; transform: translate(-6px, -1px); }
+  91% { opacity: 0.9; transform: translate(4px, 0); }
+  92% { opacity: 1; transform: translate(-5px, 1px); }
+  93% { opacity: 0.7; transform: translate(6px, -2px); }
+  94% { opacity: 0; transform: translate(0, 0); }
+}
+
+/* ✅ Чёрно-белый инвертированный */
+@keyframes glitchBW {
+  0%, 88%, 100% { opacity: 0; transform: translate(0, 0); }
+  89% { opacity: 0.5; transform: translate(12px, 0); }
+  90% { opacity: 0.7; transform: translate(-14px, 0); }
+  91% { opacity: 0.4; transform: translate(6px, 0); }
+  92% { opacity: 0.6; transform: translate(-8px, 0); }
+  93% { opacity: 0; transform: translate(0, 0); }
+}
+
+/* ============================================================
+   ✅ ЦИФРОВЫЕ АРТЕФАКТЫ — летающие блоки
+   ============================================================ */
+.dc-glitch-blocks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 3;
+  overflow: hidden;
+}
+
+.gblock {
+  position: absolute;
+  background: #00ffff;
+  mix-blend-mode: difference;
+  opacity: 0;
+  height: 6px;
+  border-radius: 1px;
+}
+
+.gblock-1 {
+  top: 15%; left: 0;
+  width: 40%;
+  animation: gblockMove1 6s infinite;
+}
+.gblock-2 {
+  top: 42%; left: 0;
+  width: 65%;
+  background: #ff00ff;
+  animation: gblockMove2 6s infinite;
+}
+.gblock-3 {
+  top: 58%; left: 0;
+  width: 30%;
+  background: #ff0055;
+  height: 10px;
+  animation: gblockMove3 6s infinite;
+}
+.gblock-4 {
+  top: 78%; left: 0;
+  width: 50%;
+  background: #00ff88;
+  animation: gblockMove4 6s infinite;
+}
+.gblock-5 {
+  top: 30%; left: 0;
+  width: 80%;
+  background: #ffffff;
+  height: 3px;
+  animation: gblockMove5 6s infinite;
+}
+
+@keyframes gblockMove1 {
+  0%, 88%, 100% { opacity: 0; transform: translateX(-100%); }
+  89% { opacity: 1; transform: translateX(20%); }
+  90% { opacity: 1; transform: translateX(60%); }
+  91% { opacity: 1; transform: translateX(30%); }
+  92% { opacity: 0.8; transform: translateX(80%); }
+  93% { opacity: 0; transform: translateX(120%); }
+}
+@keyframes gblockMove2 {
+  0%, 88%, 100% { opacity: 0; transform: translateX(100%); }
+  89% { opacity: 1; transform: translateX(40%); }
+  90% { opacity: 0.9; transform: translateX(10%); }
+  91% { opacity: 1; transform: translateX(70%); }
+  92% { opacity: 0; transform: translateX(-20%); }
+}
+@keyframes gblockMove3 {
+  0%, 88%, 100% { opacity: 0; transform: translateX(-30%) scaleY(1); }
+  89% { opacity: 1; transform: translateX(30%) scaleY(1.5); }
+  90% { opacity: 1; transform: translateX(80%) scaleY(1); }
+  91% { opacity: 0; transform: translateX(120%); }
+}
+@keyframes gblockMove4 {
+  0%, 88%, 100% { opacity: 0; transform: translateX(50%); }
+  89% { opacity: 1; transform: translateX(10%); }
+  90% { opacity: 0.9; transform: translateX(70%); }
+  91% { opacity: 0; transform: translateX(-40%); }
+}
+@keyframes gblockMove5 {
+  0%, 88%, 100% { opacity: 0; transform: translateX(0); }
+  89% { opacity: 1; transform: translateX(-10%); }
+  90% { opacity: 0.8; transform: translateX(50%); }
+  91% { opacity: 0; transform: translateX(100%); }
+}
+
+/* ============================================================
+   ✅ ЛЕТАЮЩИЕ «СТРУНЫ» КОДА
+   ============================================================ */
+.dc-glitch-code {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 4;
+  overflow: hidden;
+  font-family: 'Courier New', monospace;
+  font-size: 11px;
+  font-weight: 800;
+  color: #00ffff;
+  mix-blend-mode: screen;
+  text-shadow: 0 0 6px #00ffff, 0 0 12px #00ffff;
+
+  span {
+    position: absolute;
+    opacity: 0;
+    white-space: nowrap;
+    letter-spacing: 0.15em;
+  }
+
+  span:nth-child(1) {
+    top: 22%;
+    left: 8%;
+    animation: codeFly1 6s infinite;
+  }
+  span:nth-child(2) {
+    top: 52%;
+    left: 20%;
+    color: #ff00ff;
+    text-shadow: 0 0 6px #ff00ff, 0 0 12px #ff00ff;
+    animation: codeFly2 6s infinite;
+  }
+  span:nth-child(3) {
+    top: 72%;
+    left: 5%;
+    color: #00ff88;
+    text-shadow: 0 0 6px #00ff88, 0 0 12px #00ff88;
+    animation: codeFly3 6s infinite;
+  }
+}
+
+@keyframes codeFly1 {
+  0%, 88%, 100% { opacity: 0; transform: translateY(20px); }
+  89% { opacity: 1; transform: translateY(0); }
+  90% { opacity: 1; transform: translateY(-4px); }
+  91% { opacity: 1; transform: translateY(-10px); }
+  92% { opacity: 0; transform: translateY(-30px); }
+}
+@keyframes codeFly2 {
+  0%, 88%, 100% { opacity: 0; transform: translateY(15px); }
+  89% { opacity: 0.9; transform: translateY(-2px); }
+  90% { opacity: 1; transform: translateY(-8px); }
+  91% { opacity: 0; transform: translateY(-25px); }
+}
+@keyframes codeFly3 {
+  0%, 88%, 100% { opacity: 0; transform: translateY(10px); }
+  89% { opacity: 1; transform: translateY(-3px); }
+  90% { opacity: 0.8; transform: translateY(-12px); }
+  91% { opacity: 0; transform: translateY(-28px); }
+}
+
+/* ============================================================
+   ✅ ЯРКИЕ ГОРИЗОНТАЛЬНЫЕ ПОЛОСЫ
+   ============================================================ */
+.dc-glitch-bars {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 5;
+  overflow: hidden;
+}
+
+.gbar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 2px;
+  opacity: 0;
+}
+
+.gbar-1 {
+  background: #00ffff;
+  box-shadow: 0 0 8px #00ffff, 0 0 16px #00ffff;
+  animation: gbarMove1 6s infinite;
+}
+.gbar-2 {
+  background: #ff00ff;
+  box-shadow: 0 0 8px #ff00ff, 0 0 16px #ff00ff;
+  animation: gbarMove2 6s infinite;
+}
+.gbar-3 {
+  background: #ffffff;
+  box-shadow: 0 0 10px #ffffff;
+  height: 4px;
+  animation: gbarMove3 6s infinite;
+}
+
+@keyframes gbarMove1 {
+  0%, 88%, 100% { top: 30%; opacity: 0; transform: scaleX(1); }
+  89% { opacity: 1; transform: scaleX(1.1); }
+  90% { top: 32%; opacity: 1; transform: scaleX(1.4); }
+  91% { top: 34%; opacity: 0.8; transform: scaleX(1); }
+  92% { opacity: 0; }
+}
+@keyframes gbarMove2 {
+  0%, 88%, 100% { top: 60%; opacity: 0; transform: scaleX(1); }
+  89% { opacity: 1; transform: scaleX(1.2); }
+  90% { top: 62%; opacity: 1; transform: scaleX(1); }
+  91% { top: 64%; opacity: 0.7; }
+  92% { opacity: 0; }
+}
+@keyframes gbarMove3 {
+  0%, 88%, 100% { top: 45%; opacity: 0; }
+  89% { opacity: 1; }
+  90% { top: 50%; opacity: 1; }
+  91% { top: 55%; opacity: 0.9; }
+  92% { top: 60%; opacity: 0; }
+}
+
+/* ============================================================
+   ✅ Усиление глитча при наведении курсора
+   ============================================================ */
+.debit-card:hover .dc-photo-base { animation-duration: 1.5s; }
+.debit-card:hover .dc-photo-r,
+.debit-card:hover .dc-photo-g,
+.debit-card:hover .dc-photo-b,
+.debit-card:hover .dc-photo-bw { animation-duration: 1.5s; }
+.debit-card:hover .gblock { animation-duration: 1.5s; }
+.debit-card:hover .gbar { animation-duration: 1.5s; }
+.debit-card:hover .dc-glitch-code span { animation-duration: 1.5s; }
 
 .dc-bg-placeholder {
   width: 100%;
@@ -384,7 +676,6 @@ watch(expandedOwners, (val) => {
   filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.35));
 }
 
-/* ✅ Сканлайны для усиления глитч-эффекта */
 .dc-bg-scanlines {
   position: absolute;
   inset: 0;
@@ -393,11 +684,12 @@ watch(expandedOwners, (val) => {
     180deg,
     rgba(0, 0, 0, 0) 0px,
     rgba(0, 0, 0, 0) 2px,
-    rgba(0, 0, 0, 0.08) 2px,
-    rgba(0, 0, 0, 0.08) 3px
+    rgba(0, 0, 0, 0.1) 2px,
+    rgba(0, 0, 0, 0.1) 3px
   );
   mix-blend-mode: multiply;
-  opacity: 0.6;
+  opacity: 0.7;
+  z-index: 6;
 }
 
 .dc-bg-stripes {
@@ -414,11 +706,13 @@ watch(expandedOwners, (val) => {
     );
   mix-blend-mode: overlay;
   opacity: 0.85;
+  z-index: 7;
 }
 
 .dc-bg-photo-shade {
   position: absolute;
   inset: 0;
+  z-index: 8;
   background:
     linear-gradient(
       90deg,
@@ -436,11 +730,7 @@ watch(expandedOwners, (val) => {
     );
 }
 
-/* ============================================================
-   ✅ РОЗОВАЯ ПОЛОСА — прижата к правому краю фото
-   Наклон совпадает со скосом фиолетовой части (диагональ сверху-слева
-   вниз-вправо, угол ~14deg)
-   ============================================================ */
+/* ✅ Розовая полоса */
 .dc-bg-divider {
   position: absolute;
   top: 0;
@@ -448,6 +738,7 @@ watch(expandedOwners, (val) => {
   bottom: 0;
   width: 14%;
   pointer-events: none;
+  z-index: 9;
 
   background: linear-gradient(
     160deg,
@@ -456,7 +747,6 @@ watch(expandedOwners, (val) => {
     rgba(168, 85, 247, 0.5) 100%
   );
 
-  /* ✅ Тот же скос, что у фиолета — через clip-path */
   clip-path: polygon(
     100% 0%,
     100% 100%,
@@ -517,17 +807,14 @@ watch(expandedOwners, (val) => {
       rgba(255, 255, 255, 0.3) 15%,
       rgba(255, 255, 255, 0.3) 16%,
       transparent 16.5%,
-
       transparent 20%,
       rgba(255, 255, 255, 0.18) 20.5%,
       rgba(255, 255, 255, 0.18) 21.5%,
       transparent 22%,
-
       transparent 26%,
       rgba(255, 255, 255, 0.12) 26.5%,
       rgba(255, 255, 255, 0.12) 27.2%,
       transparent 27.7%,
-
       transparent 100%
     );
 
@@ -546,7 +833,7 @@ watch(expandedOwners, (val) => {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 3;
+  z-index: 10;
   mix-blend-mode: overlay;
 }
 
@@ -558,7 +845,7 @@ watch(expandedOwners, (val) => {
     radial-gradient(ellipse 50% 30% at 90% 100%, rgba(139, 92, 246, 0.4), transparent 60%);
   animation: glossRotate 12s ease-in-out infinite;
   pointer-events: none;
-  z-index: 3;
+  z-index: 10;
   mix-blend-mode: overlay;
 }
 @keyframes glossRotate {
@@ -571,7 +858,7 @@ watch(expandedOwners, (val) => {
   inset: 0;
   background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.035) 0 2px, transparent 2px 8px);
   pointer-events: none;
-  z-index: 4;
+  z-index: 11;
   mix-blend-mode: overlay;
 }
 
@@ -586,7 +873,7 @@ watch(expandedOwners, (val) => {
   pointer-events: none;
   user-select: none;
   font-family: var(--mono);
-  z-index: 4;
+  z-index: 11;
 }
 
 .dc-frame {
@@ -595,7 +882,7 @@ watch(expandedOwners, (val) => {
   border-radius: 16px;
   border: 1.5px dashed rgba(255, 255, 255, 0.22);
   pointer-events: none;
-  z-index: 5;
+  z-index: 12;
 }
 
 /* ============================================================
@@ -603,7 +890,7 @@ watch(expandedOwners, (val) => {
    ============================================================ */
 .dc-top {
   position: relative;
-  z-index: 6;
+  z-index: 13;
   display: flex;
   align-items: flex-start;
   justify-content: flex-end;
@@ -634,7 +921,7 @@ watch(expandedOwners, (val) => {
 
 .dc-balance {
   position: relative;
-  z-index: 6;
+  z-index: 13;
   margin-top: 12px;
   text-align: center;
 }
@@ -650,7 +937,7 @@ watch(expandedOwners, (val) => {
 }
 .dc-caption {
   position: relative;
-  z-index: 6;
+  z-index: 13;
   text-align: center;
   font-size: 10.5px;
   font-weight: 700;
@@ -664,7 +951,7 @@ watch(expandedOwners, (val) => {
 
 .dc-accounts {
   position: relative;
-  z-index: 6;
+  z-index: 13;
   margin-top: 4px;
   padding-top: 10px;
   border-top: 1px solid rgba(255, 255, 255, 0.25);
@@ -825,7 +1112,7 @@ watch(expandedOwners, (val) => {
 }
 
 /* ============================================================
-   МОБИЛЬНЫЙ
+   МОБИЛЬНЫЙ — уменьшаем интенсивность глитча
    ============================================================ */
 @media (max-width: 700px) {
   .debit-card { padding: 14px 16px 12px; border-radius: 20px; gap: 8px; min-height: 200px; }
@@ -857,6 +1144,19 @@ watch(expandedOwners, (val) => {
   .dc-chip-value { font-size: 11px; }
   .dc-owner-total { font-size: 11px; padding: 2px 9px; }
   .dc-watermark { font-size: 110px; bottom: -24px; right: -8px; }
+
+  /* ✅ На мобилке глитч — реже и слабее */
+  .dc-photo-base,
+  .dc-photo-r,
+  .dc-photo-g,
+  .dc-photo-b,
+  .dc-photo-bw,
+  .gblock,
+  .gbar,
+  .dc-glitch-code span { animation-duration: 10s; }
+
+  .gblock-2,
+  .gblock-4 { display: none; }
 }
 
 @media (max-width: 380px) {
@@ -869,14 +1169,20 @@ watch(expandedOwners, (val) => {
 
 @media (prefers-reduced-motion: reduce) {
   .dc-bg-solid,
-  .dc-gloss,
-  .dc-photo-r,
-  .dc-photo-b {
+  .dc-gloss {
     animation: none !important;
   }
+  .dc-photo-base,
   .dc-photo-r,
-  .dc-photo-b {
+  .dc-photo-g,
+  .dc-photo-b,
+  .dc-photo-bw,
+  .gblock,
+  .gbar,
+  .dc-glitch-code span {
+    animation: none !important;
     opacity: 0 !important;
   }
+  .dc-photo-base { opacity: 0.85 !important; }
 }
 </style>
