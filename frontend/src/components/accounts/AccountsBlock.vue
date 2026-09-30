@@ -50,9 +50,6 @@ function bankLogo(id) {
 }
 function isMe(owner) { return owner === userName.value; }
 
-// ============================================================
-// 3D-наклон
-// ============================================================
 const cardEl = ref(null);
 const tilt = ref({ rx: 0, ry: 0, mx: 50, my: 50 });
 const isTilting = ref(false);
@@ -151,15 +148,21 @@ watch(expandedOwners, (val) => {
       @touchend="onTouchEnd"
       @touchcancel="onTouchEnd"
     >
+      <!-- ✅ ФОТО С АБСТРАКТНЫМ ЗИГЗАГОМ — слева длинные, справа короткие -->
+      <div class="dc-photo" aria-hidden="true">
+        <img v-if="avatarUrl" :src="avatarUrl" alt="" />
+        <div v-else class="dc-photo-placeholder">
+          <span class="dc-photo-emoji">{{ userEmoji }}</span>
+        </div>
+        <div class="dc-photo-shade"></div>
+      </div>
+
       <div class="dc-shine-cursor" :style="shineStyle" aria-hidden="true"></div>
       <div class="dc-gloss" aria-hidden="true"></div>
       <div class="dc-pattern" aria-hidden="true"></div>
       <div class="dc-watermark" aria-hidden="true">₽</div>
       <div class="dc-frame" aria-hidden="true"></div>
 
-      <!-- ============================================================
-           ✅ ВЕРХ: issuer слева (или справа) + ничего лишнего
-           ============================================================ -->
       <div class="dc-top">
         <div class="dc-issuer">
           <div class="dc-issuer-name">VAS FINANCE PRO+</div>
@@ -167,31 +170,12 @@ watch(expandedOwners, (val) => {
         </div>
       </div>
 
-      <!-- ============================================================
-           ✅ АВАТАР — круглый, по центру, ПЕРЕД балансом
-           ============================================================ -->
-      <div class="dc-avatar-circle">
-        <img
-          v-if="avatarUrl"
-          :src="avatarUrl"
-          alt="avatar"
-          class="dc-avatar-circle-img"
-        />
-        <span v-else class="dc-avatar-circle-emoji">{{ userEmoji }}</span>
-      </div>
-
-      <!-- ============================================================
-           БАЛАНС
-           ============================================================ -->
       <div class="dc-balance">
         <div class="dc-balance-value">{{ fmt(totalBalance) }} ₽</div>
       </div>
 
       <div class="dc-caption">ВАШ ОБЩИЙ БАЛАНС</div>
 
-      <!-- ============================================================
-           ВЛАДЕЛЬЦЫ
-           ============================================================ -->
       <div class="dc-accounts">
         <div
           v-for="owner in ownersSorted"
@@ -254,13 +238,12 @@ watch(expandedOwners, (val) => {
 .debit-card {
   position: relative;
   border-radius: 22px;
-  padding: 18px 20px 16px;
   overflow: hidden;
   isolation: isolate;
 
   background:
-    radial-gradient(circle at 15% 0%, rgba(255, 255, 255, 0.25), transparent 55%),
-    radial-gradient(circle at 95% 100%, rgba(255, 255, 255, 0.18), transparent 60%),
+    radial-gradient(circle at 15% 100%, rgba(255, 255, 255, 0.18), transparent 55%),
+    radial-gradient(circle at 95% 100%, rgba(255, 255, 255, 0.12), transparent 60%),
     linear-gradient(135deg, #4338ca 0%, #6366f1 30%, #8b5cf6 60%, #4f46e5 100%);
   background-size: 100% 100%, 100% 100%, 300% 300%;
   animation: gradientShift 14s ease-in-out infinite;
@@ -273,6 +256,7 @@ watch(expandedOwners, (val) => {
 
   display: flex;
   flex-direction: column;
+  padding: 0 20px 16px;
   gap: 10px;
 
   transform-style: preserve-3d;
@@ -294,6 +278,77 @@ watch(expandedOwners, (val) => {
   100% { background-position: 0% 0%, 100% 100%, 0% 50%; }
 }
 
+/* ============================================================
+   ✅ ФОТО С АБСТРАКТНЫМ ЗИГЗАГОМ
+   Слева — глубокие зубцы, справа — плавно уходят к краю
+   ============================================================ */
+.dc-photo {
+  position: relative;
+  z-index: 1;
+  width: calc(100% + 40px);
+  margin-left: -20px;
+  height: 180px;
+  overflow: hidden;
+  flex-shrink: 0;
+
+  /* ✅ Зигзаг: слева длинные «языки», справа — короткие */
+  clip-path: polygon(
+    0% 0%,
+    100% 0%,
+    100% 55%,          /* правая грань — зубец короткий */
+    92% 62%,
+    84% 52%,
+    76% 66%,
+    68% 50%,
+    60% 70%,
+    52% 46%,
+    44% 72%,
+    36% 42%,
+    28% 74%,
+    20% 38%,
+    12% 76%,
+    4%  34%,           /* левый край — зубец максимально глубокий */
+    0%  70%
+  );
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 25%;
+    display: block;
+    filter: saturate(0.95) contrast(1.05) brightness(0.95);
+  }
+}
+
+.dc-photo-placeholder {
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, #818cf8, #a5b4fc);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dc-photo-emoji {
+  font-size: 72px;
+  line-height: 1;
+  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.35));
+}
+
+.dc-photo-shade {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(15, 23, 42, 0.35) 0%,
+      rgba(15, 23, 42, 0) 30%,
+      rgba(15, 23, 42, 0) 60%,
+      rgba(15, 23, 42, 0.4) 100%
+    );
+}
+
 .dc-shine-cursor {
   position: absolute;
   inset: 0;
@@ -306,7 +361,7 @@ watch(expandedOwners, (val) => {
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(ellipse 60% 40% at 20% 10%, rgba(255, 255, 255, 0.35), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 20% 10%, rgba(255, 255, 255, 0.25), transparent 60%),
     radial-gradient(ellipse 50% 30% at 90% 100%, rgba(139, 92, 246, 0.4), transparent 60%);
   animation: glossRotate 12s ease-in-out infinite;
   pointer-events: none;
@@ -321,7 +376,7 @@ watch(expandedOwners, (val) => {
 .dc-pattern {
   position: absolute;
   inset: 0;
-  background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.045) 0 2px, transparent 2px 8px);
+  background-image: repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.035) 0 2px, transparent 2px 8px);
   pointer-events: none;
   z-index: 4;
   mix-blend-mode: overlay;
@@ -345,14 +400,11 @@ watch(expandedOwners, (val) => {
   position: absolute;
   inset: 6px;
   border-radius: 16px;
-  border: 1.5px dashed rgba(255, 255, 255, 0.28);
+  border: 1.5px dashed rgba(255, 255, 255, 0.22);
   pointer-events: none;
   z-index: 5;
 }
 
-/* ============================================================
-   ВЕРХ: issuer слева
-   ============================================================ */
 .dc-top {
   position: relative;
   z-index: 6;
@@ -360,13 +412,10 @@ watch(expandedOwners, (val) => {
   align-items: flex-start;
   justify-content: flex-start;
   gap: 10px;
-  padding-top: 4px;
+  padding-top: 14px;
 }
 
-.dc-issuer {
-  text-align: left;
-  min-width: 0;
-}
+.dc-issuer { text-align: left; min-width: 0; }
 .dc-issuer-name {
   font-size: 11.5px;
   font-weight: 800;
@@ -387,63 +436,10 @@ watch(expandedOwners, (val) => {
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
-/* ============================================================
-   ✅ КРУГЛЫЙ АВАТАР — по центру, перед балансом
-   ============================================================ */
-.dc-avatar-circle {
-  position: relative;
-  z-index: 6;
-  align-self: center;
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  overflow: hidden;
-  flex-shrink: 0;
-  background: linear-gradient(135deg, #a5b4fc, #818cf8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: 3px solid rgba(255, 255, 255, 0.85);
-  box-shadow:
-    0 8px 24px -6px rgba(0, 0, 0, 0.45),
-    0 0 0 4px rgba(255, 255, 255, 0.15),
-    inset 0 0 0 1px rgba(0, 0, 0, 0.05);
-
-  /* Небольшое свечение под аватаром */
-  &::after {
-    content: '';
-    position: absolute;
-    inset: -8px;
-    border-radius: 50%;
-    background: radial-gradient(
-      circle,
-      rgba(139, 92, 246, 0.5) 0%,
-      transparent 70%
-    );
-    z-index: -1;
-    pointer-events: none;
-  }
-}
-
-.dc-avatar-circle-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.dc-avatar-circle-emoji {
-  font-size: 32px;
-  line-height: 1;
-}
-
-/* ============================================================
-   БАЛАНС
-   ============================================================ */
 .dc-balance {
   position: relative;
   z-index: 6;
-  margin-top: 4px;
+  margin-top: 6px;
   text-align: center;
 }
 .dc-balance-value {
@@ -470,9 +466,6 @@ watch(expandedOwners, (val) => {
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
 }
 
-/* ============================================================
-   ВЛАДЕЛЬЦЫ
-   ============================================================ */
 .dc-accounts {
   position: relative;
   z-index: 6;
@@ -635,24 +628,21 @@ watch(expandedOwners, (val) => {
   -webkit-backdrop-filter: blur(8px);
 }
 
-/* ============================================================
-   МОБИЛЬНЫЙ
-   ============================================================ */
 @media (max-width: 700px) {
-  .debit-card { padding: 14px 16px 12px; border-radius: 20px; gap: 8px; }
+  .debit-card { padding: 0 16px 12px; border-radius: 20px; gap: 8px; }
 
+  .dc-photo {
+    width: calc(100% + 32px);
+    margin-left: -16px;
+    height: 150px;
+  }
+  .dc-photo-emoji { font-size: 60px; }
+
+  .dc-top { padding-top: 12px; }
   .dc-issuer-name { font-size: 10.5px; letter-spacing: 0.12em; }
   .dc-issuer-sub { font-size: 8.5px; }
 
-  /* ✅ Аватар чуть меньше на мобилке */
-  .dc-avatar-circle {
-    width: 56px;
-    height: 56px;
-  }
-  .dc-avatar-circle-emoji { font-size: 26px; }
-  .dc-avatar-circle::after { inset: -6px; }
-
-  .dc-balance { margin-top: 2px; }
+  .dc-balance { margin-top: 4px; }
   .dc-balance-value { font-size: 34px; }
   .dc-caption { font-size: 9.5px; letter-spacing: 0.12em; }
 
@@ -671,11 +661,8 @@ watch(expandedOwners, (val) => {
 }
 
 @media (max-width: 380px) {
-  .dc-avatar-circle {
-    width: 50px;
-    height: 50px;
-  }
-  .dc-avatar-circle-emoji { font-size: 22px; }
+  .dc-photo { height: 130px; }
+  .dc-photo-emoji { font-size: 50px; }
   .dc-balance-value { font-size: 28px; }
   .dc-issuer-name { font-size: 9.5px; }
   .dc-chips { gap: 4px; }
