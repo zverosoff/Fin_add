@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { useTransactionsStore } from '@/stores/transactions';
 import { useFiltersStore } from '@/stores/filters';
 import { useToast } from '@/composables/useToast';
@@ -15,7 +15,7 @@ const editOpen = ref(false);
 const editTx = ref(null);
 
 // ✅ Складывание дней (запоминается в localStorage)
-const LS_KEY = 'financeProCollapsedDays_v1';
+const LS_KEY = 'financeProCollapsedDays_v2';
 const collapsedDays = ref({});
 
 try {
@@ -27,6 +27,26 @@ watch(collapsedDays, (val) => {
   try { localStorage.setItem(LS_KEY, JSON.stringify(val)); } catch (e) {}
 }, { deep: true });
 
+// ✅ Ключ последнего (верхнего) дня
+const lastDayKey = computed(() =>
+  tx.groupedByDay.length > 0 ? tx.groupedByDay[0].key : null
+);
+
+// ✅ При изменении списка — автоматически сворачиваем все дни, кроме последнего
+watch(
+  () => tx.groupedByDay.map(g => g.key).join(','),
+  () => {
+    const newState = {};
+    for (const group of tx.groupedByDay) {
+      // Последний (первый в списке) — разворачиваем
+      // Все остальные — сворачиваем
+      newState[group.key] = group.key !== lastDayKey.value;
+    }
+    collapsedDays.value = newState;
+  },
+  { immediate: true }
+);
+
 function toggleDay(key) {
   collapsedDays.value = {
     ...collapsedDays.value,
@@ -37,11 +57,6 @@ function toggleDay(key) {
 function isDayCollapsed(key) {
   return !!collapsedDays.value[key];
 }
-
-// ✅ Последний день никогда не сворачивается — чтобы лента не была пустой
-const lastDayKey = computed(() =>
-  tx.groupedByDay.length > 0 ? tx.groupedByDay[0].key : null
-);
 
 function onEdit(t) {
   editTx.value = t;
