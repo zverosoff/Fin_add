@@ -7,8 +7,11 @@ export const useAuthStore = defineStore('auth', () => {
   const displayName = ref(localStorage.getItem('auth_display_name') || '');
   const avatar = ref(localStorage.getItem('auth_avatar') || null);
 
-  // ✅ Кэш профилей ДРУГИХ пользователей
+  // ✅ Кэш профилей других пользователей
   const peerProfiles = ref({});
+
+  // ✅ Флаг: какого пользователя уже загружали
+  const loadedPeerUsers = ref(new Set());
 
   const isAuthenticated = ref(false);
   const loading = ref(false);
@@ -23,6 +26,7 @@ export const useAuthStore = defineStore('auth', () => {
       displayName.value = data.user;
       avatar.value = null;
       peerProfiles.value = {};
+      loadedPeerUsers.value = new Set();
       isAuthenticated.value = true;
 
       localStorage.setItem('auth_user', data.user);
@@ -40,6 +44,7 @@ export const useAuthStore = defineStore('auth', () => {
     displayName.value = '';
     avatar.value = null;
     peerProfiles.value = {};
+    loadedPeerUsers.value = new Set();
     isAuthenticated.value = false;
     localStorage.removeItem('auth_user');
     localStorage.removeItem('auth_display_name');
@@ -88,22 +93,28 @@ export const useAuthStore = defineStore('auth', () => {
   function nameFor(technicalUser) {
     if (!technicalUser) return '';
     if (technicalUser === user.value) return displayName.value || user.value;
-    // ✅ Если знаем displayName другого пользователя — возвращаем его
     return peerProfiles.value[technicalUser]?.displayName || technicalUser;
   }
 
   function avatarFor(technicalUser) {
     if (!technicalUser) return null;
     if (technicalUser === user.value) return avatar.value || null;
-    // ✅ Аватар другого пользователя, если загружали
     return peerProfiles.value[technicalUser]?.avatar || null;
   }
 
-  // ✅ Загрузить профиль ЛЮБОГО пользователя
-  async function loadPeerProfile(technicalUser) {
+  // ✅ Загрузить профиль любого пользователя (единожды)
+  async function loadPeerProfile(technicalUser, force = false) {
     if (!technicalUser || technicalUser === user.value) return null;
+
+    // Если уже загружали — не грузим повторно
+    if (!force && loadedPeerUsers.value.has(technicalUser)) {
+      return peerProfiles.value[technicalUser] || null;
+    }
+
     try {
-      const { data } = await api.get(`/profile/${encodeURIComponent(technicalUser)}`);
+      const { data } = await api.get(
+        `/profile/${encodeURIComponent(technicalUser)}`
+      );
       if (data.ok && data.profile) {
         peerProfiles.value = {
           ...peerProfiles.value,
@@ -112,10 +123,15 @@ export const useAuthStore = defineStore('auth', () => {
             avatar: data.profile.avatar || null,
           },
         };
+        // ✅ Помечаем, что загрузили
+        const next = new Set(loadedPeerUsers.value);
+        next.add(technicalUser);
+        loadedPeerUsers.value = next;
+
         return peerProfiles.value[technicalUser];
       }
     } catch (e) {
-      console.warn('[auth] loadPeerProfile error:', e.message);
+      console.warn('[auth] loadPeerProfile error:', technicalUser, e.message);
     }
     return null;
   }
@@ -130,10 +146,13 @@ export const useAuthStore = defineStore('auth', () => {
         avatar: patch.avatar !== undefined ? patch.avatar : (cur.avatar ?? null),
       },
     };
+    const next = new Set(loadedPeerUsers.value);
+    next.add(technicalUser);
+    loadedPeerUsers.value = next;
   }
 
   return {
-    user, displayName, avatar, peerProfiles,
+    user, displayName, avatar, peerProfiles, loadedPeerUsers,
     isAuthenticated, loading,
     login, logout, checkSession,
     setDisplayName, setAvatar,

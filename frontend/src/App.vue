@@ -33,8 +33,7 @@ const pdfOpen = ref(false);
 
 const showBottomNav = computed(() => route.name !== 'login');
 
-// ✅ Чат НЕ показываем на /login и /profile.
-// На /profile встроенный чат рендерится внутри ProfileView (embedMode).
+// ✅ Чат НЕ на /login и НЕ на /profile
 const showChat = computed(() =>
   route.name !== 'login' &&
   route.name !== 'profile' &&
@@ -44,7 +43,6 @@ const showChat = computed(() =>
 const TAB_ORDER = ['finance', 'analytics', 'deposits', 'profile'];
 const transitionName = ref('fade-page');
 
-// ✅ Title с количеством непрочитанных
 const BASE_TITLE = 'Финансы PRO+';
 watch(() => messagesStore.totalUnread, (n) => {
   document.title = n > 0 ? `(${n}) ${BASE_TITLE}` : BASE_TITLE;
@@ -62,6 +60,21 @@ watch(() => route.name, (newName, oldName) => {
 
 function switchToManual() { scanStore.close(); manualOpen.value = true; }
 function switchToPdf() { scanStore.close(); pdfOpen.value = true; }
+
+// ✅ Загрузить профили ВСЕХ других пользователей (не только текущего)
+async function preloadPeerProfiles() {
+  const owners = ['Сергей', 'Саша'];
+  const me = auth.user;
+  for (const owner of owners) {
+    if (owner !== me) {
+      try {
+        await auth.loadPeerProfile(owner);
+      } catch (e) {
+        console.warn('[app] loadPeerProfile failed for', owner, e.message);
+      }
+    }
+  }
+}
 
 onMounted(async () => {
   if (route.name !== 'login') document.body.classList.add('app-has-bottom-nav');
@@ -105,6 +118,11 @@ onMounted(async () => {
       stage.value = 'Данные недоступны';
     }
 
+    // ✅ Подтягиваем профили других пользователей сразу
+    stage.value = 'Загрузка профилей…';
+    percent.value = 85;
+    await preloadPeerProfiles();
+
     stage.value = 'Подключение…';
     percent.value = 95;
 
@@ -126,6 +144,13 @@ onMounted(async () => {
     console.error('[app] bootstrap error:', e);
     stage.value = 'Ошибка загрузки';
     setTimeout(() => { booting.value = false; }, 800);
+  }
+});
+
+// ✅ Если пользователь разлогинился и зашёл под другим — перезагружаем профили
+watch(() => auth.user, async (newUser, oldUser) => {
+  if (newUser && newUser !== oldUser && auth.isAuthenticated) {
+    await preloadPeerProfiles();
   }
 });
 
