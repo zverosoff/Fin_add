@@ -18,7 +18,7 @@ import {
 } from '@/composables/usePushNotifications';
 
 // ============================================================
-// ✅ НОВЫЕ ПРОПСЫ
+// ✅ ПРОПСЫ
 // startOpen — рендерится сразу открытым
 // embedMode — без FAB, без fixed-позиционирования (вписан в колонку)
 // ============================================================
@@ -36,7 +36,6 @@ const {
   THEMES, BACKGROUNDS, FONT_SIZES, FONT_FAMILIES,
 } = useTheme();
 
-// ✅ В embedMode / startOpen чат сразу открыт
 const open = ref(props.startOpen || props.embedMode);
 const text = ref('');
 const sending = ref(false);
@@ -60,13 +59,9 @@ const newBelowCount = ref(0);
 
 const swipeState = ref({ id: null, startX: 0, startY: 0, dx: 0, active: false });
 
-// ✅ "Сообщение улетает" при отправке
 const sendingFlight = ref(null);
-
-// ✅ Аватар — перезапуск анимации при открытии
 const avatarKey = ref(0);
 
-// ✅ Новое сообщение: FAB расширяется и показывает "Новое СООБЩЕНИЕ"
 const hasFreshMessage = ref(false);
 let freshMessageTimer = null;
 
@@ -301,14 +296,12 @@ async function onScroll() {
 // Открытие/закрытие
 // ============================================================
 async function toggle() {
-  // ✅ В embed-режиме чат всегда открыт — не сворачиваем
   if (props.embedMode) return;
 
   open.value = !open.value;
   if (open.value) {
     document.body.dataset.chatOpen = 'true';
     avatarKey.value++;
-    // ✅ Открыли чат — гасим "Новое СООБЩЕНИЕ"
     hasFreshMessage.value = false;
     if (freshMessageTimer) {
       clearTimeout(freshMessageTimer);
@@ -346,13 +339,12 @@ async function ensureHistory() {
 }
 
 function close() {
-  // ✅ В embed-режиме не закрываем
   if (props.embedMode) return;
   if (open.value) toggle();
 }
 
 // ============================================================
-// Отправка + "сообщение улетает"
+// Отправка
 // ============================================================
 async function send() {
   const clean = text.value.trim();
@@ -624,7 +616,6 @@ function isSameDay(a, b) {
 let heartbeatTimer = null;
 
 function updateViewport() {
-  // ✅ В embed-режиме не трогаем fixed-позиционирование
   if (props.embedMode) return;
   if (window.innerWidth > 700) { panelHeight.value = ''; panelTop.value = ''; return; }
   const vv = window.visualViewport;
@@ -680,7 +671,6 @@ watch(history, async (newList, oldList) => {
   }
 }, { deep: false });
 
-// ✅ Новое сообщение — растягиваем FAB (только если НЕ embed)
 watch(totalUnread, (n, old) => {
   if (!open.value && !props.embedMode && n > old) {
     triggerFreshMessage();
@@ -709,7 +699,6 @@ onMounted(async () => {
   window.addEventListener('resize', onViewportResize);
   updateViewport();
 
-  // ✅ Если чат сразу открыт (startOpen или embedMode) — грузим историю и скроллим вниз
   if (props.embedMode || props.startOpen) {
     await ensureHistory();
     await nextTick();
@@ -738,34 +727,44 @@ watch(open, (v) => { if (v && !props.embedMode) askNotifications(); });
 </script>
 
 <template>
-  <!-- FAB — скрыт в embed-режиме -->
+  <!-- ============================================================
+       ✅ FAB ОБЁРНУТ В WRAP — бейдж вынесен наружу, чтобы не резался
+       ============================================================ -->
   <Transition name="fab-pop">
-    <button
-      v-if="!open && !embedMode"
-      class="chat-fab"
-      :class="{
-        'has-unread': totalUnread > 0,
-        'is-expanded': hasFreshMessage,
-      }"
-      type="button"
-      @click="toggle"
-    >
-      <span class="chat-fab-icon">
-        <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
-          <path d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
-        </svg>
-      </span>
+    <div v-if="!open && !embedMode" class="chat-fab-wrap">
+      <button
+        class="chat-fab"
+        :class="{
+          'has-unread': totalUnread > 0,
+          'is-expanded': hasFreshMessage,
+        }"
+        type="button"
+        @click="toggle"
+      >
+        <span class="chat-fab-icon">
+          <svg viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+            <path d="M20 2H4a2 2 0 0 0-2 2v18l4-4h14a2 2 0 0 0 2-2V4a2 2 0 0 0-2-2zm-2 12H6v-2h12v2zm0-3H6V9h12v2zm0-3H6V6h12v2z"/>
+          </svg>
+        </span>
 
-      <Transition name="fab-label">
-        <span v-if="hasFreshMessage" class="chat-fab-label">Новое СООБЩЕНИЕ</span>
+        <Transition name="fab-label">
+          <span v-if="hasFreshMessage" class="chat-fab-label">Новое СООБЩЕНИЕ</span>
+        </Transition>
+
+        <span v-if="hasFreshMessage" class="chat-fab-pulse" aria-hidden="true"></span>
+      </button>
+
+      <!-- ✅ Бейдж ВНЕ FAB, в обёртке -->
+      <Transition name="badge-pop">
+        <span
+          v-if="totalUnread > 0"
+          class="chat-fab-badge"
+          :class="{ 'is-expanded': hasFreshMessage }"
+        >
+          {{ totalUnread > 99 ? '99+' : totalUnread }}
+        </span>
       </Transition>
-
-      <span v-if="totalUnread > 0" class="chat-fab-badge">
-        {{ totalUnread > 99 ? '99+' : totalUnread }}
-      </span>
-
-      <span v-if="hasFreshMessage" class="chat-fab-pulse" aria-hidden="true"></span>
-    </button>
+    </div>
   </Transition>
 
   <!-- Панель -->
@@ -973,7 +972,6 @@ watch(open, (v) => { if (v && !props.embedMode) askNotifications(); });
           </template>
         </template>
 
-        <!-- Пузырь "печатает" -->
         <Transition name="typing-bubble">
           <div v-if="peerTyping" class="chat-msg in typing-msg">
             <div class="chat-bubble typing-bubble">
@@ -985,7 +983,6 @@ watch(open, (v) => { if (v && !props.embedMode) askNotifications(); });
         </Transition>
       </div>
 
-      <!-- Сообщение улетает -->
       <Transition name="flight">
         <div
           v-if="sendingFlight"
@@ -1278,13 +1275,33 @@ $chat-font-sm: 10px;
 $chat-font-lg: 13px;
 
 /* ============================================================
-   FAB
+   ✅ FAB ОБЁРНУТ В WRAP — бейдж снаружи, не режется overflow
    ============================================================ */
-.chat-fab {
+.chat-fab-wrap {
   position: fixed;
   right: 20px;
   bottom: calc(90px + env(safe-area-inset-bottom, 0));
   z-index: 950;
+  width: 56px;
+  height: 56px;
+  pointer-events: none;   /* клики только через дочерние элементы */
+}
+
+.chat-fab-wrap > .chat-fab {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  pointer-events: auto;
+}
+
+.chat-fab-wrap > .chat-fab-badge {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  pointer-events: auto;
+}
+
+.chat-fab {
   height: 56px;
   width: 56px;
   border-radius: 28px;
@@ -1411,27 +1428,36 @@ $chat-font-lg: 13px;
   transform: translateX(-8px);
 }
 
+/* ============================================================
+   ✅ БЕЙДЖ — вне FAB, крупный, с двойным белым кольцом
+   ============================================================ */
 .chat-fab-badge {
-  position: absolute;
-  top: -4px; right: -4px;
-  min-width: 20px; height: 20px;
-  padding: 0 6px;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 7px;
   border-radius: 999px;
   background: linear-gradient(135deg, #ef4444, #dc2626);
   color: #ffffff;
-  font-family: var(--mono);
-  font-size: $chat-font-sm;
+  font-family: -apple-system, "SF Pro Text", var(--mono, monospace);
+  font-size: 12px;
   font-weight: 800;
+  line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 12px -2px rgba(239, 68, 68, 0.7), 0 0 0 3px #ffffff;
-}
+  box-shadow:
+    0 4px 12px -2px rgba(239, 68, 68, 0.7),
+    0 0 0 3px #ffffff;
+  white-space: nowrap;
+  transition: all 0.25s cubic-bezier(.34,1.56,.64,1);
 
-.chat-fab.is-expanded .chat-fab-badge {
-  top: 6px;
-  right: 6px;
-  box-shadow: 0 4px 12px -2px rgba(255, 255, 255, 0.9), 0 0 0 3px #dc2626;
+  &.is-expanded {
+    top: 10px !important;
+    right: 14px !important;
+    box-shadow:
+      0 4px 12px -2px rgba(255, 255, 255, 0.9),
+      0 0 0 3px #dc2626;
+  }
 }
 
 /* ============================================================
@@ -1456,7 +1482,6 @@ $chat-font-lg: 13px;
   margin-bottom: 72px;
 }
 
-/* ✅ Режим встраивания — обычная карточка, не fixed */
 .chat-panel-embed {
   position: relative !important;
   right: auto !important;
@@ -2476,7 +2501,7 @@ $chat-font-lg: 13px;
   display: flex; align-items: center; justify-content: center;
 }
 
-/* Анимации общего */
+/* Анимации */
 .chat-panel-enter-active { transition: opacity 0.28s ease, transform 0.38s cubic-bezier(.34,1.56,.64,1); }
 .chat-panel-leave-active { transition: opacity 0.2s ease, transform 0.25s cubic-bezier(.4,0,.6,1); }
 .chat-panel-enter-from,
@@ -2550,8 +2575,26 @@ $chat-font-lg: 13px;
   .crp-close, .cep-close, .cip-close, .reaction-btn,
   .emoji-cat, .emoji-cell, .theme-btn, .bg-btn,
   .scroll-down-btn { min-height: 0 !important; min-width: 0 !important; }
-  .chat-fab { right: 16px; bottom: calc(84px + env(safe-area-inset-bottom, 0)); width: 52px; height: 52px; }
+
+  .chat-fab-wrap {
+    right: 16px;
+    bottom: calc(84px + env(safe-area-inset-bottom, 0));
+    width: 52px;
+    height: 52px;
+  }
+
+  .chat-fab { width: 52px; height: 52px; }
   .chat-fab.is-expanded { width: 220px; padding: 0 18px 0 14px; }
+
+  .chat-fab-badge {
+    min-width: 22px;
+    height: 22px;
+    font-size: 11px;
+    padding: 0 6px;
+    top: -5px;
+    right: -5px;
+  }
+
   .chat-panel {
     right: 0; left: 0; top: 0; bottom: 0;
     width: 100%; max-width: 100%;
