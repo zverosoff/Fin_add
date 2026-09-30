@@ -29,15 +29,21 @@ const amountSign = computed(() => (props.tx.type === 'income' ? '+' : '−'));
 const amountClass = computed(() => (props.tx.type === 'income' ? 'income' : 'expense'));
 const icon = computed(() => categoryIcon(props.tx.category));
 const userClass = computed(() => (props.tx.user === 'Сергей' ? 'sergey' : 'sasha'));
-
-// ✅ Отображаемое имя (displayName для текущего пользователя)
 const displayUserName = computed(() => auth.nameFor(props.tx.user));
 
-// Анимации
-const appearing = ref(props.isNew);
+// ✅ Появление / удаление — простые флаги
+const appearing = ref(false);
 const deleting = ref(false);
-const amountFlash = ref(null);
 
+onMounted(() => {
+  if (props.isNew) {
+    appearing.value = true;
+    setTimeout(() => { appearing.value = false; }, 700);
+  }
+});
+
+// Анимация flash суммы
+const amountFlash = ref(null);
 const prevAmount = ref(props.tx.amount);
 watch(() => props.tx.amount, (newVal, oldVal) => {
   if (newVal === oldVal) return;
@@ -45,17 +51,11 @@ watch(() => props.tx.amount, (newVal, oldVal) => {
   setTimeout(() => { amountFlash.value = null; }, 900);
 });
 
-onMounted(() => {
-  if (props.isNew) {
-    setTimeout(() => { appearing.value = false; }, 700);
-  }
-});
-
 function onFilter(key, value) { filters.toggle(key, value); }
 
 function onDelete() {
   deleting.value = true;
-  setTimeout(() => { emit('delete', props.tx); }, 480);
+  setTimeout(() => { emit('delete', props.tx); }, 300);
 }
 
 // ============================================================
@@ -219,7 +219,7 @@ function itemStyle() {
     opacity 0.3s ease,
     filter 0.3s ease;
   touch-action: pan-y;
-  will-change: transform, opacity, filter;
+  will-change: transform, opacity;
   overflow: hidden;
 
   &:hover {
@@ -227,37 +227,39 @@ function itemStyle() {
     box-shadow: var(--shadow-md);
   }
 
+  /* ✅ Простое появление — без изменения max-height / padding */
   &.is-appearing {
-    animation: receiptPrint 0.7s cubic-bezier(.22,.61,.36,1) both;
+    animation: txAppear 0.5s cubic-bezier(.22,.61,.36,1);
   }
+
+  /* ✅ Простое удаление — без изменения max-height */
   &.is-deleting {
-    animation: printerOut 0.48s cubic-bezier(.4,0,.6,1) forwards;
+    animation: txDelete 0.3s cubic-bezier(.4,0,.6,1) forwards;
     pointer-events: none;
   }
 }
 
-@keyframes receiptPrint {
-  0% {
-    max-height: 0; padding-top: 0; padding-bottom: 0;
-    transform: scaleY(0.02); transform-origin: top center;
-    opacity: 0; filter: blur(2px);
+@keyframes txAppear {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.96);
+    filter: blur(2px);
   }
-  30% {
-    max-height: 80px; padding-top: 12px; padding-bottom: 12px;
-    transform: scaleY(1); opacity: 1; filter: blur(0);
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
   }
-  70% { transform: scaleY(1) translateX(0); }
-  85% { transform: scaleY(1) translateX(-3px); }
-  100% { transform: scaleY(1) translateX(0); opacity: 1; }
 }
 
-@keyframes printerOut {
-  0%   { opacity: 1; filter: blur(0); transform: translateX(0) scale(1); }
-  40%  { opacity: 0.6; filter: blur(2px); transform: translateX(0) scale(1.02); }
-  100% {
-    opacity: 0; filter: blur(10px); transform: translateX(-100px) scale(0.92);
-    max-height: 0; padding-top: 0; padding-bottom: 0;
-    margin-bottom: -8px; border-width: 0;
+@keyframes txDelete {
+  from {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-60px) scale(0.9);
   }
 }
 
