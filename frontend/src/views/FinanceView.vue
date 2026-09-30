@@ -1,5 +1,5 @@
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, computed } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useAccountsStore } from '@/stores/accounts';
@@ -27,9 +27,35 @@ const reconcileAccount = ref(null);
 const userMenuOpen = ref(false);
 const userMenuOwner = ref('');
 
+// ✅ "Дождь" из транзакций
+const rainActive = ref(false);
+const rainItems = ref([]);
+
+function spawnRain() {
+  const ITEMS = 14;
+  const arr = [];
+  for (let i = 0; i < ITEMS; i++) {
+    arr.push({
+      id: i,
+      delay: Math.random() * 0.6,
+      duration: 0.9 + Math.random() * 0.6,
+      rotate: -25 + Math.random() * 50,
+      size: 30 + Math.random() * 40,
+      left: Math.random() * 100,
+    });
+  }
+  rainItems.value = arr;
+  rainActive.value = true;
+  setTimeout(() => { rainActive.value = false; rainItems.value = []; }, 2000);
+}
+
 onMounted(async () => {
   try {
-    if (!accounts.loaded) await accounts.load();
+    if (!accounts.loaded) {
+      await accounts.load();
+      // ✅ Показываем "дождь" только при первой загрузке
+      spawnRain();
+    }
     notifySaved('готово');
   } catch (e) {
     notifyError(e.message || 'Не удалось загрузить данные');
@@ -65,11 +91,7 @@ function onUserMenu(owner) {
 
     <div class="finance-grid">
       <aside class="finance-side">
-        <AccountsBlock
-          @reconcile="onReconcile"
-          @user-menu="onUserMenu"
-        />
-        <!-- ✅ Новый блок наличных под картой балансов -->
+        <AccountsBlock @reconcile="onReconcile" @user-menu="onUserMenu" />
         <CashBlock />
         <MonthNav />
         <SummaryCompact />
@@ -80,6 +102,33 @@ function onUserMenu(owner) {
         <TransactionList />
       </main>
     </div>
+
+    <!-- ✅ "Дождь" из транзакций -->
+    <Teleport to="body">
+      <div v-if="rainActive" class="tx-rain" aria-hidden="true">
+        <div
+          v-for="item in rainItems"
+          :key="item.id"
+          class="tx-rain-item"
+          :style="{
+            left: item.left + '%',
+            animationDelay: item.delay + 's',
+            animationDuration: item.duration + 's',
+            '--rot': item.rotate + 'deg',
+            '--size': item.size + 'px',
+          }"
+        >
+          <div class="tx-rain-card">
+            <div class="tx-rain-avatar"></div>
+            <div class="tx-rain-lines">
+              <span></span>
+              <span></span>
+            </div>
+            <div class="tx-rain-amount"></div>
+          </div>
+        </div>
+      </div>
+    </Teleport>
 
     <ReconcileModal v-model="reconcileOpen" :account="reconcileAccount" />
     <UserMenuModal
@@ -121,18 +170,92 @@ function onUserMenu(owner) {
 }
 
 @media (max-width: 1100px) {
-  .finance-grid {
-    grid-template-columns: 1fr;
-    gap: 14px;
-    max-width: 900px;
-  }
+  .finance-grid { grid-template-columns: 1fr; gap: 14px; max-width: 900px; }
   .finance-side { position: static; }
 }
-
 @media (max-width: 700px) {
   .finance-page { padding: 16px 12px 20px; }
   .finance-grid { gap: 10px; }
-  .finance-side,
-  .finance-main { gap: 10px; }
+  .finance-side, .finance-main { gap: 10px; }
+}
+
+/* ✅ "Дождь" из транзакций */
+.tx-rain {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9998;
+  overflow: hidden;
+}
+
+.tx-rain-item {
+  position: absolute;
+  top: -100px;
+  width: var(--size);
+  opacity: 0;
+  animation-name: txRainFall;
+  animation-timing-function: cubic-bezier(.4,0,.6,1);
+  animation-fill-mode: forwards;
+  will-change: transform, opacity;
+}
+
+.tx-rain-card {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  background: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 6px 20px -6px rgba(15, 23, 42, 0.3);
+  width: 100%;
+  aspect-ratio: 3 / 1;
+  border: 1px solid rgba(148, 163, 184, 0.15);
+}
+
+.tx-rain-avatar {
+  width: 20%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  flex-shrink: 0;
+}
+
+.tx-rain-lines {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  span {
+    height: 3px;
+    border-radius: 2px;
+    background: rgba(148, 163, 184, 0.35);
+    &:first-child { width: 70%; }
+    &:last-child { width: 45%; }
+  }
+}
+
+.tx-rain-amount {
+  width: 22%;
+  height: 8px;
+  border-radius: 2px;
+  background: rgba(34, 197, 94, 0.4);
+  flex-shrink: 0;
+}
+
+@keyframes txRainFall {
+  0% {
+    transform: translateY(0) rotate(var(--rot)) scale(0.8);
+    opacity: 0;
+  }
+  15% { opacity: 1; }
+  85% { opacity: 0.9; }
+  100% {
+    transform: translateY(calc(100vh + 100px)) rotate(calc(var(--rot) * -1)) scale(1);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tx-rain-item { animation: none !important; }
 }
 </style>

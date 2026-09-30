@@ -1,6 +1,5 @@
-<!-- frontend/src/components/transactions/SummaryCompact.vue -->
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, toRef } from 'vue';
 import { useTransactionsStore } from '@/stores/transactions';
 import { fmt } from '@/composables/useFormat';
 
@@ -14,15 +13,57 @@ onMounted(() => {
     const saved = localStorage.getItem(LS_KEY);
     if (saved !== null) collapsed.value = saved === '1';
   } catch (e) {}
+  // ✅ Запускаем счётчики баланса
+  animateAll();
 });
 
 watch(collapsed, (val) => {
   try { localStorage.setItem(LS_KEY, val ? '1' : '0'); } catch (e) {}
 });
 
-function toggle() {
-  collapsed.value = !collapsed.value;
+function toggle() { collapsed.value = !collapsed.value; }
+
+// ============================================================
+// ✅ Счётчик баланса (roll-up)
+// ============================================================
+function useCounter(targetRef, duration = 800) {
+  const display = ref(0);
+  let raf = null;
+  let from = 0;
+  let startTs = 0;
+
+  function tick(ts) {
+    if (!startTs) startTs = ts;
+    const t = Math.min(1, (ts - startTs) / duration);
+    const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
+    display.value = Math.round(from + (targetRef.value - from) * eased);
+    if (t < 1) raf = requestAnimationFrame(tick);
+  }
+
+  function run(newFrom = null) {
+    if (raf) cancelAnimationFrame(raf);
+    from = newFrom !== null ? newFrom : display.value;
+    startTs = 0;
+    raf = requestAnimationFrame(tick);
+  }
+
+  return { display, run };
 }
+
+const incomeCounter = useCounter(toRef(tx.summary, 'income'));
+const expenseCounter = useCounter(toRef(tx.summary, 'expense'));
+const balanceCounter = useCounter(toRef(tx.summary, 'balance'));
+
+function animateAll() {
+  incomeCounter.run(0);
+  expenseCounter.run(0);
+  balanceCounter.run(0);
+}
+
+// При изменении любого значения — плавно пересчитываем
+watch(() => tx.summary.income, (v) => incomeCounter.run());
+watch(() => tx.summary.expense, (v) => expenseCounter.run());
+watch(() => tx.summary.balance, (v) => balanceCounter.run());
 
 const balanceClass = computed(() => {
   const b = tx.summary.balance;
@@ -35,19 +76,21 @@ const balanceClass = computed(() => {
     <div class="sc-top">
       <div class="sc-item">
         <span class="sc-icon">📈</span>
-        <span class="sc-value income">{{ fmt(tx.summary.income) }} ₽</span>
+        <span class="sc-value income">{{ fmt(incomeCounter.display.value) }} ₽</span>
         <span class="sc-label">доходы</span>
       </div>
       <div class="sc-divider"></div>
       <div class="sc-item">
         <span class="sc-icon">📉</span>
-        <span class="sc-value expense">{{ fmt(tx.summary.expense) }} ₽</span>
+        <span class="sc-value expense">{{ fmt(expenseCounter.display.value) }} ₽</span>
         <span class="sc-label">расходы</span>
       </div>
       <div class="sc-divider"></div>
       <div class="sc-item">
         <span class="sc-icon">💰</span>
-        <span class="sc-value" :class="balanceClass">{{ fmt(tx.summary.balance) }} ₽</span>
+        <span class="sc-value" :class="balanceClass">
+          {{ fmt(balanceCounter.display.value) }} ₽
+        </span>
         <span class="sc-label">баланс</span>
       </div>
     </div>
@@ -77,9 +120,7 @@ const balanceClass = computed(() => {
           <span
             class="sc-user-bal"
             :class="(data.income - data.expense) >= 0 ? 'positive' : 'negative'"
-          >
-            {{ fmt(data.income - data.expense) }} ₽
-          </span>
+          >{{ fmt(data.income - data.expense) }} ₽</span>
         </span>
       </div>
     </div>
@@ -107,15 +148,8 @@ const balanceClass = computed(() => {
   gap: 10px;
 }
 
-.sc-item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
+.sc-item { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
 .sc-icon { font-size: 13px; opacity: 0.8; }
-
 .sc-value {
   font-family: var(--mono);
   font-size: 16px;
@@ -123,13 +157,14 @@ const balanceClass = computed(() => {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
+  transition: color 0.3s ease;
 
   &.income   { color: #16a34a; }
   &.expense  { color: #dc2626; }
   &.positive { color: #16a34a; }
   &.negative { color: #dc2626; }
 }
-
 .sc-label {
   font-size: 9px;
   color: var(--muted);
@@ -137,13 +172,11 @@ const balanceClass = computed(() => {
   letter-spacing: 0.08em;
   font-weight: 700;
 }
-
 .sc-divider {
   width: 1px;
   height: 32px;
   background: linear-gradient(180deg, transparent, var(--border), transparent);
 }
-
 .sc-users-header {
   display: flex;
   align-items: center;
@@ -153,12 +186,9 @@ const balanceClass = computed(() => {
   border-top: 1px dashed var(--border);
   cursor: pointer;
   user-select: none;
-
   &:hover .sc-users-title { color: var(--accent); }
 }
-
 .sc-users-icon { font-size: 14px; flex-shrink: 0; }
-
 .sc-users-title {
   font-size: 11px;
   font-weight: 700;
@@ -168,7 +198,6 @@ const balanceClass = computed(() => {
   flex: 1;
   transition: color 0.15s;
 }
-
 .sc-toggle {
   background: transparent;
   border: 1px solid var(--border);
@@ -184,21 +213,10 @@ const balanceClass = computed(() => {
   flex-shrink: 0;
   transition: all 0.18s;
 
-  &:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-
-  .chev {
-    width: 12px;
-    height: 12px;
-    fill: currentColor;
-    transition: transform 0.25s;
-  }
-
+  &:hover { border-color: var(--accent); color: var(--accent); }
+  .chev { width: 12px; height: 12px; fill: currentColor; transition: transform 0.25s; }
   .chev.open { transform: rotate(180deg); }
 }
-
 .sc-users {
   display: flex;
   flex-direction: column;
@@ -209,13 +227,11 @@ const balanceClass = computed(() => {
   overflow: hidden;
   transition: max-height 0.3s ease, opacity 0.22s ease, margin 0.25s ease;
 }
-
 .summary-compact.collapsed .sc-users {
   max-height: 0;
   opacity: 0;
   margin-top: 0;
 }
-
 .sc-user-row {
   display: flex;
   align-items: center;
@@ -225,10 +241,8 @@ const balanceClass = computed(() => {
   border-radius: 8px;
   font-size: 12px;
 }
-
 .sc-user-avatar { font-size: 14px; }
 .sc-user-name { font-weight: 700; min-width: 52px; }
-
 .sc-user-details {
   display: flex;
   align-items: center;
@@ -236,7 +250,6 @@ const balanceClass = computed(() => {
   margin-left: auto;
   flex-wrap: nowrap;
 }
-
 .sc-user-inc, .sc-user-exp {
   font-family: var(--mono);
   font-size: 11px;
@@ -245,7 +258,6 @@ const balanceClass = computed(() => {
 }
 .sc-user-inc { color: #22c55e; }
 .sc-user-exp { color: #ef4444; }
-
 .sc-user-bal {
   padding: 2px 8px;
   border-radius: 999px;
@@ -256,41 +268,23 @@ const balanceClass = computed(() => {
   font-size: 11px;
   font-weight: 800;
   white-space: nowrap;
-
   &.positive { color: #22c55e; }
   &.negative { color: #f87171; }
 }
 
 @media (max-width: 700px) {
-  .summary-compact {
-    padding: 10px 12px;
-    border-radius: 12px;
-  }
-
+  .summary-compact { padding: 10px 12px; border-radius: 12px; }
   .sc-top { gap: 6px; }
-
   .sc-icon { font-size: 12px; }
   .sc-value { font-size: 14px; }
   .sc-label { font-size: 8.5px; letter-spacing: 0.05em; }
   .sc-divider { height: 28px; }
-
-  .sc-users-header {
-    margin-top: 10px;
-    padding-top: 8px;
-    gap: 6px;
-  }
-
+  .sc-users-header { margin-top: 10px; padding-top: 8px; gap: 6px; }
   .sc-users-icon { font-size: 12px; }
   .sc-users-title { font-size: 10px; }
   .sc-toggle { width: 22px; height: 22px; }
   .sc-toggle .chev { width: 11px; height: 11px; }
-
-  .sc-user-row {
-    padding: 5px 6px;
-    margin: 0 -6px;
-    gap: 6px;
-  }
-
+  .sc-user-row { padding: 5px 6px; margin: 0 -6px; gap: 6px; }
   .sc-user-avatar { font-size: 13px; }
   .sc-user-name { font-size: 11px; min-width: 44px; }
   .sc-user-details { gap: 6px; }

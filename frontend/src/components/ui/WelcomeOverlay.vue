@@ -29,6 +29,15 @@ const isDone = computed(() => props.done || props.percent >= 100);
           Добро пожаловать<span v-if="userName">, <span class="welcome-name">{{ userName }}</span></span>!
         </div>
 
+        <!-- ✅ Анимированная монетка -->
+        <div class="welcome-coin" :class="{ done: isDone }" aria-hidden="true">
+          <div class="coin-inner">
+            <span class="coin-face coin-front">₽</span>
+            <span class="coin-face coin-back">₽</span>
+          </div>
+          <div class="coin-shadow"></div>
+        </div>
+
         <div class="welcome-progress">
           <div class="wp-track">
             <div
@@ -72,14 +81,10 @@ const isDone = computed(() => props.done || props.percent >= 100);
   animation: welcomeGradient 4s ease-in-out infinite;
 
   pointer-events: auto;
-
   padding-top: calc(24px + env(safe-area-inset-top, 0));
   padding-bottom: calc(24px + env(safe-area-inset-bottom, 0));
 
-  /* ✅ Когда "done" — разрешаем клики сквозь оверлей */
-  &.is-done {
-    pointer-events: none;
-  }
+  &.is-done { pointer-events: none; }
 }
 
 @keyframes welcomeGradient {
@@ -96,11 +101,10 @@ const isDone = computed(() => props.done || props.percent >= 100);
   max-width: 440px;
   padding: 0 16px;
   box-sizing: border-box;
-
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 24px;
+  gap: 22px;
 }
 
 .welcome-logo {
@@ -126,9 +130,7 @@ const isDone = computed(() => props.done || props.percent >= 100);
   filter: drop-shadow(0 0 12px rgba(251, 191, 36, 0.8));
   animation: welcomeStarSpin 3s ease-in-out infinite;
 }
-
 .welcome-logo-text {
-  font-family: "Inter", -apple-system, sans-serif;
   font-size: clamp(18px, 4vw, 28px);
   font-weight: 800;
   letter-spacing: 0.08em;
@@ -141,21 +143,18 @@ const isDone = computed(() => props.done || props.percent >= 100);
   from { opacity: 0; transform: scale(.7) translateY(-20px); }
   to   { opacity: 1; transform: scale(1) translateY(0); }
 }
-
 @keyframes welcomeStarSpin {
   0%, 100% { transform: rotate(0deg) scale(1); }
   50%      { transform: rotate(180deg) scale(1.15); }
 }
 
 .welcome-text {
-  font-family: "Inter", -apple-system, sans-serif;
   font-size: clamp(22px, 5vw, 40px);
   font-weight: 700;
   line-height: 1.3;
   letter-spacing: -0.02em;
   text-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
   animation: welcomeFloat 2.5s ease-in-out infinite;
-
   white-space: normal;
   word-break: keep-all;
   overflow-wrap: break-word;
@@ -178,10 +177,85 @@ const isDone = computed(() => props.done || props.percent >= 100);
   0%, 100% { transform: translateY(0); }
   50%      { transform: translateY(-4px); }
 }
-
 @keyframes welcomeShine {
   0%, 100% { background-position: 0% 50%; }
   50%      { background-position: 100% 50%; }
+}
+
+/* ✅ Монетка */
+.welcome-coin {
+  position: relative;
+  width: 80px;
+  height: 80px;
+  perspective: 600px;
+  animation: coinDrop 1s cubic-bezier(.34,1.56,.64,1) both;
+
+  &.done .coin-inner {
+    animation: coinSpinFast 0.6s linear infinite;
+  }
+}
+
+.coin-inner {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  animation: coinSpin 2.4s linear infinite;
+}
+
+.coin-face {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40px;
+  font-weight: 900;
+  backface-visibility: hidden;
+  background: radial-gradient(circle at 30% 30%, #fde047 0%, #f59e0b 50%, #b45309 100%);
+  box-shadow:
+    0 8px 24px -6px rgba(251, 191, 36, 0.6),
+    inset 0 2px 6px rgba(255, 255, 255, 0.5),
+    inset 0 -3px 8px rgba(120, 53, 15, 0.5);
+  color: #78350f;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+
+.coin-front { transform: rotateY(0deg); }
+.coin-back  { transform: rotateY(180deg); }
+
+@keyframes coinSpin {
+  from { transform: rotateY(0deg); }
+  to   { transform: rotateY(360deg); }
+}
+@keyframes coinSpinFast {
+  from { transform: rotateY(0deg); }
+  to   { transform: rotateY(360deg); }
+}
+@keyframes coinDrop {
+  0%   { transform: translateY(-160px) scale(0.4); opacity: 0; }
+  60%  { transform: translateY(0) scale(1.08); opacity: 1; }
+  80%  { transform: translateY(-10px) scale(0.98); }
+  100% { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+.coin-shadow {
+  position: absolute;
+  bottom: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 60px;
+  height: 8px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.35);
+  filter: blur(6px);
+  animation: coinShadow 1s ease-out;
+}
+@keyframes coinShadow {
+  0%   { transform: translateX(-50%) scale(0.4); opacity: 0; }
+  60%  { transform: translateX(-50%) scale(1); opacity: 1; }
+  100% { transform: translateX(-50%) scale(1); opacity: 0.7; }
 }
 
 .welcome-progress {
@@ -192,7 +266,6 @@ const isDone = computed(() => props.done || props.percent >= 100);
   align-items: center;
   gap: 8px;
 }
-
 .wp-track {
   width: 100%;
   height: 8px;
@@ -201,7 +274,6 @@ const isDone = computed(() => props.done || props.percent >= 100);
   overflow: hidden;
   position: relative;
 }
-
 .wp-fill {
   height: 100%;
   border-radius: 999px;
@@ -210,14 +282,12 @@ const isDone = computed(() => props.done || props.percent >= 100);
   animation: wpShimmer 1.8s ease-in-out infinite;
   box-shadow: 0 0 12px rgba(251, 191, 36, 0.6);
   transition: width 0.35s cubic-bezier(.22,.61,.36,1);
-
   &.done {
     background: linear-gradient(90deg, #22c55e, #4ade80);
     box-shadow: 0 0 16px rgba(34, 197, 94, 0.7);
     animation: none;
   }
 }
-
 @keyframes wpShimmer {
   0%, 100% { background-position: 0% 50%; }
   50%      { background-position: 100% 50%; }
@@ -242,31 +312,26 @@ const isDone = computed(() => props.done || props.percent >= 100);
   border: 1px solid rgba(255, 255, 255, 0.2);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  font-family: "Inter", -apple-system, sans-serif;
   font-size: 14px;
   font-weight: 600;
   color: rgba(255, 255, 255, 0.9);
   animation: welcomeStatusIn 0.5s ease-out 0.3s both;
   transition: background 0.3s, border-color 0.3s;
-
   &.done {
     background: rgba(34, 197, 94, 0.2);
     border-color: rgba(34, 197, 94, 0.5);
     color: #86efac;
   }
 }
-
 .welcome-status-spinner {
   display: inline-block;
-  width: 16px;
-  height: 16px;
+  width: 16px; height: 16px;
   border: 2px solid rgba(255, 255, 255, 0.3);
   border-top-color: #ffffff;
   border-radius: 50%;
   animation: welcomeSpinner 0.9s linear infinite;
   flex-shrink: 0;
 }
-
 .welcome-status-check {
   display: inline-block;
   font-size: 16px;
@@ -274,27 +339,17 @@ const isDone = computed(() => props.done || props.percent >= 100);
   color: #22c55e;
   animation: checkPop 0.4s cubic-bezier(.34,1.56,.64,1);
 }
-
 @keyframes checkPop {
   0%   { transform: scale(0); }
   60%  { transform: scale(1.3); }
   100% { transform: scale(1); }
 }
-
-.welcome-status-text {
-  white-space: nowrap;
-}
-
-@keyframes welcomeSpinner {
-  to { transform: rotate(360deg); }
-}
-
+@keyframes welcomeSpinner { to { transform: rotate(360deg); } }
 @keyframes welcomeStatusIn {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
-/* ✅ Ускоренное исчезновение: было 0.7s */
 .welcome-enter-active {
   transition:
     opacity 0.35s cubic-bezier(.22,.61,.36,1),
@@ -306,15 +361,8 @@ const isDone = computed(() => props.done || props.percent >= 100);
     transform 0.4s cubic-bezier(.4,0,.2,1),
     filter 0.4s ease;
 }
-.welcome-enter-from {
-  opacity: 0;
-  transform: translateY(30px) scale(0.96);
-}
-.welcome-leave-to {
-  opacity: 0;
-  transform: scale(1.08);
-  filter: blur(10px);
-}
+.welcome-enter-from { opacity: 0; transform: translateY(30px) scale(0.96); }
+.welcome-leave-to { opacity: 0; transform: scale(1.08); filter: blur(10px); }
 
 @media (max-width: 700px) {
   .welcome-logo { padding: 10px 20px; gap: 8px; }
@@ -323,6 +371,8 @@ const isDone = computed(() => props.done || props.percent >= 100);
   .welcome-text { font-size: clamp(20px, 7vw, 32px); }
   .welcome-status { font-size: 13px; padding: 8px 16px; }
   .welcome-progress { max-width: 260px; }
+  .welcome-coin { width: 64px; height: 64px; }
+  .coin-face { font-size: 32px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -332,7 +382,10 @@ const isDone = computed(() => props.done || props.percent >= 100);
   .welcome-text,
   .welcome-name,
   .wp-fill,
-  .welcome-status-spinner { animation: none; }
+  .welcome-status-spinner,
+  .coin-inner,
+  .coin-shadow,
+  .welcome-coin { animation: none; }
   .welcome-leave-active { transition: opacity 0.2s ease; }
   .welcome-leave-to { filter: none; transform: none; }
 }

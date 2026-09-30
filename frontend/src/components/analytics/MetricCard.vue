@@ -33,6 +33,9 @@ defineProps({
   transition: transform 0.18s cubic-bezier(.34,1.56,.64,1), box-shadow 0.18s;
   min-width: 0;
 
+  /* ✅ Каскадное появление */
+  animation: cardEnter 0.55s cubic-bezier(.34,1.56,.64,1) both;
+
   &:hover {
     transform: translateY(-2px);
     box-shadow: var(--shadow-lg);
@@ -45,12 +48,20 @@ defineProps({
   }
 }
 
-.metric-icon {
-  font-size: 18px;
-  line-height: 1;
-  margin-bottom: 2px;
+@keyframes cardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.95);
+    filter: blur(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+    filter: blur(0);
+  }
 }
 
+.metric-icon { font-size: 18px; line-height: 1; margin-bottom: 2px; }
 .metric-label {
   font-size: 10px;
   color: var(--muted);
@@ -62,7 +73,6 @@ defineProps({
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
 .metric-value {
   font-family: var(--mono);
   font-size: 19px;
@@ -73,19 +83,15 @@ defineProps({
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
 }
-
-.metric-card.big .metric-value {
-  font-size: 24px;
-}
-
+.metric-card.big .metric-value { font-size: 24px; }
 .metric-card.accent .metric-value {
   background: linear-gradient(135deg, #4ade80, #22c55e);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
-
 .metric-hint {
   font-size: 10.5px;
   color: var(--muted);
@@ -98,46 +104,21 @@ defineProps({
   -webkit-box-orient: vertical;
 }
 
-/* ============================================================
-   МОБИЛЬНЫЙ
-   ============================================================ */
 @media (max-width: 700px) {
-  .metric-card {
-    padding: 10px 12px;
-    border-radius: 12px;
-    gap: 1px;
-  }
-
-  .metric-icon {
-    font-size: 16px;
-    margin-bottom: 1px;
-  }
-
-  .metric-label {
-    font-size: 9px;
-    letter-spacing: 0.05em;
-  }
-
-  .metric-value {
-    font-size: 16px;
-  }
-
-  .metric-card.big .metric-value {
-    font-size: 20px;
-  }
-
-  .metric-hint {
-    font-size: 9.5px;
-  }
+  .metric-card { padding: 10px 12px; border-radius: 12px; gap: 1px; }
+  .metric-icon { font-size: 16px; margin-bottom: 1px; }
+  .metric-label { font-size: 9px; letter-spacing: 0.05em; }
+  .metric-value { font-size: 16px; }
+  .metric-card.big .metric-value { font-size: 20px; }
+  .metric-hint { font-size: 9.5px; }
 }
 
 @media (max-width: 380px) {
-  .metric-value {
-    font-size: 15px;
-  }
+  .metric-value { font-size: 15px; }
+  .metric-card.big .metric-value { font-size: 18px; }
+}
 
-  .metric-card.big .metric-value {
-    font-size: 18px;
-  }
+@media (prefers-reduced-motion: reduce) {
+  .metric-card { animation: none !important; }
 }
 </style>
