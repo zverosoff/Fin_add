@@ -14,7 +14,6 @@ const toast = useToast();
 const editOpen = ref(false);
 const editTx = ref(null);
 
-// ✅ Складывание дней (запоминается в localStorage)
 const LS_KEY = 'financeProCollapsedDays_v2';
 const collapsedDays = ref({});
 
@@ -27,19 +26,15 @@ watch(collapsedDays, (val) => {
   try { localStorage.setItem(LS_KEY, JSON.stringify(val)); } catch (e) {}
 }, { deep: true });
 
-// ✅ Ключ последнего (верхнего) дня
 const lastDayKey = computed(() =>
   tx.groupedByDay.length > 0 ? tx.groupedByDay[0].key : null
 );
 
-// ✅ При изменении списка — автоматически сворачиваем все дни, кроме последнего
 watch(
   () => tx.groupedByDay.map(g => g.key).join(','),
   () => {
     const newState = {};
     for (const group of tx.groupedByDay) {
-      // Последний (первый в списке) — разворачиваем
-      // Все остальные — сворачиваем
       newState[group.key] = group.key !== lastDayKey.value;
     }
     collapsedDays.value = newState;
@@ -119,7 +114,6 @@ async function restoreFromSnapshot(snapshot) {
 
     <template v-else>
       <template v-for="group in tx.groupedByDay" :key="group.key">
-        <!-- ✅ Кликабельный заголовок дня -->
         <div
           class="tx-day-header"
           :class="{ collapsed: isDayCollapsed(group.key) }"
@@ -145,7 +139,6 @@ async function restoreFromSnapshot(snapshot) {
           </span>
         </div>
 
-        <!-- ✅ Список операций — сворачивается -->
         <Transition name="day-collapse">
           <div v-if="!isDayCollapsed(group.key)" class="tx-day-items">
             <TransactionItem
@@ -181,12 +174,6 @@ async function restoreFromSnapshot(snapshot) {
   border: 1px solid rgba(56, 189, 248, 0.25);
   border-radius: 12px;
   font-size: 12px;
-  animation: filterIn 0.2s ease;
-}
-
-@keyframes filterIn {
-  from { opacity: 0; transform: translateY(-6px); }
-  to   { opacity: 1; transform: translateY(0); }
 }
 
 .taf-label {
@@ -255,7 +242,6 @@ async function restoreFromSnapshot(snapshot) {
   &:hover { background: var(--accent); color: #fff; }
 }
 
-/* ✅ Заголовок дня — кликабельный */
 .tx-day-header {
   position: sticky;
   top: 0;
@@ -350,27 +336,26 @@ async function restoreFromSnapshot(snapshot) {
   &.negative { color: #ef4444; }
 }
 
-/* ✅ Плавное складывание */
+/* ✅ Без overflow: hidden, без padding-bottom */
 .tx-day-items {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  overflow: hidden;
 }
 
 .day-collapse-enter-active,
 .day-collapse-leave-active {
   transition:
     max-height 0.35s cubic-bezier(.22,.61,.36,1),
-    opacity 0.25s ease,
-    transform 0.3s ease;
-  max-height: 2000px;
+    opacity 0.25s ease;
+  max-height: 4000px;
+  overflow: hidden;
+  will-change: max-height, opacity;
 }
 .day-collapse-enter-from,
 .day-collapse-leave-to {
   max-height: 0;
   opacity: 0;
-  transform: translateY(-8px);
 }
 
 @media (max-width: 700px) {

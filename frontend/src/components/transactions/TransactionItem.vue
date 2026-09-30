@@ -31,18 +31,16 @@ const icon = computed(() => categoryIcon(props.tx.category));
 const userClass = computed(() => (props.tx.user === 'Сергей' ? 'sergey' : 'sasha'));
 const displayUserName = computed(() => auth.nameFor(props.tx.user));
 
-// ✅ Появление / удаление — простые флаги
 const appearing = ref(false);
 const deleting = ref(false);
 
 onMounted(() => {
   if (props.isNew) {
     appearing.value = true;
-    setTimeout(() => { appearing.value = false; }, 700);
+    setTimeout(() => { appearing.value = false; }, 500);
   }
 });
 
-// Анимация flash суммы
 const amountFlash = ref(null);
 const prevAmount = ref(props.tx.amount);
 watch(() => props.tx.amount, (newVal, oldVal) => {
@@ -59,7 +57,7 @@ function onDelete() {
 }
 
 // ============================================================
-// Свайпы (мобильные)
+// Свайпы — через flex, без изменения высоты
 // ============================================================
 const el = ref(null);
 const offsetX = ref(0);
@@ -200,39 +198,41 @@ function itemStyle() {
 </template>
 
 <style scoped lang="scss">
+/* ============================================================
+   ✅ .tx-item — flex-раскладка, БЕЗ overflow: hidden,
+   БЕЗ min-height (высота строго по контенту + padding)
+   ============================================================ */
 .tx-item {
   position: relative;
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 12px;
+  display: flex;
   align-items: center;
+  gap: 12px;
   background: rgba(255, 255, 255, 0.85);
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 12px 16px;
   box-shadow: var(--shadow-sm);
   transition:
-    transform 0.28s cubic-bezier(.22,.61,.36,1),
+    transform 0.25s cubic-bezier(.22,.61,.36,1),
     border-color 0.15s ease,
     box-shadow 0.15s ease,
     background 0.15s ease,
-    opacity 0.3s ease,
-    filter 0.3s ease;
+    opacity 0.25s ease;
   touch-action: pan-y;
-  will-change: transform, opacity;
-  overflow: hidden;
+  will-change: transform;
+  box-sizing: border-box;
+  /* ✅ Без overflow: hidden — чтобы псевдоэлементы свайпа не ломали раскладку */
+  /* ✅ Без min-height — размер задаётся padding + контентом */
 
   &:hover {
     border-color: var(--accent);
     box-shadow: var(--shadow-md);
   }
 
-  /* ✅ Простое появление — без изменения max-height / padding */
   &.is-appearing {
-    animation: txAppear 0.5s cubic-bezier(.22,.61,.36,1);
+    animation: txAppear 0.45s cubic-bezier(.22,.61,.36,1);
   }
 
-  /* ✅ Простое удаление — без изменения max-height */
   &.is-deleting {
     animation: txDelete 0.3s cubic-bezier(.4,0,.6,1) forwards;
     pointer-events: none;
@@ -240,29 +240,18 @@ function itemStyle() {
 }
 
 @keyframes txAppear {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.96);
-    filter: blur(2px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
-  }
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 @keyframes txDelete {
-  from {
-    opacity: 1;
-    transform: translateX(0) scale(1);
-  }
-  to {
-    opacity: 0;
-    transform: translateX(-60px) scale(0.9);
-  }
+  from { opacity: 1; transform: translateX(0); }
+  to   { opacity: 0; transform: translateX(-60px); }
 }
 
+/* ============================================================
+   Свайп-прогресс
+   ============================================================ */
 .tx-swipe-progress {
   position: absolute;
   inset: 0;
@@ -317,13 +306,17 @@ function itemStyle() {
   pointer-events: none;
 }
 
+/* ============================================================
+   Аватар / контент / сумма — flex-элементы
+   ============================================================ */
 .tx-avatar {
-  width: 40px; height: 40px;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
   overflow: hidden;
   transition: all 0.2s ease;
 }
@@ -348,7 +341,10 @@ function itemStyle() {
 }
 .tx-avatar-emoji { font-size: 20px; line-height: 1; }
 
-.tx-main { min-width: 0; }
+.tx-main {
+  flex: 1;
+  min-width: 0;
+}
 .tx-name {
   font-weight: 600;
   font-size: 15px;
@@ -382,15 +378,13 @@ function itemStyle() {
   font-size: 11px;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s ease, color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  transition: background 0.15s ease, color 0.15s ease;
   user-select: none;
   white-space: nowrap;
 
   &:hover {
     background: linear-gradient(135deg, #38bdf8, #8b5cf6);
     color: #ffffff;
-    transform: translateY(-1px);
-    box-shadow: 0 6px 16px -6px rgba(56, 189, 248, 0.6);
   }
   &.acc-badge.sber {
     background: rgba(33, 160, 56, 0.15);
@@ -405,6 +399,7 @@ function itemStyle() {
 }
 
 .tx-right {
+  flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -417,7 +412,7 @@ function itemStyle() {
   letter-spacing: -0.02em;
   cursor: pointer;
   white-space: nowrap;
-  transition: opacity 0.15s ease, transform 0.15s ease, color 0.3s ease;
+  transition: opacity 0.15s ease, color 0.3s ease;
   user-select: none;
   border-radius: 6px;
   padding: 1px 4px;
@@ -425,19 +420,19 @@ function itemStyle() {
   &.income { color: #22c55e; }
   &.expense { color: #ef4444; }
 
-  &:hover { opacity: 0.75; transform: scale(1.03); }
+  &:hover { opacity: 0.75; }
 
   &.flash-up { animation: amountFlashUp 0.9s ease-out; }
   &.flash-down { animation: amountFlashDown 0.9s ease-out; }
 }
 
 @keyframes amountFlashUp {
-  0%   { background: rgba(34, 197, 94, 0.35); transform: scale(1.12); }
-  100% { background: transparent; transform: scale(1); }
+  0%   { background: rgba(34, 197, 94, 0.35); }
+  100% { background: transparent; }
 }
 @keyframes amountFlashDown {
-  0%   { background: rgba(239, 68, 68, 0.35); transform: scale(1.12); }
-  100% { background: transparent; transform: scale(1); }
+  0%   { background: rgba(239, 68, 68, 0.35); }
+  100% { background: transparent; }
 }
 
 .tx-actions {
@@ -460,6 +455,7 @@ function itemStyle() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 
   &:hover {
     border-color: var(--accent);
@@ -473,9 +469,12 @@ function itemStyle() {
   }
 }
 
+/* ============================================================
+   МОБИЛЬНЫЙ
+   ============================================================ */
 @media (max-width: 700px) {
   .tx-item { padding: 12px 14px; gap: 10px; border-radius: 12px; }
-  .tx-avatar { width: 36px; height: 36px; }
+  .tx-avatar { flex: 0 0 36px; width: 36px; height: 36px; }
   .tx-bank-logo { padding: 4px; }
   .tx-avatar-emoji { font-size: 18px; }
   .tx-name { font-size: 14px; margin-bottom: 2px; }
