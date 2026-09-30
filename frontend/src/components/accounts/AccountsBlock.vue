@@ -53,9 +53,6 @@ function isMe(owner) { return owner === userName.value; }
 
 const myAvatar = computed(() => auth.avatarFor(userName.value));
 
-// ============================================================
-// 3D-наклон
-// ============================================================
 const cardEl = ref(null);
 const tilt = ref({ rx: 0, ry: 0, mx: 50, my: 50 });
 const isTilting = ref(false);
@@ -164,16 +161,13 @@ watch(expandedOwners, (val) => {
       <div class="dc-bg" aria-hidden="true">
         <div class="dc-bg-photo">
           <template v-if="myAvatar">
-            <!-- ✅ Основное фото -->
             <img :src="myAvatar" alt="" class="dc-photo-layer dc-photo-base" />
 
-            <!-- ✅ Киберпанк-глитч: 4 слоя RGB + сдвиг -->
             <img :src="myAvatar" alt="" class="dc-photo-layer dc-photo-r" />
             <img :src="myAvatar" alt="" class="dc-photo-layer dc-photo-g" />
             <img :src="myAvatar" alt="" class="dc-photo-layer dc-photo-b" />
             <img :src="myAvatar" alt="" class="dc-photo-layer dc-photo-bw" />
 
-            <!-- ✅ Цифровые артефакты (летающие блоки) -->
             <div class="dc-glitch-blocks">
               <span class="gblock gblock-1"></span>
               <span class="gblock gblock-2"></span>
@@ -182,14 +176,12 @@ watch(expandedOwners, (val) => {
               <span class="gblock gblock-5"></span>
             </div>
 
-            <!-- ✅ Летающие «струны» кода -->
             <div class="dc-glitch-code">
               <span>10110</span>
               <span>11001</span>
               <span>01101</span>
             </div>
 
-            <!-- ✅ Яркие горизонтальные полосы -->
             <div class="dc-glitch-bars">
               <span class="gbar gbar-1"></span>
               <span class="gbar gbar-2"></span>
@@ -336,7 +328,6 @@ watch(expandedOwners, (val) => {
   overflow: hidden;
 }
 
-/* ✅ Общий слой для всех img */
 .dc-photo-layer {
   position: absolute;
   inset: 0;
@@ -348,101 +339,151 @@ watch(expandedOwners, (val) => {
   will-change: transform, opacity;
 }
 
-/* Основной слой */
 .dc-photo-base {
   opacity: 0.85;
   filter: saturate(0.9) contrast(1.05) brightness(0.92);
-  animation: glitchBase 6s infinite;
+  animation: glitchBase 8s infinite;
 }
 
-/* Красный канал — сильно смещается вправо/влево */
+/* ✅ КРАСНЫЙ — активен 20-100% (3.2 сек из 4 в фазе глитча) */
 .dc-photo-r {
   mix-blend-mode: screen;
   filter: saturate(4) hue-rotate(-25deg) contrast(1.3);
   opacity: 0;
-  animation: glitchR 6s infinite;
+  animation: glitchR 8s infinite;
 }
 
-/* Зелёный канал */
+/* ✅ ЗЕЛЁНЫЙ — активен 25-95% */
 .dc-photo-g {
   mix-blend-mode: screen;
   filter: saturate(4) hue-rotate(90deg) contrast(1.3);
   opacity: 0;
-  animation: glitchG 6s infinite;
+  animation: glitchG 8s infinite;
 }
 
-/* Голубой канал */
+/* ✅ ГОЛУБОЙ — активен 20-100% */
 .dc-photo-b {
   mix-blend-mode: screen;
   filter: saturate(4) hue-rotate(170deg) contrast(1.3);
   opacity: 0;
-  animation: glitchB 6s infinite;
+  animation: glitchB 8s infinite;
 }
 
-/* Чёрно-белый инвертированный слой */
+/* ✅ Ч/Б инверт — активен реже, 40-80% */
 .dc-photo-bw {
   mix-blend-mode: difference;
   filter: grayscale(1) invert(1) contrast(2);
   opacity: 0;
-  animation: glitchBW 6s infinite;
-}
-
-/* ✅ Базовое фото слегка "дёргается" */
-@keyframes glitchBase {
-  0%, 88%, 100% { transform: translate(0, 0); }
-  89% { transform: translate(-2px, 1px); }
-  90% { transform: translate(3px, -1px); }
-  91% { transform: translate(-3px, 0); }
-  92% { transform: translate(2px, 1px); }
-  93% { transform: translate(-1px, -2px); }
-  94% { transform: translate(0, 0); }
-}
-
-/* ✅ Красный канал — рвётся в стороны */
-@keyframes glitchR {
-  0%, 88%, 100% { opacity: 0; transform: translate(0, 0); }
-  89% { opacity: 1; transform: translate(-8px, -2px); }
-  90% { opacity: 1; transform: translate(6px, 1px); }
-  91% { opacity: 0.9; transform: translate(-4px, 0); }
-  92% { opacity: 1; transform: translate(5px, -1px); }
-  93% { opacity: 0.7; transform: translate(-6px, 2px); }
-  94% { opacity: 0; transform: translate(0, 0); }
-}
-
-/* ✅ Зелёный канал */
-@keyframes glitchG {
-  0%, 88%, 100% { opacity: 0; transform: translate(0, 0); }
-  89% { opacity: 0.9; transform: translate(4px, 2px); }
-  90% { opacity: 1; transform: translate(-5px, -1px); }
-  91% { opacity: 0.8; transform: translate(3px, 1px); }
-  92% { opacity: 1; transform: translate(-3px, -2px); }
-  93% { opacity: 0.6; transform: translate(4px, 0); }
-  94% { opacity: 0; transform: translate(0, 0); }
-}
-
-/* ✅ Голубой канал */
-@keyframes glitchB {
-  0%, 88%, 100% { opacity: 0; transform: translate(0, 0); }
-  89% { opacity: 1; transform: translate(8px, 2px); }
-  90% { opacity: 1; transform: translate(-6px, -1px); }
-  91% { opacity: 0.9; transform: translate(4px, 0); }
-  92% { opacity: 1; transform: translate(-5px, 1px); }
-  93% { opacity: 0.7; transform: translate(6px, -2px); }
-  94% { opacity: 0; transform: translate(0, 0); }
-}
-
-/* ✅ Чёрно-белый инвертированный */
-@keyframes glitchBW {
-  0%, 88%, 100% { opacity: 0; transform: translate(0, 0); }
-  89% { opacity: 0.5; transform: translate(12px, 0); }
-  90% { opacity: 0.7; transform: translate(-14px, 0); }
-  91% { opacity: 0.4; transform: translate(6px, 0); }
-  92% { opacity: 0.6; transform: translate(-8px, 0); }
-  93% { opacity: 0; transform: translate(0, 0); }
+  animation: glitchBW 8s infinite;
 }
 
 /* ============================================================
-   ✅ ЦИФРОВЫЕ АРТЕФАКТЫ — летающие блоки
+   ✅ РАСШИРЕННЫЙ ГЛИТЧ — с 60% до 100% (≈ 3.2 сек)
+   ============================================================ */
+
+/* Базовое фото дрожит всю активную фазу */
+@keyframes glitchBase {
+  0%, 5%, 100% { transform: translate(0, 0); }
+  6% { transform: translate(-2px, 1px); }
+  10% { transform: translate(3px, -1px); }
+  20% { transform: translate(-3px, 0); }
+  30% { transform: translate(2px, 1px); }
+  40% { transform: translate(-1px, -2px); }
+  50% { transform: translate(2px, 0); }
+  60% { transform: translate(0, 0); }
+
+  /* ✅ Активная фаза — 60-100% */
+  62% { transform: translate(-3px, 2px); }
+  65% { transform: translate(4px, -1px); }
+  68% { transform: translate(-2px, 1px); }
+  72% { transform: translate(3px, -2px); }
+  76% { transform: translate(-4px, 0); }
+  80% { transform: translate(2px, 2px); }
+  85% { transform: translate(-2px, -1px); }
+  90% { transform: translate(3px, 1px); }
+  95% { transform: translate(-1px, 0); }
+}
+
+/* Красный канал — сильное смещение */
+@keyframes glitchR {
+  0%, 5%, 100% { opacity: 0; transform: translate(0, 0); }
+  6% { opacity: 1; transform: translate(-10px, -2px); }
+  7% { opacity: 1; transform: translate(8px, 1px); }
+  8% { opacity: 0.9; transform: translate(-5px, 0); }
+  9% { opacity: 0; transform: translate(0, 0); }
+
+  /* ✅ Активная фаза — 60-100% */
+  60% { opacity: 0; transform: translate(0, 0); }
+  62% { opacity: 1; transform: translate(-12px, -3px); }
+  65% { opacity: 1; transform: translate(10px, 2px); }
+  68% { opacity: 0.9; transform: translate(-7px, 0); }
+  70% { opacity: 1; transform: translate(9px, -2px); }
+  72% { opacity: 0.85; transform: translate(-11px, 3px); }
+  75% { opacity: 1; transform: translate(7px, 1px); }
+  78% { opacity: 0.7; transform: translate(-8px, -1px); }
+  82% { opacity: 1; transform: translate(10px, 2px); }
+  86% { opacity: 0.6; transform: translate(-5px, 0); }
+  90% { opacity: 0.8; transform: translate(8px, -1px); }
+  94% { opacity: 0.4; transform: translate(-4px, 1px); }
+  97% { opacity: 0; transform: translate(0, 0); }
+}
+
+@keyframes glitchG {
+  0%, 5%, 100% { opacity: 0; transform: translate(0, 0); }
+  6% { opacity: 0.9; transform: translate(6px, 2px); }
+  7% { opacity: 1; transform: translate(-7px, -1px); }
+  8% { opacity: 0; transform: translate(0, 0); }
+
+  60% { opacity: 0; transform: translate(0, 0); }
+  63% { opacity: 0.9; transform: translate(8px, 3px); }
+  66% { opacity: 1; transform: translate(-9px, -2px); }
+  69% { opacity: 0.8; transform: translate(6px, 1px); }
+  72% { opacity: 1; transform: translate(-7px, -2px); }
+  75% { opacity: 0.7; transform: translate(9px, 0); }
+  79% { opacity: 0.9; transform: translate(-6px, 2px); }
+  83% { opacity: 1; transform: translate(8px, -1px); }
+  87% { opacity: 0.5; transform: translate(-5px, 1px); }
+  91% { opacity: 0.8; transform: translate(7px, 0); }
+  95% { opacity: 0.3; transform: translate(-3px, 0); }
+  98% { opacity: 0; transform: translate(0, 0); }
+}
+
+@keyframes glitchB {
+  0%, 5%, 100% { opacity: 0; transform: translate(0, 0); }
+  6% { opacity: 1; transform: translate(10px, 2px); }
+  7% { opacity: 1; transform: translate(-8px, -1px); }
+  8% { opacity: 0.9; transform: translate(5px, 0); }
+  9% { opacity: 0; transform: translate(0, 0); }
+
+  60% { opacity: 0; transform: translate(0, 0); }
+  62% { opacity: 1; transform: translate(12px, 3px); }
+  65% { opacity: 1; transform: translate(-10px, -2px); }
+  68% { opacity: 0.9; transform: translate(7px, 0); }
+  71% { opacity: 1; transform: translate(-9px, 2px); }
+  74% { opacity: 0.85; transform: translate(11px, -3px); }
+  77% { opacity: 1; transform: translate(-7px, -1px); }
+  80% { opacity: 0.7; transform: translate(8px, 1px); }
+  84% { opacity: 1; transform: translate(-10px, -2px); }
+  88% { opacity: 0.6; transform: translate(5px, 0); }
+  92% { opacity: 0.8; transform: translate(-8px, 1px); }
+  95% { opacity: 0.4; transform: translate(4px, -1px); }
+  98% { opacity: 0; transform: translate(0, 0); }
+}
+
+@keyframes glitchBW {
+  0%, 5%, 100% { opacity: 0; transform: translate(0, 0); }
+  60% { opacity: 0; transform: translate(0, 0); }
+  65% { opacity: 0.6; transform: translate(15px, 0); }
+  70% { opacity: 0.8; transform: translate(-18px, 0); }
+  75% { opacity: 0.5; transform: translate(8px, 0); }
+  80% { opacity: 0.7; transform: translate(-10px, 0); }
+  85% { opacity: 0.4; transform: translate(12px, 0); }
+  90% { opacity: 0.6; transform: translate(-8px, 0); }
+  95% { opacity: 0; transform: translate(0, 0); }
+}
+
+/* ============================================================
+   ✅ ЦИФРОВЫЕ АРТЕФАКТЫ — активны 60-100%
    ============================================================ */
 .dc-glitch-blocks {
   position: absolute;
@@ -464,71 +505,117 @@ watch(expandedOwners, (val) => {
 .gblock-1 {
   top: 15%; left: 0;
   width: 40%;
-  animation: gblockMove1 6s infinite;
+  animation: gblockMove1 8s infinite;
 }
 .gblock-2 {
   top: 42%; left: 0;
   width: 65%;
   background: #ff00ff;
-  animation: gblockMove2 6s infinite;
+  animation: gblockMove2 8s infinite;
 }
 .gblock-3 {
   top: 58%; left: 0;
   width: 30%;
   background: #ff0055;
   height: 10px;
-  animation: gblockMove3 6s infinite;
+  animation: gblockMove3 8s infinite;
 }
 .gblock-4 {
   top: 78%; left: 0;
   width: 50%;
   background: #00ff88;
-  animation: gblockMove4 6s infinite;
+  animation: gblockMove4 8s infinite;
 }
 .gblock-5 {
   top: 30%; left: 0;
   width: 80%;
   background: #ffffff;
   height: 3px;
-  animation: gblockMove5 6s infinite;
+  animation: gblockMove5 8s infinite;
 }
 
+/* ✅ Активная фаза — 60-100%, летают чаще */
 @keyframes gblockMove1 {
-  0%, 88%, 100% { opacity: 0; transform: translateX(-100%); }
-  89% { opacity: 1; transform: translateX(20%); }
-  90% { opacity: 1; transform: translateX(60%); }
-  91% { opacity: 1; transform: translateX(30%); }
-  92% { opacity: 0.8; transform: translateX(80%); }
-  93% { opacity: 0; transform: translateX(120%); }
+  0%, 5%, 100% { opacity: 0; transform: translateX(-100%); }
+  6% { opacity: 1; transform: translateX(20%); }
+  7% { opacity: 1; transform: translateX(60%); }
+  8% { opacity: 0; transform: translateX(120%); }
+
+  60% { opacity: 0; transform: translateX(-100%); }
+  63% { opacity: 1; transform: translateX(20%); }
+  66% { opacity: 1; transform: translateX(70%); }
+  69% { opacity: 0.8; transform: translateX(40%); }
+  72% { opacity: 1; transform: translateX(90%); }
+  76% { opacity: 0.7; transform: translateX(30%); }
+  80% { opacity: 1; transform: translateX(60%); }
+  85% { opacity: 0.5; transform: translateX(110%); }
+  90% { opacity: 0; transform: translateX(0); }
 }
 @keyframes gblockMove2 {
-  0%, 88%, 100% { opacity: 0; transform: translateX(100%); }
-  89% { opacity: 1; transform: translateX(40%); }
-  90% { opacity: 0.9; transform: translateX(10%); }
-  91% { opacity: 1; transform: translateX(70%); }
-  92% { opacity: 0; transform: translateX(-20%); }
+  0%, 5%, 100% { opacity: 0; transform: translateX(100%); }
+  6% { opacity: 1; transform: translateX(40%); }
+  7% { opacity: 0.9; transform: translateX(10%); }
+  8% { opacity: 0; transform: translateX(-20%); }
+
+  60% { opacity: 0; transform: translateX(100%); }
+  62% { opacity: 1; transform: translateX(50%); }
+  65% { opacity: 1; transform: translateX(10%); }
+  68% { opacity: 0.9; transform: translateX(80%); }
+  72% { opacity: 1; transform: translateX(30%); }
+  76% { opacity: 0.7; transform: translateX(60%); }
+  81% { opacity: 0.9; transform: translateX(-10%); }
+  86% { opacity: 0.5; transform: translateX(90%); }
+  92% { opacity: 0; transform: translateX(0); }
 }
 @keyframes gblockMove3 {
-  0%, 88%, 100% { opacity: 0; transform: translateX(-30%) scaleY(1); }
-  89% { opacity: 1; transform: translateX(30%) scaleY(1.5); }
-  90% { opacity: 1; transform: translateX(80%) scaleY(1); }
-  91% { opacity: 0; transform: translateX(120%); }
+  0%, 5%, 100% { opacity: 0; transform: translateX(-30%) scaleY(1); }
+  6% { opacity: 1; transform: translateX(30%) scaleY(1.5); }
+  7% { opacity: 1; transform: translateX(80%) scaleY(1); }
+  8% { opacity: 0; transform: translateX(120%); }
+
+  60% { opacity: 0; transform: translateX(-30%); }
+  63% { opacity: 1; transform: translateX(40%) scaleY(1.5); }
+  66% { opacity: 1; transform: translateX(80%) scaleY(1); }
+  70% { opacity: 0.9; transform: translateX(20%) scaleY(2); }
+  74% { opacity: 1; transform: translateX(60%) scaleY(1); }
+  78% { opacity: 0.7; transform: translateX(10%) scaleY(1.8); }
+  82% { opacity: 1; transform: translateX(90%) scaleY(1); }
+  88% { opacity: 0; transform: translateX(0); }
 }
 @keyframes gblockMove4 {
-  0%, 88%, 100% { opacity: 0; transform: translateX(50%); }
-  89% { opacity: 1; transform: translateX(10%); }
-  90% { opacity: 0.9; transform: translateX(70%); }
-  91% { opacity: 0; transform: translateX(-40%); }
+  0%, 5%, 100% { opacity: 0; transform: translateX(50%); }
+  6% { opacity: 1; transform: translateX(10%); }
+  7% { opacity: 0.9; transform: translateX(70%); }
+  8% { opacity: 0; transform: translateX(-40%); }
+
+  60% { opacity: 0; transform: translateX(50%); }
+  63% { opacity: 1; transform: translateX(15%); }
+  67% { opacity: 1; transform: translateX(75%); }
+  71% { opacity: 0.8; transform: translateX(30%); }
+  75% { opacity: 1; transform: translateX(85%); }
+  80% { opacity: 0.6; transform: translateX(20%); }
+  85% { opacity: 0.9; transform: translateX(60%); }
+  91% { opacity: 0; transform: translateX(0); }
 }
 @keyframes gblockMove5 {
-  0%, 88%, 100% { opacity: 0; transform: translateX(0); }
-  89% { opacity: 1; transform: translateX(-10%); }
-  90% { opacity: 0.8; transform: translateX(50%); }
-  91% { opacity: 0; transform: translateX(100%); }
+  0%, 5%, 100% { opacity: 0; transform: translateX(0); }
+  6% { opacity: 1; transform: translateX(-10%); }
+  7% { opacity: 0.8; transform: translateX(50%); }
+  8% { opacity: 0; transform: translateX(100%); }
+
+  60% { opacity: 0; transform: translateX(0); }
+  62% { opacity: 1; transform: translateX(-15%); }
+  65% { opacity: 0.9; transform: translateX(40%); }
+  68% { opacity: 1; transform: translateX(-5%); }
+  72% { opacity: 0.7; transform: translateX(70%); }
+  76% { opacity: 1; transform: translateX(20%); }
+  80% { opacity: 0.8; transform: translateX(90%); }
+  84% { opacity: 0.5; transform: translateX(10%); }
+  88% { opacity: 0; transform: translateX(0); }
 }
 
 /* ============================================================
-   ✅ ЛЕТАЮЩИЕ «СТРУНЫ» КОДА
+   ✅ ЛЕТАЮЩИЕ «СТРУНЫ» КОДА — активны 60-100%
    ============================================================ */
 .dc-glitch-code {
   position: absolute;
@@ -553,46 +640,64 @@ watch(expandedOwners, (val) => {
   span:nth-child(1) {
     top: 22%;
     left: 8%;
-    animation: codeFly1 6s infinite;
+    animation: codeFly1 8s infinite;
   }
   span:nth-child(2) {
     top: 52%;
     left: 20%;
     color: #ff00ff;
     text-shadow: 0 0 6px #ff00ff, 0 0 12px #ff00ff;
-    animation: codeFly2 6s infinite;
+    animation: codeFly2 8s infinite;
   }
   span:nth-child(3) {
     top: 72%;
     left: 5%;
     color: #00ff88;
     text-shadow: 0 0 6px #00ff88, 0 0 12px #00ff88;
-    animation: codeFly3 6s infinite;
+    animation: codeFly3 8s infinite;
   }
 }
 
 @keyframes codeFly1 {
-  0%, 88%, 100% { opacity: 0; transform: translateY(20px); }
-  89% { opacity: 1; transform: translateY(0); }
-  90% { opacity: 1; transform: translateY(-4px); }
-  91% { opacity: 1; transform: translateY(-10px); }
-  92% { opacity: 0; transform: translateY(-30px); }
+  0%, 5%, 100% { opacity: 0; transform: translateY(20px); }
+  6% { opacity: 1; transform: translateY(0); }
+  7% { opacity: 1; transform: translateY(-6px); }
+  8% { opacity: 0; transform: translateY(-30px); }
+
+  60% { opacity: 0; transform: translateY(20px); }
+  63% { opacity: 1; transform: translateY(0); }
+  68% { opacity: 1; transform: translateY(-10px); }
+  74% { opacity: 0.9; transform: translateY(-25px); }
+  80% { opacity: 0.7; transform: translateY(-40px); }
+  86% { opacity: 0; transform: translateY(-60px); }
 }
 @keyframes codeFly2 {
-  0%, 88%, 100% { opacity: 0; transform: translateY(15px); }
-  89% { opacity: 0.9; transform: translateY(-2px); }
-  90% { opacity: 1; transform: translateY(-8px); }
-  91% { opacity: 0; transform: translateY(-25px); }
+  0%, 5%, 100% { opacity: 0; transform: translateY(15px); }
+  6% { opacity: 0.9; transform: translateY(-2px); }
+  7% { opacity: 0; transform: translateY(-25px); }
+
+  60% { opacity: 0; transform: translateY(15px); }
+  63% { opacity: 0.9; transform: translateY(0); }
+  67% { opacity: 1; transform: translateY(-12px); }
+  72% { opacity: 0.9; transform: translateY(-28px); }
+  78% { opacity: 0.7; transform: translateY(-45px); }
+  84% { opacity: 0; transform: translateY(-65px); }
 }
 @keyframes codeFly3 {
-  0%, 88%, 100% { opacity: 0; transform: translateY(10px); }
-  89% { opacity: 1; transform: translateY(-3px); }
-  90% { opacity: 0.8; transform: translateY(-12px); }
-  91% { opacity: 0; transform: translateY(-28px); }
+  0%, 5%, 100% { opacity: 0; transform: translateY(10px); }
+  6% { opacity: 1; transform: translateY(-3px); }
+  7% { opacity: 0; transform: translateY(-28px); }
+
+  60% { opacity: 0; transform: translateY(10px); }
+  63% { opacity: 1; transform: translateY(-5px); }
+  68% { opacity: 0.9; transform: translateY(-15px); }
+  73% { opacity: 0.9; transform: translateY(-30px); }
+  79% { opacity: 0.6; transform: translateY(-48px); }
+  85% { opacity: 0; transform: translateY(-70px); }
 }
 
 /* ============================================================
-   ✅ ЯРКИЕ ГОРИЗОНТАЛЬНЫЕ ПОЛОСЫ
+   ✅ ЯРКИЕ ГОРИЗОНТАЛЬНЫЕ ПОЛОСЫ — активны 60-100%
    ============================================================ */
 .dc-glitch-bars {
   position: absolute;
@@ -613,53 +718,77 @@ watch(expandedOwners, (val) => {
 .gbar-1 {
   background: #00ffff;
   box-shadow: 0 0 8px #00ffff, 0 0 16px #00ffff;
-  animation: gbarMove1 6s infinite;
+  animation: gbarMove1 8s infinite;
 }
 .gbar-2 {
   background: #ff00ff;
   box-shadow: 0 0 8px #ff00ff, 0 0 16px #ff00ff;
-  animation: gbarMove2 6s infinite;
+  animation: gbarMove2 8s infinite;
 }
 .gbar-3 {
   background: #ffffff;
   box-shadow: 0 0 10px #ffffff;
   height: 4px;
-  animation: gbarMove3 6s infinite;
+  animation: gbarMove3 8s infinite;
 }
 
 @keyframes gbarMove1 {
-  0%, 88%, 100% { top: 30%; opacity: 0; transform: scaleX(1); }
-  89% { opacity: 1; transform: scaleX(1.1); }
-  90% { top: 32%; opacity: 1; transform: scaleX(1.4); }
-  91% { top: 34%; opacity: 0.8; transform: scaleX(1); }
-  92% { opacity: 0; }
+  0%, 5%, 100% { top: 30%; opacity: 0; transform: scaleX(1); }
+  6% { opacity: 1; transform: scaleX(1.1); }
+  7% { top: 32%; opacity: 1; transform: scaleX(1.4); }
+  8% { top: 34%; opacity: 0; }
+
+  60% { top: 20%; opacity: 0; transform: scaleX(1); }
+  63% { opacity: 1; transform: scaleX(1.2); }
+  66% { top: 30%; opacity: 1; transform: scaleX(1.5); }
+  70% { top: 40%; opacity: 0.9; transform: scaleX(1); }
+  74% { top: 50%; opacity: 1; transform: scaleX(1.3); }
+  78% { top: 60%; opacity: 0.8; transform: scaleX(1); }
+  83% { top: 70%; opacity: 0.6; transform: scaleX(1.1); }
+  88% { top: 80%; opacity: 0; transform: scaleX(1); }
 }
 @keyframes gbarMove2 {
-  0%, 88%, 100% { top: 60%; opacity: 0; transform: scaleX(1); }
-  89% { opacity: 1; transform: scaleX(1.2); }
-  90% { top: 62%; opacity: 1; transform: scaleX(1); }
-  91% { top: 64%; opacity: 0.7; }
-  92% { opacity: 0; }
+  0%, 5%, 100% { top: 60%; opacity: 0; transform: scaleX(1); }
+  6% { opacity: 1; transform: scaleX(1.2); }
+  7% { top: 62%; opacity: 1; }
+  8% { opacity: 0; }
+
+  60% { top: 80%; opacity: 0; transform: scaleX(1); }
+  63% { opacity: 1; transform: scaleX(1.3); }
+  66% { top: 75%; opacity: 1; }
+  71% { top: 65%; opacity: 0.9; transform: scaleX(1); }
+  76% { top: 55%; opacity: 1; }
+  81% { top: 45%; opacity: 0.7; }
+  86% { top: 35%; opacity: 0.5; }
+  90% { top: 25%; opacity: 0; }
 }
 @keyframes gbarMove3 {
-  0%, 88%, 100% { top: 45%; opacity: 0; }
-  89% { opacity: 1; }
-  90% { top: 50%; opacity: 1; }
-  91% { top: 55%; opacity: 0.9; }
-  92% { top: 60%; opacity: 0; }
+  0%, 5%, 100% { top: 45%; opacity: 0; }
+  6% { opacity: 1; }
+  7% { top: 50%; opacity: 1; }
+  8% { top: 60%; opacity: 0; }
+
+  60% { top: 10%; opacity: 0; }
+  62% { top: 15%; opacity: 1; }
+  66% { top: 25%; opacity: 1; }
+  70% { top: 40%; opacity: 0.9; }
+  75% { top: 55%; opacity: 1; }
+  80% { top: 70%; opacity: 0.8; }
+  85% { top: 85%; opacity: 0.6; }
+  90% { top: 100%; opacity: 0; }
 }
 
 /* ============================================================
    ✅ Усиление глитча при наведении курсора
    ============================================================ */
-.debit-card:hover .dc-photo-base { animation-duration: 1.5s; }
+.debit-card:hover .dc-photo-base { animation-duration: 4s; }
 .debit-card:hover .dc-photo-r,
 .debit-card:hover .dc-photo-g,
 .debit-card:hover .dc-photo-b,
-.debit-card:hover .dc-photo-bw { animation-duration: 1.5s; }
-.debit-card:hover .gblock { animation-duration: 1.5s; }
-.debit-card:hover .gbar { animation-duration: 1.5s; }
-.debit-card:hover .dc-glitch-code span { animation-duration: 1.5s; }
+.debit-card:hover .dc-photo-bw { animation-duration: 4s; }
+.debit-card:hover .gblock { animation-duration: 4s; }
+.debit-card:hover .gbar { animation-duration: 4s; }
+.debit-card:hover .dc-glitch-code span { animation-duration: 4s; }
 
 .dc-bg-placeholder {
   width: 100%;
@@ -730,7 +859,6 @@ watch(expandedOwners, (val) => {
     );
 }
 
-/* ✅ Розовая полоса */
 .dc-bg-divider {
   position: absolute;
   top: 0;
@@ -759,9 +887,6 @@ watch(expandedOwners, (val) => {
   opacity: 0.9;
 }
 
-/* ============================================================
-   Фиолетовая часть
-   ============================================================ */
 .dc-bg-solid {
   position: absolute;
   top: 0;
@@ -826,9 +951,6 @@ watch(expandedOwners, (val) => {
   );
 }
 
-/* ============================================================
-   Атмосферные слои
-   ============================================================ */
 .dc-shine-cursor {
   position: absolute;
   inset: 0;
@@ -885,9 +1007,7 @@ watch(expandedOwners, (val) => {
   z-index: 12;
 }
 
-/* ============================================================
-   КОНТЕНТ
-   ============================================================ */
+/* Контент */
 .dc-top {
   position: relative;
   z-index: 13;
@@ -1112,7 +1232,7 @@ watch(expandedOwners, (val) => {
 }
 
 /* ============================================================
-   МОБИЛЬНЫЙ — уменьшаем интенсивность глитча
+   МОБИЛЬНЫЙ
    ============================================================ */
 @media (max-width: 700px) {
   .debit-card { padding: 14px 16px 12px; border-radius: 20px; gap: 8px; min-height: 200px; }
@@ -1145,7 +1265,6 @@ watch(expandedOwners, (val) => {
   .dc-owner-total { font-size: 11px; padding: 2px 9px; }
   .dc-watermark { font-size: 110px; bottom: -24px; right: -8px; }
 
-  /* ✅ На мобилке глитч — реже и слабее */
   .dc-photo-base,
   .dc-photo-r,
   .dc-photo-g,
@@ -1153,7 +1272,7 @@ watch(expandedOwners, (val) => {
   .dc-photo-bw,
   .gblock,
   .gbar,
-  .dc-glitch-code span { animation-duration: 10s; }
+  .dc-glitch-code span { animation-duration: 12s; }
 
   .gblock-2,
   .gblock-4 { display: none; }
