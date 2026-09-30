@@ -13,12 +13,11 @@ const LS_KEY = 'financeProAccountsExpanded_v1';
 
 const userName = computed(() => auth.user || 'Сергей');
 const displayName = computed(() => auth.displayName || userName.value);
-// ✅ Аватар текущего пользователя
 const avatarUrl = computed(() => auth.avatar || null);
 const userEmoji = computed(() => userName.value === 'Сергей' ? '👨' : '👩');
 const totalBalance = computed(() => accounts.total);
 
-// ✅ Отображаемое имя по техническому ключу (для второго пользователя оставляем ключ)
+// ✅ Отображаемое имя по техническому ключу
 function displayOwner(owner) {
   if (!owner) return '';
   if (owner === userName.value) return displayName.value;
@@ -53,7 +52,7 @@ function bankLogo(id) {
 function isMe(owner) { return owner === userName.value; }
 
 // ============================================================
-// 3D-наклон карты (мышь / палец) — оставляем
+// 3D-наклон карты
 // ============================================================
 const cardEl = ref(null);
 const tilt = ref({ rx: 0, ry: 0, mx: 50, my: 50 });
@@ -127,6 +126,19 @@ const shineStyle = computed(() => {
   };
 });
 
+// ✅ Маскированный номер карты (псевдослучайный, но стабильный)
+const cardNumber = computed(() => {
+  // 4 последние цифры детерминированно из userName
+  const seed = userName.value
+    .split('')
+    .reduce((s, ch) => s + ch.charCodeAt(0), 0);
+  const last4 = String((seed * 7919) % 10000).padStart(4, '0');
+  return `•••• •••• •••• ${last4}`;
+});
+
+// ✅ Срок действия (MM/YY) — фиксированный
+const cardExpiry = computed(() => '12/28');
+
 onMounted(() => {
   try {
     const saved = localStorage.getItem(LS_KEY);
@@ -159,24 +171,61 @@ watch(expandedOwners, (val) => {
       <div class="dc-watermark" aria-hidden="true">₽</div>
       <div class="dc-frame" aria-hidden="true"></div>
 
+      <!-- ============================================================
+           ✅ ВЕРХНЯЯ ЧАСТЬ: аватар слева + issuer справа
+           ============================================================ -->
       <div class="dc-top">
-        <!-- ✅ Аватар: если есть — картинка, иначе — эмодзи -->
-        <div class="dc-avatar">
-          <img v-if="avatarUrl" :src="avatarUrl" alt="avatar" class="dc-avatar-img" />
-          <span v-else class="dc-avatar-emoji">{{ userEmoji }}</span>
+        <!-- ✅ Крупный прямоугольный аватар слева сверху -->
+        <div class="dc-avatar-big">
+          <img v-if="avatarUrl" :src="avatarUrl" alt="avatar" />
+          <span v-else class="dc-avatar-big-emoji">{{ userEmoji }}</span>
         </div>
+
+        <!-- ✅ Issuer справа -->
         <div class="dc-issuer">
           <div class="dc-issuer-name">VAS FINANCE PRO+</div>
           <div class="dc-issuer-sub">дебетовая</div>
         </div>
       </div>
 
+      <!-- ============================================================
+           БАЛАНС — крупно по центру
+           ============================================================ -->
       <div class="dc-balance">
         <div class="dc-balance-value">{{ fmt(totalBalance) }} ₽</div>
       </div>
 
-      <div class="dc-caption">Ваш общий баланс</div>
+      <div class="dc-caption">ВАШ ОБЩИЙ БАЛАНС</div>
 
+      <!-- ============================================================
+           ✅ НИЖНЯЯ ЧАСТЬ: чип + номер карты + срок + владельцы
+           ============================================================ -->
+      <div class="dc-bottom">
+        <!-- Чип -->
+        <div class="dc-chip-icon" aria-hidden="true">
+          <svg viewBox="0 0 40 30" width="34" height="26">
+            <rect x="1" y="1" width="38" height="28" rx="4"
+                  fill="none" stroke="currentColor" stroke-width="1.5"/>
+            <path d="M13 1 V29 M27 1 V29 M1 15 H39" 
+                  stroke="currentColor" stroke-width="1" opacity="0.7"/>
+            <path d="M13 8 H27 M13 22 H27" 
+                  stroke="currentColor" stroke-width="0.8" opacity="0.5"/>
+          </svg>
+        </div>
+
+        <!-- Номер + срок -->
+        <div class="dc-card-info">
+          <div class="dc-card-number">{{ cardNumber }}</div>
+          <div class="dc-card-expiry">
+            <span class="dc-exp-label">VALID THRU</span>
+            <span class="dc-exp-value">{{ cardExpiry }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ============================================================
+           ВЛАДЕЛЬЦЫ — внизу, отдельными строками
+           ============================================================ -->
       <div class="dc-accounts">
         <div
           v-for="owner in ownersSorted"
@@ -189,7 +238,6 @@ watch(expandedOwners, (val) => {
             type="button"
             @click="toggleOwner(owner)"
           >
-            <!-- ✅ Аватар внутри чипа, если это текущий пользователь -->
             <img
               v-if="isMe(owner) && avatarUrl"
               :src="avatarUrl"
@@ -334,41 +382,50 @@ watch(expandedOwners, (val) => {
   z-index: 0;
 }
 
-.dc-top,
-.dc-balance,
-.dc-caption,
-.dc-accounts { position: relative; z-index: 2; }
-
+/* ============================================================
+   ВЕРХНЯЯ ЧАСТЬ: аватар + issuer
+   ============================================================ */
 .dc-top {
+  position: relative;
+  z-index: 2;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 10px;
 }
 
-.dc-avatar {
-  width: 44px; height: 44px;
-  border-radius: 50%;
-  background: #ffffff;
+/* ✅ Крупный прямоугольный аватар слева сверху */
+.dc-avatar-big {
+  width: 56px;
+  height: 56px;
+  border-radius: 12px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #a5b4fc, #818cf8);
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-  overflow: hidden;
   box-shadow:
-    0 8px 20px -6px rgba(0, 0, 0, 0.4),
-    0 0 0 3px rgba(255, 255, 255, 0.35);
+    0 8px 20px -6px rgba(0, 0, 0, 0.45),
+    0 0 0 2px rgba(255, 255, 255, 0.5);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
 }
-.dc-avatar-emoji { font-size: 22px; line-height: 1; }
-/* ✅ Картинка аватара */
-.dc-avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
+.dc-avatar-big-emoji {
+  font-size: 30px;
+  line-height: 1;
 }
 
-.dc-issuer { text-align: right; min-width: 0; }
+.dc-issuer {
+  text-align: right;
+  min-width: 0;
+  padding-top: 6px;
+}
 .dc-issuer-name {
   font-size: 11.5px;
   font-weight: 800;
@@ -388,16 +445,26 @@ watch(expandedOwners, (val) => {
   margin-top: 2px;
 }
 
-.dc-balance { margin-top: 12px; text-align: center; }
+/* ============================================================
+   БАЛАНС
+   ============================================================ */
+.dc-balance {
+  position: relative;
+  z-index: 2;
+  margin-top: 8px;
+  text-align: center;
+}
 .dc-balance-value {
   font-family: var(--mono);
-  font-size: 40px;
+  font-size: 44px;
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.05;
   text-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
 }
 .dc-caption {
+  position: relative;
+  z-index: 2;
   text-align: center;
   font-size: 10.5px;
   font-weight: 700;
@@ -408,7 +475,68 @@ watch(expandedOwners, (val) => {
   margin-bottom: 4px;
 }
 
+/* ============================================================
+   ✅ НИЖНЯЯ ЧАСТЬ: чип + номер + срок
+   ============================================================ */
+.dc-bottom {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 4px 0;
+}
+
+.dc-chip-icon {
+  color: rgba(255, 255, 255, 0.75);
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.25));
+}
+
+.dc-card-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dc-card-number {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  color: rgba(255, 255, 255, 0.9);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.25);
+  white-space: nowrap;
+}
+
+.dc-card-expiry {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 8.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: rgba(255, 255, 255, 0.7);
+  text-transform: uppercase;
+}
+.dc-exp-label { opacity: 0.7; }
+.dc-exp-value {
+  font-family: var(--mono);
+  font-size: 10px;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.95);
+}
+
+/* ============================================================
+   ВЛАДЕЛЬЦЫ
+   ============================================================ */
 .dc-accounts {
+  position: relative;
+  z-index: 2;
   margin-top: 4px;
   padding-top: 10px;
   border-top: 1px solid rgba(255, 255, 255, 0.2);
@@ -449,7 +577,6 @@ watch(expandedOwners, (val) => {
 }
 
 .dc-owner-emoji { font-size: 13px; }
-/* ✅ Аватар внутри чипа */
 .dc-owner-avatar-img {
   width: 16px;
   height: 16px;
@@ -559,15 +686,34 @@ watch(expandedOwners, (val) => {
   animation: chipsIn 0.25s ease;
 }
 
+/* ============================================================
+   МОБИЛЬНЫЙ
+   ============================================================ */
 @media (max-width: 700px) {
   .debit-card { padding: 14px 16px 12px; border-radius: 20px; gap: 8px; }
-  .dc-avatar { width: 38px; height: 38px; }
-  .dc-avatar-emoji { font-size: 18px; }
+
+  /* ✅ Уменьшаем аватар, но оставляем прямоугольным */
+  .dc-avatar-big {
+    width: 46px;
+    height: 46px;
+    border-radius: 10px;
+  }
+  .dc-avatar-big-emoji { font-size: 24px; }
+
+  .dc-issuer { padding-top: 4px; }
   .dc-issuer-name { font-size: 10.5px; letter-spacing: 0.12em; }
   .dc-issuer-sub { font-size: 8.5px; }
-  .dc-balance { margin-top: 10px; }
+
+  .dc-balance { margin-top: 6px; }
   .dc-balance-value { font-size: 34px; }
   .dc-caption { font-size: 9.5px; letter-spacing: 0.12em; }
+
+  .dc-bottom { gap: 10px; padding-top: 4px; }
+  .dc-chip-icon svg { width: 28px; height: 22px; }
+  .dc-card-number { font-size: 10.5px; letter-spacing: 0.08em; }
+  .dc-card-expiry { font-size: 8px; }
+  .dc-exp-value { font-size: 9px; }
+
   .dc-accounts { gap: 5px; padding-top: 8px; margin-top: 4px; }
   .dc-owner-row { gap: 6px; }
   .dc-owner-name { font-size: 10.5px; padding: 3px 7px 3px 3px; }
@@ -583,6 +729,8 @@ watch(expandedOwners, (val) => {
 }
 
 @media (max-width: 380px) {
+  .dc-avatar-big { width: 40px; height: 40px; border-radius: 9px; }
+  .dc-avatar-big-emoji { font-size: 20px; }
   .dc-balance-value { font-size: 28px; }
   .dc-issuer-name { font-size: 9.5px; }
   .dc-chips { gap: 4px; }
