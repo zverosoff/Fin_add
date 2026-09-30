@@ -148,7 +148,9 @@ watch(expandedOwners, (val) => {
       @touchend="onTouchEnd"
       @touchcancel="onTouchEnd"
     >
-      <!-- Фон: фото слева + фиолетовая часть с диагональным срезом -->
+      <!-- ============================================================
+           ФОН: фото слева + фиолетовая часть справа с диагональным срезом
+           ============================================================ -->
       <div class="dc-bg" aria-hidden="true">
         <div class="dc-bg-photo">
           <img v-if="avatarUrl" :src="avatarUrl" alt="" />
@@ -156,14 +158,17 @@ watch(expandedOwners, (val) => {
             <span class="dc-bg-emoji">{{ userEmoji }}</span>
           </div>
 
+          <!-- Диагональные световые полосы -->
           <div class="dc-bg-stripes"></div>
+
+          <!-- Вуаль -->
           <div class="dc-bg-photo-shade"></div>
+
+          <!-- ✅ Розовая полоса — прижата к правому краю фото -->
+          <div class="dc-bg-divider"></div>
         </div>
 
-        <!-- ✅ Полупрозрачная полоса между фото и фиолетом -->
-        <div class="dc-bg-divider"></div>
-
-        <!-- Фиолетовая часть -->
+        <!-- Фиолетовая часть с диагональным срезом -->
         <div class="dc-bg-solid"></div>
 
         <!-- Полосы поверх границы -->
@@ -177,7 +182,9 @@ watch(expandedOwners, (val) => {
       <div class="dc-watermark" aria-hidden="true">₽</div>
       <div class="dc-frame" aria-hidden="true"></div>
 
-      <!-- КОНТЕНТ -->
+      <!-- ============================================================
+           КОНТЕНТ — на тех же позициях, поверх фото
+           ============================================================ -->
       <div class="dc-top">
         <div class="dc-issuer">
           <div class="dc-issuer-name">VAS FINANCE PRO+</div>
@@ -292,6 +299,7 @@ watch(expandedOwners, (val) => {
   overflow: hidden;
 }
 
+/* Левая часть — фото */
 .dc-bg-photo {
   position: absolute;
   top: 0;
@@ -326,7 +334,7 @@ watch(expandedOwners, (val) => {
   filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.35));
 }
 
-/* Диагональные полосы поверх фото */
+/* Диагональные световые полосы поверх фото */
 .dc-bg-stripes {
   position: absolute;
   inset: 0;
@@ -343,6 +351,7 @@ watch(expandedOwners, (val) => {
   opacity: 0.85;
 }
 
+/* Вуаль */
 .dc-bg-photo-shade {
   position: absolute;
   inset: 0;
@@ -364,36 +373,30 @@ watch(expandedOwners, (val) => {
 }
 
 /* ============================================================
-   ✅ ПОЛУПРОЗРАЧНАЯ ПОЛОСА МЕЖДУ ФОТО И ФИОЛЕТОМ
-   Диагональная, ~10% ширины, идёт от верхнего 22% к нижнему 8%
+   ✅ РОЗОВАЯ ПОЛОСА — прижата к ПРАВОМУ краю фото
+   Идёт с тем же наклоном, что и срез фиолета
    ============================================================ */
 .dc-bg-divider {
   position: absolute;
   top: 0;
-  bottom: 0;
-  left: 0;
   right: 0;
+  bottom: 0;
+  width: 14%;                    /* ~14% от ширины фото */
   pointer-events: none;
 
-  /* Розовато-фиолетовая полупрозрачная полоса */
   background: linear-gradient(
     160deg,
-    rgba(168, 85, 247, 0.45) 0%,
+    rgba(236, 72, 153, 0.55) 0%,
     rgba(236, 72, 153, 0.4) 50%,
-    rgba(168, 85, 247, 0.45) 100%
+    rgba(168, 85, 247, 0.5) 100%
   );
 
-  /* Обрезаем так, чтобы осталась только полоска между фото и фиолетом */
-  clip-path: polygon(
-    22% 0%,         /* верх — левая грань полосы */
-    27% 0%,         /* верх — правая грань полосы (ширина ~5%) */
-    13% 100%,       /* низ — правая грань полосы (сдвиг влево) */
-    8%  100%        /* низ — левая грань полосы */
-  );
+  /* Наклон той же направленности, что у фиолетовой части */
+  transform: skewY(-14deg);
+  transform-origin: top right;
 
-  /* Мягкое размытие краёв */
-  filter: blur(0.5px);
-  mix-blend-mode: overlay;
+  filter: blur(0.6px);
+  mix-blend-mode: screen;
   opacity: 0.9;
 }
 
@@ -428,7 +431,7 @@ watch(expandedOwners, (val) => {
 }
 
 /* ============================================================
-   ПОЛОСЫ ПОВЕРХ ГРАНИЦЫ
+   ПОЛОСЫ ПОВЕРХ ГРАНИЦЫ (светлые диагонали)
    ============================================================ */
 .dc-bg-ribbon {
   position: absolute;
@@ -766,6 +769,7 @@ watch(expandedOwners, (val) => {
   .dc-bg-photo { width: 52%; }
   .dc-bg-solid { width: 68%; }
   .dc-bg-ribbon { width: 68%; }
+  .dc-bg-divider { width: 16%; }
   .dc-bg-emoji { font-size: 64px; }
 
   .dc-issuer-name { font-size: 10.5px; letter-spacing: 0.12em; }
