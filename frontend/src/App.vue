@@ -37,21 +37,6 @@ const showChat = computed(() => route.name !== 'login' && auth.isAuthenticated);
 const TAB_ORDER = ['finance', 'analytics', 'deposits', 'profile'];
 const transitionName = ref('fade-page');
 
-// ✅ Морфинг фона при переходе — цвет body меняется
-const TAB_MORPH = {
-  finance:   'linear-gradient(135deg, #e8eefc 0%, #ede9fe 25%, #ffffff 50%, #f3e8ff 75%, #e8eefc 100%)',
-  analytics: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 25%, #ffffff 50%, #d1fae5 75%, #f0fdf4 100%)',
-  deposits:  'linear-gradient(135deg, #fef3c7 0%, #fde68a 25%, #ffffff 50%, #fef9c3 75%, #fef3c7 100%)',
-  profile:   'linear-gradient(135deg, #fce7f3 0%, #fbcfe8 25%, #ffffff 50%, #fce7f3 75%, #fce7f3 100%)',
-  login:     'linear-gradient(135deg, #e8eefc 0%, #ede9fe 25%, #ffffff 50%, #f3e8ff 75%, #e8eefc 100%)',
-};
-
-const currentBg = computed(() => TAB_MORPH[route.name] || TAB_MORPH.finance);
-
-watch(currentBg, (bg) => {
-  document.documentElement.style.setProperty('--app-bg', bg);
-}, { immediate: true });
-
 // ✅ Title с количеством непрочитанных
 const BASE_TITLE = 'Финансы PRO+';
 watch(() => messagesStore.totalUnread, (n) => {
