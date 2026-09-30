@@ -4,19 +4,21 @@ import { useRoute, useRouter } from 'vue-router';
 import { useWebSocket } from '@/composables/useWebSocket';
 import { useAccountsStore } from '@/stores/accounts';
 import { useScanStore } from '@/stores/scan';
+import { useMessagesStore } from '@/stores/messages';
 
 const route = useRoute();
 const router = useRouter();
 const { connected } = useWebSocket();
 const accounts = useAccountsStore();
 const scanStore = useScanStore();
+const messagesStore = useMessagesStore();
 
 const LOADING_MS = 2500;
 const SUCCESS_MS = 1500;
 const fabPhase = ref('loading');
 
-// ✅ "Летящая иконка" при переходе
-const flyingIcon = ref(null);   // { icon, x, y }
+// ✅ Летящая иконка при переходе
+const flyingIcon = ref(null);   // { icon, startX, startY, endX, endY }
 
 onMounted(() => {
   setTimeout(() => {
@@ -90,19 +92,37 @@ function isActive(item) {
   return route.path === item.to || route.path.startsWith(item.to + '/');
 }
 
+// ✅ Пульсирующая точка — на «Профиле» при непрочитанных
+const tabHasDot = computed(() => ({
+  '/finance': false,
+  '/analytics': false,
+  '/deposits': false,
+  '/profile': messagesStore.totalUnread > 0,
+}));
+
+function hasDot(item) {
+  return !!tabHasDot.value[item.to];
+}
+
 function go(item) {
   if (route.path === item.to) return;
 
-  // ✅ Запускаем "летящую иконку" из текущей позиции кнопки
   const el = tabRefs.value[item.to];
   if (el) {
     const rect = el.getBoundingClientRect();
+    const startX = rect.left + rect.width / 2;
+    const startY = rect.top + rect.height / 2;
+    const endX = window.innerWidth / 2;
+    const endY = 100;
+
     flyingIcon.value = {
       icon: item.icon,
-      x: rect.left + rect.width / 2,
-      y: rect.top + rect.height / 2,
+      startX,
+      startY,
+      endX,
+      endY,
     };
-    setTimeout(() => { flyingIcon.value = null; }, 500);
+    setTimeout(() => { flyingIcon.value = null; }, 620);
   }
 
   router.push(item.to);
@@ -127,7 +147,12 @@ function handleFabClick() {
         :class="{ active: isActive(item) }"
         @click="go(item)"
       >
-        <span class="bn-icon">{{ item.icon }}</span>
+        <span class="bn-icon">
+          {{ item.icon }}
+          <Transition name="dot-pop">
+            <span v-if="hasDot(item)" class="bn-dot" aria-hidden="true"></span>
+          </Transition>
+        </span>
         <span class="bn-label">{{ item.label }}</span>
       </button>
 
@@ -163,20 +188,28 @@ function handleFabClick() {
         :class="{ active: isActive(item) }"
         @click="go(item)"
       >
-        <span class="bn-icon">{{ item.icon }}</span>
+        <span class="bn-icon">
+          {{ item.icon }}
+          <Transition name="dot-pop">
+            <span v-if="hasDot(item)" class="bn-dot" aria-hidden="true"></span>
+          </Transition>
+        </span>
         <span class="bn-label">{{ item.label }}</span>
       </button>
     </div>
 
     <!-- ✅ Летящая иконка при переходе -->
     <Teleport to="body">
-      <Transition name="icon-fly">
-        <div
-          v-if="flyingIcon"
-          class="bn-flying-icon"
-          :style="{ left: flyingIcon.x + 'px', top: flyingIcon.y + 'px' }"
-        >{{ flyingIcon.icon }}</div>
-      </Transition>
+      <div
+        v-if="flyingIcon"
+        class="bn-flying-icon"
+        :style="{
+          '--start-x': flyingIcon.startX + 'px',
+          '--start-y': flyingIcon.startY + 'px',
+          '--end-x': flyingIcon.endX + 'px',
+          '--end-y': flyingIcon.endY + 'px',
+        }"
+      >{{ flyingIcon.icon }}</div>
     </Teleport>
   </nav>
 </template>
@@ -270,7 +303,15 @@ function handleFabClick() {
     .bn-label { font-weight: 800; color: #ffffff; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); }
   }
 }
-.bn-icon { font-size: 22px; line-height: 1; transition: transform 0.35s cubic-bezier(.34,1.56,.64,1), filter 0.25s; }
+
+.bn-icon {
+  position: relative;
+  display: inline-flex;
+  font-size: 22px;
+  line-height: 1;
+  transition: transform 0.35s cubic-bezier(.34,1.56,.64,1), filter 0.25s;
+}
+
 .bn-label {
   font-size: 10.5px;
   font-weight: 700;
@@ -279,6 +320,57 @@ function handleFabClick() {
   text-overflow: ellipsis;
   max-width: 100%;
   transition: color 0.25s;
+}
+
+/* ✅ Пульсирующая точка */
+.bn-dot {
+  position: absolute;
+  top: -4px;
+  right: -6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #ef4444;
+  box-shadow:
+    0 0 0 0 rgba(239, 68, 68, 0.6),
+    0 0 0 2px rgba(255, 255, 255, 0.9);
+  animation: navDotPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes navDotPulse {
+  0% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 0 rgba(239, 68, 68, 0.7),
+      0 0 0 2px rgba(255, 255, 255, 0.9);
+  }
+  70% {
+    transform: scale(1.15);
+    box-shadow:
+      0 0 0 8px rgba(239, 68, 68, 0),
+      0 0 0 2px rgba(255, 255, 255, 0.9);
+  }
+  100% {
+    transform: scale(1);
+    box-shadow:
+      0 0 0 0 rgba(239, 68, 68, 0),
+      0 0 0 2px rgba(255, 255, 255, 0.9);
+  }
+}
+
+.dot-pop-enter-active {
+  transition: opacity 0.25s ease, transform 0.3s cubic-bezier(.34,1.56,.64,1);
+}
+.dot-pop-leave-active {
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.dot-pop-enter-from {
+  opacity: 0;
+  transform: scale(0.3);
+}
+.dot-pop-leave-to {
+  opacity: 0;
+  transform: scale(0.3);
 }
 
 .bn-fab-wrapper {
@@ -303,6 +395,7 @@ function handleFabClick() {
   transition: background 0.35s ease, box-shadow 0.35s ease, transform 0.18s ease;
   position: relative;
   z-index: 2;
+
   &:active { transform: scale(0.94); }
   &.is-loading {
     background: linear-gradient(135deg, #3b82f6, #8b5cf6);
@@ -329,8 +422,7 @@ function handleFabClick() {
   100% { transform: scale(1); }
 }
 .bn-fab-spinner {
-  width: 28px;
-  height: 28px;
+  width: 28px; height: 28px;
   animation: spinFab 1s linear infinite;
   color: #fff;
   circle {
@@ -356,31 +448,52 @@ function handleFabClick() {
   to   { stroke-dasharray: 30; stroke-dashoffset: 0; }
 }
 
-/* ✅ Летящая иконка */
+/* ✅ Летящая иконка при переходе */
 .bn-flying-icon {
   position: fixed;
-  transform: translate(-50%, -50%) scale(1);
+  left: 0;
+  top: 0;
   font-size: 26px;
+  line-height: 1;
   pointer-events: none;
   z-index: 9999;
+  transform: translate(-50%, -50%) translate(var(--start-x), var(--start-y)) scale(1);
+  animation: iconFlyUp 0.62s cubic-bezier(.4,0,.2,1) forwards;
   filter: drop-shadow(0 6px 20px rgba(99, 102, 241, 0.6));
+  will-change: transform, opacity;
 }
 
-.icon-fly-enter-active {
-  transition: transform 0.5s cubic-bezier(.4,0,.2,1), opacity 0.5s ease;
-}
-.icon-fly-leave-active {
-  transition: transform 0.5s cubic-bezier(.4,0,.2,1), opacity 0.5s ease;
-}
-.icon-fly-enter-from {
-  opacity: 0;
-  transform: translate(-50%, -50%) scale(0.4);
-}
-.icon-fly-leave-to {
-  opacity: 0;
-  transform: translate(-50%, -50%) translateY(-120px) scale(1.6);
+@keyframes iconFlyUp {
+  0% {
+    transform:
+      translate(-50%, -50%)
+      translate(var(--start-x), var(--start-y))
+      scale(0.85);
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  55% {
+    transform:
+      translate(-50%, -50%)
+      translate(var(--start-x), var(--start-y))
+      translateY(-40px)
+      scale(1.25);
+    opacity: 1;
+    filter: drop-shadow(0 10px 30px rgba(99, 102, 241, 0.85));
+  }
+  100% {
+    transform:
+      translate(-50%, -50%)
+      translate(var(--end-x), var(--end-y))
+      scale(0.4);
+    opacity: 0;
+    filter: drop-shadow(0 4px 12px rgba(99, 102, 241, 0.4));
+  }
 }
 
+/* Desktop */
 @media (min-width: 701px) {
   .bottom-nav { max-width: 640px; padding: 0 24px 24px; }
   .bn-inner {
@@ -408,6 +521,7 @@ function handleFabClick() {
   .bn-indicator { border-radius: 20px; top: 8px; bottom: 8px; }
 }
 
+/* Mobile */
 @media (max-width: 700px) {
   .bottom-nav { max-width: 100%; padding: 0 8px calc(8px + env(safe-area-inset-bottom, 0)); }
   .bn-inner {
@@ -426,11 +540,13 @@ function handleFabClick() {
   .bn-fab-spinner { width: 26px; height: 26px; }
   .bn-fab.is-success .bn-fab-icon { width: 30px; height: 30px; }
   .bn-indicator { border-radius: 16px; top: 4px; bottom: 4px; }
+  .bn-dot { width: 9px; height: 9px; top: -3px; right: -5px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .bn-indicator,
   .bn-fab,
-  .bn-flying-icon { animation: none !important; transition: none !important; }
+  .bn-flying-icon,
+  .bn-dot { animation: none !important; transition: none !important; }
 }
 </style>

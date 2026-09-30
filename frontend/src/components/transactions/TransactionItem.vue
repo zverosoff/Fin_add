@@ -28,10 +28,10 @@ const amountClass = computed(() => (props.tx.type === 'income' ? 'income' : 'exp
 const icon = computed(() => categoryIcon(props.tx.category));
 const userClass = computed(() => (props.tx.user === 'Сергей' ? 'sergey' : 'sasha'));
 
-// ✅ Анимации: "кассовый чек" при появлении, "печать" при удалении
+// Анимации
 const appearing = ref(props.isNew);
 const deleting = ref(false);
-const amountFlash = ref(null);   // 'up' | 'down' | null
+const amountFlash = ref(null);
 
 const prevAmount = ref(props.tx.amount);
 watch(() => props.tx.amount, (newVal, oldVal) => {
@@ -46,15 +46,49 @@ onMounted(() => {
   }
 });
 
-function onFilter(key, value) {
-  filters.toggle(key, value);
-}
+function onFilter(key, value) { filters.toggle(key, value); }
 
 function onDelete() {
   deleting.value = true;
-  // Эмитим сразу — родитель удалит, а анимация уже проиграна через CSS
   setTimeout(() => { emit('delete', props.tx); }, 480);
 }
+
+// ============================================================
+// Магнитный hover
+// ============================================================
+const tiltRx = ref(0);
+const tiltRy = ref(0);
+const tiltActive = ref(false);
+const MAX_MAGNET_TILT = 3;
+
+function onCardMouseMove(e) {
+  if (window.innerWidth <= 700) return;
+  const elRef = el.value;
+  if (!elRef) return;
+  const rect = elRef.getBoundingClientRect();
+  const px = (e.clientX - rect.left) / rect.width;
+  const py = (e.clientY - rect.top) / rect.height;
+  const dx = (px - 0.5) * 2;
+  const dy = (py - 0.5) * 2;
+  tiltActive.value = true;
+  tiltRx.value = -dy * MAX_MAGNET_TILT;
+  tiltRy.value = dx * MAX_MAGNET_TILT;
+}
+
+function onCardMouseLeave() {
+  tiltActive.value = false;
+  tiltRx.value = 0;
+  tiltRy.value = 0;
+}
+
+const magnetStyle = computed(() => {
+  if (!tiltActive.value) {
+    return { transform: 'perspective(600px) rotateX(0) rotateY(0)' };
+  }
+  return {
+    transform: `perspective(600px) rotateX(${tiltRx.value}deg) rotateY(${tiltRy.value}deg)`,
+  };
+});
 
 // ============================================================
 // Свайпы
@@ -137,12 +171,13 @@ function itemStyle() {
       swipeState ? 'swipe-' + swipeState : '',
       { 'is-appearing': appearing, 'is-deleting': deleting },
     ]"
-    :style="itemStyle()"
+    :style="{ ...itemStyle(), ...magnetStyle }"
+    @mousemove="onCardMouseMove"
+    @mouseleave="onCardMouseLeave"
     @touchstart.passive="onTouchStart"
     @touchmove.passive="onTouchMove"
     @touchend="onTouchEnd"
   >
-    <!-- Прогресс-бар свайпа -->
     <div
       v-if="swipeProgress > 0"
       class="tx-swipe-progress"
@@ -150,7 +185,6 @@ function itemStyle() {
       :style="{ opacity: swipeProgress }"
     ></div>
 
-    <!-- Аватар -->
     <div
       class="tx-avatar"
       :class="bankLogoUrl ? 'has-bank' : ('user-' + userClass)"
@@ -166,7 +200,6 @@ function itemStyle() {
       <span v-else class="tx-avatar-emoji">{{ userEmoji(tx.user) }}</span>
     </div>
 
-    <!-- Основная информация -->
     <div class="tx-main">
       <div class="tx-name">{{ tx.name || 'Без названия' }}</div>
       <div class="tx-meta">
@@ -183,7 +216,6 @@ function itemStyle() {
       </div>
     </div>
 
-    <!-- Сумма и действия -->
     <div class="tx-right">
       <div
         class="tx-amount"
@@ -214,7 +246,7 @@ function itemStyle() {
   padding: 12px 16px;
   box-shadow: var(--shadow-sm);
   transition:
-    transform 0.25s cubic-bezier(.34, 1.56, .64, 1),
+    transform 0.28s cubic-bezier(.22,.61,.36,1),
     border-color 0.15s ease,
     box-shadow 0.15s ease,
     background 0.15s ease,
@@ -222,20 +254,17 @@ function itemStyle() {
     filter 0.3s ease;
   touch-action: pan-y;
   will-change: transform, opacity, filter;
+  transform-style: preserve-3d;
   overflow: hidden;
 
   &:hover {
     border-color: var(--accent);
-    transform: translateY(-2px);
     box-shadow: var(--shadow-md);
   }
 
-  /* ✅ Кассовый чек — при появлении */
   &.is-appearing {
     animation: receiptPrint 0.7s cubic-bezier(.22,.61,.36,1) both;
   }
-
-  /* ✅ Печать принтером — при удалении */
   &.is-deleting {
     animation: printerOut 0.48s cubic-bezier(.4,0,.6,1) forwards;
     pointer-events: none;
@@ -244,58 +273,29 @@ function itemStyle() {
 
 @keyframes receiptPrint {
   0% {
-    max-height: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-    transform: scaleY(0.02);
-    transform-origin: top center;
-    opacity: 0;
-    filter: blur(2px);
+    max-height: 0; padding-top: 0; padding-bottom: 0;
+    transform: scaleY(0.02); transform-origin: top center;
+    opacity: 0; filter: blur(2px);
   }
   30% {
-    max-height: 80px;
-    padding-top: 12px;
-    padding-bottom: 12px;
-    transform: scaleY(1);
-    opacity: 1;
-    filter: blur(0);
+    max-height: 80px; padding-top: 12px; padding-bottom: 12px;
+    transform: scaleY(1); opacity: 1; filter: blur(0);
   }
-  70% {
-    transform: scaleY(1) translateX(0);
-  }
-  85% {
-    transform: scaleY(1) translateX(-3px);
-  }
-  100% {
-    transform: scaleY(1) translateX(0);
-    opacity: 1;
-  }
+  70% { transform: scaleY(1) translateX(0); }
+  85% { transform: scaleY(1) translateX(-3px); }
+  100% { transform: scaleY(1) translateX(0); opacity: 1; }
 }
 
 @keyframes printerOut {
-  0% {
-    opacity: 1;
-    filter: blur(0);
-    transform: translateX(0) scale(1);
-  }
-  40% {
-    opacity: 0.6;
-    filter: blur(2px);
-    transform: translateX(0) scale(1.02);
-  }
+  0%   { opacity: 1; filter: blur(0); transform: translateX(0) scale(1); }
+  40%  { opacity: 0.6; filter: blur(2px); transform: translateX(0) scale(1.02); }
   100% {
-    opacity: 0;
-    filter: blur(10px);
-    transform: translateX(-100px) scale(0.92);
-    max-height: 0;
-    padding-top: 0;
-    padding-bottom: 0;
-    margin-bottom: -8px;
-    border-width: 0;
+    opacity: 0; filter: blur(10px); transform: translateX(-100px) scale(0.92);
+    max-height: 0; padding-top: 0; padding-bottom: 0;
+    margin-bottom: -8px; border-width: 0;
   }
 }
 
-/* Прогресс-бар свайпа */
 .tx-swipe-progress {
   position: absolute;
   inset: 0;
@@ -333,7 +333,6 @@ function itemStyle() {
   z-index: 0;
   pointer-events: none;
 }
-
 .tx-item.swipe-right::before {
   content: "✏️";
   position: absolute;
@@ -352,8 +351,7 @@ function itemStyle() {
 }
 
 .tx-avatar {
-  width: 40px;
-  height: 40px;
+  width: 40px; height: 40px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -376,8 +374,7 @@ function itemStyle() {
   border: 1.5px solid rgba(236, 72, 153, 0.35);
 }
 .tx-bank-logo {
-  width: 100%;
-  height: 100%;
+  width: 100%; height: 100%;
   object-fit: contain;
   padding: 5px;
   box-sizing: border-box;
@@ -431,18 +428,12 @@ function itemStyle() {
   &.acc-badge.sber {
     background: rgba(33, 160, 56, 0.15);
     color: #166534;
-    &:hover {
-      background: linear-gradient(135deg, #21a038, #4cd964);
-      color: #ffffff;
-    }
+    &:hover { background: linear-gradient(135deg, #21a038, #4cd964); color: #ffffff; }
   }
   &.acc-badge.tbank {
     background: rgba(255, 221, 45, 0.25);
     color: #92400e;
-    &:hover {
-      background: linear-gradient(135deg, #fbbf24, #ffdd2d);
-      color: #000000;
-    }
+    &:hover { background: linear-gradient(135deg, #fbbf24, #ffdd2d); color: #000000; }
   }
 }
 
@@ -467,18 +458,10 @@ function itemStyle() {
   &.income { color: #22c55e; }
   &.expense { color: #ef4444; }
 
-  &:hover {
-    opacity: 0.75;
-    transform: scale(1.03);
-  }
+  &:hover { opacity: 0.75; transform: scale(1.03); }
 
-  /* ✅ Вспышка при изменении суммы */
-  &.flash-up {
-    animation: amountFlashUp 0.9s ease-out;
-  }
-  &.flash-down {
-    animation: amountFlashDown 0.9s ease-out;
-  }
+  &.flash-up { animation: amountFlashUp 0.9s ease-out; }
+  &.flash-down { animation: amountFlashDown 0.9s ease-out; }
 }
 
 @keyframes amountFlashUp {
@@ -498,8 +481,7 @@ function itemStyle() {
 }
 .tx-item:hover .tx-actions { opacity: 1; }
 .tx-actions button {
-  width: 28px;
-  height: 28px;
+  width: 28px; height: 28px;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: transparent;
@@ -525,11 +507,7 @@ function itemStyle() {
 }
 
 @media (max-width: 700px) {
-  .tx-item {
-    padding: 12px 14px;
-    gap: 10px;
-    border-radius: 12px;
-  }
+  .tx-item { padding: 12px 14px; gap: 10px; border-radius: 12px; }
   .tx-avatar { width: 36px; height: 36px; }
   .tx-bank-logo { padding: 4px; }
   .tx-avatar-emoji { font-size: 18px; }
