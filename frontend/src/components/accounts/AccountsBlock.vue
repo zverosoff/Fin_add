@@ -26,6 +26,7 @@ const ownersSorted = computed(() => {
   });
 });
 
+// Раскрытие счетов сохраняется в localStorage
 const expandedOwners = ref({});
 
 onMounted(() => {
@@ -64,13 +65,110 @@ function bankLogo(id) {
 function isMe(owner) {
   return owner === userName.value;
 }
+
+// ============================================================
+// ✅ 3D-наклон карты по движению мыши / пальца
+// ============================================================
+const cardEl = ref(null);
+const tilt = ref({ rx: 0, ry: 0, mx: 50, my: 50 });
+const isTilting = ref(false);
+
+const MAX_TILT = 10;      // градусов наклона в каждую сторону
+const RETURN_MS = 400;    // мс на возврат
+
+function updateTilt(clientX, clientY) {
+  const el = cardEl.value;
+  if (!el) return;
+
+  const rect = el.getBoundingClientRect();
+  const px = (clientX - rect.left) / rect.width;   // 0..1
+  const py = (clientY - rect.top) / rect.height;   // 0..1
+
+  // -1..1 относительно центра
+  const dx = (px - 0.5) * 2;
+  const dy = (py - 0.5) * 2;
+
+  tilt.value = {
+    rx: -dy * MAX_TILT,       // наклон по X (вверх/вниз)
+    ry: dx * MAX_TILT,        // наклон по Y (влево/вправо)
+    mx: px * 100,             // позиция блика по X (в %)
+    my: py * 100,             // позиция блика по Y (в %)
+  };
+}
+
+function onMouseMove(e) {
+  isTilting.value = true;
+  updateTilt(e.clientX, e.clientY);
+}
+
+function onMouseLeave() {
+  isTilting.value = false;
+  tilt.value = { rx: 0, ry: 0, mx: 50, my: 50 };
+}
+
+function onTouchStart(e) {
+  if (e.touches.length !== 1) return;
+  isTilting.value = true;
+  updateTilt(e.touches[0].clientX, e.touches[0].clientY);
+}
+
+function onTouchMove(e) {
+  if (e.touches.length !== 1) return;
+  if (e.cancelable) e.preventDefault();
+  updateTilt(e.touches[0].clientX, e.touches[0].clientY);
+}
+
+function onTouchEnd() {
+  isTilting.value = false;
+  tilt.value = { rx: 0, ry: 0, mx: 50, my: 50 };
+}
+
+const cardStyle = computed(() => {
+  const t = tilt.value;
+  return {
+    transform: `perspective(1000px) rotateX(${t.rx}deg) rotateY(${t.ry}deg) scale(${isTilting.value ? 1.02 : 1})`,
+    transition: isTilting.value
+      ? 'transform 0.05s linear'
+      : `transform ${RETURN_MS}ms cubic-bezier(.34,1.56,.64,1)`,
+  };
+});
+
+const shineStyle = computed(() => {
+  const t = tilt.value;
+  return {
+    background: `radial-gradient(
+      circle at ${t.mx}% ${t.my}%,
+      rgba(255, 255, 255, 0.55) 0%,
+      rgba(255, 255, 255, 0.15) 25%,
+      transparent 50%
+    )`,
+    opacity: isTilting.value ? 1 : 0,
+    transition: isTilting.value
+      ? 'opacity 0.15s linear'
+      : `opacity ${RETURN_MS}ms ease`,
+  };
+});
 </script>
 
 <template>
   <section class="accounts-block">
-    <div class="debit-card">
-      <!-- Глянцевые слои -->
-      <div class="dc-shine" aria-hidden="true"></div>
+    <!-- ✅ ДЕБЕТОВАЯ КАРТА С 3D-НАКЛОНОМ -->
+    <div
+      ref="cardEl"
+      class="debit-card"
+      :class="{ 'is-tilting': isTilting }"
+      :style="cardStyle"
+      @mousemove="onMouseMove"
+      @mouseleave="onMouseLeave"
+      @touchstart.passive="onTouchStart"
+      @touchmove="onTouchMove"
+      @touchend="onTouchEnd"
+      @touchcancel="onTouchEnd"
+    >
+      <!-- Блик, следующий за курсором -->
+      <div class="dc-shine-cursor" :style="shineStyle" aria-hidden="true"></div>
+
+      <!-- Постоянные декоративные слои -->
       <div class="dc-gloss" aria-hidden="true"></div>
       <div class="dc-pattern" aria-hidden="true"></div>
       <div class="dc-watermark" aria-hidden="true">₽</div>
@@ -87,12 +185,12 @@ function isMe(owner) {
         </div>
       </div>
 
-      <!-- ✅ Баланс по центру и крупно -->
+      <!-- Баланс по центру и крупно -->
       <div class="dc-balance">
         <div class="dc-balance-value">{{ fmt(totalBalance) }} ₽</div>
       </div>
 
-      <!-- ✅ Подпись «Ваш общий баланс» вместо «Владелец» -->
+      <!-- Подпись «Ваш общий баланс» -->
       <div class="dc-caption">Ваш общий баланс</div>
 
       <!-- Счета по владельцам -->
@@ -180,7 +278,19 @@ function isMe(owner) {
   flex-direction: column;
   gap: 10px;
 
-  isolation: isolate;
+  /* ✅ 3D-наклон */
+  transform-style: preserve-3d;
+  will-change: transform;
+
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: pan-y;
+
+  &.is-tilting {
+    box-shadow:
+      0 30px 60px -20px rgba(79, 70, 229, 0.75),
+      0 16px 32px -12px rgba(139, 92, 246, 0.55);
+  }
 }
 
 @keyframes gradientShift {
@@ -192,30 +302,14 @@ function isMe(owner) {
 /* ============================================================
    ГЛЯНЦЕВЫЕ СЛОИ
    ============================================================ */
-.dc-shine {
+
+/* ✅ Кастомный блик — следует за курсором/пальцем */
+.dc-shine-cursor {
   position: absolute;
-  inset: -50%;
-  background: linear-gradient(
-    115deg,
-    transparent 30%,
-    rgba(255, 255, 255, 0.08) 45%,
-    rgba(255, 255, 255, 0.35) 50%,
-    rgba(255, 255, 255, 0.08) 55%,
-    transparent 70%
-  );
-  transform: translateX(-100%) rotate(0deg);
-  animation: shineMove 6s ease-in-out infinite;
+  inset: 0;
   pointer-events: none;
   z-index: 1;
   mix-blend-mode: overlay;
-}
-
-@keyframes shineMove {
-  0%   { transform: translateX(-100%); opacity: 0; }
-  15%  { opacity: 1; }
-  50%  { transform: translateX(100%); opacity: 1; }
-  85%  { opacity: 1; }
-  100% { transform: translateX(200%); opacity: 0; }
 }
 
 .dc-gloss {
@@ -348,7 +442,7 @@ function isMe(owner) {
 }
 
 /* ============================================================
-   ✅ БАЛАНС — по центру, крупно
+   БАЛАНС — по центру, крупно
    ============================================================ */
 .dc-balance {
   margin-top: 12px;
@@ -364,7 +458,6 @@ function isMe(owner) {
   text-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
 }
 
-/* ✅ Подпись «Ваш общий баланс» */
 .dc-caption {
   text-align: center;
   font-size: 10.5px;
@@ -587,7 +680,6 @@ function isMe(owner) {
 
 @media (prefers-reduced-motion: reduce) {
   .debit-card,
-  .dc-shine,
   .dc-gloss {
     animation: none !important;
   }
