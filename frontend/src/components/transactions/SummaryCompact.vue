@@ -1,19 +1,25 @@
 <script setup>
 import { ref, computed, onMounted, watch, toRef } from 'vue';
 import { useTransactionsStore } from '@/stores/transactions';
+import { useAuthStore } from '@/stores/auth';
 import { fmt } from '@/composables/useFormat';
 
 const tx = useTransactionsStore();
+const auth = useAuthStore();
 
 const LS_KEY = 'financeProUsersCollapsed_v1';
 const collapsed = ref(true);
+
+// ✅ Отображаемое имя по техническому ключу
+function displayUser(technicalUser) {
+  return auth.nameFor(technicalUser);
+}
 
 onMounted(() => {
   try {
     const saved = localStorage.getItem(LS_KEY);
     if (saved !== null) collapsed.value = saved === '1';
   } catch (e) {}
-  // ✅ Запускаем счётчики баланса
   animateAll();
 });
 
@@ -35,7 +41,7 @@ function useCounter(targetRef, duration = 800) {
   function tick(ts) {
     if (!startTs) startTs = ts;
     const t = Math.min(1, (ts - startTs) / duration);
-    const eased = 1 - Math.pow(1 - t, 3); // easeOutCubic
+    const eased = 1 - Math.pow(1 - t, 3);
     display.value = Math.round(from + (targetRef.value - from) * eased);
     if (t < 1) raf = requestAnimationFrame(tick);
   }
@@ -60,7 +66,6 @@ function animateAll() {
   balanceCounter.run(0);
 }
 
-// При изменении любого значения — плавно пересчитываем
 watch(() => tx.summary.income, (v) => incomeCounter.run());
 watch(() => tx.summary.expense, (v) => expenseCounter.run());
 watch(() => tx.summary.balance, (v) => balanceCounter.run());
@@ -113,7 +118,8 @@ const balanceClass = computed(() => {
         :class="user === 'Сергей' ? 'sergey' : 'sasha'"
       >
         <span class="sc-user-avatar">{{ user === 'Сергей' ? '👨' : '👩' }}</span>
-        <span class="sc-user-name">{{ user }}</span>
+        <!-- ✅ Отображаем displayName для текущего пользователя -->
+        <span class="sc-user-name">{{ displayUser(user) }}</span>
         <span class="sc-user-details">
           <span class="sc-user-inc">+{{ fmt(data.income) }} ₽</span>
           <span class="sc-user-exp">−{{ fmt(data.expense) }} ₽</span>
