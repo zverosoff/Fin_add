@@ -5,8 +5,10 @@ import { api } from '@/api/client';
 export const useAuthStore = defineStore('auth', () => {
   const user = ref(localStorage.getItem('auth_user') || '');
   const displayName = ref(localStorage.getItem('auth_display_name') || '');
-  // ✅ НОВОЕ: аватар пользователя (base64 или null)
   const avatar = ref(localStorage.getItem('auth_avatar') || null);
+
+  // ✅ Кэш профилей ДРУГИХ пользователей
+  const peerProfiles = ref({});
 
   const isAuthenticated = ref(false);
   const loading = ref(false);
@@ -20,6 +22,7 @@ export const useAuthStore = defineStore('auth', () => {
       user.value = data.user;
       displayName.value = data.user;
       avatar.value = null;
+      peerProfiles.value = {};
       isAuthenticated.value = true;
 
       localStorage.setItem('auth_user', data.user);
@@ -36,6 +39,7 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = '';
     displayName.value = '';
     avatar.value = null;
+    peerProfiles.value = {};
     isAuthenticated.value = false;
     localStorage.removeItem('auth_user');
     localStorage.removeItem('auth_display_name');
@@ -75,7 +79,6 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.setItem('auth_display_name', clean);
   }
 
-  // ✅ НОВОЕ: установить/сбросить аватар
   function setAvatar(dataUrl) {
     avatar.value = dataUrl || null;
     if (dataUrl) localStorage.setItem('auth_avatar', dataUrl);
@@ -85,20 +88,56 @@ export const useAuthStore = defineStore('auth', () => {
   function nameFor(technicalUser) {
     if (!technicalUser) return '';
     if (technicalUser === user.value) return displayName.value || user.value;
-    return technicalUser;
+    // ✅ Если знаем displayName другого пользователя — возвращаем его
+    return peerProfiles.value[technicalUser]?.displayName || technicalUser;
   }
 
-  // ✅ Хелпер: аватар для пользователя (пока знаем только текущего)
   function avatarFor(technicalUser) {
+    if (!technicalUser) return null;
     if (technicalUser === user.value) return avatar.value || null;
+    // ✅ Аватар другого пользователя, если загружали
+    return peerProfiles.value[technicalUser]?.avatar || null;
+  }
+
+  // ✅ Загрузить профиль ЛЮБОГО пользователя
+  async function loadPeerProfile(technicalUser) {
+    if (!technicalUser || technicalUser === user.value) return null;
+    try {
+      const { data } = await api.get(`/profile/${encodeURIComponent(technicalUser)}`);
+      if (data.ok && data.profile) {
+        peerProfiles.value = {
+          ...peerProfiles.value,
+          [technicalUser]: {
+            displayName: data.profile.displayName || technicalUser,
+            avatar: data.profile.avatar || null,
+          },
+        };
+        return peerProfiles.value[technicalUser];
+      }
+    } catch (e) {
+      console.warn('[auth] loadPeerProfile error:', e.message);
+    }
     return null;
   }
 
+  // ✅ Обновление профиля другого пользователя по WS
+  function setPeerProfile(technicalUser, patch) {
+    const cur = peerProfiles.value[technicalUser] || {};
+    peerProfiles.value = {
+      ...peerProfiles.value,
+      [technicalUser]: {
+        displayName: patch.displayName ?? cur.displayName ?? technicalUser,
+        avatar: patch.avatar !== undefined ? patch.avatar : (cur.avatar ?? null),
+      },
+    };
+  }
+
   return {
-    user, displayName, avatar,
+    user, displayName, avatar, peerProfiles,
     isAuthenticated, loading,
     login, logout, checkSession,
     setDisplayName, setAvatar,
     nameFor, avatarFor,
+    loadPeerProfile, setPeerProfile,
   };
 });
