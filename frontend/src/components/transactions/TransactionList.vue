@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useTransactionsStore } from '@/stores/transactions';
 import { useFiltersStore } from '@/stores/filters';
 import { useToast } from '@/composables/useToast';
@@ -14,7 +14,7 @@ const toast = useToast();
 const editOpen = ref(false);
 const editTx = ref(null);
 
-const LS_KEY = 'financeProCollapsedDays_v2';
+const LS_KEY = 'financeProCollapsedDays_v3';
 const collapsedDays = ref({});
 
 try {
@@ -139,17 +139,16 @@ async function restoreFromSnapshot(snapshot) {
           </span>
         </div>
 
-        <Transition name="day-collapse">
-          <div v-if="!isDayCollapsed(group.key)" class="tx-day-items">
-            <TransactionItem
-              v-for="t in group.items"
-              :key="t.id"
-              :tx="t"
-              @edit="onEdit"
-              @delete="onDelete"
-            />
-          </div>
-        </Transition>
+        <!-- ✅ БЕЗ Transition — просто v-if -->
+        <div v-if="!isDayCollapsed(group.key)" class="tx-day-items">
+          <TransactionItem
+            v-for="t in group.items"
+            :key="t.id"
+            :tx="t"
+            @edit="onEdit"
+            @delete="onDelete"
+          />
+        </div>
       </template>
     </template>
 
@@ -336,26 +335,11 @@ async function restoreFromSnapshot(snapshot) {
   &.negative { color: #ef4444; }
 }
 
-/* ✅ Без overflow: hidden, без padding-bottom */
+/* ✅ Никаких Transition/overflow — просто список */
 .tx-day-items {
   display: flex;
   flex-direction: column;
   gap: 8px;
-}
-
-.day-collapse-enter-active,
-.day-collapse-leave-active {
-  transition:
-    max-height 0.35s cubic-bezier(.22,.61,.36,1),
-    opacity 0.25s ease;
-  max-height: 4000px;
-  overflow: hidden;
-  will-change: max-height, opacity;
-}
-.day-collapse-enter-from,
-.day-collapse-leave-to {
-  max-height: 0;
-  opacity: 0;
 }
 
 @media (max-width: 700px) {
@@ -370,10 +354,5 @@ async function restoreFromSnapshot(snapshot) {
   .tx-empty .empty-icon { font-size: 40px; }
   .tx-empty .empty-title { font-size: 15px; margin-top: 10px; }
   .tx-empty .empty-sub { font-size: 12px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .day-collapse-enter-active,
-  .day-collapse-leave-active { transition: none !important; }
 }
 </style>
