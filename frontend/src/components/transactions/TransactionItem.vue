@@ -59,44 +59,7 @@ function onDelete() {
 }
 
 // ============================================================
-// Магнитный hover
-// ============================================================
-const tiltRx = ref(0);
-const tiltRy = ref(0);
-const tiltActive = ref(false);
-const MAX_MAGNET_TILT = 3;
-
-function onCardMouseMove(e) {
-  if (window.innerWidth <= 700) return;
-  const elRef = el.value;
-  if (!elRef) return;
-  const rect = elRef.getBoundingClientRect();
-  const px = (e.clientX - rect.left) / rect.width;
-  const py = (e.clientY - rect.top) / rect.height;
-  const dx = (px - 0.5) * 2;
-  const dy = (py - 0.5) * 2;
-  tiltActive.value = true;
-  tiltRx.value = -dy * MAX_MAGNET_TILT;
-  tiltRy.value = dx * MAX_MAGNET_TILT;
-}
-
-function onCardMouseLeave() {
-  tiltActive.value = false;
-  tiltRx.value = 0;
-  tiltRy.value = 0;
-}
-
-const magnetStyle = computed(() => {
-  if (!tiltActive.value) {
-    return { transform: 'perspective(600px) rotateX(0) rotateY(0)' };
-  }
-  return {
-    transform: `perspective(600px) rotateX(${tiltRx.value}deg) rotateY(${tiltRy.value}deg)`,
-  };
-});
-
-// ============================================================
-// Свайпы
+// Свайпы (мобильные)
 // ============================================================
 const el = ref(null);
 const offsetX = ref(0);
@@ -176,9 +139,7 @@ function itemStyle() {
       swipeState ? 'swipe-' + swipeState : '',
       { 'is-appearing': appearing, 'is-deleting': deleting },
     ]"
-    :style="{ ...itemStyle(), ...magnetStyle }"
-    @mousemove="onCardMouseMove"
-    @mouseleave="onCardMouseLeave"
+    :style="itemStyle()"
     @touchstart.passive="onTouchStart"
     @touchmove.passive="onTouchMove"
     @touchend="onTouchEnd"
@@ -208,7 +169,6 @@ function itemStyle() {
     <div class="tx-main">
       <div class="tx-name">{{ tx.name || 'Без названия' }}</div>
       <div class="tx-meta">
-        <!-- ✅ Фильтр работает на техническом ключе, показываем displayName -->
         <span class="who" @click.stop="onFilter('user', tx.user)">{{ displayUserName }}</span>
         <span class="cat" @click.stop="onFilter('category', tx.category)">
           {{ icon }} {{ tx.category || 'Прочее' }}
@@ -260,7 +220,6 @@ function itemStyle() {
     filter 0.3s ease;
   touch-action: pan-y;
   will-change: transform, opacity, filter;
-  transform-style: preserve-3d;
   overflow: hidden;
 
   &:hover {

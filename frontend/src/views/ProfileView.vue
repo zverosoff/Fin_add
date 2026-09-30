@@ -36,8 +36,11 @@ async function loadProfile() {
       avatar.value = data.profile.avatar || null;
       avatarPreview.value = data.profile.avatar || null;
 
+      // ✅ Обновляем глобальный стейт — теперь везде будет новое имя и аватар
       auth.setDisplayName(displayName.value);
-      if (auth.setAvatar) auth.setAvatar(data.profile.avatar || null);
+      if (typeof auth.setAvatar === 'function') {
+        auth.setAvatar(data.profile.avatar || null);
+      }
     } else {
       displayName.value = me.value;
     }
@@ -129,8 +132,11 @@ async function save() {
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || 'Ошибка сохранения');
 
+    // ✅ Обновляем глобальный стейт — теперь везде будет новое имя и аватар
     auth.setDisplayName(clean);
-    if (auth.setAvatar) auth.setAvatar(avatar.value);
+    if (typeof auth.setAvatar === 'function') {
+      auth.setAvatar(avatar.value);
+    }
 
     toast.success('✅ Профиль сохранён');
   } catch (e) {
@@ -149,7 +155,7 @@ const lastLogin = ref(new Date().toLocaleString('ru-RU', {
 }));
 
 // ============================================================
-// Слушатель обновлений профиля из других вкладок
+// Слушатель обновлений профиля из других вкладок (WebSocket)
 // ============================================================
 let unsubProfile = null;
 
@@ -166,7 +172,9 @@ onMounted(() => {
     if (p.avatar !== undefined) {
       avatar.value = p.avatar;
       avatarPreview.value = p.avatar;
-      if (auth.setAvatar) auth.setAvatar(p.avatar);
+      if (typeof auth.setAvatar === 'function') {
+        auth.setAvatar(p.avatar);
+      }
     }
   };
   window.addEventListener('profile:updated', handler);
@@ -180,9 +188,12 @@ onUnmounted(() => {
 
 <template>
   <div class="profile-page">
-    <!-- ЛЕВАЯ КОЛОНКА -->
+    <!-- ============================================================
+         ЛЕВАЯ КОЛОНКА — профиль
+         ============================================================ -->
     <div class="profile-col profile-col-left">
       <div class="profile-card">
+        <!-- Аватар -->
         <div class="avatar-wrap">
           <div class="avatar" @click="openFilePicker">
             <img v-if="avatarPreview" :src="avatarPreview" alt="avatar" />
@@ -200,9 +211,11 @@ onUnmounted(() => {
           />
         </div>
 
+        <!-- Имя и подпись -->
         <h1 class="profile-name">{{ displayName || me }}</h1>
         <p class="profile-sub">Пользователь приложения</p>
 
+        <!-- Метаданные -->
         <div class="meta">
           <div class="meta-row">
             <span class="meta-icon">🕐</span>
@@ -215,6 +228,7 @@ onUnmounted(() => {
         </div>
       </div>
 
+      <!-- Редактирование -->
       <div class="profile-card">
         <label class="field-label">Имя</label>
         <div class="field">
@@ -234,6 +248,7 @@ onUnmounted(() => {
         </button>
       </div>
 
+      <!-- Статистика -->
       <div class="profile-card">
         <h2 class="card-title">📊 СТАТИСТИКА</h2>
         <div class="stats-grid">
@@ -253,13 +268,16 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- ПРАВАЯ КОЛОНКА -->
+    <!-- ============================================================
+         ПРАВАЯ КОЛОНКА — мессенджер + заглушка Instagram
+         ============================================================ -->
     <div class="profile-col profile-col-right">
-      <!-- ✅ Встроенный чат — скрывается на мобильной версии -->
+      <!-- Мессенджер (встроенный, сразу открытый) — скрыт на мобилке -->
       <div class="embed-chat">
         <ChatWidget :start-open="true" :embed-mode="true" />
       </div>
 
+      <!-- Заглушка «в разработке» в стиле Instagram -->
       <div class="insta-stub">
         <div class="insta-header">
           <div class="insta-avatar">

@@ -11,23 +11,19 @@ const auth = useAuthStore();
 
 const LS_KEY = 'financeProAccountsExpanded_v1';
 
-// ✅ Технический ключ (для сравнений, группировки)
 const userName = computed(() => auth.user || 'Сергей');
-
-// ✅ Отображаемое имя (для UI)
 const displayName = computed(() => auth.displayName || userName.value);
-
-// ✅ Хелпер: как показать владельца в UI
-function displayOwner(owner) {
-  if (!owner) return '';
-  // Для текущего пользователя — displayName
-  if (owner === userName.value) return displayName.value;
-  // Для остальных — технический ключ
-  return owner;
-}
-
+// ✅ Аватар текущего пользователя
+const avatarUrl = computed(() => auth.avatar || null);
 const userEmoji = computed(() => userName.value === 'Сергей' ? '👨' : '👩');
 const totalBalance = computed(() => accounts.total);
+
+// ✅ Отображаемое имя по техническому ключу (для второго пользователя оставляем ключ)
+function displayOwner(owner) {
+  if (!owner) return '';
+  if (owner === userName.value) return displayName.value;
+  return owner;
+}
 
 const ownersSorted = computed(() => {
   const all = Object.keys(accounts.byOwner || {});
@@ -57,7 +53,7 @@ function bankLogo(id) {
 function isMe(owner) { return owner === userName.value; }
 
 // ============================================================
-// 3D-наклон карты (мышь / палец)
+// 3D-наклон карты (мышь / палец) — оставляем
 // ============================================================
 const cardEl = ref(null);
 const tilt = ref({ rx: 0, ry: 0, mx: 50, my: 50 });
@@ -164,8 +160,10 @@ watch(expandedOwners, (val) => {
       <div class="dc-frame" aria-hidden="true"></div>
 
       <div class="dc-top">
+        <!-- ✅ Аватар: если есть — картинка, иначе — эмодзи -->
         <div class="dc-avatar">
-          <span class="dc-avatar-emoji">{{ userEmoji }}</span>
+          <img v-if="avatarUrl" :src="avatarUrl" alt="avatar" class="dc-avatar-img" />
+          <span v-else class="dc-avatar-emoji">{{ userEmoji }}</span>
         </div>
         <div class="dc-issuer">
           <div class="dc-issuer-name">VAS FINANCE PRO+</div>
@@ -191,8 +189,14 @@ watch(expandedOwners, (val) => {
             type="button"
             @click="toggleOwner(owner)"
           >
-            <span class="dc-owner-emoji">{{ owner === 'Сергей' ? '👨' : '👩' }}</span>
-            <!-- ✅ Отображаем displayName для текущего пользователя -->
+            <!-- ✅ Аватар внутри чипа, если это текущий пользователь -->
+            <img
+              v-if="isMe(owner) && avatarUrl"
+              :src="avatarUrl"
+              alt="avatar"
+              class="dc-owner-avatar-img"
+            />
+            <span v-else class="dc-owner-emoji">{{ owner === 'Сергей' ? '👨' : '👩' }}</span>
             <span class="dc-owner-text">{{ displayOwner(owner) }}</span>
             <span v-if="isMe(owner)" class="dc-owner-you">вы</span>
             <svg class="dc-owner-chev" :class="{ open: isExpanded(owner) }" viewBox="0 0 24 24">
@@ -350,11 +354,19 @@ watch(expandedOwners, (val) => {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
   box-shadow:
     0 8px 20px -6px rgba(0, 0, 0, 0.4),
     0 0 0 3px rgba(255, 255, 255, 0.35);
 }
 .dc-avatar-emoji { font-size: 22px; line-height: 1; }
+/* ✅ Картинка аватара */
+.dc-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
 
 .dc-issuer { text-align: right; min-width: 0; }
 .dc-issuer-name {
@@ -411,7 +423,7 @@ watch(expandedOwners, (val) => {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 8px 4px 6px;
+  padding: 4px 8px 4px 4px;
   border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.1);
@@ -437,6 +449,15 @@ watch(expandedOwners, (val) => {
 }
 
 .dc-owner-emoji { font-size: 13px; }
+/* ✅ Аватар внутри чипа */
+.dc-owner-avatar-img {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
 .dc-owner-text { line-height: 1; }
 .dc-owner-you {
   margin-left: 4px;
@@ -549,8 +570,9 @@ watch(expandedOwners, (val) => {
   .dc-caption { font-size: 9.5px; letter-spacing: 0.12em; }
   .dc-accounts { gap: 5px; padding-top: 8px; margin-top: 4px; }
   .dc-owner-row { gap: 6px; }
-  .dc-owner-name { font-size: 10.5px; padding: 3px 7px 3px 5px; }
+  .dc-owner-name { font-size: 10.5px; padding: 3px 7px 3px 3px; }
   .dc-owner-emoji { font-size: 12px; }
+  .dc-owner-avatar-img { width: 14px; height: 14px; }
   .dc-owner-chev { width: 12px; height: 12px; }
   .dc-chip { font-size: 11px; padding: 3px 9px 3px 3px; gap: 5px; }
   .dc-chip-logo,
