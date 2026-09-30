@@ -7,7 +7,6 @@ import { useToast } from '@/composables/useToast';
 import { notifySaved, notifyError } from '@/composables/useDataStatus';
 import { fmt } from '@/composables/useFormat';
 
-import PageHero from '@/components/ui/PageHero.vue';
 import PeriodSelector from '@/components/analytics/PeriodSelector.vue';
 import MetricCard from '@/components/analytics/MetricCard.vue';
 import ComparisonCard from '@/components/analytics/ComparisonCard.vue';
@@ -116,11 +115,8 @@ function openEditContrib({ goal, user }) {
 
 <template>
   <div class="analytics-page">
-    <PageHero title="📊 Аналитика" />
-
     <div class="analytics-grid">
       <div class="an-col an-col-left">
-        <!-- ✅ Каскадное появление карточек -->
         <div class="metrics-grid">
           <MetricCard
             icon="💰"
@@ -284,7 +280,6 @@ function openEditContrib({ goal, user }) {
   &:hover { transform: translateY(-1px); box-shadow: 0 10px 22px -10px rgba(59, 130, 246, 0.9); }
 }
 
-/* ✅ Каскад карточек внутри левой колонки */
 .an-col-left .card:nth-child(3) { animation-delay: 280ms; }
 .an-col-left .card:nth-child(4) { animation-delay: 350ms; }
 .an-col-left .card:nth-child(5) { animation-delay: 420ms; }

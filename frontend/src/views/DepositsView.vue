@@ -4,7 +4,6 @@ import { useAccountsStore } from '@/stores/accounts';
 import { useToast } from '@/composables/useToast';
 import { notifySaved, notifyError } from '@/composables/useDataStatus';
 
-import PageHero from '@/components/ui/PageHero.vue';
 import FixedTable from '@/components/deposits/FixedTable.vue';
 
 const accounts = useAccountsStore();
@@ -23,8 +22,6 @@ onMounted(async () => {
 
 <template>
   <div class="deposits-page">
-    <PageHero title="💎 Вклады" />
-
     <div class="container">
       <FixedTable />
     </div>
