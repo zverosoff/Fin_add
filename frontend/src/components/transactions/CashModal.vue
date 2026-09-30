@@ -21,7 +21,7 @@ const toast = useToast();
 
 const OWNERS = ['Сергей', 'Саша'];
 
-// Режимы: add | withdraw | set | savings-to | savings-from | savings-set
+// ✅ Режимы: add | withdraw | set
 const mode = ref('add');
 const user = ref('Сергей');
 const amount = ref('');
@@ -32,35 +32,24 @@ const saving = ref(false);
 const isOwnerLocked = computed(() => !!props.owner);
 
 const currentBalance = computed(() => accounts.getCash(user.value));
-const currentSavings = computed(() => accounts.getCashSavings(user.value));
 const totalCash = computed(() => accounts.totalCash);
-const totalSavings = computed(() => accounts.totalCashSavings);
-
-const isSavingsMode = computed(() =>
-  ['savings-to', 'savings-from', 'savings-set'].includes(mode.value)
-);
 
 const modeTitle = computed(() => {
   switch (mode.value) {
-    case 'add':           return '➕ Добавить наличные';
-    case 'withdraw':      return '➖ Изъять наличные';
-    case 'set':           return '🎯 Точный баланс';
-    case 'savings-to':    return '🏦 В копилку';
-    case 'savings-from':  return '↩️ Из копилки';
-    case 'savings-set':   return '🎯 Точная копилка';
-    default:              return 'Наличные';
+    case 'add':      return '➕ Добавить наличные';
+    case 'withdraw': return '➖ Изъять наличные';
+    case 'set':      return '🎯 Точный баланс';
+    default:         return 'Наличные';
   }
 });
 
 const amountLabel = computed(() => {
   switch (mode.value) {
-    case 'set':          return '💵 Новый баланс кошелька, ₽';
-    case 'savings-set':  return '🏦 Новый размер копилки, ₽';
-    default:             return '💵 Сумма, ₽';
+    case 'set': return '💵 Новый баланс кошелька, ₽';
+    default:    return '💵 Сумма, ₽';
   }
 });
 
-// Последние операции наличных
 const recentOps = computed(() => {
   return (accounts.transactions || [])
     .filter(t => t.accountId === 'cash' && t.user === user.value)
@@ -73,20 +62,17 @@ const preview = computed(() => {
   if (!isFinite(v)) return null;
 
   switch (mode.value) {
-    case 'add':          return { balance: currentBalance.value + v, savings: currentSavings.value };
-    case 'withdraw':     return { balance: currentBalance.value - v, savings: currentSavings.value };
-    case 'set':          return { balance: v, savings: currentSavings.value };
-    case 'savings-to':   return { balance: currentBalance.value - v, savings: currentSavings.value + v };
-    case 'savings-from': return { balance: currentBalance.value + v, savings: currentSavings.value - v };
-    case 'savings-set':  return { balance: currentBalance.value, savings: v };
-    default:             return null;
+    case 'add':      return { balance: currentBalance.value + v };
+    case 'withdraw': return { balance: currentBalance.value - v };
+    case 'set':      return { balance: v };
+    default:         return null;
   }
 });
 
 const canSave = computed(() => {
   const v = parseFloat(amount.value);
   if (!isFinite(v) || v < 0) return false;
-  if (!['set', 'savings-set'].includes(mode.value) && v <= 0) return false;
+  if (mode.value !== 'set' && v <= 0) return false;
   return true;
 });
 
@@ -109,12 +95,12 @@ async function save() {
     return;
   }
 
-  if (!['set', 'savings-set'].includes(mode.value) && v <= 0) {
+  if (mode.value !== 'set' && v <= 0) {
     error.value = 'Сумма должна быть больше 0';
     return;
   }
 
-  if (['set', 'savings-set'].includes(mode.value) && v < 0) {
+  if (mode.value === 'set' && v < 0) {
     error.value = 'Сумма не может быть отрицательной';
     return;
   }
@@ -136,23 +122,6 @@ async function save() {
         const res = await accounts.setCashBalance(user.value, v, comment.value);
         toast[res?.unchanged ? 'info' : 'success'](
           res?.unchanged ? 'Баланс не изменился' : `💵 Новый баланс: ${fmt(v)} ₽`
-        );
-        break;
-      }
-      case 'savings-to': {
-        await accounts.toSavings(user.value, v, comment.value);
-        toast.success(`🏦 В копилку: +${fmt(v)} ₽ (${user.value})`);
-        break;
-      }
-      case 'savings-from': {
-        await accounts.fromSavings(user.value, v, comment.value);
-        toast.success(`↩️ Из копилки: +${fmt(v)} ₽ в кошелёк (${user.value})`);
-        break;
-      }
-      case 'savings-set': {
-        const res = await accounts.setCashSavings(user.value, v, comment.value);
-        toast[res?.unchanged ? 'info' : 'success'](
-          res?.unchanged ? 'Копилка не изменилась' : `🏦 Копилка: ${fmt(v)} ₽`
         );
         break;
       }
@@ -185,15 +154,9 @@ function close() {
           <span class="ci-label">👛 Кошелёк {{ user }}:</span>
           <span class="ci-value">{{ fmt(currentBalance) }} ₽</span>
         </div>
-        <div class="ci-row">
-          <span class="ci-label">🏦 Копилка {{ user }}:</span>
-          <span class="ci-value savings">{{ fmt(currentSavings) }} ₽</span>
-        </div>
         <div class="ci-row subtle">
           <span class="ci-label">Всего в системе:</span>
-          <span class="ci-value subtle">
-            {{ fmt(totalCash) }} ₽ / {{ fmt(totalSavings) }} ₽
-          </span>
+          <span class="ci-value subtle">{{ fmt(totalCash) }} ₽</span>
         </div>
       </div>
 
@@ -234,24 +197,6 @@ function close() {
             @click="mode = 'set'"
           >🎯 Баланс</button>
         </div>
-
-        <div class="mode-switch secondary">
-          <button
-            type="button"
-            :class="{ active: mode === 'savings-to' }"
-            @click="mode = 'savings-to'"
-          >🏦 В копилку</button>
-          <button
-            type="button"
-            :class="{ active: mode === 'savings-from' }"
-            @click="mode = 'savings-from'"
-          >↩️ Из копилки</button>
-          <button
-            type="button"
-            :class="{ active: mode === 'savings-set' }"
-            @click="mode = 'savings-set'"
-          >🎯 Копилка</button>
-        </div>
       </div>
 
       <!-- Сумма -->
@@ -287,15 +232,8 @@ function close() {
             :class="preview.balance < 0 ? 'negative' : 'positive'"
           >{{ fmt(preview.balance) }} ₽</span>
         </div>
-        <div class="pv-row">
-          <span class="pv-label">Копилка:</span>
-          <span
-            class="pv-value"
-            :class="preview.savings < 0 ? 'negative' : 'positive'"
-          >{{ fmt(preview.savings) }} ₽</span>
-        </div>
         <div
-          v-if="preview.balance < 0 || preview.savings < 0"
+          v-if="preview.balance < 0"
           class="pv-warn"
         >⚠️ Отрицательное значение</div>
       </div>
@@ -365,8 +303,6 @@ function close() {
     font-size: 15px;
     font-weight: 800;
     color: #16a34a;
-
-    &.savings { color: #0891b2; }
 
     &.subtle {
       font-size: 12px;
@@ -446,11 +382,6 @@ function close() {
   background: #f1f5f9;
   border-radius: 10px;
 
-  &.secondary {
-    margin-top: 6px;
-    background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(8, 145, 178, 0.08));
-  }
-
   button {
     padding: 9px 8px;
     border: none;
@@ -469,11 +400,6 @@ function close() {
       color: #fff;
       box-shadow: 0 4px 12px -4px rgba(59, 130, 246, 0.6);
     }
-  }
-
-  &.secondary button.active {
-    background: linear-gradient(135deg, #10b981, #059669);
-    box-shadow: 0 4px 12px -4px rgba(16, 185, 129, 0.6);
   }
 }
 

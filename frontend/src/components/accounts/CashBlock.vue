@@ -29,7 +29,6 @@ const owners = computed(() =>
 // ✅ ОСНОВНАЯ ЦЕЛЬ — учитываем наличные как накопления
 // ============================================================
 const cashInWallets = computed(() => accounts.totalCash);
-const cashInSavings = computed(() => accounts.totalCashSavings);
 
 const goalContributionsSum = computed(() => {
   const goal = goalsStore.primaryGoal;
@@ -39,7 +38,7 @@ const goalContributionsSum = computed(() => {
 });
 
 const totalSaved = computed(() =>
-  cashInWallets.value + cashInSavings.value + goalContributionsSum.value
+  cashInWallets.value + goalContributionsSum.value
 );
 
 const remaining = computed(() => {
@@ -58,9 +57,6 @@ const progressPct = computed(() => {
 
 const isDone = computed(() => progressPct.value >= 100);
 
-// ============================================================
-// Модалка
-// ============================================================
 function openModal(owner = '', mode = 'add') {
   cashModalOwner.value = owner;
   cashModalMode.value = mode;
@@ -154,9 +150,7 @@ const fallingBills = [
         </button>
       </div>
 
-      <!-- ============================================================
-           ✅ ОСНОВНАЯ ЦЕЛЬ — компактная
-           ============================================================ -->
+      <!-- ОСНОВНАЯ ЦЕЛЬ -->
       <div v-if="goalsStore.primaryGoal" class="cn-goal" :class="{ done: isDone }">
         <div class="cn-goal-head">
           <span class="cn-goal-emoji">{{ goalsStore.primaryGoal.emoji || '🎯' }}</span>
@@ -444,9 +438,7 @@ const fallingBills = [
   line-height: 1;
 }
 
-/* ============================================================
-   ✅ ОСНОВНАЯ ЦЕЛЬ — компактная
-   ============================================================ */
+/* ОСНОВНАЯ ЦЕЛЬ */
 .cn-goal {
   position: relative;
   z-index: 3;
@@ -561,9 +553,7 @@ const fallingBills = [
   white-space: nowrap;
 }
 
-/* ============================================================
-   МОБИЛЬНЫЙ
-   ============================================================ */
+/* МОБИЛЬНЫЙ */
 @media (max-width: 700px) {
   .cash-note { padding: 14px 16px 12px; border-radius: 16px; }
 
