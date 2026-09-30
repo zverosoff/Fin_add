@@ -17,9 +17,6 @@ const loading = ref(true);
 
 const fileEl = ref(null);
 
-// ============================================================
-// Статистика (пример — замени на свои реальные данные)
-// ============================================================
 const stats = computed(() => ({
   balance: 2823,
   accounts: 4,
@@ -39,8 +36,8 @@ async function loadProfile() {
       avatar.value = data.profile.avatar || null;
       avatarPreview.value = data.profile.avatar || null;
 
-      // ✅ Обновляем глобальный стейт (чтобы на других страницах было новое имя)
       auth.setDisplayName(displayName.value);
+      if (auth.setAvatar) auth.setAvatar(data.profile.avatar || null);
     } else {
       displayName.value = me.value;
     }
@@ -132,8 +129,8 @@ async function save() {
     const data = await res.json();
     if (!data.ok) throw new Error(data.error || 'Ошибка сохранения');
 
-    // ✅ Обновляем глобальный стейт — теперь везде будет новое имя
     auth.setDisplayName(clean);
+    if (auth.setAvatar) auth.setAvatar(avatar.value);
 
     toast.success('✅ Профиль сохранён');
   } catch (e) {
@@ -152,7 +149,7 @@ const lastLogin = ref(new Date().toLocaleString('ru-RU', {
 }));
 
 // ============================================================
-// Слушатель обновлений профиля из других вкладок (WebSocket)
+// Слушатель обновлений профиля из других вкладок
 // ============================================================
 let unsubProfile = null;
 
@@ -169,6 +166,7 @@ onMounted(() => {
     if (p.avatar !== undefined) {
       avatar.value = p.avatar;
       avatarPreview.value = p.avatar;
+      if (auth.setAvatar) auth.setAvatar(p.avatar);
     }
   };
   window.addEventListener('profile:updated', handler);
@@ -182,12 +180,9 @@ onUnmounted(() => {
 
 <template>
   <div class="profile-page">
-    <!-- ============================================================
-         ЛЕВАЯ КОЛОНКА — профиль
-         ============================================================ -->
+    <!-- ЛЕВАЯ КОЛОНКА -->
     <div class="profile-col profile-col-left">
       <div class="profile-card">
-        <!-- Аватар -->
         <div class="avatar-wrap">
           <div class="avatar" @click="openFilePicker">
             <img v-if="avatarPreview" :src="avatarPreview" alt="avatar" />
@@ -205,11 +200,9 @@ onUnmounted(() => {
           />
         </div>
 
-        <!-- Имя и подпись -->
         <h1 class="profile-name">{{ displayName || me }}</h1>
         <p class="profile-sub">Пользователь приложения</p>
 
-        <!-- Метаданные -->
         <div class="meta">
           <div class="meta-row">
             <span class="meta-icon">🕐</span>
@@ -222,7 +215,6 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- Редактирование -->
       <div class="profile-card">
         <label class="field-label">Имя</label>
         <div class="field">
@@ -242,7 +234,6 @@ onUnmounted(() => {
         </button>
       </div>
 
-      <!-- Статистика -->
       <div class="profile-card">
         <h2 class="card-title">📊 СТАТИСТИКА</h2>
         <div class="stats-grid">
@@ -262,16 +253,13 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- ============================================================
-         ПРАВАЯ КОЛОНКА — мессенджер + заглушка Instagram
-         ============================================================ -->
+    <!-- ПРАВАЯ КОЛОНКА -->
     <div class="profile-col profile-col-right">
-      <!-- Мессенджер (встроенный, сразу открытый) -->
+      <!-- ✅ Встроенный чат — скрывается на мобильной версии -->
       <div class="embed-chat">
         <ChatWidget :start-open="true" :embed-mode="true" />
       </div>
 
-      <!-- Заглушка «в разработке» в стиле Instagram -->
       <div class="insta-stub">
         <div class="insta-header">
           <div class="insta-avatar">
@@ -601,5 +589,37 @@ onUnmounted(() => {
   border: 1px dashed rgba(99, 102, 241, 0.35);
   border-radius: 10px;
   padding: 10px;
+}
+
+/* ============================================================
+   ✅ МОБИЛЬНАЯ ВЕРСИЯ — скрываем встроенный чат
+   ============================================================ */
+@media (max-width: 700px) {
+  .embed-chat {
+    display: none !important;
+  }
+
+  .profile-page {
+    padding: 12px;
+    gap: 12px;
+  }
+
+  .profile-card {
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .profile-name {
+    font-size: 20px;
+  }
+
+  .stat-value {
+    font-size: 15px;
+  }
+
+  .insta-stub {
+    padding: 16px;
+    border-radius: 14px;
+  }
 }
 </style>
