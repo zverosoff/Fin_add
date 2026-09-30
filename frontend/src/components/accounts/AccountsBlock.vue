@@ -837,9 +837,9 @@ watch(expandedOwners, (val) => {
 
   background: linear-gradient(
     160deg,
-    rgba(236, 72, 153, 0.55) 0%,
-    rgba(236, 72, 153, 0.4) 50%,
-    rgba(168, 85, 247, 0.5) 100%
+    #ffffff 0%,
+    #ffffff8a 50%,
+    #ffffff1c 100%
   );
 
   /* ✅ Левый край — точно на границе фиолета */
