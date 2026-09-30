@@ -162,7 +162,6 @@ watch(expandedOwners, (val) => {
         <div class="dc-bg-photo">
           <template v-if="myAvatar">
             <img :src="myAvatar" alt="" class="dc-photo-layer dc-photo-base" />
-
             <img :src="myAvatar" alt="" class="dc-photo-layer dc-photo-r" />
             <img :src="myAvatar" alt="" class="dc-photo-layer dc-photo-g" />
             <img :src="myAvatar" alt="" class="dc-photo-layer dc-photo-b" />
@@ -195,8 +194,10 @@ watch(expandedOwners, (val) => {
           <div class="dc-bg-stripes"></div>
           <div class="dc-bg-photo-shade"></div>
           <div class="dc-bg-scanlines"></div>
-          <div class="dc-bg-divider"></div>
         </div>
+
+        <!-- ✅ Розовая полоса теперь ВНЕ фото — она в координатах карты -->
+        <div class="dc-bg-divider"></div>
 
         <div class="dc-bg-solid"></div>
         <div class="dc-bg-ribbon"></div>
@@ -345,7 +346,6 @@ watch(expandedOwners, (val) => {
   animation: glitchBase 8s infinite;
 }
 
-/* ✅ КРАСНЫЙ — активен 20-100% (3.2 сек из 4 в фазе глитча) */
 .dc-photo-r {
   mix-blend-mode: screen;
   filter: saturate(4) hue-rotate(-25deg) contrast(1.3);
@@ -353,7 +353,6 @@ watch(expandedOwners, (val) => {
   animation: glitchR 8s infinite;
 }
 
-/* ✅ ЗЕЛЁНЫЙ — активен 25-95% */
 .dc-photo-g {
   mix-blend-mode: screen;
   filter: saturate(4) hue-rotate(90deg) contrast(1.3);
@@ -361,7 +360,6 @@ watch(expandedOwners, (val) => {
   animation: glitchG 8s infinite;
 }
 
-/* ✅ ГОЛУБОЙ — активен 20-100% */
 .dc-photo-b {
   mix-blend-mode: screen;
   filter: saturate(4) hue-rotate(170deg) contrast(1.3);
@@ -369,7 +367,6 @@ watch(expandedOwners, (val) => {
   animation: glitchB 8s infinite;
 }
 
-/* ✅ Ч/Б инверт — активен реже, 40-80% */
 .dc-photo-bw {
   mix-blend-mode: difference;
   filter: grayscale(1) invert(1) contrast(2);
@@ -377,11 +374,6 @@ watch(expandedOwners, (val) => {
   animation: glitchBW 8s infinite;
 }
 
-/* ============================================================
-   ✅ РАСШИРЕННЫЙ ГЛИТЧ — с 60% до 100% (≈ 3.2 сек)
-   ============================================================ */
-
-/* Базовое фото дрожит всю активную фазу */
 @keyframes glitchBase {
   0%, 5%, 100% { transform: translate(0, 0); }
   6% { transform: translate(-2px, 1px); }
@@ -391,8 +383,6 @@ watch(expandedOwners, (val) => {
   40% { transform: translate(-1px, -2px); }
   50% { transform: translate(2px, 0); }
   60% { transform: translate(0, 0); }
-
-  /* ✅ Активная фаза — 60-100% */
   62% { transform: translate(-3px, 2px); }
   65% { transform: translate(4px, -1px); }
   68% { transform: translate(-2px, 1px); }
@@ -404,15 +394,12 @@ watch(expandedOwners, (val) => {
   95% { transform: translate(-1px, 0); }
 }
 
-/* Красный канал — сильное смещение */
 @keyframes glitchR {
   0%, 5%, 100% { opacity: 0; transform: translate(0, 0); }
   6% { opacity: 1; transform: translate(-10px, -2px); }
   7% { opacity: 1; transform: translate(8px, 1px); }
   8% { opacity: 0.9; transform: translate(-5px, 0); }
   9% { opacity: 0; transform: translate(0, 0); }
-
-  /* ✅ Активная фаза — 60-100% */
   60% { opacity: 0; transform: translate(0, 0); }
   62% { opacity: 1; transform: translate(-12px, -3px); }
   65% { opacity: 1; transform: translate(10px, 2px); }
@@ -433,7 +420,6 @@ watch(expandedOwners, (val) => {
   6% { opacity: 0.9; transform: translate(6px, 2px); }
   7% { opacity: 1; transform: translate(-7px, -1px); }
   8% { opacity: 0; transform: translate(0, 0); }
-
   60% { opacity: 0; transform: translate(0, 0); }
   63% { opacity: 0.9; transform: translate(8px, 3px); }
   66% { opacity: 1; transform: translate(-9px, -2px); }
@@ -454,7 +440,6 @@ watch(expandedOwners, (val) => {
   7% { opacity: 1; transform: translate(-8px, -1px); }
   8% { opacity: 0.9; transform: translate(5px, 0); }
   9% { opacity: 0; transform: translate(0, 0); }
-
   60% { opacity: 0; transform: translate(0, 0); }
   62% { opacity: 1; transform: translate(12px, 3px); }
   65% { opacity: 1; transform: translate(-10px, -2px); }
@@ -482,9 +467,6 @@ watch(expandedOwners, (val) => {
   95% { opacity: 0; transform: translate(0, 0); }
 }
 
-/* ============================================================
-   ✅ ЦИФРОВЫЕ АРТЕФАКТЫ — активны 60-100%
-   ============================================================ */
 .dc-glitch-blocks {
   position: absolute;
   inset: 0;
@@ -534,13 +516,11 @@ watch(expandedOwners, (val) => {
   animation: gblockMove5 8s infinite;
 }
 
-/* ✅ Активная фаза — 60-100%, летают чаще */
 @keyframes gblockMove1 {
   0%, 5%, 100% { opacity: 0; transform: translateX(-100%); }
   6% { opacity: 1; transform: translateX(20%); }
   7% { opacity: 1; transform: translateX(60%); }
   8% { opacity: 0; transform: translateX(120%); }
-
   60% { opacity: 0; transform: translateX(-100%); }
   63% { opacity: 1; transform: translateX(20%); }
   66% { opacity: 1; transform: translateX(70%); }
@@ -556,7 +536,6 @@ watch(expandedOwners, (val) => {
   6% { opacity: 1; transform: translateX(40%); }
   7% { opacity: 0.9; transform: translateX(10%); }
   8% { opacity: 0; transform: translateX(-20%); }
-
   60% { opacity: 0; transform: translateX(100%); }
   62% { opacity: 1; transform: translateX(50%); }
   65% { opacity: 1; transform: translateX(10%); }
@@ -572,7 +551,6 @@ watch(expandedOwners, (val) => {
   6% { opacity: 1; transform: translateX(30%) scaleY(1.5); }
   7% { opacity: 1; transform: translateX(80%) scaleY(1); }
   8% { opacity: 0; transform: translateX(120%); }
-
   60% { opacity: 0; transform: translateX(-30%); }
   63% { opacity: 1; transform: translateX(40%) scaleY(1.5); }
   66% { opacity: 1; transform: translateX(80%) scaleY(1); }
@@ -587,7 +565,6 @@ watch(expandedOwners, (val) => {
   6% { opacity: 1; transform: translateX(10%); }
   7% { opacity: 0.9; transform: translateX(70%); }
   8% { opacity: 0; transform: translateX(-40%); }
-
   60% { opacity: 0; transform: translateX(50%); }
   63% { opacity: 1; transform: translateX(15%); }
   67% { opacity: 1; transform: translateX(75%); }
@@ -602,7 +579,6 @@ watch(expandedOwners, (val) => {
   6% { opacity: 1; transform: translateX(-10%); }
   7% { opacity: 0.8; transform: translateX(50%); }
   8% { opacity: 0; transform: translateX(100%); }
-
   60% { opacity: 0; transform: translateX(0); }
   62% { opacity: 1; transform: translateX(-15%); }
   65% { opacity: 0.9; transform: translateX(40%); }
@@ -614,9 +590,6 @@ watch(expandedOwners, (val) => {
   88% { opacity: 0; transform: translateX(0); }
 }
 
-/* ============================================================
-   ✅ ЛЕТАЮЩИЕ «СТРУНЫ» КОДА — активны 60-100%
-   ============================================================ */
 .dc-glitch-code {
   position: absolute;
   inset: 0;
@@ -663,7 +636,6 @@ watch(expandedOwners, (val) => {
   6% { opacity: 1; transform: translateY(0); }
   7% { opacity: 1; transform: translateY(-6px); }
   8% { opacity: 0; transform: translateY(-30px); }
-
   60% { opacity: 0; transform: translateY(20px); }
   63% { opacity: 1; transform: translateY(0); }
   68% { opacity: 1; transform: translateY(-10px); }
@@ -675,7 +647,6 @@ watch(expandedOwners, (val) => {
   0%, 5%, 100% { opacity: 0; transform: translateY(15px); }
   6% { opacity: 0.9; transform: translateY(-2px); }
   7% { opacity: 0; transform: translateY(-25px); }
-
   60% { opacity: 0; transform: translateY(15px); }
   63% { opacity: 0.9; transform: translateY(0); }
   67% { opacity: 1; transform: translateY(-12px); }
@@ -687,7 +658,6 @@ watch(expandedOwners, (val) => {
   0%, 5%, 100% { opacity: 0; transform: translateY(10px); }
   6% { opacity: 1; transform: translateY(-3px); }
   7% { opacity: 0; transform: translateY(-28px); }
-
   60% { opacity: 0; transform: translateY(10px); }
   63% { opacity: 1; transform: translateY(-5px); }
   68% { opacity: 0.9; transform: translateY(-15px); }
@@ -696,9 +666,6 @@ watch(expandedOwners, (val) => {
   85% { opacity: 0; transform: translateY(-70px); }
 }
 
-/* ============================================================
-   ✅ ЯРКИЕ ГОРИЗОНТАЛЬНЫЕ ПОЛОСЫ — активны 60-100%
-   ============================================================ */
 .dc-glitch-bars {
   position: absolute;
   inset: 0;
@@ -737,7 +704,6 @@ watch(expandedOwners, (val) => {
   6% { opacity: 1; transform: scaleX(1.1); }
   7% { top: 32%; opacity: 1; transform: scaleX(1.4); }
   8% { top: 34%; opacity: 0; }
-
   60% { top: 20%; opacity: 0; transform: scaleX(1); }
   63% { opacity: 1; transform: scaleX(1.2); }
   66% { top: 30%; opacity: 1; transform: scaleX(1.5); }
@@ -752,7 +718,6 @@ watch(expandedOwners, (val) => {
   6% { opacity: 1; transform: scaleX(1.2); }
   7% { top: 62%; opacity: 1; }
   8% { opacity: 0; }
-
   60% { top: 80%; opacity: 0; transform: scaleX(1); }
   63% { opacity: 1; transform: scaleX(1.3); }
   66% { top: 75%; opacity: 1; }
@@ -767,7 +732,6 @@ watch(expandedOwners, (val) => {
   6% { opacity: 1; }
   7% { top: 50%; opacity: 1; }
   8% { top: 60%; opacity: 0; }
-
   60% { top: 10%; opacity: 0; }
   62% { top: 15%; opacity: 1; }
   66% { top: 25%; opacity: 1; }
@@ -778,9 +742,6 @@ watch(expandedOwners, (val) => {
   90% { top: 100%; opacity: 0; }
 }
 
-/* ============================================================
-   ✅ Усиление глитча при наведении курсора
-   ============================================================ */
 .debit-card:hover .dc-photo-base { animation-duration: 4s; }
 .debit-card:hover .dc-photo-r,
 .debit-card:hover .dc-photo-g,
@@ -859,15 +820,21 @@ watch(expandedOwners, (val) => {
     );
 }
 
+/* ============================================================
+   ✅ РОЗОВАЯ ПОЛОСА — теперь в координатах КАРТЫ, а не фото
+   Наклон ТОЧНО такой же, как у .dc-bg-solid: 22% → 8%
+   ============================================================ */
 .dc-bg-divider {
   position: absolute;
   top: 0;
+  left: 0;
   right: 0;
   bottom: 0;
-  width: 14%;
   pointer-events: none;
   z-index: 9;
 
+  /* ✅ Тот же clip-path, что у .dc-bg-solid, но сдвинут на 4% вправо */
+  /* Итог: полоса идёт от 26%/12% (верх/низ) до 14%/0% — параллельно срезу */
   background: linear-gradient(
     160deg,
     rgba(236, 72, 153, 0.55) 0%,
@@ -875,11 +842,12 @@ watch(expandedOwners, (val) => {
     rgba(168, 85, 247, 0.5) 100%
   );
 
+  /* ✅ Наклон параллелен .dc-bg-solid: сдвиг 8% по ширине, 14% по высоте */
   clip-path: polygon(
-    100% 0%,
-    100% 100%,
-    0% 100%,
-    0% 8%
+    26% 0%,      /* верхний левый край полосы */
+    40% 0%,      /* верхний правый край полосы */
+    22% 100%,    /* нижний правый край полосы */
+    8%  100%     /* нижний левый край полосы */
   );
 
   filter: blur(0.6px);
@@ -887,6 +855,9 @@ watch(expandedOwners, (val) => {
   opacity: 0.9;
 }
 
+/* ============================================================
+   Фиолетовая часть
+   ============================================================ */
 .dc-bg-solid {
   position: absolute;
   top: 0;
@@ -1007,7 +978,6 @@ watch(expandedOwners, (val) => {
   z-index: 12;
 }
 
-/* Контент */
 .dc-top {
   position: relative;
   z-index: 13;
@@ -1231,19 +1201,23 @@ watch(expandedOwners, (val) => {
   -webkit-backdrop-filter: blur(8px);
 }
 
-/* ============================================================
-   МОБИЛЬНЫЙ
-   ============================================================ */
 @media (max-width: 700px) {
   .debit-card { padding: 14px 16px 12px; border-radius: 20px; gap: 8px; min-height: 200px; }
-
   .dc-bg { inset: -14px -16px -12px; }
-
   .dc-bg-photo { width: 52%; }
   .dc-bg-solid { width: 68%; }
   .dc-bg-ribbon { width: 68%; }
-  .dc-bg-divider { width: 16%; }
   .dc-bg-emoji { font-size: 64px; }
+
+  /* ✅ На мобилке — свои координаты полосы */
+  .dc-bg-divider {
+    clip-path: polygon(
+      26% 0%,
+      42% 0%,
+      20% 100%,
+      6%  100%
+    );
+  }
 
   .dc-issuer-name { font-size: 10.5px; letter-spacing: 0.12em; }
   .dc-issuer-sub { font-size: 8.5px; }
