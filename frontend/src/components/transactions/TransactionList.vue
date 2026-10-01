@@ -139,7 +139,6 @@ async function restoreFromSnapshot(snapshot) {
           </span>
         </div>
 
-        <!-- ✅ БЕЗ Transition — просто v-if -->
         <div v-if="!isDayCollapsed(group.key)" class="tx-day-items">
           <TransactionItem
             v-for="t in group.items"
@@ -163,84 +162,139 @@ async function restoreFromSnapshot(snapshot) {
   gap: 8px;
 }
 
+/* ============================================================
+   ✅ Плашка активных фильтров — стеклянная + объёмная
+   ============================================================ */
 .tx-active-filter {
   display: flex;
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
-  padding: 8px 12px;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(139, 92, 246, 0.06));
-  border: 1px solid rgba(56, 189, 248, 0.25);
-  border-radius: 12px;
+  padding: 10px 14px;
+
+  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+  border-radius: 14px;
   font-size: 12px;
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.05) inset,
+    0 2px 6px rgba(15, 23, 42, 0.04),
+    0 8px 16px -6px rgba(99, 102, 241, 0.15);
 }
 
 .taf-label {
-  font-weight: 700;
-  color: var(--muted);
+  font-weight: 800;
+  color: #64748b;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-size: 11px;
 }
+
 .taf-chip {
   display: inline-flex;
   align-items: center;
   gap: 6px;
   padding: 4px 10px;
   border-radius: 999px;
-  background: rgba(56, 189, 248, 0.15);
-  border: 1px solid rgba(56, 189, 248, 0.4);
-  color: var(--accent);
+  background: linear-gradient(180deg, rgba(99, 102, 241, 0.15), rgba(99, 102, 241, 0.08));
+  border: 1px solid rgba(99, 102, 241, 0.35);
+  color: #4f46e5;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.15s ease;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.7) inset,
+    0 2px 4px rgba(99, 102, 241, 0.1);
+
   &:hover {
-    background: rgba(239, 68, 68, 0.15);
+    background: linear-gradient(180deg, rgba(239, 68, 68, 0.18), rgba(239, 68, 68, 0.1));
     border-color: rgba(239, 68, 68, 0.5);
-    color: var(--danger);
+    color: #dc2626;
+    transform: translateY(-1px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.7) inset,
+      0 4px 8px -2px rgba(239, 68, 68, 0.3);
   }
   .taf-close { font-size: 12px; line-height: 1; opacity: 0.8; }
 }
+
 .taf-reset {
   margin-left: auto;
-  padding: 4px 10px;
+  padding: 5px 12px;
   border-radius: 999px;
-  border: 1px dashed var(--border);
-  background: transparent;
-  color: var(--muted);
+  border: 1px dashed rgba(148, 163, 184, 0.5);
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  color: #64748b;
   font-family: inherit;
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.15s;
-  &:hover { border-color: var(--danger); color: var(--danger); background: rgba(239, 68, 68, 0.08); }
+  transition: all 0.15s ease;
+
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset;
+
+  &:hover {
+    border-color: #dc2626;
+    color: #dc2626;
+    background: linear-gradient(180deg, #fef2f2, #fee2e2);
+    transform: translateY(-1px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.9) inset,
+      0 4px 8px -2px rgba(239, 68, 68, 0.25);
+  }
 }
 
+/* ============================================================
+   ✅ Пустой список — вложенная карточка
+   ============================================================ */
 .tx-empty {
   text-align: center;
   padding: 60px 24px;
-  background: rgba(255, 255, 255, 0.85);
-  border: 1px dashed var(--border-strong);
+  background: linear-gradient(180deg, #ffffff, #fafbff);
+  border: 1px dashed rgba(148, 163, 184, 0.4);
   border-radius: 16px;
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 4px 12px -4px rgba(15, 23, 42, 0.06);
+
   .empty-icon { font-size: 48px; opacity: 0.6; }
   .empty-title { font-size: 17px; font-weight: 700; margin-top: 12px; color: var(--text); }
   .empty-sub { font-size: 13px; color: var(--muted); margin-top: 6px; }
 }
+
 .empty-reset {
   margin-top: 16px;
-  padding: 8px 18px;
+  padding: 9px 18px;
   border-radius: 10px;
-  border: 1px solid var(--accent);
-  background: rgba(56, 189, 248, 0.1);
-  color: var(--accent);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  background: linear-gradient(180deg, #eef2ff, #e0e7ff);
+  color: #4f46e5;
   font-family: inherit;
   font-size: 13px;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
-  transition: all 0.15s;
-  &:hover { background: var(--accent); color: #fff; }
+  transition: all 0.15s ease;
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 2px 6px rgba(99, 102, 241, 0.15);
+
+  &:hover {
+    background: linear-gradient(180deg, #6366f1, #4f46e5);
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 6px 14px -4px rgba(99, 102, 241, 0.5);
+  }
 }
 
+/* ============================================================
+   ✅ Заголовок дня — объёмный, стеклянный
+   ============================================================ */
 .tx-day-header {
   position: sticky;
   top: 0;
@@ -248,40 +302,54 @@ async function restoreFromSnapshot(snapshot) {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 12px 8px;
+  padding: 10px 14px 8px;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
   color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-top: 4px;
   cursor: pointer;
   user-select: none;
+  border-radius: 10px 10px 0 0;
 
   background: linear-gradient(
     180deg,
-    rgba(238, 242, 248, 1) 0%,
-    rgba(238, 242, 248, 0.95) 70%,
-    rgba(238, 242, 248, 0) 100%
+    rgba(255, 255, 255, 0.95) 0%,
+    rgba(248, 250, 252, 0.85) 100%
   );
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  border-radius: 8px 8px 0 0;
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
 
-  transition: color 0.15s;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.08) inset,
+    0 2px 4px rgba(15, 23, 42, 0.03);
 
-  &:hover { color: var(--accent); }
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  border-bottom: none;
+
+  transition: color 0.15s, transform 0.15s, box-shadow 0.2s;
+
+  &:hover {
+    color: var(--accent);
+    transform: translateY(-1px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 -1px 0 rgba(148, 163, 184, 0.08) inset,
+      0 4px 10px -2px rgba(99, 102, 241, 0.15);
+  }
 
   &.collapsed {
-    background: linear-gradient(
-      180deg,
-      rgba(238, 242, 248, 1) 0%,
-      rgba(238, 242, 248, 1) 100%
-    );
-    border-radius: 8px;
-    padding: 10px 12px;
+    border-radius: 10px;
+    padding: 10px 14px;
     margin-top: 6px;
-    border: 1px solid var(--border);
+    border-bottom: 1px solid rgba(226, 232, 240, 0.6);
+
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 -1px 0 rgba(148, 163, 184, 0.08) inset,
+      0 2px 6px rgba(15, 23, 42, 0.05);
   }
 }
 
@@ -301,58 +369,79 @@ async function restoreFromSnapshot(snapshot) {
   align-items: center;
   gap: 6px;
   &.today {
-    color: #22c55e;
+    color: #16a34a;
+    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
     &::before {
       content: "";
       display: inline-block;
       width: 6px; height: 6px;
       border-radius: 50%;
-      background: #22c55e;
-      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.2);
+      background: radial-gradient(circle at 30% 30%, #4ade80, #16a34a);
+      box-shadow:
+        0 0 0 3px rgba(34, 197, 94, 0.2),
+        0 2px 4px rgba(34, 197, 94, 0.4);
     }
   }
 }
 
 .day-count {
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 800;
   padding: 2px 8px;
   border-radius: 999px;
-  background: rgba(120, 120, 128, 0.15);
+  background: linear-gradient(180deg, #f1f5f9, #e2e8f0);
   color: var(--muted);
   text-transform: none;
   letter-spacing: 0;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.8) inset,
+    0 1px 2px rgba(15, 23, 42, 0.05);
 }
 
 .day-sum {
   margin-left: auto;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 800;
   letter-spacing: 0;
   text-transform: none;
-  &.positive { color: #22c55e; }
-  &.negative { color: #ef4444; }
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
+  &.positive { color: #16a34a; }
+  &.negative { color: #dc2626; }
 }
 
-/* ✅ Никаких Transition/overflow — просто список */
 .tx-day-items {
   display: flex;
   flex-direction: column;
   gap: 8px;
+  padding-top: 4px;
 }
 
+/* ============================================================
+   МОБИЛЬНЫЙ
+   ============================================================ */
 @media (max-width: 700px) {
   .tx-active-filter { padding: 8px 10px; gap: 4px; font-size: 11px; }
   .taf-label { font-size: 10px; width: 100%; margin-bottom: 2px; }
   .taf-chip { padding: 4px 9px; font-size: 11px; }
-  .taf-reset { font-size: 10px; padding: 3px 9px; }
-  .tx-day-header { padding: 8px 6px 6px; font-size: 11px; gap: 6px; }
-  .tx-day-header .day-sum { font-size: 11px; }
+  .taf-reset { font-size: 10px; padding: 4px 10px; }
+
+  .tx-day-header { padding: 9px 10px 7px; font-size: 11px; gap: 6px; }
+  .tx-day-header .day-sum { font-size: 11.5px; }
   .tx-day-header .day-count { font-size: 9px; padding: 1px 6px; }
+
   .tx-empty { padding: 40px 16px; border-radius: 14px; }
   .tx-empty .empty-icon { font-size: 40px; }
   .tx-empty .empty-title { font-size: 15px; margin-top: 10px; }
   .tx-empty .empty-sub { font-size: 12px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tx-day-header,
+  .tx-active-filter,
+  .tx-empty,
+  .taf-chip,
+  .taf-reset,
+  .empty-reset { transition: none !important; transform: none !important; }
 }
 </style>

@@ -28,9 +28,7 @@ const userMenuOwner = ref('');
 
 onMounted(async () => {
   try {
-    if (!accounts.loaded) {
-      await accounts.load();
-    }
+    if (!accounts.loaded) await accounts.load();
     notifySaved('готово');
   } catch (e) {
     notifyError(e.message || 'Не удалось загрузить данные');
@@ -63,7 +61,6 @@ function onUserMenu(owner) {
 <template>
   <div class="finance-page">
     <div class="finance-grid">
-      <!-- ✅ Каскадное появление блоков в левой колонке -->
       <aside class="finance-side">
         <div class="anim-block" style="--delay: 0ms">
           <AccountsBlock @reconcile="onReconcile" @user-menu="onUserMenu" />
@@ -79,7 +76,6 @@ function onUserMenu(owner) {
         </div>
       </aside>
 
-      <!-- ✅ Каскадное появление в правой колонке -->
       <main class="finance-main">
         <div v-if="accounts.hasAnyDiff" class="anim-block" style="--delay: 100ms">
           <ReconcileBanner @reconcile="onReconcileUser" />
@@ -103,6 +99,20 @@ function onUserMenu(owner) {
 .finance-page {
   min-height: 100vh;
   padding: 20px 20px 20px;
+  position: relative;
+}
+
+.finance-page::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 50% at 15% 0%, rgba(99, 102, 241, 0.08), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 85% 40%, rgba(139, 92, 246, 0.06), transparent 60%),
+    radial-gradient(ellipse 80% 60% at 50% 100%, rgba(236, 72, 153, 0.05), transparent 65%),
+    linear-gradient(180deg, #fafbff 0%, #f3f5fb 100%);
 }
 
 .finance-grid {
@@ -129,19 +139,16 @@ function onUserMenu(owner) {
   min-width: 0;
 }
 
-/* ============================================================
-   ✅ КАСКАДНОЕ ПОЯВЛЕНИЕ — как на странице Анализ
-   ============================================================ */
 .anim-block {
-  animation: cardEnter 0.55s cubic-bezier(.34,1.56,.64,1) both;
+  animation: cardEnter 0.6s cubic-bezier(.34,1.56,.64,1) both;
   animation-delay: var(--delay, 0ms);
 }
 
 @keyframes cardEnter {
   from {
     opacity: 0;
-    transform: translateY(16px) scale(0.95);
-    filter: blur(4px);
+    transform: translateY(20px) scale(0.96);
+    filter: blur(6px);
   }
   to {
     opacity: 1;
@@ -150,9 +157,6 @@ function onUserMenu(owner) {
   }
 }
 
-/* ============================================================
-   Мобильный
-   ============================================================ */
 @media (max-width: 1100px) {
   .finance-grid {
     grid-template-columns: 1fr;
@@ -170,8 +174,6 @@ function onUserMenu(owner) {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .anim-block {
-    animation: none !important;
-  }
+  .anim-block { animation: none !important; }
 }
 </style>

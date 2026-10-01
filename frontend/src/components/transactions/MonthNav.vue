@@ -21,7 +21,6 @@ const isCurrentMonth = computed(() => {
   return now.getMonth() === cur.getMonth() && now.getFullYear() === cur.getFullYear();
 });
 
-// Дата для зелёной плашки
 const todayDate = computed(() => {
   const now = new Date();
   return now.toLocaleDateString('ru-RU', {
@@ -103,7 +102,6 @@ async function deleteMonth() {
   <div class="month-nav">
     <button class="mn-arrow" @click="tx.prevMonth()" aria-label="Предыдущий месяц">◀</button>
 
-    <!-- ✅ Метка месяца + зелёный бейдж на новой строке -->
     <div class="month-label">
       <span class="month-name">{{ label }}</span>
       <span v-if="isCurrentMonth" class="today-badge">
@@ -129,128 +127,228 @@ async function deleteMonth() {
 </template>
 
 <style scoped lang="scss">
+/* ============================================================
+   ✅ Контейнер — стеклянный с многослойной тенью
+   ============================================================ */
 .month-nav {
   display: flex;
   align-items: center;
   gap: 8px;
-  background:
-    linear-gradient(180deg, rgba(139, 92, 246, 0.05), transparent 60%),
-    rgba(255, 255, 255, 0.95);
-  border: 1px solid var(--border);
-  border-radius: 14px;
-  padding: 8px 12px;
-  box-shadow: var(--shadow-md);
+  padding: 10px 14px;
+  border-radius: 16px;
+
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(250, 251, 255, 0.94) 100%
+  );
+
+  backdrop-filter: blur(12px) saturate(180%);
+  -webkit-backdrop-filter: blur(12px) saturate(180%);
+
+  border: 1px solid rgba(226, 232, 240, 0.8);
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.06) inset,
+    0 2px 6px rgba(15, 23, 42, 0.05),
+    0 8px 20px -6px rgba(15, 23, 42, 0.08),
+    0 16px 32px -14px rgba(99, 102, 241, 0.15);
+
+  transition: box-shadow 0.3s ease, transform 0.3s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 -1px 0 rgba(148, 163, 184, 0.06) inset,
+      0 4px 10px rgba(15, 23, 42, 0.06),
+      0 12px 28px -8px rgba(99, 102, 241, 0.22),
+      0 20px 40px -16px rgba(15, 23, 42, 0.1);
+  }
 }
 
+/* ============================================================
+   ✅ Стрелки — рельефные, с подъёмом
+   ============================================================ */
 .mn-arrow {
-  background: #f1f5f9;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  width: 36px;
-  height: 36px;
-  cursor: pointer;
-  font-size: 14px;
-  font-weight: 700;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
   color: var(--text);
+  font-size: 13px;
+  font-weight: 800;
+
+  cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: all 0.15s;
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    -1px -1px 0 rgba(148, 163, 184, 0.06) inset,
+    0 2px 6px rgba(15, 23, 42, 0.06),
+    0 4px 10px -2px rgba(15, 23, 42, 0.08);
+
+  transition: all 0.18s cubic-bezier(.34,1.56,.64,1);
 
   &:hover {
-    background: rgba(56, 189, 248, 0.15);
-    border-color: var(--accent);
-    color: var(--accent);
+    background: linear-gradient(180deg, #eef2ff, #e0e7ff);
+    border-color: rgba(99, 102, 241, 0.4);
+    color: #6366f1;
+    transform: translateY(-2px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 4px 10px -2px rgba(99, 102, 241, 0.3),
+      0 8px 16px -4px rgba(99, 102, 241, 0.2);
   }
-  &:active { transform: scale(0.94); }
+
+  &:active {
+    transform: translateY(0) scale(0.95);
+    box-shadow:
+      0 2px 4px rgba(15, 23, 42, 0.1) inset;
+  }
 }
 
-/* ✅ Метка — колонка из двух строк */
+/* ============================================================
+   МЕТКА МЕСЯЦА
+   ============================================================ */
 .month-label {
   flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 3px;
+  gap: 4px;
   min-width: 0;
   text-align: center;
 }
 
 .month-name {
   font-size: 15px;
-  font-weight: 700;
+  font-weight: 800;
+  letter-spacing: -0.01em;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
+  color: #0f172a;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
-/* ✅ Зелёная плашка — вторая строка */
+/* ✅ Зелёная плашка — объёмная */
 .today-badge {
   display: inline-flex;
   align-items: center;
-  padding: 1px 10px;
+  padding: 2px 10px;
   border-radius: 999px;
-  background: rgba(34, 197, 94, 0.15);
-  color: #22c55e;
+  background: linear-gradient(180deg, #dcfce7, #bbf7d0);
+  color: #166534;
   border: 1px solid rgba(34, 197, 94, 0.35);
   font-size: 10.5px;
-  font-weight: 700;
+  font-weight: 800;
   white-space: nowrap;
   letter-spacing: 0.02em;
   line-height: 1.4;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 2px 4px rgba(34, 197, 94, 0.15);
 }
 
+/* ============================================================
+   ✅ Кнопка «Сегодня» — рельефная
+   ============================================================ */
 .today-btn {
-  background: #f1f5f9;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 0 14px;
-  height: 36px;
+  padding: 0 16px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  color: var(--text);
   font-family: inherit;
   font-size: 12px;
-  font-weight: 700;
-  color: var(--text);
+  font-weight: 800;
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
-  transition: all 0.15s;
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.06) inset,
+    0 2px 6px rgba(15, 23, 42, 0.06),
+    0 4px 10px -2px rgba(15, 23, 42, 0.08);
+
+  transition: all 0.18s cubic-bezier(.34,1.56,.64,1);
 
   &:hover {
-    background: rgba(56, 189, 248, 0.15);
-    border-color: var(--accent);
-    color: var(--accent);
+    background: linear-gradient(180deg, #eef2ff, #e0e7ff);
+    border-color: rgba(99, 102, 241, 0.4);
+    color: #6366f1;
+    transform: translateY(-2px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 4px 10px -2px rgba(99, 102, 241, 0.3),
+      0 8px 16px -4px rgba(99, 102, 241, 0.2);
   }
-  &:active { transform: scale(0.97); }
+
+  &:active {
+    transform: translateY(0) scale(0.96);
+    box-shadow: 0 2px 4px rgba(15, 23, 42, 0.1) inset;
+  }
 }
 
+/* ============================================================
+   ✅ Кнопка удаления — рельефная красная
+   ============================================================ */
 .del-month-btn {
-  width: 36px;
-  height: 36px;
+  width: 38px;
+  height: 38px;
   padding: 0;
   font-size: 16px;
-  background: transparent;
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
   color: var(--muted);
+  border-radius: 12px;
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  transition: all 0.15s;
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.06) inset,
+    0 2px 6px rgba(15, 23, 42, 0.06),
+    0 4px 10px -2px rgba(15, 23, 42, 0.08);
+
+  transition: all 0.18s cubic-bezier(.34,1.56,.64,1);
 
   &:hover {
-    border-color: var(--danger);
-    color: var(--danger);
-    background: rgba(239, 68, 68, 0.08);
+    background: linear-gradient(180deg, #fef2f2, #fee2e2);
+    border-color: rgba(239, 68, 68, 0.4);
+    color: #dc2626;
+    transform: translateY(-2px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 4px 10px -2px rgba(239, 68, 68, 0.3),
+      0 8px 16px -4px rgba(239, 68, 68, 0.2);
+  }
+
+  &:active {
+    transform: translateY(0) scale(0.95);
+    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2) inset;
   }
 
   &:disabled {
     opacity: 0.5;
     cursor: not-allowed;
+    transform: none;
   }
 }
 
@@ -263,34 +361,43 @@ async function deleteMonth() {
    ============================================================ */
 @media (max-width: 700px) {
   .month-nav {
-    padding: 6px 8px;
+    padding: 8px 10px;
     gap: 6px;
-    border-radius: 12px;
+    border-radius: 14px;
   }
 
   .mn-arrow {
-    width: 32px;
-    height: 32px;
+    width: 34px;
+    height: 34px;
     font-size: 12px;
+    border-radius: 10px;
   }
 
   .month-name {
-    font-size: 13px;
+    font-size: 13.5px;
   }
 
   .today-badge {
     font-size: 9.5px;
-    padding: 1px 8px;
+    padding: 2px 8px;
   }
 
   .today-btn {
-    height: 32px;
-    padding: 0 10px;
+    height: 34px;
+    padding: 0 12px;
     font-size: 11px;
+    border-radius: 10px;
   }
 
   .desktop-only {
     display: none !important;
   }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .month-nav,
+  .mn-arrow,
+  .today-btn,
+  .del-month-btn { transition: none !important; transform: none !important; }
 }
 </style>
