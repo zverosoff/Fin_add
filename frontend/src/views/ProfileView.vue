@@ -1,11 +1,10 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useAccountsStore } from '@/stores/accounts';
 import { useToast } from '@/composables/useToast';
 import { fmt } from '@/composables/useFormat';
-import ChatWidget from '@/components/chat/ChatWidget.vue';
 
 const auth = useAuthStore();
 const accounts = useAccountsStore();
@@ -17,12 +16,18 @@ const me = computed(() => auth.user || 'Сергей');
 const displayName = ref('');
 const avatar = ref(null);
 const avatarPreview = ref(null);
-const saving = ref(false);
-const loading = ref(true);
+
+const uploading = ref(false);
+const savingName = ref(false);
+
+// ✅ Режим редактирования имени
+const editingName = ref(false);
+const nameInput = ref('');
+const nameInputEl = ref(null);
 
 const fileEl = ref(null);
 
-// ✅ РЕАЛЬНАЯ статистика за прошедший месяц
+// ✅ Реальная статистика за месяц
 const stats = computed(() => {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -53,8 +58,10 @@ const stats = computed(() => {
   };
 });
 
+// ============================================================
+// Загрузка профиля
+// ============================================================
 async function loadProfile() {
-  loading.value = true;
   try {
     const res = await fetch('/api/profile', { credentials: 'include' });
     const data = await res.json();
@@ -73,12 +80,14 @@ async function loadProfile() {
   } catch (e) {
     console.warn('[profile] не удалось загрузить:', e);
     displayName.value = me.value;
-  } finally {
-    loading.value = false;
   }
 }
 
+// ============================================================
+// Аватар
+// ============================================================
 function openFilePicker() {
+  if (uploading.value) return;
   fileEl.value?.click();
 }
 
@@ -113,6 +122,7 @@ async function compressAvatar(file, maxSize = 600, quality = 0.85) {
   });
 }
 
+// ✅ Автосохранение при выборе файла
 async function onFileChange(e) {
   const file = e.target.files?.[0];
   if (!file) return;
@@ -124,66 +134,148 @@ async function onFileChange(e) {
     toast.error('Максимум 5MB');
     return;
   }
+
+  uploading.value = true;
   try {
     const compressed = await compressAvatar(file);
     avatarPreview.value = compressed;
     avatar.value = compressed;
+
+    // ✅ Сразу сохраняем
+    await saveProfile();
+    toast.success('✅ Фото обновлено');
   } catch (err) {
-    console.error('[avatar] compress error:', err);
+    console.error('[avatar] error:', err);
     toast.error('Не удалось обработать изображение');
+    // Откат
+    avatarPreview.value = auth.avatar || null;
+    avatar.value = auth.avatar || null;
+  } finally {
+    uploading.value = false;
   }
   e.target.value = '';
 }
 
-function removeAvatar() {
+// ✅ Удаление фото — с автосохранением
+async function removeAvatar() {
   if (!avatarPreview.value) return;
-  if (!confirm('Удалить фото профиля? Будет показана стандартная иконка.')) return;
-  avatarPreview.value = null;
-  avatar.value = null;
-  toast.info('🗑 Фото удалено — нажмите Сохранить, чтобы применить');
+  if (!confirm('Удалить фото профиля?')) return;
+
+  uploading.value = true;
+  try {
+    avatarPreview.value = null;
+    avatar.value = null;
+    await saveProfile();
+    toast.success('🗑 Фото удалено');
+  } catch (e) {
+    toast.error('Не удалось удалить: ' + e.message);
+    avatarPreview.value = auth.avatar || null;
+    avatar.value = auth.avatar || null;
+  } finally {
+    uploading.value = false;
+  }
 }
 
-async function save() {
-  const clean = displayName.value.trim();
+// ============================================================
+// Редактирование имени в карточке
+// ============================================================
+function startEditName() {
+  if (editingName.value) return;
+  nameInput.value = displayName.value;
+  editingName.value = true;
+  nextTick(() => {
+    nameInputEl.value?.focus();
+    nameInputEl.value?.select();
+  });
+}
+
+async function saveName() {
+  const clean = nameInput.value.trim();
   if (!clean) {
     toast.error('Имя не может быть пустым');
     return;
   }
-  saving.value = true;
+  if (clean === displayName.value) {
+    editingName.value = false;
+    return;
+  }
+
+  savingName.value = true;
   try {
-    const res = await fetch('/api/profile', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ displayName: clean, avatar: avatar.value }),
-    });
-    const data = await res.json();
-    if (!data.ok) throw new Error(data.error || 'Ошибка сохранения');
-
+    await saveProfile({ displayName: clean });
+    displayName.value = clean;
     auth.setDisplayName(clean);
-    if (typeof auth.setAvatar === 'function') {
-      auth.setAvatar(avatar.value);
-    }
-
-    toast.success('✅ Профиль сохранён');
+    editingName.value = false;
+    toast.success('✅ Имя обновлено');
   } catch (e) {
     toast.error('Не удалось сохранить: ' + e.message);
   } finally {
-    saving.value = false;
+    savingName.value = false;
   }
 }
 
+function cancelEditName() {
+  editingName.value = false;
+  nameInput.value = displayName.value;
+}
+
+function onNameKeydown(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    saveName();
+  }
+  if (e.key === 'Escape') {
+    e.preventDefault();
+    cancelEditName();
+  }
+}
+
+// ============================================================
+// Сохранение профиля
+// ============================================================
+async function saveProfile({ displayName: nameOverride } = {}) {
+  const body = {
+    displayName: nameOverride ?? displayName.value.trim(),
+    avatar: avatar.value,
+  };
+  if (!body.displayName) throw new Error('Имя не может быть пустым');
+
+  const res = await fetch('/api/profile', {
+    method: 'POST',
+    credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || 'Ошибка сохранения');
+
+  auth.setDisplayName(body.displayName);
+  if (typeof auth.setAvatar === 'function') {
+    auth.setAvatar(body.avatar);
+  }
+  return data;
+}
+
+// ============================================================
+// Выход
+// ============================================================
 async function handleLogout() {
   if (!confirm('Выйти из аккаунта?')) return;
   await auth.logout();
   router.push('/login');
 }
 
+// ============================================================
+// Метаданные
+// ============================================================
 const lastLogin = ref(new Date().toLocaleString('ru-RU', {
   day: 'numeric', month: 'long', year: 'numeric',
   hour: '2-digit', minute: '2-digit',
 }));
 
+// ============================================================
+// WS — обновление профиля
+// ============================================================
 let unsubProfile = null;
 
 onMounted(() => {
@@ -192,11 +284,11 @@ onMounted(() => {
   const handler = (e) => {
     const p = e.detail;
     if (!p) return;
-    if (p.displayName) {
+    if (p.displayName && !editingName.value) {
       displayName.value = p.displayName;
       auth.setDisplayName(p.displayName);
     }
-    if (p.avatar !== undefined) {
+    if (p.avatar !== undefined && !uploading.value) {
       avatar.value = p.avatar;
       avatarPreview.value = p.avatar;
       if (typeof auth.setAvatar === 'function') {
@@ -215,30 +307,62 @@ onUnmounted(() => {
 
 <template>
   <div class="profile-page">
-    <!-- ============================================================
-         ЛЕВАЯ КОЛОНКА — большой аватар с blur
-         ============================================================ -->
     <div class="profile-col profile-col-left">
+      <!-- HERO-КАРТОЧКА -->
       <div class="hero-card">
         <!-- Большое фото -->
-        <div class="hero-photo">
+        <div class="hero-photo" :class="{ uploading }" @click="openFilePicker">
           <img v-if="avatarPreview" :src="avatarPreview" alt="avatar" />
           <div v-else class="hero-photo-placeholder">
             <span>🧑</span>
           </div>
 
-          <!-- ✅ Плавный blur-переход к низу -->
+          <!-- ✅ Blur-переход к низу -->
           <div class="hero-photo-blur"></div>
 
-          <!-- ✅ Кнопка редактирования аватара -->
-          <button class="hero-edit" @click="openFilePicker" title="Сменить фото">
-            📷
-          </button>
+          <!-- ✅ Индикатор загрузки -->
+          <Transition name="fade">
+            <div v-if="uploading" class="hero-photo-loading">
+              <div class="spinner"></div>
+              <span>Сохранение…</span>
+            </div>
+          </Transition>
         </div>
 
-        <!-- Имя + подпись -->
+        <!-- Имя + подпись (с inline-редактированием) -->
         <div class="hero-info">
-          <h1 class="hero-name">{{ displayName || me }}</h1>
+          <!-- ✅ Режим редактирования -->
+          <div v-if="editingName" class="hero-name-edit">
+            <input
+              ref="nameInputEl"
+              v-model="nameInput"
+              class="hero-name-input"
+              type="text"
+              maxlength="60"
+              @keydown="onNameKeydown"
+              @blur="saveName"
+            />
+            <div class="hero-name-hint">
+              Enter — сохранить · Esc — отмена
+            </div>
+          </div>
+
+          <!-- ✅ Режим просмотра -->
+          <h1 v-else class="hero-name">
+            <span>{{ displayName || me }}</span>
+            <button
+              class="hero-name-edit-btn"
+              type="button"
+              @click.stop="startEditName"
+              title="Изменить имя"
+              :disabled="savingName"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="18" height="18">
+                <path d="M12 20h9M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
+          </h1>
+
           <p class="hero-username">Пользователь приложения</p>
         </div>
 
@@ -248,19 +372,23 @@ onUnmounted(() => {
             class="hero-btn hero-btn-primary"
             type="button"
             @click="openFilePicker"
-            :disabled="saving"
+            :disabled="uploading"
           >
-            📷 {{ avatarPreview ? 'Сменить фото' : 'Загрузить фото' }}
+            <span v-if="uploading">⏳ Сохранение…</span>
+            <span v-else>📷 {{ avatarPreview ? 'Сменить фото' : 'Загрузить фото' }}</span>
           </button>
+
           <button
             v-if="avatarPreview"
             class="hero-btn hero-btn-danger"
             type="button"
             @click="removeAvatar"
-            :disabled="saving"
+            :disabled="uploading"
+            title="Удалить фото"
           >
             🗑
           </button>
+
           <input
             ref="fileEl"
             type="file"
@@ -284,35 +412,8 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- ============================================================
-         ПРАВАЯ КОЛОНКА — чат, Имя, Статистика, Выход
-         ============================================================ -->
+    <!-- ПРАВАЯ КОЛОНКА — только статистика и выход -->
     <div class="profile-col profile-col-right">
-      <!-- Чат — свёрнут по умолчанию -->
-      <div class="embed-chat">
-        <ChatWidget :start-open="false" :embed-mode="true" />
-      </div>
-
-      <!-- Редактирование имени -->
-      <div class="profile-card">
-        <label class="field-label">Имя</label>
-        <div class="field">
-          <input
-            v-model="displayName"
-            class="field-input"
-            type="text"
-            placeholder="Введите имя"
-            maxlength="60"
-          />
-          <span class="field-icon">✏️</span>
-        </div>
-
-        <button class="save-btn" :disabled="saving" @click="save">
-          <span v-if="saving">⏳ Сохранение…</span>
-          <span v-else>💾 Сохранить</span>
-        </button>
-      </div>
-
       <!-- Статистика -->
       <div class="profile-card">
         <h2 class="card-title">📊 СТАТИСТИКА ЗА МЕСЯЦ</h2>
@@ -377,7 +478,7 @@ onUnmounted(() => {
 }
 
 /* ============================================================
-   ✅ HERO-КАРТОЧКА — большое фото с blur-переходом
+   HERO-КАРТОЧКА
    ============================================================ */
 .hero-card {
   position: relative;
@@ -390,7 +491,6 @@ onUnmounted(() => {
   flex-direction: column;
 }
 
-/* Большое фото */
 .hero-photo {
   position: relative;
   width: 100%;
@@ -398,6 +498,7 @@ onUnmounted(() => {
   max-height: 520px;
   overflow: hidden;
   background: linear-gradient(135deg, #a5b4fc, #818cf8);
+  cursor: pointer;
 
   img {
     width: 100%;
@@ -405,7 +506,12 @@ onUnmounted(() => {
     object-fit: cover;
     object-position: center 30%;
     display: block;
+    transition: transform 0.4s ease;
   }
+
+  &:hover img { transform: scale(1.02); }
+
+  &.uploading { pointer-events: none; }
 }
 
 .hero-photo-placeholder {
@@ -418,7 +524,6 @@ onUnmounted(() => {
   background: linear-gradient(135deg, #a5b4fc, #818cf8);
 }
 
-/* ✅ Плавный blur-переход к низу */
 .hero-photo-blur {
   position: absolute;
   left: 0;
@@ -437,62 +542,61 @@ onUnmounted(() => {
     #ffffff 100%
   );
 
-  /* ✅ Размытие на самой границе */
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
-  mask-image: linear-gradient(
-    180deg,
-    transparent 0%,
-    #000 60%,
-    #000 100%
-  );
-  -webkit-mask-image: linear-gradient(
-    180deg,
-    transparent 0%,
-    #000 60%,
-    #000 100%
-  );
+  mask-image: linear-gradient(180deg, transparent 0%, #000 60%, #000 100%);
+  -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 60%, #000 100%);
 }
 
-/* Кнопка редактирования на фото */
-.hero-edit {
+/* ✅ Индикатор загрузки */
+.hero-photo-loading {
   position: absolute;
-  top: 16px;
-  right: 16px;
-  width: 42px;
-  height: 42px;
-  border-radius: 50%;
-  border: 2px solid rgba(255, 255, 255, 0.9);
+  inset: 0;
   background: rgba(15, 23, 42, 0.55);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  color: #ffffff;
-  font-size: 18px;
-  cursor: pointer;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
-  z-index: 3;
-  transition: all 0.15s;
-
-  &:hover {
-    background: rgba(15, 23, 42, 0.75);
-    transform: scale(1.05);
-  }
-  &:active { transform: scale(0.94); }
+  gap: 12px;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 700;
+  z-index: 5;
+  pointer-events: none;
 }
 
-/* Имя + подпись — поверх blur-области */
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(255, 255, 255, 0.25);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: spin 0.9s linear infinite;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.fade-enter-active,
+.fade-leave-active { transition: opacity 0.2s ease; }
+.fade-enter-from,
+.fade-leave-to { opacity: 0; }
+
+/* Имя + подпись */
 .hero-info {
   position: relative;
   z-index: 2;
   margin-top: -100px;
   padding: 0 24px 8px;
   text-align: center;
-  pointer-events: none;
 }
 
 .hero-name {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   font-size: 30px;
   font-weight: 900;
   color: #0f172a;
@@ -500,6 +604,71 @@ onUnmounted(() => {
   letter-spacing: -0.02em;
   line-height: 1.15;
   text-shadow: 0 2px 12px rgba(255, 255, 255, 0.9);
+
+  span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 280px;
+    white-space: nowrap;
+  }
+}
+
+/* Кнопка-карандаш */
+.hero-name-edit-btn {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(15, 23, 42, 0.06);
+  color: #64748b;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  padding: 0;
+
+  &:hover {
+    background: #6366f1;
+    color: #ffffff;
+    transform: scale(1.08);
+  }
+  &:active { transform: scale(0.94); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
+
+/* ✅ Inline-редактирование имени */
+.hero-name-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: center;
+}
+
+.hero-name-input {
+  width: 100%;
+  max-width: 280px;
+  padding: 8px 16px;
+  border-radius: 12px;
+  border: 2px solid #6366f1;
+  background: #ffffff;
+  color: #0f172a;
+  font-family: inherit;
+  font-size: 24px;
+  font-weight: 800;
+  text-align: center;
+  outline: none;
+  box-shadow: 0 8px 24px -8px rgba(99, 102, 241, 0.4);
+
+  &:focus { box-shadow: 0 8px 28px -6px rgba(99, 102, 241, 0.55); }
+}
+
+.hero-name-hint {
+  font-size: 10.5px;
+  color: #94a3b8;
+  font-weight: 600;
+  letter-spacing: 0.02em;
 }
 
 .hero-username {
@@ -510,7 +679,7 @@ onUnmounted(() => {
   text-shadow: 0 2px 12px rgba(255, 255, 255, 0.9);
 }
 
-/* Кнопки действий */
+/* Кнопки */
 .hero-actions {
   position: relative;
   z-index: 2;
@@ -573,7 +742,6 @@ onUnmounted(() => {
 
 .hero-file { display: none; }
 
-/* Метаданные */
 .hero-meta {
   position: relative;
   z-index: 2;
@@ -598,7 +766,7 @@ onUnmounted(() => {
 .hm-text { font-weight: 500; }
 
 /* ============================================================
-   Правая колонка — обычные карточки
+   Правая колонка
    ============================================================ */
 .profile-card {
   background: #ffffff;
@@ -606,68 +774,6 @@ onUnmounted(() => {
   padding: 22px;
   box-shadow: 0 4px 20px -8px rgba(15, 23, 42, 0.12);
   border: 1px solid #eef0f4;
-}
-
-.field-label {
-  display: block;
-  font-size: 11px;
-  font-weight: 700;
-  color: #94a3b8;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-bottom: 6px;
-}
-
-.field {
-  position: relative;
-  margin-bottom: 16px;
-}
-
-.field-input {
-  width: 100%;
-  padding: 12px 40px 12px 14px;
-  border-radius: 12px;
-  border: 1.5px solid #e2e8f0;
-  background: #f8fafc;
-  color: #0f172a;
-  font-size: 15px;
-  font-weight: 500;
-  outline: none;
-  transition: border-color 0.15s, box-shadow 0.15s;
-
-  &:focus {
-    border-color: #6366f1;
-    background: #ffffff;
-    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.12);
-  }
-}
-
-.field-icon {
-  position: absolute;
-  right: 14px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-size: 14px;
-  opacity: 0.6;
-  pointer-events: none;
-}
-
-.save-btn {
-  width: 100%;
-  padding: 14px;
-  border-radius: 12px;
-  border: none;
-  background: linear-gradient(135deg, #ef4444, #dc2626);
-  color: #ffffff;
-  font-size: 15px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.2s, opacity 0.2s;
-  box-shadow: 0 8px 20px -6px rgba(239, 68, 68, 0.5);
-
-  &:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 10px 26px -6px rgba(239, 68, 68, 0.65); }
-  &:active:not(:disabled) { transform: scale(0.98); }
-  &:disabled { opacity: 0.6; cursor: not-allowed; }
 }
 
 .card-title {
@@ -777,21 +883,7 @@ onUnmounted(() => {
 
 .logout-icon { font-size: 16px; }
 
-.embed-chat {
-  border-radius: 18px;
-  overflow: hidden;
-  box-shadow: 0 4px 20px -8px rgba(15, 23, 42, 0.12);
-  border: 1px solid #eef0f4;
-  background: #ffffff;
-  min-height: 420px;
-  max-height: 520px;
-  display: flex;
-  flex-direction: column;
-}
-
-/* ============================================================
-   МОБИЛЬНЫЙ
-   ============================================================ */
+/* Мобильный */
 @media (max-width: 980px) {
   .hero-photo { aspect-ratio: 4 / 5; max-height: 460px; }
 }
@@ -808,24 +900,28 @@ onUnmounted(() => {
 
   .hero-info { margin-top: -90px; padding: 0 18px 6px; }
   .hero-name { font-size: 24px; }
+  .hero-name span { max-width: 200px; }
+  .hero-name-input { font-size: 20px; padding: 6px 14px; }
   .hero-username { font-size: 13px; }
 
   .hero-actions { padding: 6px 16px 16px; gap: 8px; }
   .hero-btn { padding: 10px 20px; font-size: 13px; }
   .hero-btn-danger { width: 42px; height: 42px; min-width: 42px; font-size: 16px; }
 
-  .hero-edit { width: 38px; height: 38px; top: 12px; right: 12px; font-size: 16px; }
-
   .hero-meta { margin: 0 16px 16px; padding: 12px 14px; gap: 6px; }
   .hm-text { font-size: 12px; }
 
   .stat-value { font-size: 15px; }
-
-  .embed-chat { min-height: 380px; }
 }
 
 @media (max-width: 380px) {
   .hero-name { font-size: 22px; }
   .hero-actions { gap: 6px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-photo img,
+  .hero-name-edit-btn,
+  .hero-btn { transition: none !important; }
 }
 </style>
