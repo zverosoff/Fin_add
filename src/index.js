@@ -17,6 +17,7 @@ import stateRoutes from './routes/state.js';
 import txRoutes from './routes/transactions.js';
 import messagesRoutes from './routes/messages.js';
 import pushRoutes from './routes/push.js';
+import profileStatsRoutes from './routes/profileStats.js';
 import profileRoutes from './routes/profile.js';   // ✅ НОВОЕ
 import { attachSocket } from './services/wsService.js';
 import { startDailyReminderCron } from './services/dailyReminder.js';
@@ -63,7 +64,7 @@ const corsOptions = {
 };
 
 app.use('/api', cors(corsOptions));
-
+app.use('/api/profile-stats', profileStatsRoutes);
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
 
