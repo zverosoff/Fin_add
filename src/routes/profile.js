@@ -37,8 +37,36 @@ function rowToProfile(row, fallbackUser) {
   };
 }
 
+// ✅ Fallback: если created_at null, берём дату первой транзакции
+function ensureCreatedAt(user) {
+  const row = getProfileStmt.get(user);
+  if (!row) return null;
+  if (row.created_at) return row;
+
+  const firstTx = db.prepare(`
+    SELECT payload FROM transactions
+    WHERE user = ?
+    ORDER BY date ASC
+    LIMIT 1
+  `).get(user);
+
+  let fallback = new Date().toISOString();
+  if (firstTx) {
+    try {
+      const tx = JSON.parse(firstTx.payload);
+      if (tx.date) fallback = tx.date;
+    } catch {}
+  }
+
+  db.prepare('UPDATE user_profiles SET created_at = ? WHERE user = ?')
+    .run(fallback, user);
+
+  console.log(`[profile] created_at проставлен для ${user}: ${fallback}`);
+  return getProfileStmt.get(user);
+}
+
 // ============================================================
-// ✅ GET /api/profile/stats — ДО /:user
+// GET /api/profile/stats
 // ============================================================
 router.get('/stats', requireAuth, (req, res) => {
   try {
@@ -61,7 +89,7 @@ router.get('/stats', requireAuth, (req, res) => {
     const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
     const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
 
-    // ✅ СЕРИЯ
+    // СЕРИЯ
     const dayKeys = new Set();
     for (const t of txs) {
       const d = new Date(t.date);
@@ -83,7 +111,7 @@ router.get('/stats', requireAuth, (req, res) => {
       } else break;
     }
 
-    // ✅ СРАВНЕНИЕ МЕСЯЦЕВ
+    // СРАВНЕНИЕ
     function aggregateInRange(start, end) {
       let income = 0, expense = 0;
       for (const t of txs) {
@@ -116,7 +144,7 @@ router.get('/stats', requireAuth, (req, res) => {
       ),
     };
 
-    // ✅ ТОП-3 КАТЕГОРИИ
+    // ТОП-3
     const catMap = new Map();
     for (const t of txs) {
       if (t.type !== 'expense') continue;
@@ -149,15 +177,14 @@ router.get('/stats', requireAuth, (req, res) => {
 });
 
 // ============================================================
-// GET /api/profile/:user — профиль любого пользователя
+// GET /api/profile/:user
 // ============================================================
 router.get('/:user', requireAuth, (req, res) => {
   try {
     const { user } = req.params;
-    if (!user) {
-      return res.status(400).json({ ok: false, error: 'user обязателен' });
-    }
-    const row = getProfileStmt.get(user);
+    if (!user) return res.status(400).json({ ok: false, error: 'user обязателен' });
+
+    const row = ensureCreatedAt(user);
     res.json({ ok: true, profile: rowToProfile(row, user) });
   } catch (err) {
     console.error('[profile] GET /:user ошибка:', err.message);
@@ -171,7 +198,7 @@ router.get('/:user', requireAuth, (req, res) => {
 router.get('/', requireAuth, (req, res) => {
   try {
     const me = req.user;
-    const row = getProfileStmt.get(me);
+    const row = ensureCreatedAt(me);
     res.json({ ok: true, profile: rowToProfile(row, me) });
   } catch (err) {
     console.error('[profile] GET ошибка:', err.message);
@@ -180,7 +207,7 @@ router.get('/', requireAuth, (req, res) => {
 });
 
 // ============================================================
-// POST /api/profile — сохранить
+// POST /api/profile
 // ============================================================
 router.post('/', requireAuth, (req, res) => {
   try {
