@@ -122,38 +122,38 @@ export function runMigrations() {
     console.log('[migrate] ✅ таблица push_subscriptions создана');
   }
 
-// ============================================================
-// user_profiles
-// ============================================================
-const hasProfiles = db.prepare(`
-  SELECT name FROM sqlite_master
-  WHERE type='table' AND name='user_profiles'
-`).get();
+  // ============================================================
+  // user_profiles
+  // ============================================================
+  const hasProfiles = db.prepare(`
+    SELECT name FROM sqlite_master
+    WHERE type='table' AND name='user_profiles'
+  `).get();
 
-if (!hasProfiles) {
-  console.log('[migrate] создаю таблицу user_profiles…');
-  db.exec(`
-    CREATE TABLE user_profiles (
-      user TEXT PRIMARY KEY,
-      display_name TEXT,
-      avatar TEXT,
-      created_at TEXT,
-      updated_at TEXT NOT NULL
-    );
-  `);
-  console.log('[migrate] ✅ таблица user_profiles создана');
-} else {
-  // ✅ Добавляем created_at, если колонки нет
-  const cols = db.prepare(`PRAGMA table_info(user_profiles)`).all();
-  const hasCreatedAt = cols.some(c => c.name === 'created_at');
-  if (!hasCreatedAt) {
-    console.log('[migrate] + колонка user_profiles.created_at');
-    db.exec(`ALTER TABLE user_profiles ADD COLUMN created_at TEXT`);
+  if (!hasProfiles) {
+    console.log('[migrate] создаю таблицу user_profiles…');
+    db.exec(`
+      CREATE TABLE user_profiles (
+        user TEXT PRIMARY KEY,
+        display_name TEXT,
+        avatar TEXT,
+        created_at TEXT,
+        updated_at TEXT NOT NULL
+      );
+    `);
+    console.log('[migrate] ✅ таблица user_profiles создана');
+  } else {
+    // ✅ Добавляем created_at, если колонки нет
+    const cols = db.prepare(`PRAGMA table_info(user_profiles)`).all();
+    const hasCreatedAt = cols.some(c => c.name === 'created_at');
+    if (!hasCreatedAt) {
+      console.log('[migrate] + колонка user_profiles.created_at');
+      db.exec(`ALTER TABLE user_profiles ADD COLUMN created_at TEXT`);
+    }
   }
-}
 
   // ============================================================
-  // ✅ Регистрация системного пользователя «Приложение»
+  // Системный пользователь «Приложение»
   // ============================================================
   const now = new Date().toISOString();
   db.prepare(`

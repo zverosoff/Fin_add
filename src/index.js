@@ -17,8 +17,7 @@ import stateRoutes from './routes/state.js';
 import txRoutes from './routes/transactions.js';
 import messagesRoutes from './routes/messages.js';
 import pushRoutes from './routes/push.js';
-import profileStatsRoutes from './routes/profileStats.js';
-import profileRoutes from './routes/profile.js';   // ✅ НОВОЕ
+import profileRoutes from './routes/profile.js';
 import { attachSocket } from './services/wsService.js';
 import { startDailyReminderCron } from './services/dailyReminder.js';
 
@@ -64,7 +63,7 @@ const corsOptions = {
 };
 
 app.use('/api', cors(corsOptions));
-app.use('/api/profile-stats', profileStatsRoutes);
+
 app.use(express.json({ limit: '10mb' }));
 app.use(cookieParser());
 
@@ -81,7 +80,7 @@ app.use('/api/state', stateRoutes);
 app.use('/api/transactions', txRoutes);
 app.use('/api/messages', messagesRoutes);
 app.use('/api/push', pushRoutes);
-app.use('/api/profile', profileRoutes);   // ✅ НОВОЕ
+app.use('/api/profile', profileRoutes);
 
 app.get('/api/health', (_req, res) => {
   res.json({ ok: true, time: new Date().toISOString() });

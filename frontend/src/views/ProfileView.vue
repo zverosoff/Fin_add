@@ -4,8 +4,7 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useAccountsStore } from '@/stores/accounts';
 import { useToast } from '@/composables/useToast';
-import { fmt } from '@/composables/useFormat';
-import { categoryIcon } from '@/composables/useFormat';
+import { fmt, categoryIcon } from '@/composables/useFormat';
 
 const auth = useAuthStore();
 const accounts = useAccountsStore();
@@ -27,17 +26,14 @@ const nameInputEl = ref(null);
 
 const fileEl = ref(null);
 
-// ✅ Дата регистрации
 const createdAt = ref(null);
 
-// ✅ Статистика с бэка (streak, сравнение, топ-категории)
 const extraStats = ref({
   streak: 0,
   monthCompare: null,
   topCategories: [],
 });
 
-// ✅ Synced
 const syncing = ref(true);
 const synced = ref(false);
 let syncedTimer = null;
@@ -54,7 +50,6 @@ function markSyncing() {
   synced.value = false;
 }
 
-// ✅ Реальная статистика за месяц
 const stats = computed(() => {
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -85,7 +80,6 @@ const stats = computed(() => {
   };
 });
 
-// ✅ Форматирование даты регистрации
 const createdAtText = computed(() => {
   if (!createdAt.value) return null;
   const d = new Date(createdAt.value);
@@ -97,17 +91,14 @@ const createdAtText = computed(() => {
   });
 });
 
-// ✅ Сравнение
 const monthCompareText = computed(() => {
   const c = extraStats.value.monthCompare;
   if (!c) return null;
   return c;
 });
 
-// ✅ Топ-категории
 const topCategories = computed(() => extraStats.value.topCategories || []);
 
-// ✅ Форматирование дельты в %
 function fmtPct(pct, invert = false) {
   if (pct === null || pct === undefined) return { text: '—', cls: 'flat' };
   if (!isFinite(pct)) return { text: '—', cls: 'flat' };
@@ -116,14 +107,11 @@ function fmtPct(pct, invert = false) {
   const cls = Math.abs(pct) < 0.5
     ? 'flat'
     : (invert
-        ? (pct > 0 ? 'down' : 'up')   // для расходов: рост = плохо
+        ? (pct > 0 ? 'down' : 'up')
         : (pct > 0 ? 'up' : 'down'));
   return { text: `${arrow} ${sign}${pct.toFixed(0)}%`, cls };
 }
 
-// ============================================================
-// Загрузка
-// ============================================================
 async function loadProfile() {
   try {
     const res = await fetch('/api/profile', { credentials: 'include' });
@@ -149,7 +137,7 @@ async function loadProfile() {
 
 async function loadExtraStats() {
   try {
-    const res = await fetch('/api/profile-stats', { credentials: 'include' });
+    const res = await fetch('/api/profile/stats', { credentials: 'include' });
     const data = await res.json();
     if (data.ok && data.stats) {
       extraStats.value = {
@@ -163,9 +151,6 @@ async function loadExtraStats() {
   }
 }
 
-// ============================================================
-// Аватар
-// ============================================================
 function openFilePicker() {
   if (uploading.value) return;
   fileEl.value?.click();
@@ -256,9 +241,6 @@ async function removeAvatar() {
   }
 }
 
-// ============================================================
-// Имя
-// ============================================================
 function startEditName() {
   if (editingName.value) return;
   nameInput.value = displayName.value;
@@ -312,9 +294,6 @@ function onNameKeydown(e) {
   }
 }
 
-// ============================================================
-// Save
-// ============================================================
 async function saveProfile({ displayName: nameOverride } = {}) {
   const body = {
     displayName: nameOverride ?? displayName.value.trim(),
@@ -338,9 +317,6 @@ async function saveProfile({ displayName: nameOverride } = {}) {
   return data;
 }
 
-// ============================================================
-// Выход
-// ============================================================
 async function handleLogout() {
   if (!confirm('Выйти из аккаунта?')) return;
   await auth.logout();
@@ -387,7 +363,6 @@ onUnmounted(() => {
 <template>
   <div class="profile-page">
     <div class="profile-col profile-col-left">
-      <!-- HERO-КАРТОЧКА -->
       <div class="hero-card">
         <div class="hero-photo" :class="{ uploading }" @click="openFilePicker">
           <img v-if="avatarPreview" :src="avatarPreview" alt="avatar" />
@@ -466,7 +441,6 @@ onUnmounted(() => {
           />
         </div>
 
-        <!-- Метаданные -->
         <div class="hero-meta">
           <div class="hero-meta-row">
             <span class="hm-icon">🕐</span>
@@ -476,12 +450,10 @@ onUnmounted(() => {
             <span class="hm-icon">📍</span>
             <span class="hm-text">Россия · UTC+3</span>
           </div>
-          <!-- ✅ Дата регистрации -->
           <div v-if="createdAtText" class="hero-meta-row">
             <span class="hm-icon">📅</span>
             <span class="hm-text">С нами с {{ createdAtText }}</span>
           </div>
-          <!-- ✅ Серия дней -->
           <div v-if="extraStats.streak > 0" class="hero-meta-row streak">
             <span class="hm-icon">🔥</span>
             <span class="hm-text">
@@ -493,11 +465,8 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <!-- ПРАВАЯ КОЛОНКА -->
     <div class="profile-col profile-col-right">
-      <!-- СТАТИСТИКА -->
       <div class="profile-card stats-card">
-        <!-- ✅ Synced-индикатор -->
         <div class="sync-indicator" :class="{ syncing, synced }">
           <span class="sync-dot"></span>
           <span class="sync-text">
@@ -522,7 +491,6 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <!-- ✅ Сравнение с прошлым месяцем -->
         <div v-if="monthCompareText" class="compare-block">
           <div class="compare-row">
             <span class="c-label">📈 Доходы</span>
@@ -554,7 +522,6 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- ТОП-3 КАТЕГОРИИ РАСХОДОВ -->
       <div v-if="topCategories.length > 0" class="profile-card">
         <h2 class="card-title">🏆 ТОП-3 КАТЕГОРИИ РАСХОДОВ</h2>
         <div class="top-cats">
@@ -579,7 +546,6 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- ВЫХОД -->
       <div class="profile-card">
         <button class="logout-btn" type="button" @click="handleLogout">
           <span class="logout-icon">🚪</span>
@@ -605,7 +571,6 @@ onUnmounted(() => {
 
 .profile-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 
-/* HERO */
 .hero-card {
   position: relative;
   border-radius: 24px;
@@ -798,7 +763,6 @@ onUnmounted(() => {
 .hm-icon { font-size: 14px; }
 .hm-text { font-weight: 500; }
 
-/* ПРАВАЯ */
 .profile-card {
   position: relative;
   background: #ffffff;
@@ -816,7 +780,6 @@ onUnmounted(() => {
 
 .stats-card { padding-top: 18px; }
 
-/* ✅ SYNCED */
 .sync-indicator {
   position: absolute;
   top: 16px; right: 16px;
@@ -893,7 +856,6 @@ onUnmounted(() => {
 .stat-value { font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
 .stat-label { font-size: 9.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
 
-/* ✅ Сравнение */
 .compare-block {
   display: flex;
   flex-direction: column;
@@ -943,7 +905,6 @@ onUnmounted(() => {
 .se-label { font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; font-size: 10.5px; }
 .se-value { font-family: var(--mono); font-weight: 800; font-size: 13px; }
 
-/* ✅ ТОП-3 */
 .top-cats { display: flex; flex-direction: column; gap: 10px; }
 
 .top-cat {
@@ -997,7 +958,6 @@ onUnmounted(() => {
 .tc-amount-value { font-family: var(--mono); font-size: 12.5px; font-weight: 800; color: #0f172a; }
 .tc-amount-pct { font-size: 10.5px; color: #94a3b8; font-weight: 700; margin-top: 2px; }
 
-/* Выход */
 .logout-btn {
   display: flex; align-items: center; justify-content: center;
   gap: 8px; width: 100%;
@@ -1016,7 +976,6 @@ onUnmounted(() => {
 
 .logout-icon { font-size: 16px; }
 
-/* Mobile */
 @media (max-width: 980px) { .hero-photo { aspect-ratio: 4 / 5; max-height: 460px; } }
 
 @media (max-width: 700px) {
