@@ -42,7 +42,6 @@ const stats = computed(() => {
     else expense += t.amount;
   }
 
-  // Баланс = текущий баланс счета (все счета)
   const balance = accounts.accounts.reduce((s, a) => s + (Number(a.value) || 0), 0);
 
   return {
@@ -83,7 +82,7 @@ function openFilePicker() {
   fileEl.value?.click();
 }
 
-async function compressAvatar(file, maxSize = 400, quality = 0.85) {
+async function compressAvatar(file, maxSize = 600, quality = 0.85) {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
@@ -216,61 +215,85 @@ onUnmounted(() => {
 
 <template>
   <div class="profile-page">
-    <!-- ЛЕВАЯ КОЛОНКА -->
+    <!-- ============================================================
+         ЛЕВАЯ КОЛОНКА — большой аватар с blur
+         ============================================================ -->
     <div class="profile-col profile-col-left">
-      <div class="profile-card">
-        <div class="avatar-wrap">
-          <div class="avatar" @click="openFilePicker">
-            <img v-if="avatarPreview" :src="avatarPreview" alt="avatar" />
-            <span v-else class="avatar-emoji">🧑</span>
+      <div class="hero-card">
+        <!-- Большое фото -->
+        <div class="hero-photo">
+          <img v-if="avatarPreview" :src="avatarPreview" alt="avatar" />
+          <div v-else class="hero-photo-placeholder">
+            <span>🧑</span>
           </div>
-          <button class="avatar-edit" @click.stop="openFilePicker" title="Сменить аватар">
+
+          <!-- ✅ Плавный blur-переход к низу -->
+          <div class="hero-photo-blur"></div>
+
+          <!-- ✅ Кнопка редактирования аватара -->
+          <button class="hero-edit" @click="openFilePicker" title="Сменить фото">
             📷
+          </button>
+        </div>
+
+        <!-- Имя + подпись -->
+        <div class="hero-info">
+          <h1 class="hero-name">{{ displayName || me }}</h1>
+          <p class="hero-username">Пользователь приложения</p>
+        </div>
+
+        <!-- Кнопки -->
+        <div class="hero-actions">
+          <button
+            class="hero-btn hero-btn-primary"
+            type="button"
+            @click="openFilePicker"
+            :disabled="saving"
+          >
+            📷 {{ avatarPreview ? 'Сменить фото' : 'Загрузить фото' }}
+          </button>
+          <button
+            v-if="avatarPreview"
+            class="hero-btn hero-btn-danger"
+            type="button"
+            @click="removeAvatar"
+            :disabled="saving"
+          >
+            🗑
           </button>
           <input
             ref="fileEl"
             type="file"
             accept="image/*"
-            class="avatar-file"
+            class="hero-file"
             @change="onFileChange"
           />
         </div>
 
-        <div class="avatar-actions">
-          <button
-            class="avatar-action-btn"
-            type="button"
-            @click="openFilePicker"
-            :disabled="saving"
-          >
-            📷 {{ avatarPreview ? 'Сменить' : 'Загрузить' }}
-          </button>
-          <button
-            v-if="avatarPreview"
-            class="avatar-action-btn danger"
-            type="button"
-            @click="removeAvatar"
-            :disabled="saving"
-          >
-            🗑 Удалить фото
-          </button>
-        </div>
-
-        <h1 class="profile-name">{{ displayName || me }}</h1>
-        <p class="profile-sub">Пользователь приложения</p>
-
-        <div class="meta">
-          <div class="meta-row">
-            <span class="meta-icon">🕐</span>
-            <span class="meta-text">Последний вход: {{ lastLogin }}</span>
+        <!-- Метаданные -->
+        <div class="hero-meta">
+          <div class="hero-meta-row">
+            <span class="hm-icon">🕐</span>
+            <span class="hm-text">Последний вход: {{ lastLogin }}</span>
           </div>
-          <div class="meta-row">
-            <span class="meta-icon">📍</span>
-            <span class="meta-text">Россия · UTC+3</span>
+          <div class="hero-meta-row">
+            <span class="hm-icon">📍</span>
+            <span class="hm-text">Россия · UTC+3</span>
           </div>
         </div>
       </div>
+    </div>
 
+    <!-- ============================================================
+         ПРАВАЯ КОЛОНКА — чат, Имя, Статистика, Выход
+         ============================================================ -->
+    <div class="profile-col profile-col-right">
+      <!-- Чат — свёрнут по умолчанию -->
+      <div class="embed-chat">
+        <ChatWidget :start-open="false" :embed-mode="true" />
+      </div>
+
+      <!-- Редактирование имени -->
       <div class="profile-card">
         <label class="field-label">Имя</label>
         <div class="field">
@@ -290,6 +313,7 @@ onUnmounted(() => {
         </button>
       </div>
 
+      <!-- Статистика -->
       <div class="profile-card">
         <h2 class="card-title">📊 СТАТИСТИКА ЗА МЕСЯЦ</h2>
         <div class="stats-grid">
@@ -319,41 +343,12 @@ onUnmounted(() => {
         </div>
       </div>
 
-      <!-- ✅ Выход из профиля -->
+      <!-- Выход -->
       <div class="profile-card">
         <button class="logout-btn" type="button" @click="handleLogout">
           <span class="logout-icon">🚪</span>
           <span>Выйти из аккаунта</span>
         </button>
-      </div>
-    </div>
-
-    <!-- ПРАВАЯ КОЛОНКА -->
-    <div class="profile-col profile-col-right">
-      <div class="embed-chat">
-        <!-- ✅ startOpen: false — мессенджер свёрнут по умолчанию -->
-        <ChatWidget :start-open="false" :embed-mode="true" />
-      </div>
-
-      <div class="insta-stub">
-        <div class="insta-header">
-          <div class="insta-avatar">
-            <img v-if="avatarPreview" :src="avatarPreview" alt="avatar" />
-            <span v-else>🧑</span>
-          </div>
-          <div class="insta-info">
-            <div class="insta-name">{{ displayName || me }}</div>
-            <div class="insta-sub">Пользователь приложения</div>
-          </div>
-        </div>
-
-        <div class="insta-grid">
-          <div v-for="n in 9" :key="n" class="insta-cell">
-            <span class="insta-cam">📷</span>
-          </div>
-        </div>
-
-        <div class="insta-badge">🚧 Раздел в разработке</div>
       </div>
     </div>
   </div>
@@ -381,135 +376,217 @@ onUnmounted(() => {
   min-width: 0;
 }
 
-.profile-card {
-  background: #ffffff;
-  border-radius: 18px;
-  padding: 22px;
-  box-shadow: 0 4px 20px -8px rgba(15, 23, 42, 0.12);
-  border: 1px solid #eef0f4;
-}
-
-.avatar-wrap {
+/* ============================================================
+   ✅ HERO-КАРТОЧКА — большое фото с blur-переходом
+   ============================================================ */
+.hero-card {
   position: relative;
-  width: 104px;
-  height: 104px;
-  margin: 0 auto 14px;
+  border-radius: 24px;
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 20px 40px -18px rgba(15, 23, 42, 0.25);
+  border: 1px solid #eef0f4;
+  display: flex;
+  flex-direction: column;
 }
 
-.avatar {
+/* Большое фото */
+.hero-photo {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 3 / 4;
+  max-height: 520px;
+  overflow: hidden;
+  background: linear-gradient(135deg, #a5b4fc, #818cf8);
+
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 30%;
+    display: block;
+  }
+}
+
+.hero-photo-placeholder {
   width: 100%;
   height: 100%;
-  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 140px;
   background: linear-gradient(135deg, #a5b4fc, #818cf8);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  cursor: pointer;
-  border: 4px solid #ffffff;
-  box-shadow: 0 8px 24px -6px rgba(99, 102, 241, 0.45);
-  transition: transform 0.2s;
-
-  &:hover { transform: scale(1.03); }
-
-  img { width: 100%; height: 100%; object-fit: cover; }
 }
 
-.avatar-emoji { font-size: 52px; }
-
-.avatar-edit {
+/* ✅ Плавный blur-переход к низу */
+.hero-photo-blur {
   position: absolute;
-  right: -2px;
-  bottom: -2px;
-  width: 32px;
-  height: 32px;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 55%;
+  pointer-events: none;
+
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 30%,
+    rgba(255, 255, 255, 0.4) 55%,
+    rgba(255, 255, 255, 0.75) 75%,
+    rgba(255, 255, 255, 0.95) 90%,
+    #ffffff 100%
+  );
+
+  /* ✅ Размытие на самой границе */
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  mask-image: linear-gradient(
+    180deg,
+    transparent 0%,
+    #000 60%,
+    #000 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    180deg,
+    transparent 0%,
+    #000 60%,
+    #000 100%
+  );
+}
+
+/* Кнопка редактирования на фото */
+.hero-edit {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  width: 42px;
+  height: 42px;
   border-radius: 50%;
-  border: 3px solid #ffffff;
-  background: #6366f1;
+  border: 2px solid rgba(255, 255, 255, 0.9);
+  background: rgba(15, 23, 42, 0.55);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
   color: #ffffff;
-  font-size: 14px;
+  font-size: 18px;
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.15s;
+  z-index: 3;
+  transition: all 0.15s;
 
-  &:active { transform: scale(0.9); }
+  &:hover {
+    background: rgba(15, 23, 42, 0.75);
+    transform: scale(1.05);
+  }
+  &:active { transform: scale(0.94); }
 }
 
-.avatar-file { display: none; }
+/* Имя + подпись — поверх blur-области */
+.hero-info {
+  position: relative;
+  z-index: 2;
+  margin-top: -100px;
+  padding: 0 24px 8px;
+  text-align: center;
+  pointer-events: none;
+}
 
-.avatar-actions {
+.hero-name {
+  font-size: 30px;
+  font-weight: 900;
+  color: #0f172a;
+  margin: 0 0 4px;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  text-shadow: 0 2px 12px rgba(255, 255, 255, 0.9);
+}
+
+.hero-username {
+  font-size: 14px;
+  color: #64748b;
+  font-weight: 600;
+  margin: 0;
+  text-shadow: 0 2px 12px rgba(255, 255, 255, 0.9);
+}
+
+/* Кнопки действий */
+.hero-actions {
+  position: relative;
+  z-index: 2;
   display: flex;
+  gap: 10px;
+  padding: 8px 20px 20px;
   justify-content: center;
-  gap: 8px;
-  margin-bottom: 14px;
+  align-items: center;
   flex-wrap: wrap;
 }
 
-.avatar-action-btn {
+.hero-btn {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 7px 14px;
-  border-radius: 10px;
-  border: 1.5px solid #e2e8f0;
-  background: #f8fafc;
-  color: #475569;
+  gap: 6px;
+  padding: 12px 24px;
+  border-radius: 999px;
+  border: none;
   font-family: inherit;
-  font-size: 12.5px;
-  font-weight: 700;
+  font-size: 14px;
+  font-weight: 800;
   cursor: pointer;
   transition: all 0.15s;
   white-space: nowrap;
 
-  &:hover:not(:disabled) {
-    border-color: #6366f1;
-    color: #6366f1;
-    background: rgba(99, 102, 241, 0.06);
-    transform: translateY(-1px);
-  }
-  &:active:not(:disabled) { transform: scale(0.97); }
   &:disabled { opacity: 0.5; cursor: not-allowed; }
+}
 
-  &.danger {
-    border-color: rgba(239, 68, 68, 0.35);
-    color: #dc2626;
-    background: rgba(239, 68, 68, 0.06);
+.hero-btn-primary {
+  background: #0f172a;
+  color: #ffffff;
+  box-shadow: 0 8px 20px -8px rgba(15, 23, 42, 0.5);
 
-    &:hover:not(:disabled) {
-      border-color: #dc2626;
-      color: #dc2626;
-      background: rgba(239, 68, 68, 0.12);
-    }
+  &:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 12px 28px -8px rgba(15, 23, 42, 0.6);
+    background: #1e293b;
   }
+  &:active:not(:disabled) { transform: scale(0.98); }
 }
 
-.profile-name {
-  text-align: center;
-  font-size: 24px;
-  font-weight: 800;
-  color: #0f172a;
-  margin: 0 0 4px;
+.hero-btn-danger {
+  width: 46px;
+  height: 46px;
+  min-width: 46px;
+  padding: 0;
+  border-radius: 50%;
+  background: #ffffff;
+  color: #dc2626;
+  border: 2px solid #e2e8f0;
+  justify-content: center;
+  font-size: 18px;
+
+  &:hover:not(:disabled) {
+    border-color: #dc2626;
+    background: rgba(239, 68, 68, 0.06);
+  }
+  &:active:not(:disabled) { transform: scale(0.94); }
 }
 
-.profile-sub {
-  text-align: center;
-  font-size: 13px;
-  color: #94a3b8;
-  margin: 0 0 18px;
-}
+.hero-file { display: none; }
 
-.meta {
+/* Метаданные */
+.hero-meta {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   gap: 8px;
   background: #f8fafc;
-  border-radius: 12px;
-  padding: 12px 14px;
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin: 0 20px 20px;
 }
 
-.meta-row {
+.hero-meta-row {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -517,8 +594,19 @@ onUnmounted(() => {
   color: #64748b;
 }
 
-.meta-icon { font-size: 14px; }
-.meta-text { font-weight: 500; }
+.hm-icon { font-size: 14px; }
+.hm-text { font-weight: 500; }
+
+/* ============================================================
+   Правая колонка — обычные карточки
+   ============================================================ */
+.profile-card {
+  background: #ffffff;
+  border-radius: 18px;
+  padding: 22px;
+  box-shadow: 0 4px 20px -8px rgba(15, 23, 42, 0.12);
+  border: 1px solid #eef0f4;
+}
 
 .field-label {
   display: block;
@@ -619,7 +707,6 @@ onUnmounted(() => {
   letter-spacing: 0.05em;
 }
 
-/* ✅ Доходы/расходы за месяц */
 .stats-extra {
   display: flex;
   flex-direction: column;
@@ -662,7 +749,6 @@ onUnmounted(() => {
   font-size: 13px;
 }
 
-/* ✅ Кнопка выхода */
 .logout-btn {
   display: flex;
   align-items: center;
@@ -703,93 +789,43 @@ onUnmounted(() => {
   flex-direction: column;
 }
 
-.insta-stub {
-  position: relative;
-  background: #ffffff;
-  border-radius: 18px;
-  padding: 20px;
-  box-shadow: 0 4px 20px -8px rgba(15, 23, 42, 0.12);
-  border: 1px solid #eef0f4;
-  overflow: hidden;
-}
-
-.insta-header {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  margin-bottom: 18px;
-}
-
-.insta-avatar {
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #fbbf24, #f59e0b);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  border: 2px solid #ffffff;
-  box-shadow: 0 4px 12px -4px rgba(245, 158, 11, 0.5);
-  font-size: 28px;
-
-  img { width: 100%; height: 100%; object-fit: cover; }
-}
-
-.insta-name {
-  font-size: 16px;
-  font-weight: 800;
-  color: #0f172a;
-}
-
-.insta-sub {
-  font-size: 12px;
-  color: #94a3b8;
-  margin-top: 2px;
-}
-
-.insta-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 3px;
-  border-radius: 10px;
-  overflow: hidden;
-  opacity: 0.55;
-  filter: grayscale(0.6);
-}
-
-.insta-cell {
-  aspect-ratio: 1;
-  background: #e2e8f0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #94a3b8;
-  font-size: 22px;
-}
-
-.insta-cam { opacity: 0.6; }
-
-.insta-badge {
-  margin-top: 16px;
-  text-align: center;
-  font-size: 12.5px;
-  font-weight: 700;
-  color: #6366f1;
-  background: rgba(99, 102, 241, 0.1);
-  border: 1px dashed rgba(99, 102, 241, 0.35);
-  border-radius: 10px;
-  padding: 10px;
+/* ============================================================
+   МОБИЛЬНЫЙ
+   ============================================================ */
+@media (max-width: 980px) {
+  .hero-photo { aspect-ratio: 4 / 5; max-height: 460px; }
 }
 
 @media (max-width: 700px) {
-  .embed-chat { display: none !important; }
-
   .profile-page { padding: 12px; gap: 12px; }
   .profile-card { padding: 16px; border-radius: 14px; }
-  .profile-name { font-size: 20px; }
+
+  .hero-card { border-radius: 20px; }
+  .hero-photo { aspect-ratio: 3 / 4; max-height: none; }
+  .hero-photo-placeholder { font-size: 100px; }
+
+  .hero-photo-blur { height: 60%; }
+
+  .hero-info { margin-top: -90px; padding: 0 18px 6px; }
+  .hero-name { font-size: 24px; }
+  .hero-username { font-size: 13px; }
+
+  .hero-actions { padding: 6px 16px 16px; gap: 8px; }
+  .hero-btn { padding: 10px 20px; font-size: 13px; }
+  .hero-btn-danger { width: 42px; height: 42px; min-width: 42px; font-size: 16px; }
+
+  .hero-edit { width: 38px; height: 38px; top: 12px; right: 12px; font-size: 16px; }
+
+  .hero-meta { margin: 0 16px 16px; padding: 12px 14px; gap: 6px; }
+  .hm-text { font-size: 12px; }
+
   .stat-value { font-size: 15px; }
-  .insta-stub { padding: 16px; border-radius: 14px; }
-  .avatar-action-btn { font-size: 11.5px; padding: 6px 12px; }
+
+  .embed-chat { min-height: 380px; }
+}
+
+@media (max-width: 380px) {
+  .hero-name { font-size: 22px; }
+  .hero-actions { gap: 6px; }
 }
 </style>
