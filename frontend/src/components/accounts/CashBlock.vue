@@ -193,9 +193,12 @@ const fallingBills = [
   gap: 12px;
 }
 
+/* ============================================================
+   ✅ Купюра — многослойная тень + объём
+   ============================================================ */
 .cash-note {
   position: relative;
-  border-radius: 18px;
+  border-radius: 20px;
   padding: 18px 20px 16px;
   overflow: hidden;
 
@@ -208,9 +211,23 @@ const fallingBills = [
 
   color: #ffffff;
   box-shadow:
-    0 20px 40px -18px rgba(16, 185, 129, 0.6),
-    0 10px 20px -10px rgba(5, 150, 105, 0.4),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.15) inset,
+    0 4px 8px rgba(16, 185, 129, 0.25),
+    0 10px 24px -6px rgba(5, 150, 105, 0.35),
+    0 20px 40px -12px rgba(16, 185, 129, 0.3);
+
+  transition: transform 0.35s cubic-bezier(.34,1.56,.64,1), box-shadow 0.35s ease;
+}
+
+.cash-note:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.15) inset,
+    0 6px 12px rgba(16, 185, 129, 0.3),
+    0 16px 36px -8px rgba(5, 150, 105, 0.45),
+    0 28px 56px -16px rgba(16, 185, 129, 0.35);
 }
 
 @keyframes cashShift {
@@ -223,7 +240,7 @@ const fallingBills = [
   content: '';
   position: absolute;
   inset: 6px;
-  border-radius: 14px;
+  border-radius: 16px;
   border: 1.5px dashed rgba(255, 255, 255, 0.35);
   pointer-events: none;
   z-index: 4;
@@ -307,12 +324,17 @@ const fallingBills = [
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 5px 14px 5px 10px;
+  padding: 6px 14px 6px 10px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.2);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.14));
   border: 1px solid rgba(255, 255, 255, 0.4);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.1) inset,
+    0 4px 10px -2px rgba(0, 0, 0, 0.15);
 }
 
 .cn-icon { font-size: 16px; }
@@ -332,7 +354,7 @@ const fallingBills = [
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.1;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
 }
 
 .cn-total-label {
@@ -344,6 +366,9 @@ const fallingBills = [
   margin-top: 2px;
 }
 
+/* ============================================================
+   ✅ ПОЛЬЗОВАТЕЛИ — вложенные карточки
+   ============================================================ */
 .cn-owners {
   position: relative;
   z-index: 3;
@@ -360,12 +385,17 @@ const fallingBills = [
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 10px;
-  padding: 6px 10px;
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.08);
+  padding: 8px 12px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.14), rgba(255, 255, 255, 0.06));
   border: 1px solid rgba(255, 255, 255, 0.15);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.2) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.06) inset,
+    0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
 .cn-owner-emoji { font-size: 16px; line-height: 1; }
@@ -383,8 +413,12 @@ const fallingBills = [
   letter-spacing: -0.02em;
   color: #ffffff;
   white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
+/* ============================================================
+   ✅ КНОПКИ — рельефные
+   ============================================================ */
 .cn-actions {
   position: relative;
   z-index: 3;
@@ -399,36 +433,62 @@ const fallingBills = [
   align-items: center;
   justify-content: center;
   gap: 5px;
-  padding: 8px 6px;
-  border-radius: 10px;
+  padding: 10px 8px;
+  border-radius: 12px;
   border: 1px solid rgba(255, 255, 255, 0.35);
-  background: rgba(255, 255, 255, 0.15);
+
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.22), rgba(255, 255, 255, 0.08));
   color: #ffffff;
   font-family: inherit;
   font-size: 11.5px;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
-  transition: all 0.15s;
   white-space: nowrap;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.12) inset,
+    0 2px 4px rgba(0, 0, 0, 0.1);
+
+  transition: all 0.18s cubic-bezier(.34,1.56,.64,1);
+
   &:hover {
-    background: rgba(255, 255, 255, 0.3);
-    transform: translateY(-1px);
-    box-shadow: 0 6px 16px -6px rgba(0, 0, 0, 0.35);
+    background: linear-gradient(180deg, rgba(255, 255, 255, 0.35), rgba(255, 255, 255, 0.15));
+    transform: translateY(-2px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.4) inset,
+      0 -1px 0 rgba(0, 0, 0, 0.12) inset,
+      0 6px 14px -4px rgba(0, 0, 0, 0.35);
   }
-  &:active { transform: scale(0.96); }
+  &:active {
+    transform: translateY(0) scale(0.97);
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.15) inset;
+  }
 
   &.cn-act-primary {
-    background: rgba(255, 255, 255, 0.95);
+    background: linear-gradient(180deg, #ffffff, #f0fdf4);
     color: #047857;
     border-color: transparent;
     font-weight: 800;
 
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.9) inset,
+      0 -1px 0 rgba(4, 120, 87, 0.15) inset,
+      0 4px 12px -2px rgba(255, 255, 255, 0.4),
+      0 8px 20px -6px rgba(0, 0, 0, 0.2);
+
     &:hover {
       background: #ffffff;
       color: #065f46;
+      transform: translateY(-2px);
+      box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.95) inset,
+        0 -1px 0 rgba(4, 120, 87, 0.15) inset,
+        0 6px 16px -2px rgba(255, 255, 255, 0.5),
+        0 14px 32px -8px rgba(0, 0, 0, 0.3);
     }
   }
 }
@@ -438,14 +498,16 @@ const fallingBills = [
   line-height: 1;
 }
 
-/* ОСНОВНАЯ ЦЕЛЬ */
+/* ============================================================
+   ✅ ЦЕЛЬ
+   ============================================================ */
 .cn-goal {
   position: relative;
   z-index: 3;
   margin-top: 10px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.12);
+  padding: 12px 14px;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.08));
   border: 1.5px dashed rgba(255, 255, 255, 0.45);
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
@@ -453,10 +515,19 @@ const fallingBills = [
   flex-direction: column;
   gap: 8px;
 
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.25) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.08) inset,
+    0 4px 12px -4px rgba(0, 0, 0, 0.15);
+
   &.done {
     border-style: solid;
     border-color: rgba(34, 197, 94, 0.7);
-    background: rgba(34, 197, 94, 0.15);
+    background: linear-gradient(180deg, rgba(34, 197, 94, 0.25), rgba(34, 197, 94, 0.1));
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 -1px 0 rgba(0, 0, 0, 0.08) inset,
+      0 4px 16px -4px rgba(34, 197, 94, 0.4);
   }
 }
 
@@ -481,24 +552,31 @@ const fallingBills = [
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
 .cn-goal-badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: 26px;
+  height: 26px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #fbbf24, #f59e0b);
+  background: linear-gradient(180deg, #fcd34d, #f59e0b);
   font-size: 12px;
   flex-shrink: 0;
-  box-shadow: 0 4px 10px -3px rgba(245, 158, 11, 0.6);
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 -2px 4px rgba(180, 83, 9, 0.3) inset,
+    0 4px 10px -2px rgba(245, 158, 11, 0.6);
 
   &.done {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-    box-shadow: 0 4px 10px -3px rgba(34, 197, 94, 0.6);
+    background: linear-gradient(180deg, #4ade80, #22c55e);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.5) inset,
+      0 -2px 4px rgba(22, 163, 74, 0.3) inset,
+      0 4px 10px -2px rgba(34, 197, 94, 0.6);
   }
 }
 
@@ -509,23 +587,30 @@ const fallingBills = [
 }
 
 .cn-goal-track {
-  height: 7px;
+  height: 8px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.2);
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.15), rgba(0, 0, 0, 0.08));
   overflow: hidden;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.1);
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.15) inset,
+    0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .cn-goal-fill {
   height: 100%;
   border-radius: 4px;
-  background: linear-gradient(90deg, #fbbf24, #f59e0b, #f97316);
+  background: linear-gradient(180deg, #fcd34d, #f59e0b, #f97316);
   transition: width 0.6s cubic-bezier(.22,.61,.36,1);
-  box-shadow: 0 0 12px rgba(251, 191, 36, 0.6);
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.4) inset,
+    0 0 12px rgba(251, 191, 36, 0.6);
 
   &.done {
-    background: linear-gradient(90deg, #22c55e, #4ade80);
-    box-shadow: 0 0 12px rgba(34, 197, 94, 0.6);
+    background: linear-gradient(180deg, #4ade80, #22c55e);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.4) inset,
+      0 0 12px rgba(34, 197, 94, 0.6);
   }
 }
 
@@ -542,7 +627,7 @@ const fallingBills = [
   font-family: var(--mono);
   font-weight: 800;
   color: #ffffff;
-  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
   white-space: nowrap;
 }
 
@@ -553,36 +638,36 @@ const fallingBills = [
   white-space: nowrap;
 }
 
-/* МОБИЛЬНЫЙ */
+/* ============================================================
+   МОБИЛЬНЫЙ
+   ============================================================ */
 @media (max-width: 700px) {
-  .cash-note { padding: 14px 16px 12px; border-radius: 16px; }
-
+  .cash-note { padding: 14px 16px 12px; border-radius: 18px; }
   .cn-total-value { font-size: 22px; }
   .cn-total-label { font-size: 9px; }
   .cn-label { font-size: 9.5px; letter-spacing: 0.1em; }
   .cn-icon { font-size: 14px; }
 
   .cn-owners { padding-top: 8px; margin-bottom: 8px; gap: 5px; }
-  .cn-owner { padding: 5px 8px; gap: 8px; border-radius: 9px; }
+  .cn-owner { padding: 6px 10px; gap: 8px; border-radius: 10px; }
   .cn-owner-emoji { font-size: 14px; }
   .cn-owner-name { font-size: 11.5px; }
   .cn-owner-value { font-size: 12.5px; }
 
   .cn-actions { gap: 5px; margin-top: 6px; }
-  .cn-act { padding: 7px 4px; font-size: 10.5px; gap: 4px; }
+  .cn-act { padding: 8px 6px; font-size: 10.5px; gap: 4px; border-radius: 10px; }
   .cn-act-icon { font-size: 12px; }
 
   .cn-watermark { font-size: 110px; bottom: -24px; right: -8px; }
-
   .cn-bill { width: 36px; height: 22px; }
 
-  .cn-goal { padding: 9px 11px; gap: 6px; border-radius: 11px; margin-top: 8px; }
+  .cn-goal { padding: 10px 12px; gap: 6px; border-radius: 12px; margin-top: 8px; }
   .cn-goal-emoji { font-size: 14px; }
   .cn-goal-name { font-size: 12px; }
-  .cn-goal-badge { width: 20px; height: 20px; font-size: 10px; }
+  .cn-goal-badge { width: 22px; height: 22px; font-size: 11px; }
   .cn-goal-left { font-size: 11.5px; }
   .cn-goal-target { font-size: 10.5px; }
-  .cn-goal-track { height: 6px; }
+  .cn-goal-track { height: 7px; }
 }
 
 @media (max-width: 380px) {
@@ -597,5 +682,9 @@ const fallingBills = [
 @media (prefers-reduced-motion: reduce) {
   .cash-note { animation: none !important; }
   .cn-bill { animation: none !important; opacity: 0; }
+  .cash-note,
+  .cn-act,
+  .cn-goal,
+  .cn-goal-fill { transition: none !important; transform: none !important; }
 }
 </style>

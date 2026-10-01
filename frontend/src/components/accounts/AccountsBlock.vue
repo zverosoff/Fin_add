@@ -277,16 +277,18 @@ watch(expandedOwners, (val) => {
 
 .debit-card {
   position: relative;
-  border-radius: 22px;
+  border-radius: 24px;
   overflow: hidden;
   isolation: isolate;
   contain: layout paint style;
 
   color: #ffffff;
   box-shadow:
-    0 24px 48px -18px rgba(79, 70, 229, 0.65),
-    0 12px 24px -10px rgba(139, 92, 246, 0.45),
-    inset 0 0 0 1px rgba(255, 255, 255, 0.15);
+    0 1px 0 rgba(255, 255, 255, 0.4) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.15) inset,
+    0 4px 8px rgba(79, 70, 229, 0.25),
+    0 12px 28px -6px rgba(79, 70, 229, 0.35),
+    0 28px 60px -20px rgba(15, 23, 42, 0.25);
 
   display: flex;
   flex-direction: column;
@@ -298,11 +300,15 @@ watch(expandedOwners, (val) => {
   user-select: none;
   -webkit-user-select: none;
   touch-action: pan-y;
+  transition: box-shadow 0.35s ease;
 
   &.is-tilting {
     box-shadow:
-      0 30px 60px -20px rgba(79, 70, 229, 0.75),
-      0 16px 32px -12px rgba(139, 92, 246, 0.55);
+      0 1px 0 rgba(255, 255, 255, 0.4) inset,
+      0 -1px 0 rgba(0, 0, 0, 0.15) inset,
+      0 6px 12px rgba(79, 70, 229, 0.3),
+      0 20px 48px -8px rgba(79, 70, 229, 0.5),
+      0 40px 80px -30px rgba(15, 23, 42, 0.35);
   }
 }
 
