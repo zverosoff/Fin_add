@@ -26,6 +26,23 @@ const userClass = computed(() => (props.tx.user === 'Сергей' ? 'sergey' : 
 const displayUserName = computed(() => auth.nameFor(props.tx.user));
 const userAvatar = computed(() => auth.avatarFor(props.tx.user));
 
+// ✅ Бейдж под аватаром — что показать: лого банка или иконку наличных
+const accountBadge = computed(() => {
+  const id = props.tx.accountId;
+  if (!id) return null;
+
+  if (id === 'cash' || id.startsWith('cash_')) {
+    return { type: 'cash', icon: '💵', label: 'Наличные' };
+  }
+
+  const logo = bankLogoUrl.value;
+  if (logo) {
+    return { type: 'bank', logo, label: bankLabel(id) };
+  }
+
+  return { type: 'default', icon: '💳', label: accountName.value || 'Счёт' };
+});
+
 const appearing = ref(false);
 const deleting = ref(false);
 
@@ -140,26 +157,38 @@ function itemStyle() {
       :style="{ opacity: swipeProgress }"
     ></div>
 
-    <div
-      class="tx-avatar"
-      :class="bankLogoUrl ? 'has-bank' : ('user-' + userClass)"
-    >
-      <img
-        v-if="userAvatar"
-        :src="userAvatar"
-        alt="avatar"
-        class="tx-bank-logo"
-        loading="lazy"
-      />
-      <img
-        v-else-if="bankLogoUrl"
-        :src="bankLogoUrl"
-        :alt="bankLabel(tx.accountId)"
-        class="tx-bank-logo"
-        loading="lazy"
-        @error="(e) => (e.target.style.display = 'none')"
-      />
-      <span v-else class="tx-avatar-emoji">{{ userEmoji(tx.user) }}</span>
+    <!-- ✅ АВАТАР + БЕЙДЖ АККАУНТА -->
+    <div class="tx-avatar-wrap">
+      <div
+        class="tx-avatar"
+        :class="userClass"
+      >
+        <img
+          v-if="userAvatar"
+          :src="userAvatar"
+          alt="avatar"
+          class="tx-avatar-img"
+          loading="lazy"
+        />
+        <span v-else class="tx-avatar-emoji">{{ userEmoji(tx.user) }}</span>
+      </div>
+
+      <!-- ✅ Кружок с лого банка/иконкой наличных -->
+      <div
+        v-if="accountBadge"
+        class="tx-account-badge"
+        :class="`badge-${accountBadge.type}`"
+        :title="accountBadge.label"
+      >
+        <img
+          v-if="accountBadge.type === 'bank'"
+          :src="accountBadge.logo"
+          :alt="accountBadge.label"
+          class="tx-account-logo"
+          @error="(e) => (e.target.style.display = 'none')"
+        />
+        <span v-else class="tx-account-icon">{{ accountBadge.icon }}</span>
+      </div>
     </div>
 
     <div class="tx-main">
@@ -196,11 +225,14 @@ function itemStyle() {
 </template>
 
 <style scoped lang="scss">
+/* ============================================================
+   КАРТОЧКА — стекло + 4-слойная тень + hover-подъём
+   ============================================================ */
 .tx-item {
   position: relative;
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 14px;
 
   background: linear-gradient(
     180deg,
@@ -324,50 +356,118 @@ function itemStyle() {
   pointer-events: none;
 }
 
+/* ============================================================
+   ✅ АВАТАР + БЕЙДЖ АККАУНТА
+   ============================================================ */
+.tx-avatar-wrap {
+  position: relative;
+  flex: 0 0 48px;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+/* Основной аватар */
 .tx-avatar {
-  flex: 0 0 42px;
-  width: 42px;
-  height: 42px;
+  width: 46px;
+  height: 46px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
   overflow: hidden;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
   position: relative;
-}
+  z-index: 2;
 
-.tx-avatar.has-bank {
-  background: linear-gradient(180deg, #ffffff, #f8fafc);
-  border: 1px solid rgba(15, 23, 42, 0.06);
+  /* Тень аватара, чтобы «парил» над бейджем */
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.95) inset,
-    0 -1px 0 rgba(148, 163, 184, 0.08) inset,
-    0 4px 10px -2px rgba(15, 23, 42, 0.12);
+    0 2px 6px rgba(15, 23, 42, 0.15),
+    0 0 0 2px rgba(255, 255, 255, 0.95);
 }
 
-.tx-avatar.user-sergey {
-  background: linear-gradient(180deg, rgba(147, 197, 253, 0.35), rgba(139, 92, 246, 0.35));
+.tx-avatar.sergey {
+  background: linear-gradient(180deg, rgba(147, 197, 253, 0.5), rgba(139, 92, 246, 0.45));
   border: 1.5px solid rgba(59, 130, 246, 0.4);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.6) inset,
-    0 4px 10px -2px rgba(59, 130, 246, 0.25);
 }
-.tx-avatar.user-sasha {
-  background: linear-gradient(180deg, rgba(251, 207, 232, 0.4), rgba(253, 186, 116, 0.3));
+.tx-avatar.sasha {
+  background: linear-gradient(180deg, rgba(251, 207, 232, 0.55), rgba(253, 186, 116, 0.45));
   border: 1.5px solid rgba(236, 72, 153, 0.4);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.6) inset,
-    0 4px 10px -2px rgba(236, 72, 153, 0.25);
 }
 
-.tx-bank-logo {
-  width: 100%; height: 100%;
+.tx-avatar-img {
+  width: 100%;
+  height: 100%;
   object-fit: cover;
   display: block;
 }
-.tx-avatar-emoji { font-size: 20px; line-height: 1; }
 
+.tx-avatar-emoji {
+  font-size: 22px;
+  line-height: 1;
+}
+
+/* ✅ Кружок под аватаром — «выглядывает» снизу-справа */
+.tx-account-badge {
+  position: absolute;
+  bottom: -2px;
+  right: -4px;
+  z-index: 1;
+
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+
+  background: linear-gradient(180deg, #ffffff, #f1f5f9);
+  border: 2px solid #ffffff;
+
+  box-shadow:
+    0 0 0 1px rgba(15, 23, 42, 0.06),
+    0 2px 6px rgba(15, 23, 42, 0.18),
+    0 1px 0 rgba(255, 255, 255, 0.9) inset;
+
+  transition: transform 0.2s ease;
+
+  .tx-item:hover & {
+    transform: scale(1.1);
+  }
+}
+
+/* Лого банка */
+.tx-account-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 2px;
+  box-sizing: border-box;
+  display: block;
+  background: #ffffff;
+}
+
+/* Иконка наличных / по умолчанию */
+.tx-account-icon {
+  font-size: 11px;
+  line-height: 1;
+}
+
+/* Тип «наличные» — зелёный фон */
+.tx-account-badge.badge-cash {
+  background: linear-gradient(180deg, #86efac, #22c55e);
+}
+
+/* Тип «дефолт» (нет лого и не наличные) */
+.tx-account-badge.badge-default {
+  background: linear-gradient(180deg, #e2e8f0, #cbd5e1);
+  color: #64748b;
+}
+
+/* ============================================================
+   ТЕКСТ
+   ============================================================ */
 .tx-main { flex: 1; min-width: 0; }
 .tx-name {
   font-weight: 700;
@@ -440,8 +540,16 @@ function itemStyle() {
       box-shadow: 0 4px 10px -2px rgba(245, 158, 11, 0.5);
     }
   }
+  &.acc-badge.cash {
+    background: linear-gradient(180deg, rgba(220, 252, 231, 1), rgba(187, 247, 208, 0.8));
+    color: #166534;
+    border-color: rgba(34, 197, 94, 0.3);
+  }
 }
 
+/* ============================================================
+   СУММА
+   ============================================================ */
 .tx-right {
   flex: 0 0 auto;
   display: flex;
@@ -486,6 +594,9 @@ function itemStyle() {
   100% { background: transparent; transform: scale(1); }
 }
 
+/* ============================================================
+   КНОПКИ
+   ============================================================ */
 .tx-actions {
   display: flex;
   gap: 4px;
@@ -535,10 +646,33 @@ function itemStyle() {
   }
 }
 
+/* ============================================================
+   МОБИЛЬНЫЙ
+   ============================================================ */
 @media (max-width: 700px) {
-  .tx-item { padding: 12px 14px; gap: 10px; border-radius: 14px; }
-  .tx-avatar { flex: 0 0 38px; width: 38px; height: 38px; }
-  .tx-avatar-emoji { font-size: 18px; }
+  .tx-item { padding: 12px 14px; gap: 12px; border-radius: 14px; }
+
+  .tx-avatar-wrap {
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+  }
+  .tx-avatar {
+    width: 42px;
+    height: 42px;
+  }
+  .tx-avatar-emoji { font-size: 20px; }
+
+  .tx-account-badge {
+    width: 20px;
+    height: 20px;
+    bottom: -2px;
+    right: -4px;
+    border-width: 2px;
+  }
+  .tx-account-icon { font-size: 10px; }
+  .tx-account-logo { padding: 2px; }
+
   .tx-name { font-size: 14px; }
   .tx-meta { font-size: 11px; gap: 5px; }
   .tx-meta .cat { font-size: 10px; padding: 2px 8px; }
@@ -548,10 +682,18 @@ function itemStyle() {
   .tx-item:active { transform: scale(0.99); }
 }
 
+@media (max-width: 380px) {
+  .tx-avatar-wrap { flex: 0 0 40px; width: 40px; height: 40px; }
+  .tx-avatar { width: 38px; height: 38px; }
+  .tx-account-badge { width: 18px; height: 18px; }
+  .tx-account-icon { font-size: 9px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tx-item,
   .tx-item:hover,
   .tx-avatar,
+  .tx-account-badge,
   .tx-actions button,
   .tx-amount { transition: none !important; transform: none !important; }
   .tx-item.is-appearing,
