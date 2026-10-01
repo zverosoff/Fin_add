@@ -89,7 +89,6 @@ function isActive(item) {
   return route.path === item.to || route.path.startsWith(item.to + '/');
 }
 
-// ✅ Пульсирующая точка — на «Профиле» при непрочитанных
 const tabHasDot = computed(() => ({
   '/finance': false,
   '/analytics': false,
@@ -114,7 +113,10 @@ function handleFabClick() {
 <template>
   <nav class="bottom-nav">
     <div class="bn-inner">
-      <div class="bn-indicator" :style="indicatorStyle"></div>
+      <!-- ✅ Индикатор с многоуровневой тенью -->
+      <div class="bn-indicator" :style="indicatorStyle">
+        <div class="bn-indicator-shine"></div>
+      </div>
 
       <button
         v-for="item in navLeft"
@@ -134,6 +136,7 @@ function handleFabClick() {
         <span class="bn-label">{{ item.label }}</span>
       </button>
 
+      <!-- ✅ FAB с объёмом -->
       <div class="bn-fab-wrapper">
         <button
           type="button"
@@ -142,6 +145,8 @@ function handleFabClick() {
           @click="handleFabClick"
           aria-label="Сканировать чек"
         >
+          <span class="bn-fab-ring"></span>
+
           <svg v-if="serverStatus === 'loading'" class="bn-fab-spinner" viewBox="0 0 50 50">
             <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
           </svg>
@@ -179,6 +184,9 @@ function handleFabClick() {
 </template>
 
 <style scoped lang="scss">
+/* ============================================================
+   ОБЩИЙ КОНТЕЙНЕР
+   ============================================================ */
 .bottom-nav {
   position: fixed;
   left: 50%;
@@ -192,6 +200,9 @@ function handleFabClick() {
   pointer-events: none;
 }
 
+/* ============================================================
+   INNER — стеклянный эффект + 4-уровневая тень + глянец
+   ============================================================ */
 .bn-inner {
   position: relative;
   display: grid;
@@ -200,19 +211,41 @@ function handleFabClick() {
   width: 100%;
   padding: 8px 8px 6px;
   border-radius: 24px;
-  background: rgba(255, 255, 255, 0.95);
+
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.98) 0%,
+      rgba(255, 255, 255, 0.94) 100%
+    );
+
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
+
+  /* ✅ 5-уровневая тень для настоящей глубины */
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.6) inset,
-    0 -1px 0 rgba(148, 163, 184, 0.08) inset,
-    0 12px 32px -8px rgba(15, 23, 42, 0.18),
-    0 4px 12px -4px rgba(15, 23, 42, 0.10),
-    0 24px 60px -20px rgba(99, 102, 241, 0.25);
-  border: 1px solid rgba(148, 163, 184, 0.12);
+    /* верхняя внутренняя подсветка (глянец) */
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    /* нижняя внутренняя тень */
+    0 -1px 0 rgba(148, 163, 184, 0.1) inset,
+    /* тонкая ближняя */
+    0 2px 4px rgba(15, 23, 42, 0.06),
+    /* средняя */
+    0 8px 20px -4px rgba(15, 23, 42, 0.12),
+    /* широкая фиолетовая (объём) */
+    0 24px 48px -12px rgba(99, 102, 241, 0.25),
+    /* глубокая чёрная (парящий эффект) */
+    0 40px 80px -20px rgba(15, 23, 42, 0.18);
+
+  border: 1px solid rgba(255, 255, 255, 0.9);
   pointer-events: auto;
+
+  transition: transform 0.35s cubic-bezier(.34,1.56,.64,1), box-shadow 0.35s ease;
 }
 
+/* ============================================================
+   ИНДИКАТОР активной вкладки — с многослойным свечением
+   ============================================================ */
 .bn-indicator {
   position: absolute;
   top: 6px;
@@ -220,16 +253,44 @@ function handleFabClick() {
   border-radius: 18px;
   pointer-events: none;
   z-index: 1;
-  background: linear-gradient(120deg, #3b82f6 0%, #6366f1 40%, #8b5cf6 70%, #3b82f6 100%);
+  overflow: hidden;
+
+  background: linear-gradient(
+    120deg,
+    #3b82f6 0%,
+    #6366f1 40%,
+    #8b5cf6 70%,
+    #3b82f6 100%
+  );
   background-size: 300% 300%;
   animation: indGradientShift 6s ease-in-out infinite;
+
+  /* ✅ Многослойная тень + внутренний глянец */
   box-shadow:
-    0 6px 18px -4px rgba(99, 102, 241, 0.55),
-    0 2px 6px -2px rgba(59, 130, 246, 0.4);
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.15) inset,
+    0 2px 4px rgba(59, 130, 246, 0.4),
+    0 6px 14px -2px rgba(99, 102, 241, 0.55),
+    0 12px 28px -6px rgba(139, 92, 246, 0.4);
+
   transition:
     left 0.45s cubic-bezier(.34,1.56,.64,1),
     width 0.45s cubic-bezier(.34,1.56,.64,1),
     opacity 0.25s ease;
+}
+
+/* ✅ Световая полоса поверх индикатора */
+.bn-indicator-shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.35) 0%,
+    rgba(255, 255, 255, 0.1) 40%,
+    transparent 60%,
+    rgba(0, 0, 0, 0.1) 100%
+  );
+  pointer-events: none;
 }
 
 @keyframes indGradientShift {
@@ -238,6 +299,9 @@ function handleFabClick() {
   100% { background-position: 0% 50%; }
 }
 
+/* ============================================================
+   ПУНКТЫ МЕНЮ
+   ============================================================ */
 .bn-item {
   position: relative;
   z-index: 2;
@@ -254,17 +318,33 @@ function handleFabClick() {
   font-size: 10.5px;
   font-weight: 600;
   cursor: pointer;
-  transition: color 0.25s, transform 0.18s;
   border-radius: 14px;
   min-width: 0;
+  transition: color 0.25s, transform 0.2s cubic-bezier(.34,1.56,.64,1);
 
-  &:hover { color: #64748b; }
+  &:hover {
+    color: #64748b;
+    transform: translateY(-1px);
+  }
   &:active { transform: scale(0.94); }
 
   &.active {
     color: #ffffff;
-    .bn-icon { transform: translateY(-2px) scale(1.12); filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.35)); }
-    .bn-label { font-weight: 800; color: #ffffff; text-shadow: 0 1px 3px rgba(0, 0, 0, 0.25); }
+
+    .bn-icon {
+      transform: translateY(-2px) scale(1.12);
+      filter:
+        drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4))
+        drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3));
+    }
+
+    .bn-label {
+      font-weight: 800;
+      color: #ffffff;
+      text-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.4),
+        0 2px 6px rgba(0, 0, 0, 0.2);
+    }
   }
 }
 
@@ -283,10 +363,12 @@ function handleFabClick() {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
-  transition: color 0.25s;
+  transition: color 0.25s, text-shadow 0.25s;
 }
 
-/* Пульсирующая точка */
+/* ============================================================
+   ТОЧКА непрочитанных — с объёмом и пульсацией
+   ============================================================ */
 .bn-dot {
   position: absolute;
   top: -4px;
@@ -294,10 +376,15 @@ function handleFabClick() {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #ef4444;
+
+  background: linear-gradient(180deg, #f87171, #dc2626);
+
   box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.4) inset,
     0 0 0 0 rgba(239, 68, 68, 0.6),
-    0 0 0 2px rgba(255, 255, 255, 0.9);
+    0 0 0 2px rgba(255, 255, 255, 0.95),
+    0 2px 6px rgba(239, 68, 68, 0.5);
+
   animation: navDotPulse 1.6s ease-in-out infinite;
 }
 
@@ -305,20 +392,26 @@ function handleFabClick() {
   0% {
     transform: scale(1);
     box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.4) inset,
       0 0 0 0 rgba(239, 68, 68, 0.7),
-      0 0 0 2px rgba(255, 255, 255, 0.9);
+      0 0 0 2px rgba(255, 255, 255, 0.9),
+      0 2px 6px rgba(239, 68, 68, 0.5);
   }
   70% {
     transform: scale(1.15);
     box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.4) inset,
       0 0 0 8px rgba(239, 68, 68, 0),
-      0 0 0 2px rgba(255, 255, 255, 0.9);
+      0 0 0 2px rgba(255, 255, 255, 0.9),
+      0 2px 6px rgba(239, 68, 68, 0.5);
   }
   100% {
     transform: scale(1);
     box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.4) inset,
       0 0 0 0 rgba(239, 68, 68, 0),
-      0 0 0 2px rgba(255, 255, 255, 0.9);
+      0 0 0 2px rgba(255, 255, 255, 0.9),
+      0 2px 6px rgba(239, 68, 68, 0.5);
   }
 }
 
@@ -337,6 +430,9 @@ function handleFabClick() {
   transform: scale(0.3);
 }
 
+/* ============================================================
+   FAB — объёмная круглая кнопка
+   ============================================================ */
 .bn-fab-wrapper {
   display: flex;
   justify-content: center;
@@ -345,7 +441,9 @@ function handleFabClick() {
   position: relative;
   z-index: 2;
 }
+
 .bn-fab {
+  position: relative;
   width: 64px;
   height: 64px;
   border-radius: 50%;
@@ -356,39 +454,143 @@ function handleFabClick() {
   cursor: pointer;
   color: #fff;
   margin-top: -30px;
-  transition: background 0.35s ease, box-shadow 0.35s ease, transform 0.18s ease;
-  position: relative;
+
+  transition:
+    background 0.35s ease,
+    box-shadow 0.35s ease,
+    transform 0.2s cubic-bezier(.34,1.56,.64,1);
   z-index: 2;
+  overflow: visible;
 
   &:active { transform: scale(0.94); }
-  &.is-loading {
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-    box-shadow: 0 10px 28px -8px rgba(59, 130, 246, 0.75), 0 0 0 5px rgba(255, 255, 255, 0.75);
-    cursor: wait;
-  }
-  &.is-success {
-    background: linear-gradient(135deg, #22c55e, #16a34a);
-    box-shadow: 0 10px 28px -8px rgba(34, 197, 94, 0.8), 0 0 0 5px rgba(255, 255, 255, 0.75);
-    animation: fabSuccessPop 0.35s cubic-bezier(.34,1.56,.64,1);
-  }
-  &.is-ok {
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-    box-shadow: 0 10px 28px -8px rgba(59, 130, 246, 0.75), 0 0 0 5px rgba(255, 255, 255, 0.75);
-  }
-  &.is-error {
-    background: linear-gradient(135deg, #ef4444, #dc2626);
-    box-shadow: 0 10px 28px -8px rgba(239, 68, 68, 0.75), 0 0 0 5px rgba(255, 255, 255, 0.75);
+}
+
+/* ✅ Световое кольцо вокруг FAB */
+.bn-fab-ring {
+  position: absolute;
+  inset: -8px;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: -1;
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+}
+
+.bn-fab:hover .bn-fab-ring { opacity: 1; }
+
+/* Loading */
+.bn-fab.is-loading {
+  background: linear-gradient(180deg, #60a5fa, #3b82f6);
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.4) inset,
+    0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+    0 4px 8px rgba(59, 130, 246, 0.35),
+    0 10px 24px -4px rgba(59, 130, 246, 0.55),
+    0 20px 40px -10px rgba(59, 130, 246, 0.35),
+    0 0 0 5px rgba(255, 255, 255, 0.75);
+
+  cursor: wait;
+
+  .bn-fab-ring {
+    background: radial-gradient(circle, rgba(59, 130, 246, 0.4) 0%, transparent 70%);
+    animation: ringPulseBlue 1.6s ease-in-out infinite;
   }
 }
+
+/* Success */
+.bn-fab.is-success {
+  background: linear-gradient(180deg, #4ade80, #22c55e);
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.4) inset,
+    0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+    0 4px 8px rgba(34, 197, 94, 0.35),
+    0 10px 24px -4px rgba(34, 197, 94, 0.55),
+    0 20px 40px -10px rgba(34, 197, 94, 0.35),
+    0 0 0 5px rgba(255, 255, 255, 0.75);
+
+  animation: fabSuccessPop 0.35s cubic-bezier(.34,1.56,.64,1);
+
+  .bn-fab-ring {
+    background: radial-gradient(circle, rgba(34, 197, 94, 0.5) 0%, transparent 70%);
+    animation: ringPulseGreen 1.4s ease-in-out infinite;
+  }
+}
+
+/* OK (готов) */
+.bn-fab.is-ok {
+  background: linear-gradient(180deg, #6366f1, #8b5cf6);
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 -2px 0 rgba(0, 0, 0, 0.2) inset,
+    0 4px 8px rgba(99, 102, 241, 0.35),
+    0 10px 24px -4px rgba(99, 102, 241, 0.55),
+    0 20px 40px -10px rgba(139, 92, 246, 0.35),
+    0 0 0 5px rgba(255, 255, 255, 0.75);
+
+  .bn-fab-ring {
+    background: radial-gradient(circle, rgba(139, 92, 246, 0.4) 0%, transparent 70%);
+    animation: ringPulsePurple 2s ease-in-out infinite;
+  }
+
+  &:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.4) inset,
+      0 -2px 0 rgba(0, 0, 0, 0.2) inset,
+      0 6px 12px rgba(99, 102, 241, 0.4),
+      0 14px 32px -4px rgba(99, 102, 241, 0.65),
+      0 28px 52px -10px rgba(139, 92, 246, 0.45),
+      0 0 0 6px rgba(255, 255, 255, 0.85);
+  }
+}
+
+/* Error */
+.bn-fab.is-error {
+  background: linear-gradient(180deg, #f87171, #dc2626);
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.4) inset,
+    0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+    0 4px 8px rgba(239, 68, 68, 0.35),
+    0 10px 24px -4px rgba(239, 68, 68, 0.55),
+    0 20px 40px -10px rgba(239, 68, 68, 0.35),
+    0 0 0 5px rgba(255, 255, 255, 0.75);
+
+  .bn-fab-ring {
+    background: radial-gradient(circle, rgba(239, 68, 68, 0.5) 0%, transparent 70%);
+  }
+}
+
+@keyframes ringPulseBlue {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50%      { transform: scale(1.2); opacity: 0.9; }
+}
+
+@keyframes ringPulseGreen {
+  0%, 100% { transform: scale(1); opacity: 0.7; }
+  50%      { transform: scale(1.25); opacity: 1; }
+}
+
+@keyframes ringPulsePurple {
+  0%, 100% { transform: scale(1); opacity: 0.5; }
+  50%      { transform: scale(1.15); opacity: 0.85; }
+}
+
 @keyframes fabSuccessPop {
   0%   { transform: scale(0.85); }
   60%  { transform: scale(1.1); }
   100% { transform: scale(1); }
 }
+
+/* Спиннер */
 .bn-fab-spinner {
   width: 28px; height: 28px;
   animation: spinFab 1s linear infinite;
   color: #fff;
+
   circle {
     stroke-dasharray: 90, 150;
     stroke-dashoffset: 0;
@@ -401,7 +603,12 @@ function handleFabClick() {
   50%  { stroke-dasharray: 90, 150; stroke-dashoffset: -35; }
   100% { stroke-dasharray: 90, 150; stroke-dashoffset: -124; }
 }
-.bn-fab-icon { width: 28px; height: 28px; }
+
+.bn-fab-icon {
+  width: 28px; height: 28px;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3));
+}
+
 .bn-fab.is-success .bn-fab-icon {
   width: 32px;
   height: 32px;
@@ -412,19 +619,29 @@ function handleFabClick() {
   to   { stroke-dasharray: 30; stroke-dashoffset: 0; }
 }
 
-/* Desktop */
+/* ============================================================
+   DESKTOP
+   ============================================================ */
 @media (min-width: 701px) {
-  .bottom-nav { max-width: 640px; padding: 0 24px 24px; }
+  .bottom-nav {
+    max-width: 640px;
+    padding: 0 24px 24px;
+  }
+
   .bn-inner {
     padding: 10px 12px 8px;
     border-radius: 28px;
+
+    /* ✅ Усиленные тени для десктопа */
     box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.6) inset,
-      0 -1px 0 rgba(148, 163, 184, 0.08) inset,
-      0 18px 40px -10px rgba(15, 23, 42, 0.20),
-      0 6px 16px -4px rgba(15, 23, 42, 0.10),
-      0 30px 80px -30px rgba(99, 102, 241, 0.35);
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 -1px 0 rgba(148, 163, 184, 0.1) inset,
+      0 2px 6px rgba(15, 23, 42, 0.06),
+      0 12px 28px -6px rgba(15, 23, 42, 0.15),
+      0 30px 60px -15px rgba(99, 102, 241, 0.3),
+      0 50px 100px -25px rgba(15, 23, 42, 0.2);
   }
+
   .bn-item {
     padding: 10px 6px;
     font-size: 12px;
@@ -432,39 +649,72 @@ function handleFabClick() {
     .bn-icon { font-size: 26px; }
     .bn-label { font-size: 12px; }
   }
+
   .bn-fab-wrapper { padding: 0 12px 6px; }
-  .bn-fab { width: 76px; height: 76px; border-width: 5px; margin-top: -38px; }
+
+  .bn-fab {
+    width: 76px;
+    height: 76px;
+    border-width: 5px;
+    margin-top: -38px;
+  }
+
   .bn-fab-icon { width: 34px; height: 34px; }
   .bn-fab-spinner { width: 34px; height: 34px; }
   .bn-fab.is-success .bn-fab-icon { width: 38px; height: 38px; }
+
   .bn-indicator { border-radius: 20px; top: 8px; bottom: 8px; }
 }
 
-/* Mobile */
+/* ============================================================
+   MOBILE
+   ============================================================ */
 @media (max-width: 700px) {
-  .bottom-nav { max-width: 100%; padding: 0 8px calc(8px + env(safe-area-inset-bottom, 0)); }
+  .bottom-nav {
+    max-width: 100%;
+    padding: 0 8px calc(8px + env(safe-area-inset-bottom, 0));
+  }
+
   .bn-inner {
     padding: 6px 6px 4px;
     border-radius: 22px;
+
     box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.5) inset,
-      0 10px 28px -8px rgba(15, 23, 42, 0.18),
-      0 4px 10px -4px rgba(15, 23, 42, 0.10),
-      0 20px 50px -20px rgba(99, 102, 241, 0.22);
+      0 1px 0 rgba(255, 255, 255, 0.9) inset,
+      0 -1px 0 rgba(148, 163, 184, 0.08) inset,
+      0 2px 4px rgba(15, 23, 42, 0.06),
+      0 10px 24px -6px rgba(15, 23, 42, 0.15),
+      0 20px 44px -14px rgba(99, 102, 241, 0.28),
+      0 30px 60px -20px rgba(15, 23, 42, 0.15);
   }
+
   .bn-icon { font-size: 20px; }
   .bn-label { font-size: 10px; }
-  .bn-fab { width: 60px; height: 60px; margin-top: -26px; }
+
+  .bn-fab {
+    width: 60px;
+    height: 60px;
+    margin-top: -26px;
+  }
+
   .bn-fab-icon { width: 26px; height: 26px; }
   .bn-fab-spinner { width: 26px; height: 26px; }
   .bn-fab.is-success .bn-fab-icon { width: 30px; height: 30px; }
+
   .bn-indicator { border-radius: 16px; top: 4px; bottom: 4px; }
+
   .bn-dot { width: 9px; height: 9px; top: -3px; right: -5px; }
 }
 
+/* ============================================================
+   REDUCED MOTION
+   ============================================================ */
 @media (prefers-reduced-motion: reduce) {
   .bn-indicator,
   .bn-fab,
-  .bn-dot { animation: none !important; transition: none !important; }
+  .bn-dot,
+  .bn-fab-ring,
+  .bn-item,
+  .bn-icon { animation: none !important; transition: none !important; }
 }
 </style>
