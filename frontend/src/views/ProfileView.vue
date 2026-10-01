@@ -42,7 +42,7 @@ function markSynced() {
   syncing.value = false;
   synced.value = true;
   if (syncedTimer) clearTimeout(syncedTimer);
-  syncedTimer = setTimeout(() => { synced.value = false; }, 2500);
+  syncedTimer = setTimeout(() => { synced.value = false; }, 10000);
 }
 
 function markSyncing() {
@@ -370,6 +370,7 @@ onUnmounted(() => {
             <span>🧑</span>
           </div>
 
+          <div class="hero-photo-vignette"></div>
           <div class="hero-photo-blur"></div>
 
           <Transition name="fade">
@@ -557,6 +558,9 @@ onUnmounted(() => {
 </template>
 
 <style scoped lang="scss">
+/* ============================================================
+   СТРАНИЦА — мягкий градиентный фон
+   ============================================================ */
 .profile-page {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -565,23 +569,65 @@ onUnmounted(() => {
   max-width: 1400px;
   margin: 0 auto;
   align-items: start;
+  position: relative;
+  min-height: 100vh;
+}
+
+.profile-page::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 0%, rgba(99, 102, 241, 0.08), transparent 60%),
+    radial-gradient(ellipse 70% 50% at 80% 100%, rgba(236, 72, 153, 0.06), transparent 60%),
+    linear-gradient(180deg, #fafbff 0%, #f4f6fb 100%);
+  pointer-events: none;
 }
 
 @media (max-width: 980px) { .profile-page { grid-template-columns: 1fr; } }
 
 .profile-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 
+/* ============================================================
+   HERO-КАРТОЧКА — многоуровневая тень + внутренний глянец
+   ============================================================ */
 .hero-card {
   position: relative;
-  border-radius: 24px;
+  border-radius: 26px;
   overflow: hidden;
   background: #ffffff;
-  box-shadow: 0 20px 40px -18px rgba(15, 23, 42, 0.25);
-  border: 1px solid #eef0f4;
+
+  /* ✅ Три уровня тени для глубины */
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 20px -8px rgba(15, 23, 42, 0.12),
+    0 30px 60px -20px rgba(99, 102, 241, 0.25),
+    0 40px 80px -30px rgba(15, 23, 42, 0.15);
+
+  /* ✅ Внутренняя подсветка — «глянец» */
+  outline: 1px solid rgba(255, 255, 255, 0.6);
+  outline-offset: -1px;
+
   display: flex;
   flex-direction: column;
+
+  /* ✅ Плавный подъём при наведении */
+  transition: transform 0.35s cubic-bezier(.34,1.56,.64,1), box-shadow 0.35s ease;
 }
 
+.hero-card:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    0 2px 4px rgba(15, 23, 42, 0.05),
+    0 12px 28px -10px rgba(15, 23, 42, 0.15),
+    0 40px 80px -25px rgba(99, 102, 241, 0.35),
+    0 50px 100px -35px rgba(15, 23, 42, 0.18);
+}
+
+/* ============================================================
+   ФОТО — внутренняя виньетка + объём
+   ============================================================ */
 .hero-photo {
   position: relative;
   width: 100%;
@@ -591,8 +637,16 @@ onUnmounted(() => {
   background: linear-gradient(135deg, #a5b4fc, #818cf8);
   cursor: pointer;
 
-  img { width: 100%; height: 100%; object-fit: cover; object-position: center 30%; display: block; transition: transform 0.4s ease; }
-  &:hover img { transform: scale(1.02); }
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center 30%;
+    display: block;
+    transition: transform 0.6s cubic-bezier(.22,.61,.36,1);
+  }
+
+  &:hover img { transform: scale(1.04); }
   &.uploading { pointer-events: none; }
 }
 
@@ -601,6 +655,17 @@ onUnmounted(() => {
   display: flex; align-items: center; justify-content: center;
   font-size: 140px;
   background: linear-gradient(135deg, #a5b4fc, #818cf8);
+}
+
+/* ✅ Виньетка по краям фото */
+.hero-photo-vignette {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 100% 80% at 50% 30%, transparent 40%, rgba(15, 23, 42, 0.25) 100%),
+    linear-gradient(180deg, rgba(0, 0, 0, 0.15) 0%, transparent 25%);
+  mix-blend-mode: multiply;
 }
 
 .hero-photo-blur {
@@ -658,19 +723,38 @@ onUnmounted(() => {
   span { overflow: hidden; text-overflow: ellipsis; max-width: 280px; white-space: nowrap; }
 }
 
+/* ✅ Кнопка-карандаш с рельефом */
 .hero-name-edit-btn {
   flex-shrink: 0;
-  width: 32px; height: 32px;
+  width: 34px; height: 34px;
   border-radius: 50%;
   border: none;
-  background: rgba(15, 23, 42, 0.06);
+  background: linear-gradient(180deg, #ffffff, #f1f5f9);
   color: #64748b;
   cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
-  transition: all 0.15s; padding: 0;
+  transition: all 0.2s cubic-bezier(.34,1.56,.64,1);
+  padding: 0;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 2px 4px rgba(15, 23, 42, 0.08),
+    0 6px 12px -4px rgba(15, 23, 42, 0.15);
 
-  &:hover { background: #6366f1; color: #ffffff; transform: scale(1.08); }
-  &:active { transform: scale(0.94); }
+  &:hover {
+    background: linear-gradient(180deg, #6366f1, #4f46e5);
+    color: #ffffff;
+    transform: scale(1.1) translateY(-1px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 4px 8px rgba(99, 102, 241, 0.3),
+      0 10px 20px -4px rgba(99, 102, 241, 0.5);
+  }
+  &:active {
+    transform: scale(0.94);
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.15) inset,
+      0 1px 4px rgba(99, 102, 241, 0.3);
+  }
   &:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
@@ -686,7 +770,9 @@ onUnmounted(() => {
   font-family: inherit;
   font-size: 24px; font-weight: 800;
   text-align: center; outline: none;
-  box-shadow: 0 8px 24px -8px rgba(99, 102, 241, 0.4);
+  box-shadow:
+    0 8px 24px -8px rgba(99, 102, 241, 0.4),
+    0 0 0 4px rgba(99, 102, 241, 0.1);
 }
 
 .hero-name-hint {
@@ -700,9 +786,12 @@ onUnmounted(() => {
   text-shadow: 0 2px 12px rgba(255, 255, 255, 0.9);
 }
 
+/* ============================================================
+   КНОПКИ HERO — рельеф + тень + подъём
+   ============================================================ */
 .hero-actions {
   position: relative; z-index: 2;
-  display: flex; gap: 10px;
+  display: flex; gap: 12px;
   padding: 8px 20px 20px;
   justify-content: center; align-items: center;
   flex-wrap: wrap;
@@ -715,41 +804,94 @@ onUnmounted(() => {
   border: none;
   font-family: inherit;
   font-size: 14px; font-weight: 800;
-  cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  cursor: pointer;
+  white-space: nowrap;
+  transition:
+    transform 0.2s cubic-bezier(.34,1.56,.64,1),
+    box-shadow 0.25s ease,
+    background 0.2s ease;
 
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
+  &:disabled { opacity: 0.5; cursor: not-allowed; transform: none !important; }
 }
 
 .hero-btn-primary {
-  background: #0f172a; color: #ffffff;
-  box-shadow: 0 8px 20px -8px rgba(15, 23, 42, 0.5);
+  background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+  color: #ffffff;
 
-  &:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 12px 28px -8px rgba(15, 23, 42, 0.6); background: #1e293b; }
-  &:active:not(:disabled) { transform: scale(0.98); }
+  /* ✅ Рельеф: верхняя светлая полоса + внешняя тень */
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.15) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.3) inset,
+    0 4px 12px rgba(15, 23, 42, 0.25),
+    0 12px 24px -6px rgba(15, 23, 42, 0.35);
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    background: linear-gradient(180deg, #334155 0%, #1e293b 100%);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.2) inset,
+      0 -1px 0 rgba(0, 0, 0, 0.3) inset,
+      0 6px 16px rgba(15, 23, 42, 0.3),
+      0 20px 40px -8px rgba(15, 23, 42, 0.45);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+    box-shadow:
+      0 2px 6px rgba(15, 23, 42, 0.2) inset,
+      0 2px 4px rgba(15, 23, 42, 0.15);
+  }
 }
 
 .hero-btn-danger {
   width: 46px; height: 46px;
   min-width: 46px; padding: 0;
   border-radius: 50%;
-  background: #ffffff; color: #dc2626;
-  border: 2px solid #e2e8f0;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  color: #dc2626;
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 4px 10px rgba(15, 23, 42, 0.08),
+    0 10px 20px -6px rgba(239, 68, 68, 0.15);
+
   justify-content: center; font-size: 18px;
 
-  &:hover:not(:disabled) { border-color: #dc2626; background: rgba(239, 68, 68, 0.06); }
-  &:active:not(:disabled) { transform: scale(0.94); }
+  &:hover:not(:disabled) {
+    background: linear-gradient(180deg, #fef2f2, #fee2e2);
+    transform: translateY(-2px) scale(1.05);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.9) inset,
+      0 6px 14px rgba(239, 68, 68, 0.2),
+      0 16px 28px -6px rgba(239, 68, 68, 0.35);
+  }
+  &:active:not(:disabled) {
+    transform: scale(0.95);
+    box-shadow: 0 2px 4px rgba(15, 23, 42, 0.15) inset;
+  }
 }
 
 .hero-file { display: none; }
 
+/* ============================================================
+   МЕТАДАННЫЕ — вложенная карточка с inset-тенью
+   ============================================================ */
 .hero-meta {
   position: relative; z-index: 2;
   display: flex; flex-direction: column;
   gap: 8px;
-  background: #f8fafc;
+  background: linear-gradient(180deg, #f8fafc, #f1f5f9);
   border-radius: 14px;
   padding: 14px 16px;
   margin: 0 20px 20px;
+
+  /* ✅ Внутренняя тень сверху */
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.1) inset,
+    0 2px 6px rgba(15, 23, 42, 0.04);
+
+  border: 1px solid rgba(226, 232, 240, 0.7);
 }
 
 .hero-meta-row {
@@ -763,13 +905,33 @@ onUnmounted(() => {
 .hm-icon { font-size: 14px; }
 .hm-text { font-weight: 500; }
 
+/* ============================================================
+   ПРАВЫЕ КАРТОЧКИ — многоуровневая тень + глянец
+   ============================================================ */
 .profile-card {
   position: relative;
-  background: #ffffff;
-  border-radius: 18px;
+  background: linear-gradient(180deg, #ffffff 0%, #fdfdff 100%);
+  border-radius: 20px;
   padding: 22px;
-  box-shadow: 0 4px 20px -8px rgba(15, 23, 42, 0.12);
-  border: 1px solid #eef0f4;
+
+  /* ✅ Три уровня тени */
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 8px 20px -8px rgba(15, 23, 42, 0.1),
+    0 24px 48px -20px rgba(15, 23, 42, 0.12);
+
+  border: 1px solid rgba(226, 232, 240, 0.6);
+  transition: transform 0.3s cubic-bezier(.34,1.56,.64,1), box-shadow 0.3s ease;
+}
+
+.profile-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 2px 4px rgba(15, 23, 42, 0.05),
+    0 12px 28px -10px rgba(15, 23, 42, 0.12),
+    0 32px 60px -25px rgba(99, 102, 241, 0.15);
 }
 
 .card-title {
@@ -780,6 +942,9 @@ onUnmounted(() => {
 
 .stats-card { padding-top: 18px; }
 
+/* ============================================================
+   SYNCED — двойная обводка + свечение
+   ============================================================ */
 .sync-indicator {
   position: absolute;
   top: 16px; right: 16px;
@@ -788,29 +953,38 @@ onUnmounted(() => {
   gap: 6px;
   padding: 5px 12px 5px 10px;
   border-radius: 999px;
-  background: #f8fafc;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
   border: 1px solid #eef0f4;
   font-size: 10.5px;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: #94a3b8;
-  transition: all 0.25s;
+  transition: all 0.3s ease;
+
+  /* ✅ Лёгкая тень для объёма */
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 2px 4px rgba(15, 23, 42, 0.06);
 }
 
 .sync-dot {
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #22c55e;
-  box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.5);
+  background: #cbd5e1;
+  box-shadow: 0 0 0 0 rgba(148, 163, 184, 0.5);
   transition: all 0.25s;
 }
 
 .sync-indicator.syncing {
   color: #6366f1;
-  border-color: rgba(99, 102, 241, 0.3);
-  background: rgba(99, 102, 241, 0.06);
+  border-color: rgba(99, 102, 241, 0.35);
+  background: linear-gradient(180deg, #eef2ff, #e0e7ff);
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 4px 10px rgba(99, 102, 241, 0.15);
 
   .sync-dot {
     background: #6366f1;
@@ -820,8 +994,12 @@ onUnmounted(() => {
 
 .sync-indicator.synced {
   color: #16a34a;
-  border-color: rgba(34, 197, 94, 0.35);
-  background: rgba(34, 197, 94, 0.06);
+  border-color: rgba(34, 197, 94, 0.4);
+  background: linear-gradient(180deg, #f0fdf4, #dcfce7);
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 4px 10px rgba(34, 197, 94, 0.15);
 
   .sync-dot {
     background: #22c55e;
@@ -839,6 +1017,9 @@ onUnmounted(() => {
   50%      { box-shadow: 0 0 0 5px rgba(34, 197, 94, 0); }
 }
 
+/* ============================================================
+   STATS — вложенные карточки с внутренним объёмом
+   ============================================================ */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -846,22 +1027,55 @@ onUnmounted(() => {
 }
 
 .stat {
-  background: #f8fafc;
-  border-radius: 12px;
+  position: relative;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  border-radius: 14px;
   padding: 14px 8px;
   text-align: center;
   border: 1px solid #eef0f4;
+
+  /* ✅ Объём: светлый верх, тёмный низ */
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.08) inset,
+    0 2px 6px rgba(15, 23, 42, 0.04);
+
+  transition: transform 0.2s cubic-bezier(.34,1.56,.64,1), box-shadow 0.2s ease;
 }
 
-.stat-value { font-size: 16px; font-weight: 800; color: #0f172a; margin-bottom: 4px; }
-.stat-label { font-size: 9.5px; font-weight: 700; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.05em; }
+.stat:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.08) inset,
+    0 6px 14px -2px rgba(15, 23, 42, 0.1);
+}
 
+.stat-value {
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 4px;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.stat-label {
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* ============================================================
+   СРАВНЕНИЕ — вложенные строки с градиентом
+   ============================================================ */
 .compare-block {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  margin-top: 10px;
-  padding-top: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
   border-top: 1px dashed #eef0f4;
 }
 
@@ -870,9 +1084,16 @@ onUnmounted(() => {
   grid-template-columns: 1fr auto auto;
   gap: 8px;
   align-items: center;
-  padding: 6px 10px;
+  padding: 8px 12px;
   border-radius: 10px;
   font-size: 12px;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  border: 1px solid #eef0f4;
+
+  /* ✅ Лёгкая вложенная тень */
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 2px 4px rgba(15, 23, 42, 0.03);
 }
 
 .c-label { font-weight: 700; color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
@@ -882,29 +1103,55 @@ onUnmounted(() => {
   font-family: var(--mono);
   font-weight: 800;
   font-size: 11.5px;
-  padding: 2px 8px;
+  padding: 3px 9px;
   border-radius: 999px;
   white-space: nowrap;
 
-  &.up   { color: #16a34a; background: rgba(34, 197, 94, 0.1); }
-  &.down { color: #dc2626; background: rgba(239, 68, 68, 0.1); }
-  &.flat { color: #94a3b8; background: #f1f5f9; }
+  /* ✅ Объёмная таблетка */
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset;
+
+  &.up   {
+    color: #16a34a;
+    background: linear-gradient(180deg, #dcfce7, #bbf7d0);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+  }
+  &.down {
+    color: #dc2626;
+    background: linear-gradient(180deg, #fee2e2, #fecaca);
+    border: 1px solid rgba(239, 68, 68, 0.3);
+  }
+  &.flat {
+    color: #94a3b8;
+    background: linear-gradient(180deg, #f8fafc, #f1f5f9);
+    border: 1px solid #e2e8f0;
+  }
 }
 
 .stats-extra { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #eef0f4; }
 
 .stat-extra-row {
   display: flex; justify-content: space-between; align-items: baseline;
-  gap: 8px; padding: 6px 10px;
+  gap: 8px; padding: 8px 10px;
   border-radius: 10px; font-size: 12px;
 
-  &.income { background: rgba(34, 197, 94, 0.06); .se-value { color: #16a34a; } }
-  &.expense { background: rgba(239, 68, 68, 0.06); .se-value { color: #dc2626; } }
+  &.income {
+    background: linear-gradient(180deg, #f0fdf4, #dcfce7);
+    border: 1px solid rgba(34, 197, 94, 0.2);
+    .se-value { color: #16a34a; }
+  }
+  &.expense {
+    background: linear-gradient(180deg, #fef2f2, #fee2e2);
+    border: 1px solid rgba(239, 68, 68, 0.2);
+    .se-value { color: #dc2626; }
+  }
 }
 
 .se-label { font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; font-size: 10.5px; }
 .se-value { font-family: var(--mono); font-weight: 800; font-size: 13px; }
 
+/* ============================================================
+   ТОП-3 — карточки с подъёмом и медалями
+   ============================================================ */
 .top-cats { display: flex; flex-direction: column; gap: 10px; }
 
 .top-cat {
@@ -912,10 +1159,26 @@ onUnmounted(() => {
   grid-template-columns: 26px 34px 1fr auto;
   gap: 10px;
   align-items: center;
-  padding: 10px 12px;
+  padding: 12px 14px;
   border-radius: 12px;
-  background: #f8fafc;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
   border: 1px solid #eef0f4;
+
+  /* ✅ Объёмная карточка */
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.06) inset,
+    0 2px 6px rgba(15, 23, 42, 0.04);
+
+  transition: transform 0.2s cubic-bezier(.34,1.56,.64,1), box-shadow 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 -1px 0 rgba(148, 163, 184, 0.06) inset,
+      0 8px 20px -4px rgba(99, 102, 241, 0.15);
+  }
 }
 
 .tc-rank {
@@ -924,10 +1187,17 @@ onUnmounted(() => {
   display: flex; align-items: center; justify-content: center;
   font-size: 12px; font-weight: 900;
   color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.25);
 
-  &.rank-1 { background: linear-gradient(135deg, #fbbf24, #f59e0b); box-shadow: 0 4px 10px -3px rgba(245, 158, 11, 0.6); }
-  &.rank-2 { background: linear-gradient(135deg, #cbd5e1, #94a3b8); }
-  &.rank-3 { background: linear-gradient(135deg, #d97706, #b45309); }
+  /* ✅ Объёмная медаль */
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 -2px 4px rgba(0,0,0,0.15) inset,
+    0 4px 8px rgba(0,0,0,0.15);
+
+  &.rank-1 { background: linear-gradient(180deg, #fcd34d, #f59e0b); box-shadow: 0 1px 0 rgba(255,255,255,0.5) inset, 0 -2px 4px rgba(180,83,9,0.3) inset, 0 6px 12px -3px rgba(245,158,11,0.5); }
+  &.rank-2 { background: linear-gradient(180deg, #e2e8f0, #94a3b8); }
+  &.rank-3 { background: linear-gradient(180deg, #f59e0b, #b45309); }
 }
 
 .tc-icon { font-size: 22px; text-align: center; }
@@ -937,50 +1207,88 @@ onUnmounted(() => {
   font-size: 12.5px; font-weight: 800;
   color: #0f172a;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .tc-bar {
-  height: 5px;
-  background: rgba(148, 163, 184, 0.18);
+  height: 6px;
+  background: linear-gradient(180deg, #e2e8f0, #f1f5f9);
   border-radius: 3px;
   overflow: hidden;
+
+  /* ✅ Внутренняя тень трека */
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.08) inset,
+    0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .tc-bar-fill {
   height: 100%;
-  background: linear-gradient(90deg, #6366f1, #8b5cf6);
+  background: linear-gradient(180deg, #818cf8, #6366f1);
   border-radius: 3px;
   transition: width 0.6s cubic-bezier(.22,.61,.36,1);
+
+  /* ✅ Подсветка сверху полосы */
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 2px 4px rgba(99, 102, 241, 0.35);
 }
 
 .tc-amount { text-align: right; flex-shrink: 0; }
 .tc-amount-value { font-family: var(--mono); font-size: 12.5px; font-weight: 800; color: #0f172a; }
 .tc-amount-pct { font-size: 10.5px; color: #94a3b8; font-weight: 700; margin-top: 2px; }
 
+/* ============================================================
+   ВЫЙТИ — рельефная кнопка + пульсация при hover
+   ============================================================ */
 .logout-btn {
   display: flex; align-items: center; justify-content: center;
   gap: 8px; width: 100%;
   padding: 14px;
-  border-radius: 12px;
+  border-radius: 14px;
   border: 1.5px solid rgba(239, 68, 68, 0.35);
-  background: rgba(239, 68, 68, 0.06);
+
+  background: linear-gradient(180deg, #fef2f2, #fee2e2);
   color: #dc2626;
   font-family: inherit;
-  font-size: 14px; font-weight: 700;
-  cursor: pointer; transition: all 0.15s;
+  font-size: 14px; font-weight: 800;
+  cursor: pointer;
 
-  &:hover { background: rgba(239, 68, 68, 0.12); border-color: #dc2626; transform: translateY(-1px); box-shadow: 0 8px 20px -8px rgba(239, 68, 68, 0.5); }
-  &:active { transform: scale(0.98); }
+  transition: all 0.2s cubic-bezier(.34,1.56,.64,1);
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 -1px 0 rgba(239, 68, 68, 0.1) inset,
+    0 4px 12px -2px rgba(239, 68, 68, 0.15);
+
+  &:hover {
+    background: linear-gradient(180deg, #fee2e2, #fecaca);
+    border-color: #dc2626;
+    transform: translateY(-2px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.9) inset,
+      0 -1px 0 rgba(239, 68, 68, 0.15) inset,
+      0 8px 20px -4px rgba(239, 68, 68, 0.35),
+      0 0 0 4px rgba(239, 68, 68, 0.08);
+  }
+
+  &:active {
+    transform: translateY(0) scale(0.98);
+    box-shadow:
+      0 2px 4px rgba(239, 68, 68, 0.2) inset;
+  }
 }
 
 .logout-icon { font-size: 16px; }
 
+/* ============================================================
+   МОБИЛЬНЫЙ
+   ============================================================ */
 @media (max-width: 980px) { .hero-photo { aspect-ratio: 4 / 5; max-height: 460px; } }
 
 @media (max-width: 700px) {
   .profile-page { padding: 12px; gap: 12px; }
-  .profile-card { padding: 16px; border-radius: 14px; }
+  .profile-card { padding: 16px; border-radius: 16px; }
   .stats-card { padding-top: 16px; }
 
   .hero-card { border-radius: 20px; }
@@ -994,9 +1302,9 @@ onUnmounted(() => {
   .hero-name-input { font-size: 20px; padding: 6px 14px; }
   .hero-username { font-size: 13px; }
 
-  .hero-actions { padding: 6px 16px 16px; gap: 8px; }
-  .hero-btn { padding: 10px 20px; font-size: 13px; }
-  .hero-btn-danger { width: 42px; height: 42px; min-width: 42px; font-size: 16px; }
+  .hero-actions { padding: 6px 16px 16px; gap: 10px; }
+  .hero-btn { padding: 11px 22px; font-size: 13px; }
+  .hero-btn-danger { width: 44px; height: 44px; min-width: 44px; font-size: 16px; }
 
   .hero-meta { margin: 0 16px 16px; padding: 12px 14px; gap: 6px; }
   .hm-text { font-size: 12px; }
@@ -1006,7 +1314,7 @@ onUnmounted(() => {
   .sync-indicator { top: 12px; right: 12px; font-size: 9.5px; padding: 4px 10px 4px 8px; }
   .sync-dot { width: 6px; height: 6px; }
 
-  .top-cat { grid-template-columns: 22px 30px 1fr auto; gap: 8px; padding: 8px 10px; }
+  .top-cat { grid-template-columns: 22px 30px 1fr auto; gap: 8px; padding: 10px 12px; }
   .tc-rank { width: 22px; height: 22px; font-size: 11px; }
   .tc-icon { font-size: 18px; }
   .tc-name { font-size: 12px; }
@@ -1021,5 +1329,16 @@ onUnmounted(() => {
 @media (prefers-reduced-motion: reduce) {
   .sync-indicator .sync-dot { animation: none !important; }
   .tc-bar-fill { transition: none !important; }
+  .hero-card,
+  .profile-card,
+  .stat,
+  .top-cat,
+  .hero-btn,
+  .logout-btn,
+  .hero-name-edit-btn { transition: none !important; }
+  .hero-card:hover,
+  .profile-card:hover,
+  .stat:hover,
+  .top-cat:hover { transform: none !important; }
 }
 </style>
