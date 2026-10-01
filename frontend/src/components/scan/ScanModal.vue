@@ -47,10 +47,12 @@ const accountId = ref('');
 
 const error = ref('');
 const saving = ref(false);
+const isDragging = ref(false);
 
-// ============================================================
-// Переключение режима
-// ============================================================
+const userAccounts = computed(() =>
+  accounts.accounts.filter(a => (a.owner || 'Сергей') === user.value)
+);
+
 function switchToManual() {
   emit('update:modelValue', false);
   emit('switch-to-manual');
@@ -61,13 +63,6 @@ function switchToPdf() {
   emit('switch-to-pdf');
 }
 
-const userAccounts = computed(() =>
-  accounts.accounts.filter(a => (a.owner || 'Сергей') === user.value)
-);
-
-// ============================================================
-// Сброс
-// ============================================================
 function reset() {
   step.value = 'upload';
   file.value = null;
@@ -87,6 +82,7 @@ function reset() {
   previewLoading.value = false;
   prefetchedLines.value = null;
   prefetchedCropY.value = null;
+  isDragging.value = false;
 }
 
 watch(() => props.modelValue, (open) => {
@@ -100,13 +96,25 @@ watch(user, () => {
   }
 });
 
-// ============================================================
-// Загрузка файла + АВТО-OCR
-// ============================================================
 async function onFileSelected(e) {
   const f = e.target.files?.[0];
   if (!f) return;
+  await processFile(f);
+}
 
+async function onDrop(e) {
+  e.preventDefault();
+  isDragging.value = false;
+  const f = e.dataTransfer?.files?.[0];
+  if (!f) return;
+  if (!f.type.startsWith('image/')) {
+    error.value = 'Только изображения';
+    return;
+  }
+  await processFile(f);
+}
+
+async function processFile(f) {
   file.value = f;
   filePreview.value = URL.createObjectURL(f);
   error.value = '';
@@ -135,7 +143,6 @@ async function onFileSelected(e) {
       const y = firstY / 2;
       prefetchedCropY.value = y;
       cropYPercent.value = Math.min(95, Math.max(5, (y / originalH) * 100));
-      console.log('[scan] линия обрезки:', cropYPercent.value + '%');
     }
   } catch (e) {
     console.warn('[scan] автопоиск линии не удался:', e);
@@ -148,9 +155,6 @@ function triggerFileInput() {
   document.getElementById('scanFileInput')?.click();
 }
 
-// ============================================================
-// Даты
-// ============================================================
 function buildDateFilters(parsedItems) {
   const map = new Map();
 
@@ -189,9 +193,6 @@ function formatDateLabel(d) {
   return `${dd}.${mm}`;
 }
 
-// ============================================================
-// Переход к следующему шагу
-// ============================================================
 async function recognize() {
   if (!file.value) {
     error.value = 'Сначала выберите фото';
@@ -249,9 +250,6 @@ async function recognize() {
   toast.success(`📸 Найдено ${parsed.length} операций`);
 }
 
-// ============================================================
-// Даты фильтры
-// ============================================================
 function toggleDateFilter(key) {
   const f = dateFilters.value.find(x => x.key === key);
   if (!f) return;
@@ -285,9 +283,6 @@ function applyManualDate() {
   toast.info('📅 Дата применена ко всем операциям');
 }
 
-// ============================================================
-// Работа с предпросмотром
-// ============================================================
 function toggleItem(i) {
   const set = new Set(selectedIndices.value);
   if (set.has(i)) set.delete(i);
@@ -342,9 +337,6 @@ const selectedCount = computed(() =>
   visibleItems.value.filter(it => selectedIndices.value.has(it.index)).length
 );
 
-// ============================================================
-// Сохранение
-// ============================================================
 async function save() {
   const activeKeys = new Set(
     dateFilters.value.filter(f => f.active).map(f => f.key)
@@ -408,38 +400,64 @@ function close() {
 <template>
   <Modal
     :model-value="modelValue"
-    title="📸 Сканирование чека"
+    title=""
     @update:model-value="emit('update:modelValue', $event)"
   >
+    <template #header>
+      <div class="scan-header">
+        <div class="sh-icon">
+          <span>📸</span>
+        </div>
+        <div class="sh-text">
+          <div class="sh-title">Сканирование чека</div>
+          <div class="sh-sub">AI-распознавание операций</div>
+        </div>
+      </div>
+    </template>
+
     <!-- Переключатель режима -->
     <div class="mode-switch">
-      <button type="button" class="mode active" disabled>📸 Чек</button>
-      <button type="button" class="mode" @click="switchToManual">✏️ Вручную</button>
-      <button type="button" class="mode" @click="switchToPdf">📄 PDF</button>
+      <button type="button" class="mode active" disabled>
+        <span class="m-icon">📸</span>
+        <span class="m-label">Чек</span>
+      </button>
+      <button type="button" class="mode" @click="switchToManual">
+        <span class="m-icon">✏️</span>
+        <span class="m-label">Вручную</span>
+      </button>
+      <button type="button" class="mode" @click="switchToPdf">
+        <span class="m-icon">📄</span>
+        <span class="m-label">PDF</span>
+      </button>
     </div>
 
     <!-- ШАГ 1. Загрузка -->
     <div v-if="step === 'upload'" class="step">
-      <!-- ✅ Поля видны ТОЛЬКО пока файл не выбран -->
       <div v-if="!file" class="fields-row">
         <div class="field">
           <label>👤 Кто вносит</label>
-          <select v-model="user">
-            <option value="Сергей">👨 Сергей</option>
-            <option value="Саша">👩 Саша</option>
-          </select>
+          <div class="select-wrap">
+            <select v-model="user">
+              <option value="Сергей">👨 Сергей</option>
+              <option value="Саша">👩 Саша</option>
+            </select>
+            <span class="select-chevron">▼</span>
+          </div>
         </div>
         <div class="field">
           <label>💳 Счёт</label>
-          <select v-model="accountId">
-            <option v-for="acc in userAccounts" :key="acc.id" :value="acc.id">
-              {{ acc.name }}
-            </option>
-          </select>
+          <div class="select-wrap">
+            <select v-model="accountId">
+              <option v-for="acc in userAccounts" :key="acc.id" :value="acc.id">
+                {{ acc.name }}
+              </option>
+            </select>
+            <span class="select-chevron">▼</span>
+          </div>
         </div>
       </div>
 
-      <!-- ✅ Кнопка загрузки — тоже только пока файл не выбран -->
+      <!-- ✅ Drop-zone / кнопка загрузки -->
       <div v-if="!file" class="field">
         <label>📷 Фото чека / скриншот</label>
         <input
@@ -449,18 +467,33 @@ function close() {
           hidden
           @change="onFileSelected"
         />
-        <button class="upload-btn" type="button" @click="triggerFileInput">
-          <span class="upload-icon">📷</span>
-          <span class="upload-text">
-            <span class="upload-title">Выбрать файл</span>
-            <span class="upload-sub">Скриншот Т-Банка, Сбера или фото чека</span>
-          </span>
-        </button>
+        <div
+          class="drop-zone"
+          :class="{ 'is-dragging': isDragging }"
+          @click="triggerFileInput"
+          @dragover.prevent="isDragging = true"
+          @dragleave.prevent="isDragging = false"
+          @drop="onDrop"
+        >
+          <div class="dz-icon-wrap">
+            <div class="dz-icon">📷</div>
+            <div class="dz-icon-pulse"></div>
+          </div>
+          <div class="dz-text">
+            <div class="dz-title">Выбрать файл</div>
+            <div class="dz-sub">Скриншот Т-Банка, Сбера или фото чека</div>
+          </div>
+          <div class="dz-hint">или перетащи сюда</div>
+        </div>
       </div>
 
-      <!-- ✅ Если файл уже выбран — показываем компактную кнопку «Заменить» -->
+      <!-- ✅ Если файл уже выбран — компактная кнопка «Заменить» -->
       <div v-else class="replace-file-row">
-        <span class="replace-file-label">📷 Файл выбран</span>
+        <div class="rfp-icon">🖼️</div>
+        <div class="rfp-info">
+          <div class="rfp-title">Файл выбран</div>
+          <div class="rfp-name">{{ file.name }}</div>
+        </div>
         <button class="replace-file-btn" type="button" @click="triggerFileInput">
           Заменить
         </button>
@@ -473,6 +506,7 @@ function close() {
         />
       </div>
 
+      <!-- ✅ Превью -->
       <div v-if="filePreview" class="preview-block">
         <div class="preview-header">
           <span class="preview-title">📸 Превью распознавания</span>
@@ -482,9 +516,7 @@ function close() {
           <span v-else-if="prefetchedLines" class="preview-status ok">
             ✅ Готово к распознаванию
           </span>
-          <span v-else class="preview-status hint">
-            ℹ️ Готово
-          </span>
+          <span v-else class="preview-status hint">ℹ️ Готово</span>
         </div>
 
         <div class="preview-image-wrapper" :class="{ 'is-scanning': previewLoading }">
@@ -500,9 +532,7 @@ function close() {
             class="preview-overlay-top"
             :style="{ height: cropYPercent + '%' }"
           >
-            <div class="preview-overlay-label">
-              Шапка · не распознаётся
-            </div>
+            <div class="preview-overlay-label">Шапка · не распознаётся</div>
           </div>
 
           <div
@@ -513,15 +543,11 @@ function close() {
         </div>
 
         <div class="preview-footer">
-          <span v-if="previewLoading">
-            🔮 Сканирую изображение…
-          </span>
+          <span v-if="previewLoading">🔮 Сканирую изображение…</span>
           <span v-else-if="cropYPercent !== null">
             ✂️ Отсекается <strong>{{ Math.round(cropYPercent) }}%</strong> сверху
           </span>
-          <span v-else>
-            Все операции будут распознаны
-          </span>
+          <span v-else>Все операции будут распознаны</span>
         </div>
       </div>
 
@@ -637,12 +663,8 @@ function close() {
           :disabled="!file || previewLoading"
           @click="recognize"
         >
-          <template v-if="previewLoading">
-            ⏳ Анализ…
-          </template>
-          <template v-else>
-            👁 Показать операции
-          </template>
+          <template v-if="previewLoading">⏳ Анализ…</template>
+          <template v-else>👁 Показать операции</template>
         </button>
       </template>
 
@@ -665,169 +687,391 @@ function close() {
 </template>
 
 <style scoped lang="scss">
-/* Переключатель режима */
-.mode-switch {
+/* ============================================================
+   ✅ КАСТОМНЫЙ ЗАГОЛОВОК
+   ============================================================ */
+.scan-header {
   display: flex;
-  gap: 4px;
-  padding: 4px;
-  margin-bottom: 16px;
-  background: #f1f5f9;
-  border-radius: 12px;
-
-  .mode {
-    flex: 1;
-    padding: 8px 10px;
-    border: none;
-    background: transparent;
-    color: var(--muted);
-    font-family: inherit;
-    font-size: 12.5px;
-    font-weight: 700;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.18s;
-    white-space: nowrap;
-
-    &:hover:not(:disabled) {
-      color: var(--accent);
-      background: rgba(56, 189, 248, 0.08);
-    }
-
-    &.active {
-      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-      color: #fff;
-      box-shadow: 0 4px 12px -4px rgba(59, 130, 246, 0.6);
-      cursor: default;
-    }
-
-    &:disabled { cursor: default; }
-  }
+  align-items: center;
+  gap: 12px;
 }
 
-.step { display: flex; flex-direction: column; gap: 14px; }
+.sh-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  flex-shrink: 0;
+
+  background: linear-gradient(180deg, #c4b5fd, #8b5cf6);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.4) inset,
+    0 -2px 4px rgba(76, 29, 149, 0.3) inset,
+    0 4px 10px -2px rgba(139, 92, 246, 0.5),
+    0 8px 20px -6px rgba(139, 92, 246, 0.35);
+}
+
+.sh-text { min-width: 0; }
+
+.sh-title {
+  font-size: 16px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+}
+
+.sh-sub {
+  font-size: 11.5px;
+  color: #94a3b8;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+/* ============================================================
+   ✅ ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМА — сегментный
+   ============================================================ */
+.mode-switch {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0;
+  padding: 4px;
+  margin-bottom: 18px;
+
+  background: linear-gradient(180deg, #f1f5f9, #e2e8f0);
+  border-radius: 14px;
+
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.08) inset,
+    0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.mode {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 12px;
+  border: none;
+  background: transparent;
+  color: #64748b;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 800;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.25s cubic-bezier(.34,1.56,.64,1);
+  white-space: nowrap;
+  position: relative;
+
+  &:not(:disabled):hover {
+    color: #4f46e5;
+    background: rgba(255, 255, 255, 0.5);
+  }
+
+  &.active {
+    background: linear-gradient(180deg, #818cf8, #6366f1);
+    color: #ffffff;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 -2px 0 rgba(49, 46, 129, 0.3) inset,
+      0 4px 10px -2px rgba(99, 102, 241, 0.5),
+      0 8px 20px -6px rgba(99, 102, 241, 0.4);
+    cursor: default;
+  }
+
+  &:disabled { cursor: default; }
+}
+
+.m-icon { font-size: 14px; line-height: 1; }
+.m-label { line-height: 1; }
+
+/* ============================================================
+   ОБЩЕЕ
+   ============================================================ */
+.step { display: flex; flex-direction: column; gap: 16px; }
 
 .fields-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  gap: 12px;
 }
 
 .field {
   display: flex;
   flex-direction: column;
-  gap: 5px;
+  gap: 6px;
 
   label {
     font-size: 11px;
-    font-weight: 700;
-    color: var(--muted);
+    font-weight: 800;
+    color: #64748b;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  input, select {
-    padding: 9px 12px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: #ffffff;
-    color: var(--text);
-    font-family: inherit;
-    font-size: 14px;
-    outline: none;
-    width: 100%;
-
-    &:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
-    }
+    letter-spacing: 0.06em;
   }
 }
 
-/* ✅ Компактная строка «Файл выбран» + Заменить */
+/* ✅ Кастомный select с объёмом */
+.select-wrap {
+  position: relative;
+}
+
+.select-wrap select {
+  width: 100%;
+  padding: 12px 40px 12px 14px;
+  border-radius: 12px;
+  border: 1.5px solid #e2e8f0;
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  color: #0f172a;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  outline: none;
+  cursor: pointer;
+  appearance: none;
+  -webkit-appearance: none;
+  transition: all 0.15s ease;
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.06) inset,
+    0 2px 4px rgba(15, 23, 42, 0.04);
+
+  &:hover {
+    border-color: #cbd5e1;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 -1px 0 rgba(148, 163, 184, 0.06) inset,
+      0 4px 10px -2px rgba(15, 23, 42, 0.08);
+  }
+
+  &:focus {
+    border-color: #6366f1;
+    background: #ffffff;
+    box-shadow:
+      0 0 0 3px rgba(99, 102, 241, 0.15),
+      0 4px 10px -2px rgba(99, 102, 241, 0.15);
+  }
+}
+
+.select-chevron {
+  position: absolute;
+  right: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  color: #94a3b8;
+  pointer-events: none;
+  transition: color 0.15s;
+}
+
+.select-wrap select:focus ~ .select-chevron { color: #6366f1; }
+
+/* ============================================================
+   ✅ DROP-ZONE
+   ============================================================ */
+.drop-zone {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 18px 20px;
+  border-radius: 16px;
+
+  border: 2px dashed rgba(99, 102, 241, 0.4);
+  background: linear-gradient(180deg, rgba(238, 242, 255, 0.8), rgba(224, 231, 255, 0.5));
+  cursor: pointer;
+  overflow: hidden;
+  transition: all 0.2s cubic-bezier(.34,1.56,.64,1);
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 2px 6px rgba(15, 23, 42, 0.04);
+
+  &:hover {
+    border-color: #6366f1;
+    background: linear-gradient(180deg, rgba(238, 242, 255, 1), rgba(224, 231, 255, 0.7));
+    transform: translateY(-1px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.9) inset,
+      0 8px 20px -6px rgba(99, 102, 241, 0.25);
+  }
+
+  &.is-dragging {
+    border-color: #6366f1;
+    background: linear-gradient(180deg, #e0e7ff, #c7d2fe);
+    transform: scale(1.01);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.9) inset,
+      0 12px 28px -8px rgba(99, 102, 241, 0.4);
+  }
+}
+
+.dz-icon-wrap {
+  position: relative;
+  width: 56px;
+  height: 56px;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.08) inset,
+    0 4px 10px -2px rgba(99, 102, 241, 0.2),
+    0 8px 20px -6px rgba(99, 102, 241, 0.15);
+}
+
+.dz-icon { font-size: 26px; line-height: 1; }
+
+.dz-icon-pulse {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  pointer-events: none;
+  border: 2px solid rgba(99, 102, 241, 0.4);
+  animation: dzPulse 2s ease-in-out infinite;
+}
+
+@keyframes dzPulse {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50%      { transform: scale(1.15); opacity: 0; }
+}
+
+.dz-text { flex: 1; min-width: 0; text-align: left; }
+
+.dz-title {
+  font-size: 15px;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 3px;
+}
+
+.dz-sub {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.dz-hint {
+  font-size: 10.5px;
+  color: #94a3b8;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px dashed rgba(148, 163, 184, 0.4);
+  flex-shrink: 0;
+}
+
+/* ✅ Компактная строка «Файл выбран» */
 .replace-file-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  padding: 10px 14px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(139, 92, 246, 0.06));
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  gap: 12px;
+  padding: 12px 16px;
+  border-radius: 14px;
+
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.06) inset,
+    0 4px 10px -2px rgba(15, 23, 42, 0.06);
 }
 
-.replace-file-label {
-  flex: 1;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--accent);
+.rfp-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  flex-shrink: 0;
+
+  background: linear-gradient(180deg, #dcfce7, #bbf7d0);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 -1px 0 rgba(34, 197, 94, 0.15) inset,
+    0 4px 10px -2px rgba(34, 197, 94, 0.25);
+}
+
+.rfp-info { flex: 1; min-width: 0; }
+.rfp-title {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #0f172a;
+}
+.rfp-name {
+  font-size: 11.5px;
+  color: #94a3b8;
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .replace-file-btn {
-  padding: 6px 14px;
+  padding: 8px 16px;
   border-radius: 999px;
-  border: 1px solid rgba(56, 189, 248, 0.4);
-  background: #ffffff;
-  color: var(--accent);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+
+  background: linear-gradient(180deg, #eef2ff, #e0e7ff);
+  color: #4f46e5;
   font-family: inherit;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
-  transition: all 0.15s;
   white-space: nowrap;
-
-  &:hover {
-    background: rgba(56, 189, 248, 0.12);
-    border-color: var(--accent);
-  }
-}
-
-.upload-btn {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  width: 100%;
-  padding: 16px 18px;
-  border-radius: 14px;
-  border: 2px dashed rgba(56, 189, 248, 0.4);
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(139, 92, 246, 0.06));
-  color: var(--text);
-  font-family: inherit;
-  cursor: pointer;
-  text-align: left;
-  transition: all 0.2s;
-
-  &:hover {
-    border-color: var(--accent);
-    background: linear-gradient(135deg, rgba(56, 189, 248, 0.14), rgba(139, 92, 246, 0.1));
-    transform: translateY(-1px);
-  }
-}
-
-.upload-icon {
-  font-size: 32px;
   flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(139, 92, 246, 0.12));
-  border: 1px solid rgba(56, 189, 248, 0.25);
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 2px 4px rgba(99, 102, 241, 0.12);
+
+  transition: all 0.15s cubic-bezier(.34,1.56,.64,1);
+
+  &:hover {
+    background: linear-gradient(180deg, #6366f1, #4f46e5);
+    color: #ffffff;
+    border-color: transparent;
+    transform: translateY(-1px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 4px 10px -2px rgba(99, 102, 241, 0.4);
+  }
+  &:active { transform: scale(0.96); }
 }
 
-.upload-text { display: flex; flex-direction: column; gap: 2px; }
-.upload-title { font-size: 15px; font-weight: 700; }
-.upload-sub { font-size: 11.5px; color: var(--muted); }
-
-/* Превью */
+/* ============================================================
+   ✅ ПРЕВЬЮ
+   ============================================================ */
 .preview-block {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px;
-  border-radius: 14px;
-  background: linear-gradient(180deg, rgba(56, 189, 248, 0.04), transparent 60%), #ffffff;
-  border: 1px solid var(--border);
+  gap: 10px;
+  padding: 14px;
+  border-radius: 16px;
+
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.06) inset,
+    0 2px 6px rgba(15, 23, 42, 0.04),
+    0 8px 20px -8px rgba(15, 23, 42, 0.08);
 }
 
 .preview-header {
@@ -840,22 +1084,36 @@ function close() {
 
 .preview-title {
   font-size: 11px;
-  font-weight: 700;
-  color: var(--muted);
+  font-weight: 800;
+  color: #64748b;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 
 .preview-status {
   font-size: 11px;
-  font-weight: 700;
+  font-weight: 800;
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  padding: 3px 10px;
+  border-radius: 999px;
 
-  &.loading { color: #d97706; }
-  &.ok { color: #16a34a; }
-  &.hint { color: var(--muted); }
+  &.loading {
+    color: #d97706;
+    background: linear-gradient(180deg, #fef3c7, #fde68a);
+    border: 1px solid rgba(217, 119, 6, 0.25);
+  }
+  &.ok {
+    color: #16a34a;
+    background: linear-gradient(180deg, #dcfce7, #bbf7d0);
+    border: 1px solid rgba(34, 197, 94, 0.3);
+  }
+  &.hint {
+    color: #64748b;
+    background: linear-gradient(180deg, #f1f5f9, #e2e8f0);
+    border: 1px solid rgba(148, 163, 184, 0.25);
+  }
 }
 
 .spinner-mini {
@@ -872,12 +1130,16 @@ function close() {
 
 .preview-image-wrapper {
   position: relative;
-  border-radius: 12px;
+  border-radius: 14px;
   overflow: hidden;
   background: #0f172a;
   display: flex;
   justify-content: center;
   max-height: 42vh;
+
+  box-shadow:
+    0 2px 6px rgba(15, 23, 42, 0.1) inset,
+    0 8px 24px -8px rgba(15, 23, 42, 0.25);
 
   .preview-image {
     max-width: 100%;
@@ -905,7 +1167,7 @@ function close() {
   .preview-overlay-label {
     color: #fff;
     font-size: 11px;
-    font-weight: 700;
+    font-weight: 800;
     text-transform: uppercase;
     letter-spacing: 0.05em;
     background: rgba(0, 0, 0, 0.5);
@@ -929,13 +1191,14 @@ function close() {
 
 .preview-footer {
   font-size: 11.5px;
-  color: var(--muted);
+  color: #64748b;
   text-align: center;
   line-height: 1.4;
 
   strong {
-    color: var(--accent);
+    color: #4f46e5;
     font-family: var(--mono);
+    font-weight: 800;
   }
 }
 
@@ -951,7 +1214,7 @@ function close() {
   pointer-events: none;
   overflow: hidden;
   z-index: 3;
-  border-radius: 12px;
+  border-radius: 14px;
 }
 
 .scan-beam-line {
@@ -998,7 +1261,7 @@ function close() {
   position: absolute;
   inset: 0;
   border: 2px solid rgba(56, 189, 248, 0.6);
-  border-radius: 12px;
+  border-radius: 14px;
   pointer-events: none;
   animation: scanPulse 1.8s ease-in-out infinite;
   z-index: 4;
@@ -1015,69 +1278,86 @@ function close() {
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .scan-beam-line,
-  .scan-beam-glow,
-  .preview-image-wrapper.is-scanning::after {
-    animation: none;
-  }
-  .scan-beam-glow {
-    background: rgba(56, 189, 248, 0.1);
-  }
-}
-
-/* Распознавание */
+/* ============================================================
+   РАСПОЗНАВАНИЕ
+   ============================================================ */
 .recognize {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 16px;
+  gap: 18px;
   padding: 40px 20px;
   text-align: center;
 }
 
 .spinner {
-  width: 44px;
-  height: 44px;
-  border: 4px solid rgba(56, 189, 248, 0.2);
-  border-top-color: var(--accent);
+  width: 48px;
+  height: 48px;
+  border: 4px solid rgba(99, 102, 241, 0.2);
+  border-top-color: #6366f1;
   border-radius: 50%;
   animation: spin 1s linear infinite;
+
+  box-shadow:
+    0 0 20px rgba(99, 102, 241, 0.3);
 }
 
-.status { font-size: 14px; color: var(--text); font-weight: 600; }
+.status {
+  font-size: 14px;
+  color: #0f172a;
+  font-weight: 700;
+}
 
 .progress {
   width: 100%;
-  max-width: 300px;
-  height: 8px;
-  border-radius: 4px;
-  background: rgba(148, 163, 184, 0.15);
+  max-width: 320px;
+  height: 10px;
+  border-radius: 5px;
+
+  background: linear-gradient(180deg, #e2e8f0, #f1f5f9);
   overflow: hidden;
+
+  box-shadow:
+    0 1px 2px rgba(15, 23, 42, 0.08) inset,
+    0 1px 0 rgba(255, 255, 255, 0.9);
 }
 
 .progress-fill {
   height: 100%;
-  background: linear-gradient(90deg, #38bdf8, #8b5cf6);
-  border-radius: 4px;
+  border-radius: 5px;
+
+  background: linear-gradient(180deg, #818cf8, #6366f1);
   transition: width 0.3s;
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.4) inset,
+    0 2px 6px rgba(99, 102, 241, 0.5);
 }
 
 .progress-pct {
   font-family: var(--mono);
-  font-size: 12px;
-  color: var(--muted);
+  font-size: 13px;
+  color: #64748b;
+  font-weight: 800;
 }
 
-/* Даты */
+/* ============================================================
+   ДАТЫ
+   ============================================================ */
 .dates-bar {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 10px 12px;
-  border-radius: 12px;
-  background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(139, 92, 246, 0.06));
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 14px;
+
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  border: 1px solid rgba(99, 102, 241, 0.25);
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.06) inset,
+    0 4px 10px -4px rgba(99, 102, 241, 0.15);
 }
 
 .dates-label {
@@ -1086,25 +1366,35 @@ function close() {
   justify-content: space-between;
   gap: 8px;
   font-size: 11.5px;
-  font-weight: 700;
-  color: var(--accent);
+  font-weight: 800;
+  color: #4f46e5;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.06em;
 }
 
 .dates-toggle-mini {
-  padding: 3px 10px;
+  padding: 4px 12px;
   border-radius: 999px;
-  border: 1px solid rgba(56, 189, 248, 0.4);
-  background: transparent;
-  color: var(--accent);
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  background: linear-gradient(180deg, #eef2ff, #e0e7ff);
+  color: #4f46e5;
   font-family: inherit;
   font-size: 10.5px;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.15s ease;
 
-  &:hover { background: rgba(56, 189, 248, 0.15); }
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset;
+
+  &:hover {
+    background: linear-gradient(180deg, #6366f1, #4f46e5);
+    color: #ffffff;
+    border-color: transparent;
+    transform: translateY(-1px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 4px 8px -2px rgba(99, 102, 241, 0.4);
+  }
 }
 
 .dates-chips {
@@ -1119,36 +1409,49 @@ function close() {
   gap: 6px;
   padding: 6px 12px;
   border-radius: 999px;
-  border: 1px solid var(--border);
-  background: #f8fafc;
-  color: var(--muted);
+  border: 1px solid rgba(226, 232, 240, 0.9);
+
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  color: #64748b;
   font-family: inherit;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
-  transition: all 0.15s;
+  transition: all 0.15s cubic-bezier(.34,1.56,.64,1);
   white-space: nowrap;
 
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 2px 4px rgba(15, 23, 42, 0.04);
+
   &:hover {
-    border-color: var(--accent);
-    color: var(--accent);
+    border-color: rgba(99, 102, 241, 0.5);
+    color: #4f46e5;
+    transform: translateY(-1px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 4px 8px -2px rgba(99, 102, 241, 0.2);
   }
 
   &.active {
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-    color: #fff;
+    background: linear-gradient(180deg, #818cf8, #6366f1);
+    color: #ffffff;
     border-color: transparent;
-    box-shadow: 0 4px 12px -4px rgba(59, 130, 246, 0.6);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 4px 10px -2px rgba(99, 102, 241, 0.4);
   }
 
   &.manual {
     border-style: dashed;
-    color: var(--muted);
+    color: #94a3b8;
 
     &.active {
       border-style: solid;
-      background: linear-gradient(135deg, #f59e0b, #f97316);
-      color: #fff;
+      background: linear-gradient(180deg, #fbbf24, #f59e0b);
+      box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.4) inset,
+        0 4px 10px -2px rgba(245, 158, 11, 0.4);
     }
   }
 }
@@ -1156,7 +1459,7 @@ function close() {
 .date-chip-count {
   padding: 1px 7px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.35);
   font-size: 10.5px;
   font-weight: 800;
 
@@ -1167,47 +1470,67 @@ function close() {
 
 .manual-date-row {
   display: flex;
-  gap: 6px;
+  gap: 8px;
   align-items: center;
   padding-top: 4px;
 }
 
 .manual-date-input {
   flex: 1;
-  padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: 10px;
+  padding: 10px 14px;
+  border: 1.5px solid #e2e8f0;
+  border-radius: 12px;
   font-family: inherit;
   font-size: 13px;
-  background: #fff;
-  color: var(--text);
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  color: #0f172a;
   outline: none;
+  font-weight: 700;
+
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.95) inset;
 
   &:focus {
-    border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+    border-color: #6366f1;
+    box-shadow:
+      0 0 0 3px rgba(99, 102, 241, 0.15),
+      0 1px 0 rgba(255, 255, 255, 0.95) inset;
   }
 }
 
 .manual-date-apply {
-  padding: 8px 14px;
-  border-radius: 10px;
-  border: none;
-  background: linear-gradient(135deg, #f59e0b, #f97316);
-  color: #fff;
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(245, 158, 11, 0.5);
+
+  background: linear-gradient(180deg, #fbbf24, #f59e0b);
+  color: #ffffff;
   font-family: inherit;
   font-size: 12.5px;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
   white-space: nowrap;
-  box-shadow: 0 6px 16px -6px rgba(245, 158, 11, 0.6);
-  transition: all 0.15s;
 
-  &:hover { transform: translateY(-1px); }
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.4) inset,
+    0 -2px 0 rgba(180, 83, 9, 0.3) inset,
+    0 4px 10px -2px rgba(245, 158, 11, 0.4);
+
+  transition: all 0.15s cubic-bezier(.34,1.56,.64,1);
+
+  &:hover {
+    transform: translateY(-1px);
+    background: linear-gradient(180deg, #fcd34d, #fbbf24);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.45) inset,
+      0 -2px 0 rgba(180, 83, 9, 0.3) inset,
+      0 8px 18px -4px rgba(245, 158, 11, 0.5);
+  }
   &:active { transform: scale(0.97); }
 }
 
-/* Список операций */
+/* ============================================================
+   СПИСОК ОПЕРАЦИЙ
+   ============================================================ */
 .items-list {
   display: flex;
   flex-direction: column;
@@ -1222,33 +1545,49 @@ function close() {
   grid-template-columns: auto 52px 1fr auto auto;
   gap: 10px;
   align-items: center;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: #ffffff;
-  transition: all 0.15s;
+  padding: 12px 14px;
+  border-radius: 12px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.05) inset,
+    0 2px 4px rgba(15, 23, 42, 0.04);
+
+  transition: all 0.15s ease;
 
   &.selected {
-    border-color: var(--accent);
-    background: rgba(56, 189, 248, 0.03);
+    border-color: rgba(99, 102, 241, 0.5);
+    background: linear-gradient(180deg, #f5f3ff, #ede9fe);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 -1px 0 rgba(148, 163, 184, 0.05) inset,
+      0 4px 10px -2px rgba(99, 102, 241, 0.15);
   }
 
   &:hover {
-    border-color: rgba(56, 189, 248, 0.4);
+    border-color: rgba(99, 102, 241, 0.4);
+    transform: translateY(-1px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 -1px 0 rgba(148, 163, 184, 0.05) inset,
+      0 6px 14px -4px rgba(15, 23, 42, 0.08);
   }
 }
 
 .item-check {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   cursor: pointer;
-  accent-color: var(--accent);
+  accent-color: #6366f1;
 }
 
 .item-date {
   font-size: 11px;
-  font-weight: 700;
-  color: var(--muted);
+  font-weight: 800;
+  color: #94a3b8;
   text-transform: uppercase;
   letter-spacing: 0.03em;
   white-space: nowrap;
@@ -1256,25 +1595,25 @@ function close() {
 
 .item-name {
   font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
+  font-weight: 700;
+  color: #0f172a;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   cursor: pointer;
-  padding: 2px 6px;
-  border-radius: 6px;
-  transition: background 0.15s;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: all 0.15s;
 
   &:hover {
-    background: rgba(56, 189, 248, 0.08);
-    color: var(--accent);
+    background: rgba(99, 102, 241, 0.1);
+    color: #4f46e5;
   }
 }
 
 .item-type {
-  width: 28px;
-  height: 28px;
+  width: 30px;
+  height: 30px;
   border-radius: 8px;
   border: 1px solid transparent;
   cursor: pointer;
@@ -1282,20 +1621,27 @@ function close() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.15s;
+  transition: all 0.15s cubic-bezier(.34,1.56,.64,1);
   padding: 0;
   font-family: inherit;
 
   &.income {
-    background: rgba(34, 197, 94, 0.12);
+    background: linear-gradient(180deg, #dcfce7, #bbf7d0);
     border-color: rgba(34, 197, 94, 0.3);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.9) inset,
+      0 2px 4px rgba(34, 197, 94, 0.1);
   }
   &.expense {
-    background: rgba(239, 68, 68, 0.12);
+    background: linear-gradient(180deg, #fee2e2, #fecaca);
     border-color: rgba(239, 68, 68, 0.3);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.9) inset,
+      0 2px 4px rgba(239, 68, 68, 0.1);
   }
 
-  &:hover { transform: scale(1.08); }
+  &:hover { transform: scale(1.1); }
+  &:active { transform: scale(0.95); }
 }
 
 .item-amount {
@@ -1304,96 +1650,171 @@ function close() {
   font-weight: 800;
   cursor: pointer;
   white-space: nowrap;
-  padding: 2px 6px;
-  border-radius: 6px;
-  transition: background 0.15s;
+  padding: 4px 8px;
+  border-radius: 8px;
+  transition: all 0.15s;
 
   &.income { color: #16a34a; }
   &.expense { color: #dc2626; }
 
-  &:hover {
-    background: rgba(56, 189, 248, 0.1);
-  }
+  &:hover { background: rgba(99, 102, 241, 0.1); }
 }
 
 .empty-filter {
   padding: 24px 16px;
   text-align: center;
-  color: var(--muted);
+  color: #64748b;
   font-size: 13px;
-  border: 1px dashed var(--border);
-  border-radius: 10px;
+  border: 1px dashed rgba(148, 163, 184, 0.4);
+  border-radius: 12px;
+  background: rgba(248, 250, 252, 0.5);
 }
 
+/* ============================================================
+   ОШИБКА
+   ============================================================ */
 .error-msg {
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: rgba(239, 68, 68, 0.08);
+  padding: 10px 14px;
+  border-radius: 10px;
+
+  background: linear-gradient(180deg, #fef2f2, #fee2e2);
   border: 1px solid rgba(239, 68, 68, 0.3);
-  color: var(--danger);
+  color: #dc2626;
   font-size: 12.5px;
-  font-weight: 600;
+  font-weight: 700;
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 2px 4px rgba(239, 68, 68, 0.08);
 }
 
-.btn-cancel, .btn-save {
-  padding: 10px 20px;
-  border-radius: 10px;
+/* ============================================================
+   ✅ КНОПКИ ФУТЕРА
+   ============================================================ */
+.btn-cancel,
+.btn-save {
+  padding: 12px 22px;
+  border-radius: 12px;
   font-family: inherit;
   font-size: 14px;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
   border: 1px solid transparent;
+  transition: all 0.18s cubic-bezier(.34,1.56,.64,1);
 }
 
 .btn-cancel {
-  background: #f1f5f9;
-  color: var(--text);
-  border-color: var(--border);
+  background: linear-gradient(180deg, #ffffff, #f1f5f9);
+  color: #334155;
+  border-color: rgba(226, 232, 240, 0.9);
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.08) inset,
+    0 2px 6px rgba(15, 23, 42, 0.06);
+
+  &:hover {
+    background: linear-gradient(180deg, #f8fafc, #e2e8f0);
+    transform: translateY(-1px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 -1px 0 rgba(148, 163, 184, 0.08) inset,
+      0 6px 14px -4px rgba(15, 23, 42, 0.12);
+  }
+  &:active { transform: scale(0.97); }
 }
 
 .btn-save {
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  color: #fff;
-  box-shadow: 0 10px 24px -10px rgba(59, 130, 246, 0.7);
+  background: linear-gradient(180deg, #818cf8, #6366f1);
+  color: #ffffff;
 
-  &:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 -2px 0 rgba(49, 46, 129, 0.3) inset,
+    0 4px 10px -2px rgba(99, 102, 241, 0.5),
+    0 10px 24px -6px rgba(99, 102, 241, 0.4);
+
+  &:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    box-shadow: none;
+    transform: none;
+  }
+
+  &:not(:disabled):hover {
+    transform: translateY(-2px);
+    background: linear-gradient(180deg, #a5b4fc, #818cf8);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.4) inset,
+      0 -2px 0 rgba(49, 46, 129, 0.3) inset,
+      0 8px 20px -4px rgba(99, 102, 241, 0.6),
+      0 16px 36px -8px rgba(99, 102, 241, 0.5);
+  }
+
+  &:not(:disabled):active {
+    transform: translateY(0) scale(0.97);
+    box-shadow:
+      0 2px 6px rgba(99, 102, 241, 0.4) inset;
+  }
 }
 
-/* Мобильный */
+/* ============================================================
+   МОБИЛЬНЫЙ
+   ============================================================ */
 @media (max-width: 700px) {
+  .scan-header { gap: 10px; }
+  .sh-icon { width: 36px; height: 36px; font-size: 18px; border-radius: 10px; }
+  .sh-title { font-size: 15px; }
+  .sh-sub { font-size: 11px; }
+
+  .mode { padding: 9px 8px; font-size: 11.5px; gap: 5px; border-radius: 9px; }
+  .m-icon { font-size: 13px; }
+
   .fields-row {
     grid-template-columns: 1fr;
-    gap: 10px;
+    gap: 12px;
   }
+
+  .drop-zone { padding: 16px; gap: 12px; }
+  .dz-icon-wrap { width: 48px; height: 48px; border-radius: 14px; }
+  .dz-icon { font-size: 22px; }
+  .dz-title { font-size: 14px; }
+  .dz-sub { font-size: 11.5px; }
+  .dz-hint { display: none; }
 
   .item-row {
     grid-template-columns: auto 46px 1fr auto auto;
     gap: 8px;
     padding: 10px;
   }
-
-  .item-date {
-    font-size: 10px;
-  }
-
-  .item-name {
-    font-size: 12.5px;
-  }
-
-  .item-type {
-    width: 24px;
-    height: 24px;
-    font-size: 12px;
-  }
-
-  .item-amount {
-    font-size: 12.5px;
-    padding: 2px 4px;
-  }
+  .item-date { font-size: 10px; }
+  .item-name { font-size: 12.5px; }
+  .item-type { width: 26px; height: 26px; font-size: 12px; }
+  .item-amount { font-size: 12.5px; padding: 4px 6px; }
 
   .preview-image-wrapper {
     max-height: 36vh;
     .preview-image { max-height: 36vh; }
   }
+
+  .btn-cancel,
+  .btn-save { padding: 12px 18px; font-size: 13px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scan-header,
+  .mode,
+  .drop-zone,
+  .replace-file-row,
+  .replace-file-btn,
+  .date-chip,
+  .item-row,
+  .btn-cancel,
+  .btn-save,
+  .dz-icon-pulse { transition: none !important; transform: none !important; }
+  .dz-icon-pulse { animation: none !important; }
+  .scan-beam-line,
+  .scan-beam-glow,
+  .preview-image-wrapper.is-scanning::after { animation: none !important; }
 }
 </style>
