@@ -9,7 +9,6 @@ const getProfileStmt = db.prepare(
   'SELECT user, display_name, avatar, created_at, updated_at FROM user_profiles WHERE user = ?'
 );
 
-// ✅ Upsert с created_at — сохраняем при первом создании
 const upsertProfileStmt = db.prepare(`
   INSERT INTO user_profiles (user, display_name, avatar, created_at, updated_at)
   VALUES (@user, @displayName, @avatar, @createdAt, @updatedAt)
@@ -39,6 +38,117 @@ function rowToProfile(row, fallbackUser) {
 }
 
 // ============================================================
+// ✅ GET /api/profile/stats — ДО /:user
+// ============================================================
+router.get('/stats', requireAuth, (req, res) => {
+  try {
+    const me = req.user;
+
+    const rows = db.prepare(`
+      SELECT payload FROM transactions
+      WHERE user = ? AND fixed = 0
+      ORDER BY date DESC
+    `).all(me);
+
+    const txs = rows.map(r => {
+      try { return JSON.parse(r.payload); } catch { return null; }
+    }).filter(Boolean);
+
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59, 999);
+
+    // ✅ СЕРИЯ
+    const dayKeys = new Set();
+    for (const t of txs) {
+      const d = new Date(t.date);
+      if (isNaN(d.getTime())) continue;
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      dayKeys.add(key);
+    }
+
+    let streak = 0;
+    const cursor = new Date(todayStart);
+    const todayKey = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
+    if (!dayKeys.has(todayKey)) cursor.setDate(cursor.getDate() - 1);
+
+    for (let i = 0; i < 366; i++) {
+      const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}-${String(cursor.getDate()).padStart(2, '0')}`;
+      if (dayKeys.has(key)) {
+        streak++;
+        cursor.setDate(cursor.getDate() - 1);
+      } else break;
+    }
+
+    // ✅ СРАВНЕНИЕ МЕСЯЦЕВ
+    function aggregateInRange(start, end) {
+      let income = 0, expense = 0;
+      for (const t of txs) {
+        if (t.fromReconcile) continue;
+        const d = new Date(t.date);
+        if (isNaN(d.getTime())) continue;
+        if (d < start || d > end) continue;
+        if (t.type === 'income') income += Number(t.amount) || 0;
+        else expense += Number(t.amount) || 0;
+      }
+      return { income, expense };
+    }
+
+    const current = aggregateInRange(monthStart, monthEnd);
+    const previous = aggregateInRange(prevMonthStart, prevMonthEnd);
+
+    function pctDiff(curr, prev) {
+      if (prev === 0) return curr === 0 ? 0 : null;
+      return ((curr - prev) / prev) * 100;
+    }
+
+    const monthCompare = {
+      current,
+      previous,
+      incomePct: pctDiff(current.income, previous.income),
+      expensePct: pctDiff(current.expense, previous.expense),
+      balancePct: pctDiff(
+        current.income - current.expense,
+        previous.income - previous.expense
+      ),
+    };
+
+    // ✅ ТОП-3 КАТЕГОРИИ
+    const catMap = new Map();
+    for (const t of txs) {
+      if (t.type !== 'expense') continue;
+      if (t.fromReconcile) continue;
+      const d = new Date(t.date);
+      if (isNaN(d.getTime())) continue;
+      if (d < monthStart || d > monthEnd) continue;
+      const cat = String(t.category || 'Прочее');
+      catMap.set(cat, (catMap.get(cat) || 0) + (Number(t.amount) || 0));
+    }
+
+    const totalExpense = current.expense || 1;
+    const topCategories = [...catMap.entries()]
+      .map(([category, amount]) => ({
+        category,
+        amount,
+        pct: (amount / totalExpense) * 100,
+      }))
+      .sort((a, b) => b.amount - a.amount)
+      .slice(0, 3);
+
+    res.json({
+      ok: true,
+      stats: { streak, monthCompare, topCategories },
+    });
+  } catch (err) {
+    console.error('[profile] stats ошибка:', err.message);
+    res.status(500).json({ ok: false, error: err.message });
+  }
+});
+
+// ============================================================
 // GET /api/profile/:user — профиль любого пользователя
 // ============================================================
 router.get('/:user', requireAuth, (req, res) => {
@@ -56,7 +166,7 @@ router.get('/:user', requireAuth, (req, res) => {
 });
 
 // ============================================================
-// GET /api/profile — текущий профиль
+// GET /api/profile — текущий
 // ============================================================
 router.get('/', requireAuth, (req, res) => {
   try {
@@ -87,8 +197,6 @@ router.post('/', requireAuth, (req, res) => {
       : null;
 
     const updatedAt = new Date().toISOString();
-
-    // ✅ Устанавливаем createdAt только при первом сохранении
     const existing = getProfileStmt.get(me);
     const createdAt = existing?.created_at || updatedAt;
 
