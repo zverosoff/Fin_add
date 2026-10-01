@@ -372,7 +372,7 @@ function itemStyle() {
   display: block;
 
   /* ✅ Мягкое размытие + полупрозрачность */
-  opacity: 0.18;
+  opacity: 0.1;
   filter: blur(1px) saturate(1.3);
 
   /* ✅ Плавный переход к правому нижнему краю */
