@@ -10,12 +10,12 @@ import { fmt } from '@/composables/useFormat';
 import PeriodSelector from '@/components/analytics/PeriodSelector.vue';
 import MetricCard from '@/components/analytics/MetricCard.vue';
 import ComparisonCard from '@/components/analytics/ComparisonCard.vue';
-import BarChart from '@/components/analytics/BarChart.vue';
-import LineChart from '@/components/analytics/LineChart.vue';
 import GoalsList from '@/components/goals/GoalsList.vue';
 import GoalModal from '@/components/goals/GoalModal.vue';
 import ContributeModal from '@/components/goals/ContributeModal.vue';
 import EditContribModal from '@/components/goals/EditContribModal.vue';
+import FinancialAssistant from '@/components/analytics/FinancialAssistant.vue';
+import FinanceQuotes from '@/components/analytics/FinanceQuotes.vue';
 
 const accounts = useAccountsStore();
 const analytics = useAnalyticsStore();
@@ -46,11 +46,8 @@ onMounted(async () => {
 const metrics = computed(() => analytics.currentMonthMetrics);
 
 const saveRateHint = computed(() => {
-  const r = metrics.value.monthSaveRate;
-  if (r >= 20) return '✅ Отличный показатель';
-  if (r >= 10) return '⚠️ Можно улучшить';
-  if (r > 0) return '❗ Слишком низко';
-  return '🚨 Расходы превышают доходы';
+  const m = metrics.value;
+  return `${m.savePercent}% от дохода ${fmt(m.monthIncome)} ₽`;
 });
 
 const runwayHint = computed(() => {
@@ -62,9 +59,14 @@ const runwayHint = computed(() => {
 
 const saveMonthlyHint = computed(() => {
   const m = metrics.value;
-  if (m.monthSave > 0) return `${m.monthName}: ${fmt(m.monthIncome)} ₽ − ${fmt(m.monthExpense)} ₽`;
-  if (m.monthSave < 0) return `${m.monthName}: перерасход ${fmt(Math.abs(m.monthSave))} ₽`;
-  return `${m.monthName}: нет данных`;
+  return `${m.monthName}: рекомендовано ${m.savePercent}% от ${fmt(m.monthIncome)} ₽`;
+});
+
+const realFreeHint = computed(() => {
+  const m = metrics.value;
+  if (m.realFree > 0) return `Свободно после расходов: ${fmt(m.realFree)} ₽`;
+  if (m.realFree < 0) return `Перерасход: ${fmt(Math.abs(m.realFree))} ₽`;
+  return 'Нет данных';
 });
 
 function openAddGoal() {
@@ -116,11 +118,12 @@ function openEditContrib({ goal, user }) {
 <template>
   <div class="analytics-page">
     <div class="analytics-grid">
+      <!-- ЛЕВАЯ КОЛОНКА -->
       <div class="an-col an-col-left">
         <div class="metrics-grid">
           <MetricCard
             icon="💰"
-            label="Можно откладывать в месяц"
+            label="Можно откладывать (10%)"
             :value="fmt(metrics.monthSave) + ' ₽'"
             :hint="saveMonthlyHint"
             accent
@@ -129,9 +132,9 @@ function openEditContrib({ goal, user }) {
           />
           <MetricCard
             icon="📊"
-            label="Норма сбережений"
-            :value="Math.round(metrics.monthSaveRate) + '%'"
-            :hint="saveRateHint"
+            label="Свободно после расходов"
+            :value="fmt(metrics.realFree) + ' ₽'"
+            :hint="realFreeHint"
             style="animation-delay: 70ms"
           />
           <MetricCard
@@ -157,18 +160,7 @@ function openEditContrib({ goal, user }) {
           <ComparisonCard />
         </section>
 
-        <section class="card">
-          <h2 class="card-title">📊 Доходы и расходы по месяцам</h2>
-          <BarChart :data="analytics.monthlyData" />
-        </section>
-
-        <section class="card">
-          <h2 class="card-title">📈 Накопление баланса</h2>
-          <LineChart :data="analytics.monthlyData" />
-        </section>
-      </div>
-
-      <div class="an-col an-col-right">
+        <!-- ✅ ЦЕЛИ — теперь в левой колонке -->
         <section class="card">
           <div class="card-head">
             <h2 class="card-title">🎯 Цели накоплений и желаемые покупки</h2>
@@ -183,6 +175,15 @@ function openEditContrib({ goal, user }) {
             @set-primary="onSetPrimary"
           />
         </section>
+      </div>
+
+      <!-- ПРАВАЯ КОЛОНКА -->
+      <div class="an-col an-col-right">
+        <!-- ✅ Финансовый помощник -->
+        <FinancialAssistant />
+
+        <!-- ✅ Цитаты -->
+        <FinanceQuotes />
       </div>
     </div>
 
@@ -282,11 +283,8 @@ function openEditContrib({ goal, user }) {
 
 .an-col-left .card:nth-child(3) { animation-delay: 280ms; }
 .an-col-left .card:nth-child(4) { animation-delay: 350ms; }
-.an-col-left .card:nth-child(5) { animation-delay: 420ms; }
-
-.an-col-right .card {
-  animation-delay: 300ms;
-}
+.an-col-right .card:nth-child(1) { animation-delay: 300ms; }
+.an-col-right .card:nth-child(2) { animation-delay: 400ms; }
 
 @media (max-width: 1100px) {
   .analytics-grid { grid-template-columns: 1fr; max-width: 900px; }
