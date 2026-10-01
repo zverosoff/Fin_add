@@ -1,10 +1,15 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue';
+import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
+import { useAccountsStore } from '@/stores/accounts';
 import { useToast } from '@/composables/useToast';
+import { fmt } from '@/composables/useFormat';
 import ChatWidget from '@/components/chat/ChatWidget.vue';
 
 const auth = useAuthStore();
+const accounts = useAccountsStore();
+const router = useRouter();
 const toast = useToast();
 
 const me = computed(() => auth.user || 'Сергей');
@@ -17,15 +22,38 @@ const loading = ref(true);
 
 const fileEl = ref(null);
 
-const stats = computed(() => ({
-  balance: 2823,
-  accounts: 4,
-  operations: 298,
-}));
+// ✅ РЕАЛЬНАЯ статистика за прошедший месяц
+const stats = computed(() => {
+  const now = new Date();
+  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+  const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
 
-// ============================================================
-// Загрузка профиля
-// ============================================================
+  const monthTxs = (accounts.transactions || []).filter(t => {
+    if (t.fixed) return false;
+    const d = new Date(t.date);
+    return d >= monthStart && d <= monthEnd;
+  });
+
+  let income = 0;
+  let expense = 0;
+  for (const t of monthTxs) {
+    if (t.fromReconcile) continue;
+    if (t.type === 'income') income += t.amount;
+    else expense += t.amount;
+  }
+
+  // Баланс = текущий баланс счета (все счета)
+  const balance = accounts.accounts.reduce((s, a) => s + (Number(a.value) || 0), 0);
+
+  return {
+    balance,
+    accounts: accounts.accounts.length,
+    operations: monthTxs.length,
+    monthIncome: income,
+    monthExpense: expense,
+  };
+});
+
 async function loadProfile() {
   loading.value = true;
   try {
@@ -51,9 +79,6 @@ async function loadProfile() {
   }
 }
 
-// ============================================================
-// Аватар
-// ============================================================
 function openFilePicker() {
   fileEl.value?.click();
 }
@@ -111,7 +136,6 @@ async function onFileChange(e) {
   e.target.value = '';
 }
 
-// ✅ Удалить аватар
 function removeAvatar() {
   if (!avatarPreview.value) return;
   if (!confirm('Удалить фото профиля? Будет показана стандартная иконка.')) return;
@@ -120,9 +144,6 @@ function removeAvatar() {
   toast.info('🗑 Фото удалено — нажмите Сохранить, чтобы применить');
 }
 
-// ============================================================
-// Сохранение
-// ============================================================
 async function save() {
   const clean = displayName.value.trim();
   if (!clean) {
@@ -153,17 +174,17 @@ async function save() {
   }
 }
 
-// ============================================================
-// Метаданные
-// ============================================================
+async function handleLogout() {
+  if (!confirm('Выйти из аккаунта?')) return;
+  await auth.logout();
+  router.push('/login');
+}
+
 const lastLogin = ref(new Date().toLocaleString('ru-RU', {
   day: 'numeric', month: 'long', year: 'numeric',
   hour: '2-digit', minute: '2-digit',
 }));
 
-// ============================================================
-// Слушатель обновлений профиля из других вкладок
-// ============================================================
 let unsubProfile = null;
 
 onMounted(() => {
@@ -198,7 +219,6 @@ onUnmounted(() => {
     <!-- ЛЕВАЯ КОЛОНКА -->
     <div class="profile-col profile-col-left">
       <div class="profile-card">
-        <!-- Аватар -->
         <div class="avatar-wrap">
           <div class="avatar" @click="openFilePicker">
             <img v-if="avatarPreview" :src="avatarPreview" alt="avatar" />
@@ -216,7 +236,6 @@ onUnmounted(() => {
           />
         </div>
 
-        <!-- ✅ Кнопки аватара -->
         <div class="avatar-actions">
           <button
             class="avatar-action-btn"
@@ -272,10 +291,10 @@ onUnmounted(() => {
       </div>
 
       <div class="profile-card">
-        <h2 class="card-title">📊 СТАТИСТИКА</h2>
+        <h2 class="card-title">📊 СТАТИСТИКА ЗА МЕСЯЦ</h2>
         <div class="stats-grid">
           <div class="stat">
-            <div class="stat-value">{{ stats.balance.toLocaleString('ru-RU') }} ₽</div>
+            <div class="stat-value">{{ fmt(stats.balance) }} ₽</div>
             <div class="stat-label">БАЛАНС</div>
           </div>
           <div class="stat">
@@ -287,13 +306,33 @@ onUnmounted(() => {
             <div class="stat-label">ОПЕРАЦИЙ</div>
           </div>
         </div>
+
+        <div class="stats-extra">
+          <div class="stat-extra-row income">
+            <span class="se-label">📈 Доходы за месяц</span>
+            <span class="se-value">+{{ fmt(stats.monthIncome) }} ₽</span>
+          </div>
+          <div class="stat-extra-row expense">
+            <span class="se-label">📉 Расходы за месяц</span>
+            <span class="se-value">−{{ fmt(stats.monthExpense) }} ₽</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ✅ Выход из профиля -->
+      <div class="profile-card">
+        <button class="logout-btn" type="button" @click="handleLogout">
+          <span class="logout-icon">🚪</span>
+          <span>Выйти из аккаунта</span>
+        </button>
       </div>
     </div>
 
     <!-- ПРАВАЯ КОЛОНКА -->
     <div class="profile-col profile-col-right">
       <div class="embed-chat">
-        <ChatWidget :start-open="true" :embed-mode="true" />
+        <!-- ✅ startOpen: false — мессенджер свёрнут по умолчанию -->
+        <ChatWidget :start-open="false" :embed-mode="true" />
       </div>
 
       <div class="insta-stub">
@@ -332,9 +371,7 @@ onUnmounted(() => {
 }
 
 @media (max-width: 980px) {
-  .profile-page {
-    grid-template-columns: 1fr;
-  }
+  .profile-page { grid-template-columns: 1fr; }
 }
 
 .profile-col {
@@ -402,7 +439,6 @@ onUnmounted(() => {
 
 .avatar-file { display: none; }
 
-/* ✅ Кнопки под аватаром */
 .avatar-actions {
   display: flex;
   justify-content: center;
@@ -433,15 +469,8 @@ onUnmounted(() => {
     background: rgba(99, 102, 241, 0.06);
     transform: translateY(-1px);
   }
-
-  &:active:not(:disabled) {
-    transform: scale(0.97);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
+  &:active:not(:disabled) { transform: scale(0.97); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
 
   &.danger {
     border-color: rgba(239, 68, 68, 0.35);
@@ -590,6 +619,78 @@ onUnmounted(() => {
   letter-spacing: 0.05em;
 }
 
+/* ✅ Доходы/расходы за месяц */
+.stats-extra {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #eef0f4;
+}
+
+.stat-extra-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+
+  &.income {
+    background: rgba(34, 197, 94, 0.06);
+    .se-value { color: #16a34a; }
+  }
+  &.expense {
+    background: rgba(239, 68, 68, 0.06);
+    .se-value { color: #dc2626; }
+  }
+}
+
+.se-label {
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 10.5px;
+}
+
+.se-value {
+  font-family: var(--mono);
+  font-weight: 800;
+  font-size: 13px;
+}
+
+/* ✅ Кнопка выхода */
+.logout-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(239, 68, 68, 0.35);
+  background: rgba(239, 68, 68, 0.06);
+  color: #dc2626;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s;
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.12);
+    border-color: #dc2626;
+    transform: translateY(-1px);
+    box-shadow: 0 8px 20px -8px rgba(239, 68, 68, 0.5);
+  }
+  &:active { transform: scale(0.98); }
+}
+
+.logout-icon { font-size: 16px; }
+
 .embed-chat {
   border-radius: 18px;
   overflow: hidden;
@@ -682,36 +783,13 @@ onUnmounted(() => {
 }
 
 @media (max-width: 700px) {
-  .embed-chat {
-    display: none !important;
-  }
+  .embed-chat { display: none !important; }
 
-  .profile-page {
-    padding: 12px;
-    gap: 12px;
-  }
-
-  .profile-card {
-    padding: 16px;
-    border-radius: 14px;
-  }
-
-  .profile-name {
-    font-size: 20px;
-  }
-
-  .stat-value {
-    font-size: 15px;
-  }
-
-  .insta-stub {
-    padding: 16px;
-    border-radius: 14px;
-  }
-
-  .avatar-action-btn {
-    font-size: 11.5px;
-    padding: 6px 12px;
-  }
+  .profile-page { padding: 12px; gap: 12px; }
+  .profile-card { padding: 16px; border-radius: 14px; }
+  .profile-name { font-size: 20px; }
+  .stat-value { font-size: 15px; }
+  .insta-stub { padding: 16px; border-radius: 14px; }
+  .avatar-action-btn { font-size: 11.5px; padding: 6px 12px; }
 }
 </style>

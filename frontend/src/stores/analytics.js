@@ -5,12 +5,8 @@ import { useAccountsStore } from './accounts';
 export const useAnalyticsStore = defineStore('analytics', () => {
   const accountsStore = useAccountsStore();
 
-  // Период: 1 | 3 | 6 | 12 | 'all'
   const periodMonths = ref(6);
 
-  // ============================================================
-  // Диапазон дат
-  // ============================================================
   const dateRange = computed(() => {
     const end = new Date();
     end.setHours(23, 59, 59, 999);
@@ -33,9 +29,6 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     return { start, end };
   });
 
-  // ============================================================
-  // Транзакции периода
-  // ============================================================
   const periodTransactions = computed(() => {
     const { start, end } = dateRange.value;
     return accountsStore.transactions.filter(t => {
@@ -45,9 +38,6 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     });
   });
 
-  // ============================================================
-  // Агрегация по месяцам
-  // ============================================================
   const monthlyData = computed(() => {
     const { start, end } = dateRange.value;
     const map = new Map();
@@ -92,7 +82,8 @@ export const useAnalyticsStore = defineStore('analytics', () => {
   });
 
   // ============================================================
-  // Метрики за текущий месяц
+  // ✅ Метрики за ТЕКУЩИЙ месяц
+  // monthSave = 10% от дохода (сколько МОЖНО откладывать)
   // ============================================================
   const currentMonthMetrics = computed(() => {
     const now = new Date();
@@ -112,11 +103,15 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       else expense += t.amount;
     }
 
-    const save = income - expense;
-    const saveRate = income > 0 ? (save / income) * 100 : 0;
+    // ✅ 10% от прибыли (income)
+    const SAVE_PERCENT = 10;
+    const save = (income * SAVE_PERCENT) / 100;
+
+    const realFree = income - expense; // сколько реально осталось
+    const saveRate = income > 0 ? (save / income) * 100 : 0; // = 10%
+
     const accountsTotal = accountsStore.accounts.reduce((s, a) => s + (Number(a.value) || 0), 0);
 
-    // ✅ Средний расход по НЕПУСТЫМ месяцам (защита от NaN)
     const nonEmpty = monthlyData.value.filter(m => m.count > 0);
     const avgExpense = nonEmpty.length
       ? nonEmpty.reduce((s, m) => s + m.expense, 0) / nonEmpty.length
@@ -130,8 +125,10 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     return {
       monthIncome: income,
       monthExpense: expense,
-      monthSave: save,
-      monthSaveRate: saveRate,
+      monthSave: save,               // ✅ 10% от дохода
+      realFree,                       // ✅ реальный остаток
+      savePercent: SAVE_PERCENT,      // = 10
+      monthSaveRate: saveRate,        // = 10
       monthName: ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
                   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'][now.getMonth()],
       accountsTotal,
@@ -141,9 +138,6 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     };
   });
 
-  // ============================================================
-  // Сравнение с прошлым периодом
-  // ============================================================
   const comparison = computed(() => {
     const current = periodTransactions.value;
     const { start, end } = dateRange.value;
@@ -174,9 +168,6 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     };
   });
 
-  // ============================================================
-  // Изменение периода
-  // ============================================================
   function setPeriod(months) {
     periodMonths.value = months;
   }
