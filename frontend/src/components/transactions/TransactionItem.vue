@@ -26,21 +26,53 @@ const userClass = computed(() => (props.tx.user === 'Сергей' ? 'sergey' : 
 const displayUserName = computed(() => auth.nameFor(props.tx.user));
 const userAvatar = computed(() => auth.avatarFor(props.tx.user));
 
-// ✅ Бейдж под аватаром — что показать: лого банка или иконку наличных
-const accountBadge = computed(() => {
+// ✅ Банк-плашка: цвет фона + лого
+const bankStyle = computed(() => {
   const id = props.tx.accountId;
   if (!id) return null;
 
+  // Наличные — зелёный
   if (id === 'cash' || id.startsWith('cash_')) {
-    return { type: 'cash', icon: '💵', label: 'Наличные' };
+    return {
+      type: 'cash',
+      icon: '💵',
+      label: 'Наличные',
+      color1: '#22c55e',
+      color2: '#16a34a',
+      gradient: 'linear-gradient(135deg, #86efac, #22c55e, #16a34a)',
+    };
   }
 
-  const logo = bankLogoUrl.value;
-  if (logo) {
-    return { type: 'bank', logo, label: bankLabel(id) };
+  // Т-Банк — жёлтый
+  if (id.startsWith('tbank')) {
+    return {
+      type: 'tbank',
+      logo: bankLogoUrl.value,
+      label: 'Т-Банк',
+      gradient: 'linear-gradient(135deg, #fde047, #facc15, #eab308)',
+      bgColor: '#ffdd2d',
+    };
   }
 
-  return { type: 'default', icon: '💳', label: accountName.value || 'Счёт' };
+  // Сбер — зелёный
+  if (id.startsWith('sber')) {
+    return {
+      type: 'sber',
+      logo: bankLogoUrl.value,
+      label: 'СберБанк',
+      gradient: 'linear-gradient(135deg, #4ade80, #21a038, #15803d)',
+      bgColor: '#21a038',
+    };
+  }
+
+  // Дефолт
+  return {
+    type: 'default',
+    icon: '💳',
+    label: accountName.value || 'Счёт',
+    gradient: 'linear-gradient(135deg, #cbd5e1, #94a3b8)',
+    bgColor: '#94a3b8',
+  };
 });
 
 const appearing = ref(false);
@@ -144,12 +176,22 @@ function itemStyle() {
     :class="[
       swipeState ? 'swipe-' + swipeState : '',
       { 'is-appearing': appearing, 'is-deleting': deleting },
+      bankStyle ? 'has-bank-' + bankStyle.type : '',
     ]"
     :style="itemStyle()"
     @touchstart.passive="onTouchStart"
     @touchmove.passive="onTouchMove"
     @touchend="onTouchEnd"
   >
+    <!-- ✅ ФОНОВАЯ ПЛАШКА БАНКА СЛЕВА С БЛЮРОМ -->
+    <div
+      v-if="bankStyle"
+      class="tx-bank-bg"
+      :class="'bg-' + bankStyle.type"
+      :style="{ background: bankStyle.gradient }"
+      aria-hidden="true"
+    ></div>
+
     <div
       v-if="swipeProgress > 0"
       class="tx-swipe-progress"
@@ -157,38 +199,29 @@ function itemStyle() {
       :style="{ opacity: swipeProgress }"
     ></div>
 
-    <!-- ✅ АВАТАР + БЕЙДЖ АККАУНТА -->
-    <div class="tx-avatar-wrap">
-      <div
-        class="tx-avatar"
-        :class="userClass"
-      >
-        <img
-          v-if="userAvatar"
-          :src="userAvatar"
-          alt="avatar"
-          class="tx-avatar-img"
-          loading="lazy"
-        />
-        <span v-else class="tx-avatar-emoji">{{ userEmoji(tx.user) }}</span>
-      </div>
+    <!-- ✅ ЛОГО БАНКА / ИКОНКА — на плашке -->
+    <div v-if="bankStyle" class="tx-bank-logo-wrap">
+      <img
+        v-if="bankStyle.type === 'tbank' || bankStyle.type === 'sber'"
+        :src="bankStyle.logo"
+        :alt="bankStyle.label"
+        class="tx-bank-logo"
+        loading="lazy"
+        @error="(e) => (e.target.style.display = 'none')"
+      />
+      <span v-else class="tx-bank-icon">{{ bankStyle.icon }}</span>
+    </div>
 
-      <!-- ✅ Кружок с лого банка/иконкой наличных -->
-      <div
-        v-if="accountBadge"
-        class="tx-account-badge"
-        :class="`badge-${accountBadge.type}`"
-        :title="accountBadge.label"
-      >
-        <img
-          v-if="accountBadge.type === 'bank'"
-          :src="accountBadge.logo"
-          :alt="accountBadge.label"
-          class="tx-account-logo"
-          @error="(e) => (e.target.style.display = 'none')"
-        />
-        <span v-else class="tx-account-icon">{{ accountBadge.icon }}</span>
-      </div>
+    <!-- АВАТАР -->
+    <div class="tx-avatar" :class="userClass">
+      <img
+        v-if="userAvatar"
+        :src="userAvatar"
+        alt="avatar"
+        class="tx-avatar-img"
+        loading="lazy"
+      />
+      <span v-else class="tx-avatar-emoji">{{ userEmoji(tx.user) }}</span>
     </div>
 
     <div class="tx-main">
@@ -226,13 +259,14 @@ function itemStyle() {
 
 <style scoped lang="scss">
 /* ============================================================
-   КАРТОЧКА — стекло + 4-слойная тень + hover-подъём
+   КАРТОЧКА
    ============================================================ */
 .tx-item {
   position: relative;
   display: flex;
   align-items: center;
   gap: 14px;
+  padding: 14px 16px 14px 66px; /* ✅ отступ слева под плашку банка */
 
   background: linear-gradient(
     180deg,
@@ -242,7 +276,7 @@ function itemStyle() {
 
   border: 1px solid rgba(226, 232, 240, 0.8);
   border-radius: 16px;
-  padding: 14px 16px;
+  overflow: hidden;
 
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.95) inset,
@@ -266,6 +300,11 @@ function itemStyle() {
       0 4px 10px rgba(15, 23, 42, 0.06),
       0 16px 32px -10px rgba(99, 102, 241, 0.2),
       0 24px 48px -16px rgba(15, 23, 42, 0.12);
+  }
+
+  /* ✅ Если банк не определён — отступ слева меньше */
+  &:not([class*="has-bank-"]) {
+    padding-left: 16px;
   }
 
   &.is-appearing {
@@ -302,75 +341,157 @@ function itemStyle() {
   }
 }
 
-.tx-swipe-progress {
+/* ============================================================
+   ✅ ФОНОВАЯ ПЛАШКА БАНКА СЛЕВА С БЛЮРОМ
+   ============================================================ */
+.tx-bank-bg {
   position: absolute;
-  inset: 0;
-  border-radius: 16px;
-  pointer-events: none;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 80px;
   z-index: 0;
-  transition: opacity 0.12s;
+  pointer-events: none;
 
-  &.primary {
-    background: linear-gradient(90deg, transparent 0%, rgba(59, 130, 246, 0.35) 100%);
-  }
-  &.danger {
-    background: linear-gradient(90deg, rgba(239, 68, 68, 0.35) 0%, transparent 100%);
-  }
+  /* ✅ Плавный переход от цвета к прозрачному */
+  -webkit-mask-image: linear-gradient(
+    90deg,
+    #000 0%,
+    #000 40%,
+    rgba(0, 0, 0, 0.7) 60%,
+    rgba(0, 0, 0, 0.3) 80%,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    90deg,
+    #000 0%,
+    #000 40%,
+    rgba(0, 0, 0, 0.7) 60%,
+    rgba(0, 0, 0, 0.3) 80%,
+    transparent 100%
+  );
+
+  /* ✅ Мягкое свечение внутри плашки */
+  opacity: 0.85;
+
+  /* ✅ Дополнительный blur */
+  filter: blur(0.5px) saturate(1.2);
 }
 
-.tx-item > * { position: relative; z-index: 1; }
-
-.tx-item.swipe-left { border-color: rgba(239, 68, 68, 0.5); }
-.tx-item.swipe-right { border-color: rgba(59, 130, 246, 0.5); }
-
-.tx-item.swipe-left::before {
-  content: "🗑";
-  position: absolute;
-  top: 0; right: 0; bottom: 0;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding-right: 24px;
-  background: linear-gradient(90deg, transparent, rgba(239, 68, 68, 0.85));
-  color: #fff;
-  font-size: 20px;
-  border-radius: 16px;
-  z-index: 0;
-  pointer-events: none;
+/* Т-Банк — жёлтый с более насыщенным началом */
+.tx-bank-bg.bg-tbank {
+  background: linear-gradient(
+    135deg,
+    #fde047 0%,
+    #facc15 40%,
+    #eab308 70%,
+    rgba(234, 179, 8, 0) 100%
+  ) !important;
 }
-.tx-item.swipe-right::before {
-  content: "✏️";
-  position: absolute;
-  top: 0; left: 0; bottom: 0;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  padding-left: 24px;
-  background: linear-gradient(90deg, rgba(59, 130, 246, 0.85), transparent);
-  color: #fff;
-  font-size: 20px;
-  border-radius: 16px;
-  z-index: 0;
-  pointer-events: none;
+
+/* Сбер — зелёный */
+.tx-bank-bg.bg-sber {
+  background: linear-gradient(
+    135deg,
+    #4ade80 0%,
+    #21a038 40%,
+    #15803d 70%,
+    rgba(21, 128, 61, 0) 100%
+  ) !important;
+}
+
+/* Наличные — зелёный */
+.tx-bank-bg.bg-cash {
+  background: linear-gradient(
+    135deg,
+    #86efac 0%,
+    #22c55e 40%,
+    #16a34a 70%,
+    rgba(22, 163, 74, 0) 100%
+  ) !important;
+}
+
+/* Дефолт */
+.tx-bank-bg.bg-default {
+  background: linear-gradient(
+    135deg,
+    #cbd5e1 0%,
+    #94a3b8 40%,
+    #64748b 70%,
+    rgba(100, 116, 139, 0) 100%
+  ) !important;
 }
 
 /* ============================================================
-   ✅ АВАТАР + БЕЙДЖ АККАУНТА
+   ✅ ЛОГО БАНКА НА ПЛАШКЕ
    ============================================================ */
-.tx-avatar-wrap {
-  position: relative;
-  flex: 0 0 48px;
-  width: 48px;
-  height: 48px;
-  flex-shrink: 0;
+.tx-bank-logo-wrap {
+  position: absolute;
+  top: 50%;
+  left: 12px;
+  transform: translateY(-50%);
+  z-index: 2;
+
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+
+  /* ✅ Стеклянный фон с объёмом */
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.95),
+    rgba(255, 255, 255, 0.85)
+  );
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+
+  border: 2px solid rgba(255, 255, 255, 0.95);
+
+  /* ✅ Многослойная тень для глубины */
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.08) inset,
+    0 4px 10px -2px rgba(15, 23, 42, 0.15),
+    0 8px 20px -6px rgba(15, 23, 42, 0.12);
+
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
-/* Основной аватар */
+.tx-item:hover .tx-bank-logo-wrap {
+  transform: translateY(-50%) scale(1.05);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.08) inset,
+    0 6px 14px -2px rgba(15, 23, 42, 0.2),
+    0 12px 28px -8px rgba(15, 23, 42, 0.15);
+}
+
+.tx-bank-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 6px;
+  box-sizing: border-box;
+  display: block;
+}
+
+.tx-bank-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+
+/* ============================================================
+   АВАТАР — сдвинут правее, чтобы не мешать плашке
+   ============================================================ */
 .tx-avatar {
-  width: 46px;
-  height: 46px;
+  flex: 0 0 40px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -379,10 +500,15 @@ function itemStyle() {
   position: relative;
   z-index: 2;
 
-  /* Тень аватара, чтобы «парил» над бейджем */
   box-shadow:
-    0 2px 6px rgba(15, 23, 42, 0.15),
+    0 2px 6px rgba(15, 23, 42, 0.12),
     0 0 0 2px rgba(255, 255, 255, 0.95);
+
+  transition: transform 0.2s ease;
+}
+
+.tx-item:hover .tx-avatar {
+  transform: scale(1.04);
 }
 
 .tx-avatar.sergey {
@@ -402,75 +528,22 @@ function itemStyle() {
 }
 
 .tx-avatar-emoji {
-  font-size: 22px;
+  font-size: 18px;
   line-height: 1;
-}
-
-/* ✅ Кружок под аватаром — «выглядывает» снизу-справа */
-.tx-account-badge {
-  position: absolute;
-  bottom: -2px;
-  right: -4px;
-  z-index: 1;
-
-  width: 22px;
-  height: 22px;
-  border-radius: 50%;
-
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-
-  background: linear-gradient(180deg, #ffffff, #f1f5f9);
-  border: 2px solid #ffffff;
-
-  box-shadow:
-    0 0 0 1px rgba(15, 23, 42, 0.06),
-    0 2px 6px rgba(15, 23, 42, 0.18),
-    0 1px 0 rgba(255, 255, 255, 0.9) inset;
-
-  transition: transform 0.2s ease;
-
-  .tx-item:hover & {
-    transform: scale(1.1);
-  }
-}
-
-/* Лого банка */
-.tx-account-logo {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  padding: 2px;
-  box-sizing: border-box;
-  display: block;
-  background: #ffffff;
-}
-
-/* Иконка наличных / по умолчанию */
-.tx-account-icon {
-  font-size: 11px;
-  line-height: 1;
-}
-
-/* Тип «наличные» — зелёный фон */
-.tx-account-badge.badge-cash {
-  background: linear-gradient(180deg, #86efac, #22c55e);
-}
-
-/* Тип «дефолт» (нет лого и не наличные) */
-.tx-account-badge.badge-default {
-  background: linear-gradient(180deg, #e2e8f0, #cbd5e1);
-  color: #64748b;
 }
 
 /* ============================================================
    ТЕКСТ
    ============================================================ */
-.tx-main { flex: 1; min-width: 0; }
+.tx-main {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  z-index: 2;
+}
+
 .tx-name {
-  font-weight: 700;
+  font-weight: 800;
   font-size: 15px;
   color: var(--text);
   white-space: nowrap;
@@ -478,7 +551,9 @@ function itemStyle() {
   text-overflow: ellipsis;
   margin-bottom: 4px;
   letter-spacing: -0.01em;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.7);
 }
+
 .tx-meta {
   display: flex;
   gap: 6px;
@@ -498,7 +573,7 @@ function itemStyle() {
 .tx-meta .cat {
   padding: 3px 9px;
   border-radius: 999px;
-  background: linear-gradient(180deg, rgba(241, 245, 249, 1), rgba(226, 232, 240, 0.8));
+  background: linear-gradient(180deg, rgba(241, 245, 249, 0.95), rgba(226, 232, 240, 0.85));
   color: var(--accent);
   font-size: 11px;
   font-weight: 700;
@@ -507,6 +582,9 @@ function itemStyle() {
   user-select: none;
   white-space: nowrap;
   border: 1px solid rgba(148, 163, 184, 0.15);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.8) inset,
     0 1px 2px rgba(15, 23, 42, 0.04);
@@ -521,27 +599,17 @@ function itemStyle() {
       0 4px 10px -2px rgba(99, 102, 241, 0.5);
   }
   &.acc-badge.sber {
-    background: linear-gradient(180deg, rgba(220, 252, 231, 1), rgba(187, 247, 208, 0.8));
+    background: linear-gradient(180deg, rgba(220, 252, 231, 0.95), rgba(187, 247, 208, 0.85));
     color: #166534;
     border-color: rgba(33, 160, 56, 0.25);
-    &:hover {
-      background: linear-gradient(180deg, #4cd964, #21a038);
-      color: #ffffff;
-      box-shadow: 0 4px 10px -2px rgba(33, 160, 56, 0.5);
-    }
   }
   &.acc-badge.tbank {
-    background: linear-gradient(180deg, rgba(254, 249, 195, 1), rgba(253, 224, 71, 0.6));
+    background: linear-gradient(180deg, rgba(254, 249, 195, 0.95), rgba(253, 224, 71, 0.7));
     color: #92400e;
     border-color: rgba(245, 158, 11, 0.3);
-    &:hover {
-      background: linear-gradient(180deg, #fde047, #f59e0b);
-      color: #000000;
-      box-shadow: 0 4px 10px -2px rgba(245, 158, 11, 0.5);
-    }
   }
   &.acc-badge.cash {
-    background: linear-gradient(180deg, rgba(220, 252, 231, 1), rgba(187, 247, 208, 0.8));
+    background: linear-gradient(180deg, rgba(220, 252, 231, 0.95), rgba(187, 247, 208, 0.85));
     color: #166534;
     border-color: rgba(34, 197, 94, 0.3);
   }
@@ -556,7 +624,10 @@ function itemStyle() {
   flex-direction: column;
   align-items: flex-end;
   gap: 6px;
+  position: relative;
+  z-index: 2;
 }
+
 .tx-amount {
   font-family: var(--mono, "JetBrains Mono", monospace);
   font-size: 18px;
@@ -604,6 +675,7 @@ function itemStyle() {
   transition: opacity 0.2s ease;
 }
 .tx-item:hover .tx-actions { opacity: 1; }
+
 .tx-actions button {
   width: 30px; height: 30px;
   border-radius: 8px;
@@ -647,33 +719,96 @@ function itemStyle() {
 }
 
 /* ============================================================
+   Свайп
+   ============================================================ */
+.tx-swipe-progress {
+  position: absolute;
+  inset: 0;
+  border-radius: 16px;
+  pointer-events: none;
+  z-index: 3;
+  transition: opacity 0.12s;
+
+  &.primary {
+    background: linear-gradient(90deg, transparent 0%, rgba(59, 130, 246, 0.35) 100%);
+  }
+  &.danger {
+    background: linear-gradient(90deg, rgba(239, 68, 68, 0.35) 0%, transparent 100%);
+  }
+}
+
+.tx-item.swipe-left { border-color: rgba(239, 68, 68, 0.5); }
+.tx-item.swipe-right { border-color: rgba(59, 130, 246, 0.5); }
+
+.tx-item.swipe-left::before {
+  content: "🗑";
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 24px;
+  background: linear-gradient(90deg, transparent, rgba(239, 68, 68, 0.85));
+  color: #fff;
+  font-size: 20px;
+  border-radius: 16px;
+  z-index: 4;
+  pointer-events: none;
+}
+.tx-item.swipe-right::before {
+  content: "✏️";
+  position: absolute;
+  top: 0; left: 0; bottom: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  padding-left: 24px;
+  background: linear-gradient(90deg, rgba(59, 130, 246, 0.85), transparent);
+  color: #fff;
+  font-size: 20px;
+  border-radius: 16px;
+  z-index: 4;
+  pointer-events: none;
+}
+
+/* ============================================================
    МОБИЛЬНЫЙ
    ============================================================ */
 @media (max-width: 700px) {
-  .tx-item { padding: 12px 14px; gap: 12px; border-radius: 14px; }
+  .tx-item {
+    padding: 12px 14px 12px 58px;
+    gap: 10px;
+    border-radius: 14px;
 
-  .tx-avatar-wrap {
-    flex: 0 0 44px;
-    width: 44px;
-    height: 44px;
+    &:not([class*="has-bank-"]) {
+      padding-left: 14px;
+    }
   }
+
+  .tx-bank-bg {
+    width: 66px;
+  }
+
+  .tx-bank-logo-wrap {
+    left: 10px;
+    width: 34px;
+    height: 34px;
+    border-radius: 10px;
+  }
+
+  .tx-bank-logo { padding: 5px; }
+  .tx-bank-icon { font-size: 18px; }
+
   .tx-avatar {
-    width: 42px;
-    height: 42px;
+    flex: 0 0 36px;
+    width: 36px;
+    height: 36px;
   }
-  .tx-avatar-emoji { font-size: 20px; }
+  .tx-avatar-emoji { font-size: 16px; }
 
-  .tx-account-badge {
-    width: 20px;
-    height: 20px;
-    bottom: -2px;
-    right: -4px;
-    border-width: 2px;
-  }
-  .tx-account-icon { font-size: 10px; }
-  .tx-account-logo { padding: 2px; }
-
-  .tx-name { font-size: 14px; }
+  .tx-name { font-size: 14px; margin-bottom: 3px; }
   .tx-meta { font-size: 11px; gap: 5px; }
   .tx-meta .cat { font-size: 10px; padding: 2px 8px; }
   .tx-amount { font-size: 15px; }
@@ -683,17 +818,18 @@ function itemStyle() {
 }
 
 @media (max-width: 380px) {
-  .tx-avatar-wrap { flex: 0 0 40px; width: 40px; height: 40px; }
-  .tx-avatar { width: 38px; height: 38px; }
-  .tx-account-badge { width: 18px; height: 18px; }
-  .tx-account-icon { font-size: 9px; }
+  .tx-item { padding: 10px 12px 10px 54px; }
+  .tx-bank-bg { width: 60px; }
+  .tx-bank-logo-wrap { left: 8px; width: 32px; height: 32px; }
+  .tx-avatar { flex: 0 0 34px; width: 34px; height: 34px; }
+  .tx-avatar-emoji { font-size: 15px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .tx-item,
   .tx-item:hover,
+  .tx-bank-logo-wrap,
   .tx-avatar,
-  .tx-account-badge,
   .tx-actions button,
   .tx-amount { transition: none !important; transform: none !important; }
   .tx-item.is-appearing,
