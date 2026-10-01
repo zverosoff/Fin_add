@@ -10,7 +10,6 @@ const emit = defineEmits(['update:modelValue']);
 
 const boxEl = ref(null);
 
-// ✅ Состояние свайпа
 const swipeStartY = ref(0);
 const swipeDeltaY = ref(0);
 const isSwiping = ref(false);
@@ -19,7 +18,6 @@ function close() {
   emit('update:modelValue', false);
 }
 
-// Блокировка скролла body
 watch(() => props.modelValue, (val) => {
   document.body.style.overflow = val ? 'hidden' : '';
 });
@@ -33,7 +31,6 @@ watch(() => props.modelValue, (val) => {
   else document.removeEventListener('keydown', onKeydown);
 }, { immediate: true });
 
-// ✅ Свайп вниз для закрытия (только на мобильных)
 function isMobile() {
   return window.innerWidth <= 700;
 }
@@ -126,7 +123,12 @@ onUnmounted(() => {
           <div class="modal-handle"></div>
 
           <header class="modal-head">
-            <h3>{{ title }}</h3>
+            <!-- ✅ Если передан кастомный slot header — рендерим его,
+                 иначе — стандартный h3 с title -->
+            <slot name="header">
+              <h3>{{ title }}</h3>
+            </slot>
+
             <button class="modal-close" @click="close" aria-label="Закрыть">✕</button>
           </header>
 
@@ -172,7 +174,7 @@ onUnmounted(() => {
   touch-action: pan-y;
 }
 
-/* ✅ Ручка-индикатор — тонкая, компактная (только на мобильных) */
+/* ✅ Тонкая ручка — только на мобильных */
 .modal-handle {
   display: none;
   width: 36px;
@@ -234,7 +236,6 @@ onUnmounted(() => {
   background: #ffffff;
 }
 
-/* Анимация */
 .modal-enter-active,
 .modal-leave-active {
   transition: opacity 0.22s ease;
@@ -253,9 +254,6 @@ onUnmounted(() => {
   opacity: 0;
 }
 
-/* ============================================================
-   МОБИЛЬНАЯ
-   ============================================================ */
 @media (max-width: 700px) {
   .modal-overlay {
     padding: 0;
@@ -273,7 +271,6 @@ onUnmounted(() => {
 
   .modal-handle {
     display: block;
-    /* ✅ Расширенная зона для свайпа без визуального увеличения */
     padding: 8px 20px;
     margin: 0 auto;
     background-clip: content-box;
