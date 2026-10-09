@@ -114,8 +114,8 @@ let isHorizontal = null;
 let rafId = null;
 let pendingX = null;
 
-const REVEAL_WIDTH = 96;   // ширина панели действий (2 кнопки)
-const THRESHOLD = 40;      // порог срабатывания
+const REVEAL_WIDTH = 96;
+const THRESHOLD = 40;
 
 function isMobile() { return window.innerWidth <= 700; }
 
@@ -154,7 +154,6 @@ function onTouchMove(e) {
   }
   if (!isHorizontal) return;
 
-  // Свайп вправо открывает; влево — закрывает, если уже открыто
   if (revealed.value) {
     setOffset(REVEAL_WIDTH + dx);
   } else {
@@ -174,7 +173,6 @@ function onTouchEnd() {
 
   const current = offsetX.value;
   if (revealed.value) {
-    // Уже открыто → закрываем, если утянули ниже половины
     if (current < REVEAL_WIDTH / 2) {
       revealed.value = false;
       setOffset(0);
@@ -182,7 +180,6 @@ function onTouchEnd() {
       setOffset(REVEAL_WIDTH);
     }
   } else {
-    // Закрыто → открываем при достаточном сдвиге
     if (current > THRESHOLD) {
       revealed.value = true;
       setOffset(REVEAL_WIDTH);
@@ -214,6 +211,7 @@ onUnmounted(() => {
   if (rafId) cancelAnimationFrame(rafId);
 });
 
+// ✅ computed → в шаблоне используется БЕЗ скобок
 const itemStyle = computed(() => {
   if (!offsetX.value) return {};
   return { transform: `translate3d(${offsetX.value}px, 0, 0)` };
@@ -258,15 +256,16 @@ const progress = computed(() =>
     </div>
 
     <!-- ✅ КАРТОЧКА (сдвигается) -->
+    <!-- 🔧 ИСПРАВЛЕНО: itemStyle без скобок (это computed) -->
     <div
       class="tx-card"
-      :style="itemStyle()"
+      :style="itemStyle"
       @touchstart.passive="onTouchStart"
       @touchmove.passive="onTouchMove"
       @touchend="onTouchEnd"
       @touchcancel="onTouchEnd"
     >
-      <!-- Верхний левый угол: лого банка — усилили заметность -->
+      <!-- Верхний левый угол: водяной знак банка -->
       <div
         v-if="bankStyle"
         class="tx-bank-watermark"
@@ -310,7 +309,7 @@ const progress = computed(() =>
         </div>
       </div>
 
-      <!-- ✅ ПРАВАЯ ЧАСТЬ: сумма + БАНК-МОНЕТА (крупная, очевидная) -->
+      <!-- ✅ ПРАВАЯ ЧАСТЬ: сумма + банк-монета -->
       <div class="tx-right">
         <div
           class="tx-amount"
@@ -362,16 +361,8 @@ const progress = computed(() =>
 }
 
 @keyframes txAppear {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.96);
-    filter: blur(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
-  }
+  from { opacity: 0; transform: translateY(8px) scale(0.96); filter: blur(4px); }
+  to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
 }
 
 @keyframes txDelete {
@@ -394,7 +385,7 @@ const progress = computed(() =>
   gap: 6px;
   padding: 0 8px;
   z-index: 0;
-  pointer-events: auto;
+  pointer-events: none;
 
   background: linear-gradient(
     90deg,
@@ -404,7 +395,6 @@ const progress = computed(() =>
   transition: opacity 0.15s linear;
 
   .tx-item.is-revealed & { pointer-events: auto; }
-  .tx-item:not(.is-revealed) & { pointer-events: none; }
 }
 
 .tx-action-btn {
@@ -505,7 +495,7 @@ const progress = computed(() =>
 }
 
 /* ============================================================
-   ✅ ВОДЯНОЙ ЗНАК БАНКА — ВЕРХНИЙ ЛЕВЫЙ УГОЛ
+   ВОДЯНОЙ ЗНАК БАНКА — ВЕРХНИЙ ЛЕВЫЙ УГОЛ
    ============================================================ */
 .tx-bank-watermark {
   position: absolute;
@@ -598,8 +588,6 @@ const progress = computed(() =>
   overflow: hidden;
   position: relative;
   z-index: 2;
-
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .tx-avatar.sergey {
@@ -747,7 +735,7 @@ const progress = computed(() =>
   100% { background: transparent; transform: scale(1); }
 }
 
-/* ✅ БАНК-МОНЕТА — крупная, цветная, в правом нижнем углу */
+/* БАНК-МОНЕТА */
 .tx-bank-coin {
   position: relative;
   width: 30px;
@@ -778,7 +766,6 @@ const progress = computed(() =>
   }
   &:active { transform: scale(0.95); }
 
-  /* Т-Банк: жёлтая монета */
   &.coin-tbank {
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.6) inset,
@@ -787,7 +774,6 @@ const progress = computed(() =>
       0 0 0 2px #ffffff;
   }
 
-  /* Сбер: зелёная монета */
   &.coin-sber {
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.6) inset,
@@ -796,7 +782,6 @@ const progress = computed(() =>
       0 0 0 2px #ffffff;
   }
 
-  /* Наличные: зелёная монета */
   &.coin-cash {
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.6) inset,
