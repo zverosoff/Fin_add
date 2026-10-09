@@ -12,16 +12,24 @@ export const useTransactionsStore = defineStore('transactions', () => {
   const currentMonth = ref(new Date());
 
   /**
-   * ✅ Централизованная сортировка — новые всегда сверху.
-   * Вызывается после любой мутации массива транзакций.
+   * ✅ Сортировка:
+   *  1) По дате (свежие сверху)
+   *  2) Внутри дня — по importOrder (как в чеке), если есть
+   *  3) Иначе — по id (стабильно, без «прыжков»)
    */
   function sortByDateDesc(list) {
     return [...list].sort((a, b) => {
       const ta = new Date(a.date).getTime();
       const tb = new Date(b.date).getTime();
       if (tb !== ta) return tb - ta;
-      // Тай-брейк по id, чтобы не «прыгали» одинаковые по времени
-      return String(b.id).localeCompare(String(a.id));
+
+      const oa = a.importOrder;
+      const ob = b.importOrder;
+      if (typeof oa === 'number' && typeof ob === 'number' && oa !== ob) {
+        return oa - ob;
+      }
+
+      return String(a.id).localeCompare(String(b.id));
     });
   }
 
@@ -110,9 +118,6 @@ export const useTransactionsStore = defineStore('transactions', () => {
 
   function goToday() { currentMonth.value = new Date(); }
 
-  /**
-   * ✅ Нормализуем payload перед отправкой + сортируем после сохранения.
-   */
   async function save(tx) {
     loading.value = true;
     try {
@@ -137,7 +142,6 @@ export const useTransactionsStore = defineStore('transactions', () => {
       const { data } = await api.post('/transactions', payload);
       if (!data.ok) throw new Error(data.error);
 
-      // ✅ Оптимистично кладём в стор и сортируем
       const exists = accountsStore.transactions.find(t => t.id === data.transaction.id);
       if (!exists) {
         accountsStore.transactions.push(data.transaction);
