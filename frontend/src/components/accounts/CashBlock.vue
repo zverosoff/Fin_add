@@ -129,35 +129,31 @@ const fallingBills = [
       <div class="cn-pattern"></div>
       <div class="cn-watermark">₽</div>
 
-      <!-- ✅ ЗАГОЛОВОК НА КУПЮРЕ (серифный, без пузыря) -->
-      <div class="cn-banknote-header" @click="toggle" role="button" tabindex="0" @keydown.enter="toggle" @keydown.space.prevent="toggle">
-        <div class="cn-banknote-left">
-          <span class="cn-banknote-icon">💵</span>
-          <div class="cn-banknote-titles">
-            <span class="cn-banknote-title">НАЛИЧНЫЕ</span>
-            <span class="cn-banknote-sub">БИЛЕТ БАНКА · РУБЛЬ</span>
+      <!-- ✅ ЗАГОЛОВОК: клик = свернуть/развернуть. Шрифт — Inter (как у всего приложения) -->
+      <div
+        class="cn-header"
+        @click="toggle"
+        role="button"
+        tabindex="0"
+        :aria-expanded="!collapsed"
+        @keydown.enter="toggle"
+        @keydown.space.prevent="toggle"
+      >
+        <div class="cn-header-left">
+          <span class="cn-header-icon">💵</span>
+          <div class="cn-header-titles">
+            <span class="cn-header-title">НАЛИЧНЫЕ</span>
+            <span class="cn-header-sub">БИЛЕТ БАНКА · РУБЛЬ</span>
           </div>
         </div>
 
-        <div class="cn-banknote-right">
-          <div class="cn-total-value">{{ fmt(totalBalance) }} ₽</div>
-          <div class="cn-total-label">всего на руках</div>
+        <div class="cn-header-right">
+          <div class="cn-header-value">{{ fmt(totalBalance) }} ₽</div>
+          <div class="cn-header-label">всего на руках</div>
         </div>
-
-        <button
-          class="cn-toggle"
-          type="button"
-          :aria-expanded="!collapsed"
-          :aria-label="collapsed ? 'Развернуть' : 'Свернуть'"
-          @click.stop="toggle"
-        >
-          <svg class="cn-toggle-chev" :class="{ open: !collapsed }" viewBox="0 0 24 24">
-            <path d="M7 10l5 5 5-5z" fill="currentColor"/>
-          </svg>
-        </button>
       </div>
 
-      <!-- Сворачиваемое содержимое -->
+      <!-- ✅ Сворачиваемое содержимое -->
       <div class="cn-collapsible">
         <div class="cn-collapsible-inner">
           <div class="cn-owners">
@@ -259,8 +255,12 @@ const fallingBills = [
   transition: transform 0.35s cubic-bezier(.34,1.56,.64,1), box-shadow 0.35s ease;
 }
 
+/* ✅ Свёрнутое состояние: вертикально центрируем содержимое, убираем padding снизу */
 .cash-note.collapsed {
-  padding: 14px 18px 14px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  min-height: 72px;
 }
 
 .cash-note:hover {
@@ -354,50 +354,50 @@ const fallingBills = [
 }
 
 /* ============================================================
-   ✅ ЗАГОЛОВОК «НАЛИЧНЫЕ» — как надпись на банкноте
+   ✅ ЗАГОЛОВОК — шрифт Inter как у всего приложения.
+   В свёрнутом состоянии — вертикальное центрирование.
    ============================================================ */
-.cn-banknote-header {
+.cn-header {
   position: relative;
   z-index: 3;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 10px;
-  margin-bottom: 12px;
+  gap: 12px;
   cursor: pointer;
   user-select: none;
-  padding: 2px 0;
+  padding: 4px 0;
   transition: transform 0.2s ease;
 }
 
-.cn-banknote-header:hover { transform: translateY(-1px); }
+.cn-header:hover { transform: translateY(-1px); }
 
-.cn-banknote-left {
+.cn-header-left {
   display: flex;
   align-items: center;
   gap: 10px;
   min-width: 0;
 }
 
-.cn-banknote-icon {
+.cn-header-icon {
   font-size: 22px;
   line-height: 1;
   filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.3));
   flex-shrink: 0;
 }
 
-.cn-banknote-titles {
+.cn-header-titles {
   display: flex;
   flex-direction: column;
   gap: 2px;
   min-width: 0;
 }
 
-.cn-banknote-title {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 17px;
+.cn-header-title {
+  font-family: inherit;
+  font-size: 16px;
   font-weight: 800;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: #ffffff;
   text-shadow:
@@ -407,25 +407,23 @@ const fallingBills = [
   white-space: nowrap;
 }
 
-.cn-banknote-sub {
-  font-family: Georgia, "Times New Roman", serif;
-  font-size: 8.5px;
+.cn-header-sub {
+  font-family: inherit;
+  font-size: 9.5px;
   font-weight: 600;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: rgba(255, 255, 255, 0.75);
   line-height: 1;
   white-space: nowrap;
 }
 
-.cn-banknote-right {
+.cn-header-right {
   text-align: right;
   flex-shrink: 0;
-  margin-left: auto;
-  padding-right: 34px; /* место под шеврон */
 }
 
-.cn-total-value {
+.cn-header-value {
   font-family: var(--mono);
   font-size: 26px;
   font-weight: 800;
@@ -437,8 +435,8 @@ const fallingBills = [
   white-space: nowrap;
 }
 
-.cn-total-label {
-  font-family: Georgia, "Times New Roman", serif;
+.cn-header-label {
+  font-family: inherit;
   font-size: 9.5px;
   font-weight: 600;
   text-transform: uppercase;
@@ -448,53 +446,11 @@ const fallingBills = [
   white-space: nowrap;
 }
 
-/* ✅ Шеврон-кнопка сворачивания */
-.cn-toggle {
-  position: absolute;
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.14));
-  color: #ffffff;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+/* ✅ В свёрнутом состоянии header растягивается по вертикали родителя */
+.cash-note.collapsed .cn-header {
+  flex: 1;
+  width: 100%;
   padding: 0;
-  flex-shrink: 0;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.35) inset,
-    0 -1px 0 rgba(0, 0, 0, 0.1) inset,
-    0 4px 10px -2px rgba(0, 0, 0, 0.15);
-
-  transition: all 0.2s cubic-bezier(.34,1.56,.64,1);
-}
-
-.cn-toggle:hover {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.42), rgba(255, 255, 255, 0.22));
-  transform: translateY(-50%) scale(1.08);
-}
-
-.cn-toggle:active {
-  transform: translateY(-50%) scale(0.94);
-}
-
-.cn-toggle-chev {
-  width: 14px;
-  height: 14px;
-  fill: currentColor;
-  transition: transform 0.3s cubic-bezier(.34,1.56,.64,1);
-}
-
-.cn-toggle-chev.open {
-  transform: rotate(180deg);
 }
 
 /* ============================================================
@@ -506,6 +462,7 @@ const fallingBills = [
   max-height: 600px;
   opacity: 1;
   overflow: hidden;
+  margin-top: 12px;
   transition:
     max-height 0.4s cubic-bezier(.22,.61,.36,1),
     opacity 0.3s ease,
@@ -515,6 +472,7 @@ const fallingBills = [
 .cash-note.collapsed .cn-collapsible {
   max-height: 0;
   opacity: 0;
+  margin-top: 0;
 }
 
 .cn-collapsible-inner {
@@ -794,16 +752,13 @@ const fallingBills = [
    ============================================================ */
 @media (max-width: 700px) {
   .cash-note { padding: 14px 16px 12px; border-radius: 18px; }
-  .cash-note.collapsed { padding: 12px 14px; }
+  .cash-note.collapsed { padding: 12px 14px; min-height: 64px; }
 
-  .cn-banknote-title { font-size: 15px; letter-spacing: 0.1em; }
-  .cn-banknote-sub { font-size: 8px; letter-spacing: 0.18em; }
-  .cn-banknote-icon { font-size: 20px; }
-  .cn-total-value { font-size: 22px; }
-  .cn-total-label { font-size: 9px; }
-  .cn-banknote-right { padding-right: 30px; }
-  .cn-toggle { width: 26px; height: 26px; }
-  .cn-toggle-chev { width: 13px; height: 13px; }
+  .cn-header-title { font-size: 14px; letter-spacing: 0.06em; }
+  .cn-header-sub { font-size: 8.5px; letter-spacing: 0.14em; }
+  .cn-header-icon { font-size: 20px; }
+  .cn-header-value { font-size: 22px; }
+  .cn-header-label { font-size: 9px; }
 
   .cn-owners { padding-top: 8px; gap: 5px; }
   .cn-owner { padding: 6px 10px; gap: 8px; border-radius: 10px; }
@@ -828,9 +783,9 @@ const fallingBills = [
 }
 
 @media (max-width: 380px) {
-  .cn-banknote-title { font-size: 13px; }
-  .cn-banknote-sub { display: none; }
-  .cn-total-value { font-size: 19px; }
+  .cn-header-title { font-size: 13px; }
+  .cn-header-sub { display: none; }
+  .cn-header-value { font-size: 19px; }
   .cn-act { font-size: 10px; }
   .cn-owner-name { font-size: 11px; }
   .cn-owner-value { font-size: 12px; }
@@ -845,8 +800,7 @@ const fallingBills = [
   .cn-act,
   .cn-goal,
   .cn-goal-fill,
-  .cn-toggle,
-  .cn-toggle-chev,
+  .cn-header,
   .cn-collapsible { transition: none !important; transform: none !important; }
 }
 </style>

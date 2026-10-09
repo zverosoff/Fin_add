@@ -37,7 +37,6 @@ const bankStyle = computed(() => {
       icon: '💵',
       label: 'Наличные',
       color: '#22c55e',
-      gradient: 'linear-gradient(135deg, #4ade80, #16a34a)',
     };
   }
 
@@ -47,7 +46,6 @@ const bankStyle = computed(() => {
       logo: bankLogoUrl.value,
       label: 'Т-Банк',
       color: '#eab308',
-      gradient: 'linear-gradient(135deg, #fde047, #eab308)',
     };
   }
 
@@ -57,7 +55,6 @@ const bankStyle = computed(() => {
       logo: bankLogoUrl.value,
       label: 'СберБанк',
       color: '#21a038',
-      gradient: 'linear-gradient(135deg, #4cd964, #21a038)',
     };
   }
 
@@ -66,7 +63,6 @@ const bankStyle = computed(() => {
     icon: '💳',
     label: accountName.value || 'Счёт',
     color: '#64748b',
-    gradient: 'linear-gradient(135deg, #94a3b8, #475569)',
   };
 });
 
@@ -101,10 +97,10 @@ function onEdit() {
 }
 
 // ============================================================
-// ✅ SWIPE-REVEAL: свайп вправо открывает кнопки слева
+// ✅ SWIPE-REVEAL: свайп ВЛЕВО открывает кнопки СПРАВА
 // ============================================================
 const el = ref(null);
-const offsetX = ref(0);
+const offsetX = ref(0);        // всегда ≤ 0 (сдвиг влево)
 const revealed = ref(false);
 const dragging = ref(false);
 
@@ -126,8 +122,9 @@ function applyOffset() {
   rafId = null;
 }
 
+// ✅ Диапазон: [-REVEAL_WIDTH, 0]
 function setOffset(x) {
-  pendingX = Math.max(0, Math.min(REVEAL_WIDTH + 20, x));
+  pendingX = Math.min(0, Math.max(-(REVEAL_WIDTH + 20), x));
   if (!rafId) rafId = requestAnimationFrame(applyOffset);
 }
 
@@ -155,9 +152,11 @@ function onTouchMove(e) {
   if (!isHorizontal) return;
 
   if (revealed.value) {
-    setOffset(REVEAL_WIDTH + dx);
+    // Уже открыто: dx > 0 двигает обратно к 0
+    setOffset(-REVEAL_WIDTH + dx);
   } else {
-    if (dx <= 0) { setOffset(0); return; }
+    // Закрыто: свайп только влево (dx < 0)
+    if (dx >= 0) { setOffset(0); return; }
     setOffset(dx);
   }
 }
@@ -171,18 +170,20 @@ function onTouchEnd() {
     return;
   }
 
-  const current = offsetX.value;
+  const current = offsetX.value;      // отрицательное или 0
+  const absX = Math.abs(current);
+
   if (revealed.value) {
-    if (current < REVEAL_WIDTH / 2) {
+    if (absX < REVEAL_WIDTH / 2) {
       revealed.value = false;
       setOffset(0);
     } else {
-      setOffset(REVEAL_WIDTH);
+      setOffset(-REVEAL_WIDTH);
     }
   } else {
-    if (current > THRESHOLD) {
+    if (absX > THRESHOLD) {
       revealed.value = true;
-      setOffset(REVEAL_WIDTH);
+      setOffset(-REVEAL_WIDTH);
     } else {
       setOffset(0);
     }
@@ -211,14 +212,13 @@ onUnmounted(() => {
   if (rafId) cancelAnimationFrame(rafId);
 });
 
-// ✅ computed → в шаблоне используется БЕЗ скобок
 const itemStyle = computed(() => {
   if (!offsetX.value) return {};
   return { transform: `translate3d(${offsetX.value}px, 0, 0)` };
 });
 
 const progress = computed(() =>
-  revealed.value ? 1 : Math.min(1, offsetX.value / REVEAL_WIDTH)
+  revealed.value ? 1 : Math.min(1, Math.abs(offsetX.value) / REVEAL_WIDTH)
 );
 </script>
 
@@ -228,10 +228,9 @@ const progress = computed(() =>
     class="tx-item"
     :class="[
       { 'is-appearing': appearing, 'is-deleting': deleting, 'is-revealed': revealed },
-      bankStyle ? 'has-bank-' + bankStyle.type : '',
     ]"
   >
-    <!-- ✅ ПАНЕЛЬ ДЕЙСТВИЙ — выезжает слева при свайпе вправо -->
+    <!-- ✅ ПАНЕЛЬ ДЕЙСТВИЙ — выезжает СПРАВА при свайпе влево -->
     <div
       class="tx-actions-panel"
       :style="{ opacity: progress }"
@@ -255,8 +254,7 @@ const progress = computed(() =>
       </button>
     </div>
 
-    <!-- ✅ КАРТОЧКА (сдвигается) -->
-    <!-- 🔧 ИСПРАВЛЕНО: itemStyle без скобок (это computed) -->
+    <!-- ✅ КАРТОЧКА (сдвигается влево) -->
     <div
       class="tx-card"
       :style="itemStyle"
@@ -265,29 +263,6 @@ const progress = computed(() =>
       @touchend="onTouchEnd"
       @touchcancel="onTouchEnd"
     >
-      <!-- Верхний левый угол: водяной знак банка -->
-      <div
-        v-if="bankStyle"
-        class="tx-bank-watermark"
-        :class="'wm-' + bankStyle.type"
-        aria-hidden="true"
-      >
-        <div
-          class="tx-bank-glow"
-          :style="{ background: `radial-gradient(circle at 30% 30%, ${bankStyle.color}33 0%, transparent 70%)` }"
-        ></div>
-
-        <img
-          v-if="bankStyle.logo"
-          :src="bankStyle.logo"
-          :alt="bankStyle.label"
-          class="tx-bank-wm-logo"
-          loading="lazy"
-          @error="(e) => (e.target.style.display = 'none')"
-        />
-        <span v-else class="tx-bank-wm-icon">{{ bankStyle.icon }}</span>
-      </div>
-
       <div class="tx-avatar" :class="userClass">
         <img
           v-if="userAvatar"
@@ -309,7 +284,7 @@ const progress = computed(() =>
         </div>
       </div>
 
-      <!-- ✅ ПРАВАЯ ЧАСТЬ: сумма + банк-монета -->
+      <!-- ✅ ПРАВАЯ ЧАСТЬ: сумма + банк-монета (белый фон) -->
       <div class="tx-right">
         <div
           class="tx-amount"
@@ -323,7 +298,6 @@ const progress = computed(() =>
           v-if="bankStyle"
           class="tx-bank-coin"
           :class="'coin-' + bankStyle.type"
-          :style="{ background: bankStyle.gradient }"
           :title="bankStyle.label"
           @click.stop="tx.accountId && onFilter('account', tx.accountId)"
         >
@@ -367,28 +341,28 @@ const progress = computed(() =>
 
 @keyframes txDelete {
   from { opacity: 1; transform: translateX(0) scale(1); }
-  to   { opacity: 0; transform: translateX(-60px) scale(0.9); }
+  to   { opacity: 0; transform: translateX(60px) scale(0.9); }
 }
 
 /* ============================================================
-   ПАНЕЛЬ ДЕЙСТВИЙ — на заднем плане, слева
+   ПАНЕЛЬ ДЕЙСТВИЙ — СПРАВА, на заднем плане
    ============================================================ */
 .tx-actions-panel {
   position: absolute;
   top: 0;
-  left: 0;
+  right: 0;
   bottom: 0;
   width: 96px;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: flex-end;
   gap: 6px;
   padding: 0 8px;
   z-index: 0;
   pointer-events: none;
 
   background: linear-gradient(
-    90deg,
+    270deg,
     rgba(99, 102, 241, 0.12) 0%,
     rgba(99, 102, 241, 0.06) 100%
   );
@@ -492,86 +466,6 @@ const progress = computed(() =>
       0 16px 32px -10px rgba(99, 102, 241, 0.2),
       0 24px 48px -16px rgba(15, 23, 42, 0.12);
   }
-}
-
-/* ============================================================
-   ВОДЯНОЙ ЗНАК БАНКА — ВЕРХНИЙ ЛЕВЫЙ УГОЛ
-   ============================================================ */
-.tx-bank-watermark {
-  position: absolute;
-  top: -12px;
-  left: -12px;
-  width: 130px;
-  height: 130px;
-  z-index: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.tx-bank-glow {
-  position: absolute;
-  inset: -20px;
-  z-index: 0;
-  pointer-events: none;
-  filter: blur(20px);
-  opacity: 0.9;
-}
-
-.tx-bank-wm-logo {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  padding: 22px;
-  box-sizing: border-box;
-  display: block;
-  opacity: 0.18;
-  filter: blur(0.5px) saturate(1.4);
-
-  -webkit-mask-image: radial-gradient(
-    circle at 30% 30%,
-    #000 0%,
-    rgba(0, 0, 0, 0.7) 40%,
-    rgba(0, 0, 0, 0.2) 70%,
-    transparent 100%
-  );
-  mask-image: radial-gradient(
-    circle at 30% 30%,
-    #000 0%,
-    rgba(0, 0, 0, 0.7) 40%,
-    rgba(0, 0, 0, 0.2) 70%,
-    transparent 100%
-  );
-}
-
-.tx-bank-wm-icon {
-  position: relative;
-  z-index: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  font-size: 68px;
-  line-height: 1;
-  opacity: 0.22;
-  filter: blur(0.5px) saturate(1.3);
-
-  -webkit-mask-image: radial-gradient(
-    circle at 30% 30%,
-    #000 0%,
-    rgba(0, 0, 0, 0.7) 40%,
-    rgba(0, 0, 0, 0.2) 70%,
-    transparent 100%
-  );
-  mask-image: radial-gradient(
-    circle at 30% 30%,
-    #000 0%,
-    rgba(0, 0, 0, 0.7) 40%,
-    rgba(0, 0, 0, 0.2) 70%,
-    transparent 100%
-  );
 }
 
 /* ============================================================
@@ -735,7 +629,7 @@ const progress = computed(() =>
   100% { background: transparent; transform: scale(1); }
 }
 
-/* БАНК-МОНЕТА */
+/* ✅ БАНК-МОНЕТА — БЕЛЫЙ ФОН, чтобы логотипы не сливались */
 .tx-bank-coin {
   position: relative;
   width: 30px;
@@ -748,61 +642,61 @@ const progress = computed(() =>
   flex-shrink: 0;
   overflow: hidden;
 
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.55) inset,
-    0 -2px 4px rgba(0, 0, 0, 0.15) inset,
-    0 4px 10px -2px rgba(15, 23, 42, 0.25),
-    0 0 0 2px #ffffff;
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.08) inset,
+    0 4px 10px -2px rgba(15, 23, 42, 0.18);
 
   transition: transform 0.18s cubic-bezier(.34,1.56,.64,1), box-shadow 0.2s ease;
 
   &:hover {
     transform: translateY(-2px) scale(1.06);
     box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.55) inset,
-      0 -2px 4px rgba(0, 0, 0, 0.15) inset,
-      0 8px 18px -2px rgba(15, 23, 42, 0.35),
-      0 0 0 2px #ffffff;
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 -1px 0 rgba(148, 163, 184, 0.08) inset,
+      0 8px 18px -2px rgba(15, 23, 42, 0.28);
   }
   &:active { transform: scale(0.95); }
 
+  /* Лёгкий цветной контур под бренд — но фон белый */
   &.coin-tbank {
+    border-color: rgba(234, 179, 8, 0.5);
     box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.6) inset,
-      0 -2px 4px rgba(120, 53, 15, 0.2) inset,
-      0 4px 10px -2px rgba(234, 179, 8, 0.4),
-      0 0 0 2px #ffffff;
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 -1px 0 rgba(148, 163, 184, 0.08) inset,
+      0 4px 10px -2px rgba(234, 179, 8, 0.35);
   }
 
   &.coin-sber {
+    border-color: rgba(33, 160, 56, 0.5);
     box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.6) inset,
-      0 -2px 4px rgba(6, 78, 59, 0.2) inset,
-      0 4px 10px -2px rgba(33, 160, 56, 0.4),
-      0 0 0 2px #ffffff;
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 -1px 0 rgba(148, 163, 184, 0.08) inset,
+      0 4px 10px -2px rgba(33, 160, 56, 0.35);
   }
 
   &.coin-cash {
+    border-color: rgba(34, 197, 94, 0.5);
     box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.6) inset,
-      0 -2px 4px rgba(6, 78, 59, 0.2) inset,
-      0 4px 10px -2px rgba(34, 197, 94, 0.4),
-      0 0 0 2px #ffffff;
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 -1px 0 rgba(148, 163, 184, 0.08) inset,
+      0 4px 10px -2px rgba(34, 197, 94, 0.35);
   }
 }
 
 .tx-bank-coin-img {
-  width: 70%;
-  height: 70%;
+  width: 78%;
+  height: 78%;
   object-fit: contain;
   display: block;
-  filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.15));
 }
 
 .tx-bank-coin-emoji {
   font-size: 16px;
   line-height: 1;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
 }
 
 /* ============================================================
@@ -816,14 +710,6 @@ const progress = computed(() =>
   .tx-meta { font-size: 11px; gap: 5px; }
   .tx-meta .cat { font-size: 10px; padding: 2px 8px; }
   .tx-amount { font-size: 15px; }
-  .tx-bank-watermark {
-    width: 100px;
-    height: 100px;
-    top: -8px;
-    left: -8px;
-  }
-  .tx-bank-wm-icon { font-size: 52px; }
-  .tx-bank-wm-logo { padding: 16px; }
   .tx-bank-coin { width: 26px; height: 26px; }
   .tx-bank-coin-emoji { font-size: 13px; }
   .tx-actions-panel { width: 92px; }
@@ -832,14 +718,6 @@ const progress = computed(() =>
 }
 
 @media (max-width: 380px) {
-  .tx-bank-watermark {
-    width: 84px;
-    height: 84px;
-    top: -6px;
-    left: -6px;
-  }
-  .tx-bank-wm-icon { font-size: 44px; }
-  .tx-bank-wm-logo { padding: 14px; }
   .tx-bank-coin { width: 24px; height: 24px; }
 }
 
