@@ -3,8 +3,19 @@ import { createPinia } from 'pinia';
 import router from './router';
 import App from './App.vue';
 import './styles/global.scss';
-import '@/composables/useAppTheme.js';   // ← инициализация темы
+import '@/composables/useAppTheme.js';
 import { subscribeToPush, initPushHandlers } from '@/composables/usePushNotifications';
+
+// ✅ Дублирование установки data-app-theme — на случай race condition
+try {
+  const stored = localStorage.getItem('finance-app-theme-v1') || 'auto';
+  let theme = stored;
+  if (stored === 'auto') {
+    theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  document.documentElement.setAttribute('data-app-theme', theme);
+  document.documentElement.style.colorScheme = theme;
+} catch (e) {}
 
 const app = createApp(App);
 app.use(createPinia());
