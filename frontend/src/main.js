@@ -6,7 +6,7 @@ import './styles/global.scss';
 import '@/composables/useAppTheme.js';
 import { subscribeToPush, initPushHandlers } from '@/composables/usePushNotifications';
 
-// ✅ Дублирование установки data-app-theme — на случай race condition
+// ✅ Финальная защита: ставим data-app-theme до mount
 try {
   const stored = localStorage.getItem('finance-app-theme-v1') || 'auto';
   let theme = stored;
@@ -22,7 +22,6 @@ app.use(createPinia());
 app.use(router);
 app.mount('#app');
 
-// ✅ PWA: Service Worker + Web Push
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.ready
