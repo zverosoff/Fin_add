@@ -401,17 +401,19 @@ function close() {
     padding: 9px 12px;
     border: 1px solid var(--border);
     border-radius: 10px;
-    background: #ffffff;
+    background: var(--panel-2);
     color: var(--text);
     font-family: inherit;
     font-size: 14px;
     outline: none;
     width: 100%;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.3s ease;
 
     &:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
     }
+    &::placeholder { color: var(--muted); opacity: 0.6; }
   }
 }
 
@@ -422,8 +424,8 @@ function close() {
   width: 100%;
   padding: 16px 18px;
   border-radius: 14px;
-  border: 2px dashed rgba(56, 189, 248, 0.4);
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(139, 92, 246, 0.06));
+  border: 2px dashed rgba(139, 92, 246, 0.4);
+  background: rgba(139, 92, 246, 0.06);
   color: var(--text);
   font-family: inherit;
   cursor: pointer;
@@ -432,7 +434,8 @@ function close() {
 
   &:hover {
     border-color: var(--accent);
-    background: linear-gradient(135deg, rgba(56, 189, 248, 0.14), rgba(139, 92, 246, 0.1));
+    background: rgba(139, 92, 246, 0.12);
+    transform: translateY(-1px);
   }
 }
 
@@ -445,8 +448,8 @@ function close() {
   width: 52px;
   height: 52px;
   border-radius: 14px;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(139, 92, 246, 0.12));
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.25);
 }
 
 .upload-text { display: flex; flex-direction: column; gap: 2px; }
@@ -454,6 +457,7 @@ function close() {
 .upload-title {
   font-size: 15px;
   font-weight: 700;
+  color: var(--text);
 }
 
 .upload-sub {
@@ -465,9 +469,9 @@ function close() {
   margin-top: 6px;
   padding: 8px 12px;
   border-radius: 10px;
-  background: rgba(34, 197, 94, 0.08);
+  background: rgba(34, 197, 94, 0.1);
   border: 1px solid rgba(34, 197, 94, 0.3);
-  color: #22c55e;
+  color: var(--accent-2, #16a34a);
   font-size: 12px;
   font-weight: 600;
   overflow: hidden;
@@ -488,7 +492,7 @@ function close() {
 .spinner {
   width: 20px;
   height: 20px;
-  border: 3px solid rgba(56, 189, 248, 0.2);
+  border: 3px solid rgba(139, 92, 246, 0.2);
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.9s linear infinite;
@@ -505,10 +509,11 @@ function close() {
   gap: 10px;
   padding: 10px 14px;
   border-radius: 10px;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(139, 92, 246, 0.06));
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  background: rgba(139, 92, 246, 0.08);
+  border: 1px solid rgba(139, 92, 246, 0.25);
   font-size: 13px;
   font-weight: 700;
+  color: var(--text);
 
   .count {
     color: var(--muted);
@@ -524,7 +529,8 @@ function close() {
   flex-wrap: wrap;
   padding: 8px 10px;
   border-radius: 10px;
-  background: rgba(148, 163, 184, 0.06);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
 
   .label {
     font-size: 11px;
@@ -538,7 +544,7 @@ function close() {
   padding: 4px 10px;
   border-radius: 999px;
   border: 1px solid var(--border);
-  background: #f8fafc;
+  background: var(--panel-solid);
   color: var(--muted);
   font-family: inherit;
   font-size: 11px;
@@ -553,9 +559,10 @@ function close() {
   }
 
   &.active {
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    background: var(--grad-primary);
     color: #fff;
     border-color: transparent;
+    box-shadow: 0 4px 10px -2px rgba(139, 92, 246, 0.5);
   }
 
   .cnt {
@@ -582,10 +589,13 @@ function close() {
   padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid var(--border);
-  background: #ffffff;
-  transition: border-color 0.15s;
+  background: var(--panel-2);
+  transition: border-color 0.15s, background 0.3s ease;
 
-  &.selected { border-color: var(--accent); }
+  &.selected {
+    border-color: rgba(139, 92, 246, 0.5);
+    background: rgba(139, 92, 246, 0.08);
+  }
 }
 
 .item-desc {
@@ -622,7 +632,7 @@ function close() {
   font-weight: 700;
 
   &.income { background: rgba(34, 197, 94, 0.15); }
-  &.expense { background: rgba(239, 68, 68, 0.15); }
+  &.expense { background: rgba(244, 63, 94, 0.15); }
 }
 
 .amount {
@@ -632,15 +642,15 @@ function close() {
   cursor: pointer;
   white-space: nowrap;
 
-  &.income { color: #16a34a; }
-  &.expense { color: #dc2626; }
+  &.income { color: var(--accent-2, #16a34a); }
+  &.expense { color: var(--danger); }
 }
 
 .error-msg {
   padding: 8px 12px;
   border-radius: 8px;
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(244, 63, 94, 0.1);
+  border: 1px solid rgba(244, 63, 94, 0.3);
   color: var(--danger);
   font-size: 12.5px;
   font-weight: 600;
@@ -657,16 +667,28 @@ function close() {
 }
 
 .btn-cancel {
-  background: #f1f5f9;
+  background: var(--panel-2);
   color: var(--text);
   border-color: var(--border);
+  transition: all 0.15s;
+  &:hover { border-color: var(--border-strong); }
 }
 
 .btn-save {
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: var(--grad-primary);
   color: #fff;
-  box-shadow: 0 10px 24px -10px rgba(59, 130, 246, 0.7);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+    0 6px 18px -6px rgba(139, 92, 246, 0.7);
 
   &:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+  &:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+      0 10px 24px -6px rgba(139, 92, 246, 0.9);
+  }
 }
 </style>

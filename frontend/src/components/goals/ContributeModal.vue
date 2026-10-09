@@ -16,7 +16,7 @@ const goalsStore = useGoalsStore();
 const auth = useAuthStore();
 const toast = useToast();
 
-const mode = ref('add');   // add | remove
+const mode = ref('add');
 const amount = ref('');
 const user = ref('Сергей');
 const error = ref('');
@@ -30,7 +30,6 @@ watch(() => props.modelValue, (open) => {
   error.value = '';
 }, { immediate: true });
 
-// Текущий взнос выбранного пользователя
 const currentUserContrib = computed(() => {
   if (!props.goal) return 0;
   return Number((props.goal.contributions ?? {})[user.value]) || 0;
@@ -75,7 +74,6 @@ async function save() {
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div v-if="goal" class="form">
-      <!-- Инфо о цели -->
       <div class="goal-info">
         <div class="icon">{{ goal.emoji || '🎯' }}</div>
         <div class="text">
@@ -87,7 +85,6 @@ async function save() {
         </div>
       </div>
 
-      <!-- Тип: внести/изъять -->
       <div class="type-switch">
         <button
           type="button"
@@ -101,7 +98,6 @@ async function save() {
         >↩️ Изъять</button>
       </div>
 
-      <!-- Сумма -->
       <div class="field">
         <label>💵 Сумма, ₽</label>
         <input
@@ -114,7 +110,6 @@ async function save() {
         />
       </div>
 
-      <!-- Кто вносит -->
       <div class="field">
         <label>👤 Кто вносит</label>
         <select v-model="user">
@@ -147,8 +142,8 @@ async function save() {
   gap: 10px;
   padding: 12px 14px;
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(139, 92, 246, 0.06));
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  background: rgba(139, 92, 246, 0.08);
+  border: 1px solid rgba(139, 92, 246, 0.25);
 
   .icon { font-size: 26px; flex-shrink: 0; }
   .text { flex: 1; min-width: 0; }
@@ -174,7 +169,8 @@ async function save() {
   display: flex;
   gap: 0;
   padding: 3px;
-  background: #f1f5f9;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
   border-radius: 10px;
 
   button {
@@ -191,11 +187,13 @@ async function save() {
     transition: all 0.18s;
 
     &.active {
-      background: linear-gradient(135deg, #22c55e, #4ade80);
+      background: var(--grad-income);
       color: #fff;
+      box-shadow: 0 4px 12px -4px rgba(34, 197, 94, 0.6);
     }
     &:nth-child(2).active {
-      background: linear-gradient(135deg, #ef4444, #f87171);
+      background: var(--grad-expense);
+      box-shadow: 0 4px 12px -4px rgba(244, 63, 94, 0.6);
     }
   }
 }
@@ -217,17 +215,19 @@ async function save() {
     padding: 9px 12px;
     border: 1px solid var(--border);
     border-radius: 10px;
-    background: #ffffff;
+    background: var(--panel-2);
     color: var(--text);
     font-family: inherit;
     font-size: 14px;
     outline: none;
     width: 100%;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.3s ease;
 
     &:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
     }
+    &::placeholder { color: var(--muted); opacity: 0.6; }
   }
 }
 
@@ -236,15 +236,16 @@ async function save() {
   color: var(--muted);
   padding: 6px 10px;
   border-radius: 8px;
-  background: rgba(148, 163, 184, 0.08);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
   text-align: center;
 }
 
 .error-msg {
   padding: 8px 12px;
   border-radius: 8px;
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(244, 63, 94, 0.1);
+  border: 1px solid rgba(244, 63, 94, 0.3);
   color: var(--danger);
   font-size: 12.5px;
   font-weight: 600;
@@ -261,16 +262,29 @@ async function save() {
 }
 
 .btn-cancel {
-  background: #f1f5f9;
+  background: var(--panel-2);
   color: var(--text);
   border-color: var(--border);
+  transition: all 0.15s;
+  &:hover { border-color: var(--border-strong); }
 }
 
 .btn-save {
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: var(--grad-primary);
   color: #fff;
-  box-shadow: 0 10px 24px -10px rgba(59, 130, 246, 0.7);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+    0 6px 18px -6px rgba(139, 92, 246, 0.7);
+  transition: all 0.15s;
 
   &:disabled { opacity: 0.5; cursor: wait; }
+  &:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+      0 10px 24px -6px rgba(139, 92, 246, 0.9);
+  }
 }
 </style>
