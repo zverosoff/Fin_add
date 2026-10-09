@@ -107,19 +107,24 @@ function onUserMenu(owner) {
   inset: 0;
   z-index: -1;
   pointer-events: none;
+
+  /* Светлая тема — базовый светлый слой + мягкие блики */
   background:
     radial-gradient(ellipse 70% 50% at 15% 0%, rgba(99, 102, 241, 0.08), transparent 60%),
     radial-gradient(ellipse 60% 40% at 85% 40%, rgba(139, 92, 246, 0.06), transparent 60%),
     radial-gradient(ellipse 80% 60% at 50% 100%, rgba(236, 72, 153, 0.05), transparent 65%),
     linear-gradient(180deg, #fafbff 0%, #f3f5fb 100%);
+
   transition: background 0.4s ease;
 }
 
+/* Тёмная тема — базовый тёмный слой В КОНЦЕ (непрозрачный) + фиолетовые блики */
 :global(:root[data-app-theme="dark"]) .finance-page::before {
   background:
     radial-gradient(ellipse 70% 50% at 15% 0%, rgba(139, 92, 246, 0.15), transparent 60%),
-    radial-gradient(ellipse 60% 40% at 85% 40%, rgba(168, 85, 247, 0.1), transparent 60%),
-    radial-gradient(ellipse 80% 60% at 50% 100%, rgba(236, 72, 153, 0.08), transparent 65%);
+    radial-gradient(ellipse 60% 40% at 85% 40%, rgba(168, 85, 247, 0.10), transparent 60%),
+    radial-gradient(ellipse 80% 60% at 50% 100%, rgba(236, 72, 153, 0.08), transparent 65%),
+    linear-gradient(180deg, #0a0612 0%, #100820 100%);
 }
 
 .finance-grid {

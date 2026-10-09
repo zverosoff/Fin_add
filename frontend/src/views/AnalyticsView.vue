@@ -215,8 +215,9 @@ function openEditContrib({ goal, user }) {
 :global(:root[data-app-theme="dark"]) .analytics-page::before {
   background:
     radial-gradient(ellipse 70% 50% at 15% 0%, rgba(139, 92, 246, 0.15), transparent 60%),
-    radial-gradient(ellipse 60% 40% at 85% 40%, rgba(168, 85, 247, 0.1), transparent 60%),
-    radial-gradient(ellipse 80% 60% at 50% 100%, rgba(236, 72, 153, 0.08), transparent 65%);
+    radial-gradient(ellipse 60% 40% at 85% 40%, rgba(168, 85, 247, 0.10), transparent 60%),
+    radial-gradient(ellipse 80% 60% at 50% 100%, rgba(236, 72, 153, 0.08), transparent 65%),
+    linear-gradient(180deg, #0a0612 0%, #100820 100%);
 }
 
 .analytics-grid {
