@@ -6,12 +6,11 @@
 
   <title>Финансы PRO+</title>
 
-  <!-- ✅ PWA -->
-  <meta name="theme-color" content="#eef2f8" id="theme-color-meta" />
+  <meta name="theme-color" content="#eef2f8" />
   <meta name="color-scheme" content="light dark" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
   <meta name="apple-mobile-web-app-title" content="Финансы PRO+" />
 
   <link rel="icon" type="image/png" href="/img/favicon.png" />
@@ -22,7 +21,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
 
-  <!-- ✅ КРИТИЧНО: применяем тему ДО парсинга body, чтобы не было мигания -->
+  <!-- ✅ КРИТИЧНО: применяем тему ДО парсинга body -->
   <script>
     (function () {
       try {
@@ -36,22 +35,15 @@
         document.documentElement.setAttribute('data-app-theme', theme);
         document.documentElement.style.colorScheme = theme;
 
-        // Обновляем theme-color до первого рендера
         var meta = document.querySelector('meta[name="theme-color"]');
         if (meta) meta.setAttribute('content', isDark ? '#0a0612' : '#eef2f8');
 
-        // ✅ Инлайн-стиль фона — применяется ещё до загрузки CSS
+        // ✅ Ставим фон ТОЛЬКО на <html> — body получит свой градиент из CSS
         document.documentElement.style.background = isDark
           ? '#0a0612'
           : '#eef2f8';
         document.documentElement.style.height = '100%';
-
-        // Для body отдельно — когда body появится
-        document.addEventListener('DOMContentLoaded', function () {
-          document.body.style.background = isDark ? '#0a0612' : '#eef2f8';
-        }, { once: true });
       } catch (e) {
-        // На случай если localStorage недоступен
         document.documentElement.setAttribute('data-app-theme', 'light');
         document.documentElement.style.background = '#eef2f8';
       }
@@ -65,30 +57,20 @@
       height: 100%;
       min-height: 100%;
     }
+    /* ✅ НЕ ставим фоны body здесь — их даст основной CSS через градиент */
     html[data-app-theme="dark"] { background: #0a0612; }
     html[data-app-theme="light"] { background: #eef2f8; }
 
     #app {
       min-height: 100%;
     }
-
-    /* Прелоадер — не даёт увидеть «белый экран» пока Vue не смонтировался */
-    #app:empty::before {
-      content: '';
-      position: fixed;
-      inset: 0;
-      background: inherit;
-      z-index: 1;
-    }
   </style>
 </head>
 <body>
   <div id="app"></div>
 
-  <!-- Tesseract.js — OCR для чеков -->
   <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 
-  <!-- PDF.js — парсер выписок -->
   <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
   <script>
     if (window.pdfjsLib) {
