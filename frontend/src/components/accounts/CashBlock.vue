@@ -220,9 +220,6 @@ const fallingBills = [
   gap: 12px;
 }
 
-/* ============================================================
-   КУПЮРА
-   ============================================================ */
 .cash-note {
   position: relative;
   border-radius: 20px;
@@ -247,7 +244,8 @@ const fallingBills = [
   transition:
     transform 0.35s cubic-bezier(.34,1.56,.64,1),
     box-shadow 0.35s ease,
-    padding 0.3s ease;
+    padding 0.3s ease,
+    background 0.4s ease;
 }
 
 .cash-note.collapsed { padding: 14px 20px; }
@@ -342,9 +340,6 @@ const fallingBills = [
   100% { transform: translate3d(-10px, 110%, 0) rotate(calc(var(--rot, 0deg) - 20deg)) scale(var(--scale, 1)); opacity: 0; }
 }
 
-/* ============================================================
-   ЗАГОЛОВОК
-   ============================================================ */
 .cn-header {
   position: relative;
   z-index: 3;
@@ -437,9 +432,6 @@ const fallingBills = [
   white-space: nowrap;
 }
 
-/* ============================================================
-   СВОРАЧИВАЕМОЕ
-   ============================================================ */
 .cn-collapsible {
   position: relative;
   z-index: 3;
@@ -704,9 +696,7 @@ const fallingBills = [
   white-space: nowrap;
 }
 
-/* ============================================================
-   ТЁМНАЯ ТЕМА — купюра становится неоновой
-   ============================================================ */
+/* Тёмная тема — купюра становится неоновой */
 :global(:root[data-app-theme="dark"]) {
   .cash-note {
     background:
@@ -743,9 +733,6 @@ const fallingBills = [
   }
 }
 
-/* ============================================================
-   МОБИЛЬНЫЙ
-   ============================================================ */
 @media (max-width: 700px) {
   .cash-note { padding: 14px 16px 12px; border-radius: 18px; }
   .cash-note.collapsed { padding: 12px 14px; }

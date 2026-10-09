@@ -72,9 +72,6 @@ function onEdit() {
   emit('edit', props.tx);
 }
 
-// ============================================================
-// SWIPE-REVEAL (мобильный)
-// ============================================================
 const el = ref(null);
 const offsetX = ref(0);
 const revealed = ref(false);
@@ -338,7 +335,7 @@ const progress = computed(() =>
 }
 
 /* ============================================================
-   ПАНЕЛЬ ДЕЙСТВИЙ (мобильный свайп)
+   ПАНЕЛЬ ДЕЙСТВИЙ (свайп на мобильном)
    ============================================================ */
 .tx-actions-panel {
   position: absolute;
@@ -386,6 +383,7 @@ const progress = computed(() =>
     0 1px 0 rgba(255, 255, 255, 0.4) inset,
     0 -2px 0 rgba(29, 78, 216, 0.3) inset,
     0 4px 10px -2px rgba(99, 102, 241, 0.5);
+
   &:hover {
     transform: translateY(-2px);
     box-shadow:
@@ -401,6 +399,7 @@ const progress = computed(() =>
     0 1px 0 rgba(255, 255, 255, 0.4) inset,
     0 -2px 0 rgba(153, 27, 27, 0.3) inset,
     0 4px 10px -2px rgba(239, 68, 68, 0.5);
+
   &:hover {
     transform: translateY(-2px);
     box-shadow:
@@ -411,7 +410,7 @@ const progress = computed(() =>
 }
 
 /* ============================================================
-   КАРТОЧКА — адаптируется под тему
+   КАРТОЧКА — тема применяется через переменные
    ============================================================ */
 .tx-card {
   position: relative;

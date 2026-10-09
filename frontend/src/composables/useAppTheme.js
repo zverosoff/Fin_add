@@ -8,7 +8,7 @@ export const appTheme = ref(
   localStorage.getItem(STORAGE_KEY) || 'auto'
 );
 
-// Реальная активная тема: light | dark
+// Системное значение
 const systemDark = ref(
   typeof window !== 'undefined'
     ? window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -36,7 +36,6 @@ export function applyTheme() {
   document.documentElement.dataset.appTheme = resolved;
   document.documentElement.style.colorScheme = resolved;
 
-  // Меняем тему-цвет для мобильных браузеров (строка статуса)
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) {
     meta.setAttribute(
@@ -53,16 +52,16 @@ export function setAppTheme(value) {
   applyTheme();
 }
 
-// Инициализация при загрузке
+// Инициализация
 if (typeof window !== 'undefined') {
   applyTheme();
 }
 
 export function useAppTheme() {
   return {
-    theme: appTheme,          // 'light' | 'dark' | 'auto'
-    resolvedTheme,            // 'light' | 'dark'
-    isDark,                   // boolean
+    theme: appTheme,
+    resolvedTheme,
+    isDark,
     setTheme: setAppTheme,
     applyTheme,
   };

@@ -1,5 +1,5 @@
 /* ============================================================
-   СВЕТЛАЯ ТЕМА (по умолчанию) — как сейчас
+   СВЕТЛАЯ ТЕМА (по умолчанию)
    ============================================================ */
 :root,
 :root[data-app-theme="light"] {
@@ -29,21 +29,21 @@
 
   --mono: "JetBrains Mono", "SF Mono", Consolas, monospace;
 
-  /* ==== Неоновые токены (для светлой темы — приглушённые) ==== */
+  /* Неоновые токены (в светлой — приглушённые) */
   --neon-purple: #8b5cf6;
   --neon-cyan: #06b6d4;
   --neon-pink: #ec4899;
   --neon-green: #22c55e;
   --neon-orange: #f59e0b;
 
-  /* ==== Градиенты для главных кнопок ==== */
+  /* Градиенты */
   --grad-primary: linear-gradient(135deg, #3b82f6, #8b5cf6);
   --grad-primary-hover: linear-gradient(135deg, #6366f1, #a855f7);
   --grad-income: linear-gradient(135deg, #22c55e, #4ade80);
   --grad-expense: linear-gradient(135deg, #ef4444, #f87171);
   --grad-card: linear-gradient(180deg, #ffffff 0%, #fafbff 100%);
 
-  /* ==== Свечения (glow) ==== */
+  /* Свечения */
   --glow-purple: 0 0 20px -4px rgba(139, 92, 246, 0.35);
   --glow-cyan: 0 0 20px -4px rgba(34, 211, 238, 0.35);
   --glow-green: 0 0 20px -4px rgba(34, 197, 94, 0.35);
@@ -56,26 +56,26 @@
    НЕОНОВАЯ ТЁМНАЯ ТЕМА
    ============================================================ */
 :root[data-app-theme="dark"] {
-  /* ==== Фон — глубокий фиолетово-чёрный ==== */
+  /* Фон — глубокий фиолетово-чёрный */
   --bg-0: #0a0612;
   --panel: rgba(255, 255, 255, 0.04);
   --panel-2: rgba(255, 255, 255, 0.06);
   --panel-solid: #14091f;
 
-  /* ==== Акценты — неон ==== */
-  --accent: #a855f7;         /* фиолетовый — основной */
-  --accent-2: #22c55e;       /* изумруд — income */
-  --danger: #f43f5e;         /* розово-красный — expense */
-  --warning: #fbbf24;        /* янтарный */
+  /* Акценты — неон */
+  --accent: #a855f7;
+  --accent-2: #22c55e;
+  --danger: #f43f5e;
+  --warning: #fbbf24;
 
-  /* ==== Текст ==== */
+  /* Текст */
   --text: #f4f4f6;
   --muted: #8b8ba0;
   --border: rgba(139, 92, 246, 0.15);
   --border-strong: rgba(139, 92, 246, 0.35);
   --overlay-bg: rgba(20, 9, 31, 0.97);
 
-  /* ==== Тени — цветные, многослойные ==== */
+  /* Тени — цветные, многослойные */
   --shadow-sm:
     0 1px 2px rgba(0, 0, 0, 0.4),
     0 2px 8px -2px rgba(139, 92, 246, 0.15);
@@ -90,21 +90,21 @@
     0 24px 60px -20px rgba(139, 92, 246, 0.35),
     0 0 0 1px rgba(139, 92, 246, 0.12) inset;
 
-  /* ==== Радиусы — те же, что в светлой ==== */
+  /* Радиусы */
   --radius-lg: 20px;
   --radius-md: 12px;
   --radius-sm: 8px;
 
   --mono: "JetBrains Mono", "SF Mono", Consolas, monospace;
 
-  /* ==== Неоновая палитра ==== */
+  /* Неоновая палитра */
   --neon-purple: #a855f7;
   --neon-cyan: #22d3ee;
   --neon-pink: #ec4899;
   --neon-green: #4ade80;
   --neon-orange: #fbbf24;
 
-  /* ==== Градиенты для тёмной темы ==== */
+  /* Градиенты */
   --grad-primary: linear-gradient(135deg, #8b5cf6, #a855f7);
   --grad-primary-hover: linear-gradient(135deg, #a855f7, #c084fc);
   --grad-income: linear-gradient(135deg, #16a34a, #4ade80);
@@ -114,7 +114,7 @@
     radial-gradient(circle at 0% 100%, rgba(34, 211, 238, 0.05), transparent 50%),
     linear-gradient(180deg, rgba(30, 16, 48, 0.9) 0%, rgba(20, 9, 31, 0.95) 100%);
 
-  /* ==== Свечения ==== */
+  /* Свечения */
   --glow-purple: 0 0 24px -4px rgba(168, 85, 247, 0.55);
   --glow-cyan: 0 0 24px -4px rgba(34, 211, 238, 0.55);
   --glow-green: 0 0 24px -4px rgba(74, 222, 128, 0.55);
