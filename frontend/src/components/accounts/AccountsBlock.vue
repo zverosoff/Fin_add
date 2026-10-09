@@ -51,89 +51,6 @@ function isMe(owner) { return owner === userName.value; }
 
 const myAvatar = computed(() => auth.avatarFor(userName.value));
 
-// ============================================================
-// 3D-наклон
-// ============================================================
-const cardEl = ref(null);
-const tilt = ref({ rx: 0, ry: 0, mx: 50, my: 50 });
-const isTilting = ref(false);
-
-const MAX_TILT = 10;
-const RETURN_MS = 400;
-
-let rafId = null;
-let pendingTilt = null;
-
-function applyTilt() {
-  if (!pendingTilt) return;
-  tilt.value = pendingTilt;
-  pendingTilt = null;
-  rafId = null;
-}
-
-function updateTilt(clientX, clientY) {
-  const el = cardEl.value;
-  if (!el) return;
-  const rect = el.getBoundingClientRect();
-  const px = (clientX - rect.left) / rect.width;
-  const py = (clientY - rect.top) / rect.height;
-  const dx = (px - 0.5) * 2;
-  const dy = (py - 0.5) * 2;
-  pendingTilt = {
-    rx: -dy * MAX_TILT,
-    ry: dx * MAX_TILT,
-    mx: px * 100,
-    my: py * 100,
-  };
-  if (!rafId) rafId = requestAnimationFrame(applyTilt);
-}
-
-function onMouseMove(e) {
-  isTilting.value = true;
-  updateTilt(e.clientX, e.clientY);
-}
-function onMouseLeave() {
-  isTilting.value = false;
-  tilt.value = { rx: 0, ry: 0, mx: 50, my: 50 };
-}
-function onTouchStart(e) {
-  if (e.touches.length !== 1) return;
-  isTilting.value = true;
-  updateTilt(e.touches[0].clientX, e.touches[0].clientY);
-}
-function onTouchMove(e) {
-  if (e.touches.length !== 1) return;
-  if (e.cancelable) e.preventDefault();
-  updateTilt(e.touches[0].clientX, e.touches[0].clientY);
-}
-function onTouchEnd() {
-  isTilting.value = false;
-  tilt.value = { rx: 0, ry: 0, mx: 50, my: 50 };
-}
-
-const cardStyle = computed(() => {
-  const t = tilt.value;
-  return {
-    transform: `perspective(1000px) rotateX(${t.rx}deg) rotateY(${t.ry}deg) scale(${isTilting.value ? 1.02 : 1})`,
-    transition: isTilting.value
-      ? 'transform 0.05s linear'
-      : `transform ${RETURN_MS}ms cubic-bezier(.34,1.56,.64,1)`,
-  };
-});
-
-const shineStyle = computed(() => {
-  const t = tilt.value;
-  return {
-    background: `radial-gradient(
-      circle at ${t.mx}% ${t.my}%,
-      rgba(255, 255, 255, 0.55) 0%,
-      rgba(255, 255, 255, 0.15) 25%,
-      transparent 50%
-    )`,
-    opacity: isTilting.value ? 1 : 0,
-  };
-});
-
 onMounted(async () => {
   try {
     const saved = localStorage.getItem(LS_KEY);
@@ -154,16 +71,8 @@ watch(expandedOwners, (val) => {
 <template>
   <section class="accounts-block">
     <div
-      ref="cardEl"
       class="debit-card"
-      :class="{ 'is-tilting': isTilting, 'has-avatar': !!myAvatar }"
-      :style="cardStyle"
-      @mousemove="onMouseMove"
-      @mouseleave="onMouseLeave"
-      @touchstart.passive="onTouchStart"
-      @touchmove="onTouchMove"
-      @touchend="onTouchEnd"
-      @touchcancel="onTouchEnd"
+      :class="{ 'has-avatar': !!myAvatar }"
     >
       <div class="dc-bg" aria-hidden="true">
         <div class="dc-bg-photo">
@@ -197,7 +106,6 @@ watch(expandedOwners, (val) => {
         <div class="dc-bg-ribbon"></div>
       </div>
 
-      <div class="dc-shine-cursor" :style="shineStyle" aria-hidden="true"></div>
       <div class="dc-gloss" aria-hidden="true"></div>
       <div class="dc-pattern" aria-hidden="true"></div>
       <div class="dc-watermark" aria-hidden="true">₽</div>
@@ -296,20 +204,8 @@ watch(expandedOwners, (val) => {
   gap: 10px;
   min-height: 240px;
 
-  will-change: transform;
   user-select: none;
   -webkit-user-select: none;
-  touch-action: pan-y;
-  transition: box-shadow 0.35s ease;
-
-  &.is-tilting {
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.4) inset,
-      0 -1px 0 rgba(0, 0, 0, 0.15) inset,
-      0 6px 12px rgba(79, 70, 229, 0.3),
-      0 20px 48px -8px rgba(79, 70, 229, 0.5),
-      0 40px 80px -30px rgba(15, 23, 42, 0.35);
-  }
 }
 
 .dc-bg {
@@ -558,15 +454,6 @@ watch(expandedOwners, (val) => {
     transparent 100%
   );
   clip-path: polygon(22% 0%, 100% 0%, 100% 100%, 8% 100%);
-}
-
-.dc-shine-cursor {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 12;
-  mix-blend-mode: overlay;
-  transition: opacity 0.15s linear;
 }
 
 .dc-gloss {
