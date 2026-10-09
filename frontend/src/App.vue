@@ -23,6 +23,9 @@ const { connect } = useWebSocket();
 const scanStore = useScanStore();
 const { applyTheme } = useAppTheme();
 
+// ✅ Применяем тему ДО рендера — устраняет белый флеш при загрузке
+applyTheme();
+
 const booting = ref(false);
 const percent = ref(0);
 const stage = ref('Запуск…');
@@ -37,9 +40,6 @@ const transitionName = ref('fade-page');
 
 const BASE_TITLE = 'Финансы PRO+';
 document.title = BASE_TITLE;
-
-// ✅ Применяем тему ДО любого рендера
-applyTheme();
 
 watch(() => route.name, (newName, oldName) => {
   const newIdx = TAB_ORDER.indexOf(newName);
@@ -187,11 +187,13 @@ onUnmounted(() => {
 </template>
 
 <style>
-/* ✅ Фон на корневом контейнере — чтобы при переходах не было «прозрачной прослойки» */
+/* ✅ Прозрачные обёртки — фон обеспечивает body (светлый градиент или тёмный) */
 .app-root {
+  position: relative;
   min-height: 100vh;
   width: 100%;
-  position: relative;
+  /* ✅ НЕТ background — прозрачно, виден body */
+  background: transparent;
 }
 
 .page-transition-wrap {
@@ -200,6 +202,25 @@ onUnmounted(() => {
   width: 100%;
   overflow-x: hidden;
   padding-bottom: calc(90px + env(safe-area-inset-bottom, 0));
+  /* ✅ Тоже прозрачный, чтобы body просвечивал */
+  background: transparent;
+  isolation: isolate;
+}
+
+/* ✅ В тёмной теме body уже тёмный — дополнительный фон не нужен,
+   но оставляем для надёжности на случай просветов при переходах */
+:global(:root[data-app-theme="dark"]) .app-root {
+  background: #0a0612;
+}
+
+:global(:root[data-app-theme="dark"]) .page-transition-wrap {
+  background: transparent;
+}
+
+/* ✅ В СВЕТЛОЙ теме — прозрачный, чтобы body-градиент был виден */
+:global(:root[data-app-theme="light"]) .app-root,
+:global(:root[data-app-theme="light"]) .page-transition-wrap {
+  background: transparent;
 }
 
 @media (max-width: 700px) {
@@ -207,11 +228,9 @@ onUnmounted(() => {
 }
 
 /* ============================================================
-   Переходы между страницами — без мелькания фона
+   Переходы между страницами — без мелькания
    ============================================================ */
 
-/* ✅ ВАЖНО: leave-active элемент должен иметь свой фон,
-   чтобы под ним не просвечивал светлый body */
 .slide-left-leave-active,
 .slide-right-leave-active,
 .fade-page-leave-active {
@@ -219,12 +238,9 @@ onUnmounted(() => {
   top: 0; left: 0; right: 0;
   width: 100%;
   pointer-events: none;
-  /* ✅ фон наследуется от .page-transition-wrap, но т.к. оно absolute — 
-       принудительно задаём непрозрачный: */
   z-index: 1;
 }
 
-/* ✅ Приходящая страница — поверх уходящей, с непрозрачным фоном */
 .slide-left-enter-active,
 .slide-right-enter-active,
 .fade-page-enter-active {
