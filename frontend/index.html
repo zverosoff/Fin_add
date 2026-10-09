@@ -22,33 +22,43 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
 
   <!-- ✅ КРИТИЧНО: применяем тему ДО парсинга body -->
-  <script>
-    (function () {
-      try {
-        var stored = localStorage.getItem('finance-app-theme-v1') || 'auto';
-        var isDark = false;
-        if (stored === 'dark') isDark = true;
-        else if (stored === 'auto') {
-          isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        }
-        var theme = isDark ? 'dark' : 'light';
-        document.documentElement.setAttribute('data-app-theme', theme);
-        document.documentElement.style.colorScheme = theme;
-
-        var meta = document.querySelector('meta[name="theme-color"]');
-        if (meta) meta.setAttribute('content', isDark ? '#0a0612' : '#eef2f8');
-
-        // ✅ Ставим фон ТОЛЬКО на <html> — body получит свой градиент из CSS
-        document.documentElement.style.background = isDark
-          ? '#0a0612'
-          : '#eef2f8';
-        document.documentElement.style.height = '100%';
-      } catch (e) {
-        document.documentElement.setAttribute('data-app-theme', 'light');
-        document.documentElement.style.background = '#eef2f8';
+<script>
+  (function () {
+    try {
+      var stored = localStorage.getItem('finance-app-theme-v1') || 'auto';
+      var isDark = false;
+      if (stored === 'dark') isDark = true;
+      else if (stored === 'auto') {
+        isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
       }
-    })();
-  </script>
+      var theme = isDark ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-app-theme', theme);
+      document.documentElement.style.colorScheme = theme;
+
+      var meta = document.querySelector('meta[name="theme-color"]');
+      if (meta) meta.setAttribute('content', isDark ? '#0a0612' : '#eef2f8');
+
+      // ✅ Фон на html + body, чтобы первый рендер был правильного цвета
+      var bgColor = isDark ? '#0a0612' : '#eef2f8';
+      document.documentElement.style.background = bgColor;
+
+      // ✅ Через requestAnimationFrame — после появления body
+      var applyBodyBg = function () {
+        if (document.body) {
+          document.body.style.background = bgColor;
+        }
+      };
+      if (document.body) {
+        applyBodyBg();
+      } else {
+        document.addEventListener('DOMContentLoaded', applyBodyBg, { once: true });
+      }
+    } catch (e) {
+      document.documentElement.setAttribute('data-app-theme', 'light');
+      document.documentElement.style.background = '#eef2f8';
+    }
+  })();
+</script>
 
   <style>
     /* Минимальный inline-стиль до загрузки основного CSS */
