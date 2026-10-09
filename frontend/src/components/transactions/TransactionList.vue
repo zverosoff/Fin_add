@@ -162,9 +162,6 @@ async function restoreFromSnapshot(snapshot) {
   gap: 8px;
 }
 
-/* ============================================================
-   ✅ Плашка активных фильтров — стеклянная + объёмная
-   ============================================================ */
 .tx-active-filter {
   display: flex;
   align-items: center;
@@ -172,21 +169,17 @@ async function restoreFromSnapshot(snapshot) {
   flex-wrap: wrap;
   padding: 10px 14px;
 
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-  border: 1px solid rgba(99, 102, 241, 0.25);
+  background: var(--grad-card);
+  border: 1px solid var(--border-strong);
   border-radius: 14px;
   font-size: 12px;
 
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.95) inset,
-    0 -1px 0 rgba(148, 163, 184, 0.05) inset,
-    0 2px 6px rgba(15, 23, 42, 0.04),
-    0 8px 16px -6px rgba(99, 102, 241, 0.15);
+  box-shadow: var(--shadow-md);
 }
 
 .taf-label {
   font-weight: 800;
-  color: #64748b;
+  color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   font-size: 11px;
@@ -198,24 +191,19 @@ async function restoreFromSnapshot(snapshot) {
   gap: 6px;
   padding: 4px 10px;
   border-radius: 999px;
-  background: linear-gradient(180deg, rgba(99, 102, 241, 0.15), rgba(99, 102, 241, 0.08));
-  border: 1px solid rgba(99, 102, 241, 0.35);
-  color: #4f46e5;
+  background: rgba(139, 92, 246, 0.15);
+  border: 1px solid rgba(139, 92, 246, 0.35);
+  color: var(--accent);
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.7) inset,
-    0 2px 4px rgba(99, 102, 241, 0.1);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1) inset;
 
   &:hover {
-    background: linear-gradient(180deg, rgba(239, 68, 68, 0.18), rgba(239, 68, 68, 0.1));
-    border-color: rgba(239, 68, 68, 0.5);
-    color: #dc2626;
+    background: rgba(244, 63, 94, 0.18);
+    border-color: rgba(244, 63, 94, 0.5);
+    color: var(--danger);
     transform: translateY(-1px);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.7) inset,
-      0 4px 8px -2px rgba(239, 68, 68, 0.3);
   }
   .taf-close { font-size: 12px; line-height: 1; opacity: 0.8; }
 }
@@ -224,41 +212,31 @@ async function restoreFromSnapshot(snapshot) {
   margin-left: auto;
   padding: 5px 12px;
   border-radius: 999px;
-  border: 1px dashed rgba(148, 163, 184, 0.5);
-  background: linear-gradient(180deg, #ffffff, #f8fafc);
-  color: #64748b;
+  border: 1px dashed var(--border-strong);
+  background: var(--panel-2);
+  color: var(--muted);
   font-family: inherit;
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
   transition: all 0.15s ease;
 
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset;
-
   &:hover {
-    border-color: #dc2626;
-    color: #dc2626;
-    background: linear-gradient(180deg, #fef2f2, #fee2e2);
+    border-color: var(--danger);
+    color: var(--danger);
+    background: rgba(244, 63, 94, 0.08);
     transform: translateY(-1px);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.9) inset,
-      0 4px 8px -2px rgba(239, 68, 68, 0.25);
   }
 }
 
-/* ============================================================
-   ✅ Пустой список — вложенная карточка
-   ============================================================ */
 .tx-empty {
   text-align: center;
   padding: 60px 24px;
-  background: linear-gradient(180deg, #ffffff, #fafbff);
-  border: 1px dashed rgba(148, 163, 184, 0.4);
+  background: var(--grad-card);
+  border: 1px dashed var(--border-strong);
   border-radius: 16px;
 
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.95) inset,
-    0 4px 12px -4px rgba(15, 23, 42, 0.06);
+  box-shadow: var(--shadow-sm);
 
   .empty-icon { font-size: 48px; opacity: 0.6; }
   .empty-title { font-size: 17px; font-weight: 700; margin-top: 12px; color: var(--text); }
@@ -269,32 +247,24 @@ async function restoreFromSnapshot(snapshot) {
   margin-top: 16px;
   padding: 9px 18px;
   border-radius: 10px;
-  border: 1px solid rgba(99, 102, 241, 0.4);
-  background: linear-gradient(180deg, #eef2ff, #e0e7ff);
-  color: #4f46e5;
+  border: 1px solid rgba(139, 92, 246, 0.4);
+  background: rgba(139, 92, 246, 0.1);
+  color: var(--accent);
   font-family: inherit;
   font-size: 13px;
   font-weight: 800;
   cursor: pointer;
   transition: all 0.15s ease;
 
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.9) inset,
-    0 2px 6px rgba(99, 102, 241, 0.15);
-
   &:hover {
-    background: linear-gradient(180deg, #6366f1, #4f46e5);
+    background: var(--grad-primary);
     color: #ffffff;
+    border-color: transparent;
     transform: translateY(-1px);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.3) inset,
-      0 6px 14px -4px rgba(99, 102, 241, 0.5);
+    box-shadow: 0 6px 14px -4px rgba(139, 92, 246, 0.5);
   }
 }
 
-/* ============================================================
-   ✅ Заголовок дня — объёмный, стеклянный
-   ============================================================ */
 .tx-day-header {
   position: sticky;
   top: 0;
@@ -313,20 +283,13 @@ async function restoreFromSnapshot(snapshot) {
   user-select: none;
   border-radius: 10px 10px 0 0;
 
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.95) 0%,
-    rgba(248, 250, 252, 0.85) 100%
-  );
+  background: var(--panel);
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
 
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.95) inset,
-    0 -1px 0 rgba(148, 163, 184, 0.08) inset,
-    0 2px 4px rgba(15, 23, 42, 0.03);
+  box-shadow: var(--shadow-sm);
 
-  border: 1px solid rgba(226, 232, 240, 0.6);
+  border: 1px solid var(--border);
   border-bottom: none;
 
   transition: color 0.15s, transform 0.15s, box-shadow 0.2s;
@@ -334,22 +297,13 @@ async function restoreFromSnapshot(snapshot) {
   &:hover {
     color: var(--accent);
     transform: translateY(-1px);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.95) inset,
-      0 -1px 0 rgba(148, 163, 184, 0.08) inset,
-      0 4px 10px -2px rgba(99, 102, 241, 0.15);
   }
 
   &.collapsed {
     border-radius: 10px;
     padding: 10px 14px;
     margin-top: 6px;
-    border-bottom: 1px solid rgba(226, 232, 240, 0.6);
-
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.95) inset,
-      0 -1px 0 rgba(148, 163, 184, 0.08) inset,
-      0 2px 6px rgba(15, 23, 42, 0.05);
+    border-bottom: 1px solid var(--border);
   }
 }
 
@@ -369,8 +323,7 @@ async function restoreFromSnapshot(snapshot) {
   align-items: center;
   gap: 6px;
   &.today {
-    color: #16a34a;
-    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
+    color: var(--accent-2, #16a34a);
     &::before {
       content: "";
       display: inline-block;
@@ -389,13 +342,11 @@ async function restoreFromSnapshot(snapshot) {
   font-weight: 800;
   padding: 2px 8px;
   border-radius: 999px;
-  background: linear-gradient(180deg, #f1f5f9, #e2e8f0);
+  background: var(--panel-2);
   color: var(--muted);
   text-transform: none;
   letter-spacing: 0;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.8) inset,
-    0 1px 2px rgba(15, 23, 42, 0.05);
+  border: 1px solid var(--border);
 }
 
 .day-sum {
@@ -405,9 +356,8 @@ async function restoreFromSnapshot(snapshot) {
   font-weight: 800;
   letter-spacing: 0;
   text-transform: none;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
-  &.positive { color: #16a34a; }
-  &.negative { color: #dc2626; }
+  &.positive { color: var(--accent-2, #16a34a); }
+  &.negative { color: var(--danger, #dc2626); }
 }
 
 .tx-day-items {
@@ -417,9 +367,51 @@ async function restoreFromSnapshot(snapshot) {
   padding-top: 4px;
 }
 
-/* ============================================================
-   МОБИЛЬНЫЙ
-   ============================================================ */
+/* Тёмная тема — доп. неон */
+:global(:root[data-app-theme="dark"]) {
+  .day-date.today {
+    color: #4ade80;
+    text-shadow: 0 0 12px rgba(74, 222, 128, 0.5);
+
+    &::before {
+      box-shadow:
+        0 0 0 3px rgba(74, 222, 128, 0.25),
+        0 0 12px rgba(74, 222, 128, 0.6);
+    }
+  }
+
+  .day-sum.positive {
+    color: #4ade80;
+    text-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
+  }
+  .day-sum.negative {
+    color: #f43f5e;
+    text-shadow: 0 0 10px rgba(244, 63, 94, 0.5);
+  }
+
+  .tx-day-header {
+    background: rgba(20, 9, 31, 0.85);
+    border-color: rgba(139, 92, 246, 0.18);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.03) inset,
+      0 2px 4px rgba(0, 0, 0, 0.4);
+  }
+
+  .taf-chip {
+    background: rgba(168, 85, 247, 0.15);
+    border-color: rgba(168, 85, 247, 0.4);
+    color: #a855f7;
+    box-shadow: 0 0 12px rgba(168, 85, 247, 0.15);
+
+    &:hover {
+      background: rgba(244, 63, 94, 0.2);
+      border-color: rgba(244, 63, 94, 0.55);
+      color: #f43f5e;
+      box-shadow: 0 0 12px rgba(244, 63, 94, 0.3);
+    }
+  }
+}
+
 @media (max-width: 700px) {
   .tx-active-filter { padding: 8px 10px; gap: 4px; font-size: 11px; }
   .taf-label { font-size: 10px; width: 100%; margin-bottom: 2px; }

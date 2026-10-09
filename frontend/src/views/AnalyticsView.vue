@@ -201,6 +201,25 @@ function openEditContrib({ goal, user }) {
 .analytics-page {
   min-height: 100vh;
   padding: 20px 20px 20px;
+  position: relative;
+}
+
+.analytics-page::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 70% 50% at 15% 0%, rgba(99, 102, 241, 0.06), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 85% 40%, rgba(139, 92, 246, 0.05), transparent 60%);
+  transition: background 0.4s ease;
+}
+
+:global(:root[data-app-theme="dark"]) .analytics-page::before {
+  background:
+    radial-gradient(ellipse 70% 50% at 15% 0%, rgba(139, 92, 246, 0.12), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 85% 40%, rgba(168, 85, 247, 0.08), transparent 60%);
 }
 
 .analytics-grid {

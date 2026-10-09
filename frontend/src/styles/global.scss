@@ -23,6 +23,8 @@ html, body {
 
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+
+  /* Светлая тема */
   background: linear-gradient(
     135deg,
     #e8eefc 0%,
@@ -33,6 +35,8 @@ body {
   );
   background-size: 400% 400%;
   animation: bgGradient 10s ease-in-out infinite;
+  background-attachment: fixed;
+
   color: var(--text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -42,6 +46,19 @@ body {
   padding-bottom: env(safe-area-inset-bottom);
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
+
+  transition: background 0.4s ease, color 0.3s ease;
+}
+
+/* Тёмная тема — глубокий фиолетово-чёрный */
+:root[data-app-theme="dark"] body {
+  background:
+    radial-gradient(ellipse 80% 60% at 15% 0%, rgba(139, 92, 246, 0.15), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 85% 40%, rgba(34, 211, 238, 0.08), transparent 60%),
+    radial-gradient(ellipse 80% 60% at 50% 100%, rgba(236, 72, 153, 0.08), transparent 65%),
+    linear-gradient(180deg, #0a0612 0%, #0d0718 50%, #0a0612 100%);
+  background-attachment: fixed;
+  animation: none;
 }
 
 @keyframes bgGradient {
@@ -51,7 +68,7 @@ body {
 }
 
 /* ============================================================
-   РАЗРЕШАЕМ ВЫДЕЛЕНИЕ там, где оно нужно
+   РАЗРЕШАЕМ ВЫДЕЛЕНИЕ
    ============================================================ */
 input,
 textarea,
@@ -76,13 +93,12 @@ samp {
 }
 
 /* ============================================================
-   TOUCH ACTION — убираем double-tap zoom, оставляем скролл
+   TOUCH ACTION
    ============================================================ */
 * {
   touch-action: manipulation;
 }
 
-.chat-body,
 .tx-list,
 .list-scroll,
 [data-scrollable] {
@@ -105,6 +121,11 @@ svg.interactive {
   border: 2px solid transparent;
   background-clip: padding-box;
 }
+:root[data-app-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(139, 92, 246, 0.4);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
 @media (max-width: 700px) {
   ::-webkit-scrollbar { width: 4px; }
 }
@@ -116,6 +137,9 @@ svg.interactive {
   outline: none;
   box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.35), 0 0 0 1px var(--accent);
   border-radius: 8px;
+}
+:root[data-app-theme="dark"] :focus-visible {
+  box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.45), 0 0 0 1px var(--accent);
 }
 
 /* ============================================================
@@ -131,7 +155,7 @@ input, select, textarea {
 }
 
 /* ============================================================
-   МОБИЛЬНЫЕ ГЛОБАЛЬНЫЕ ПРАВКИ
+   МОБИЛЬНЫЕ ПРАВКИ
    ============================================================ */
 @media (max-width: 700px) {
   body { font-size: 14px; }
@@ -151,15 +175,12 @@ input, select, textarea {
 }
 
 /* ============================================================
-   Скрываем старый AppTabs
+   LEGACY
    ============================================================ */
 .app-tabs {
   display: none !important;
 }
 
-/* ============================================================
-   LEGACY: самописные модалки
-   ============================================================ */
 .tx-modal-overlay {
   position: fixed;
   inset: 0;
@@ -172,12 +193,14 @@ input, select, textarea {
   padding: 16px;
   transition: background 0.25s, backdrop-filter 0.25s;
 }
-
 .tx-modal-overlay.show {
   display: flex;
   background: rgba(15, 23, 42, 0.5);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
+}
+:root[data-app-theme="dark"] .tx-modal-overlay.show {
+  background: rgba(0, 0, 0, 0.75);
 }
 
 .tx-modal {
@@ -195,7 +218,6 @@ input, select, textarea {
   opacity: 0;
   transition: transform 0.3s cubic-bezier(.34,1.56,.64,1), opacity 0.22s;
 }
-
 .tx-modal-overlay.show .tx-modal {
   transform: scale(1) translateY(0);
   opacity: 1;
@@ -206,7 +228,6 @@ input, select, textarea {
     padding: 0;
     align-items: flex-end;
   }
-
   .tx-modal {
     max-width: 100%;
     width: 100%;
@@ -216,165 +237,7 @@ input, select, textarea {
     transform: translateY(100%);
     opacity: 1;
   }
-
   .tx-modal-overlay.show .tx-modal {
     transform: translateY(0);
   }
-}
-
-/* ============================================================
-   ТЕМЫ ЧАТА
-   ============================================================ */
-:root,
-:root[data-chat-theme="light"] {
-  --chat-bg: #f2f2f7;
-  --chat-header-bg: rgba(249, 250, 251, 0.96);
-  --chat-border: rgba(60, 60, 67, 0.15);
-  --chat-text: #000;
-  --chat-text-muted: #8e8e93;
-  --chat-bubble-in-bg: #ffffff;
-  --chat-bubble-in-text: #000;
-  --chat-bubble-out-bg: #007aff;
-  --chat-bubble-out-text: #ffffff;
-  --chat-input-bg: #ffffff;
-  --chat-input-border: rgba(60, 60, 67, 0.2);
-  --chat-accent: #007aff;
-  --chat-reactions-bg: rgba(0, 0, 0, 0.05);
-  --chat-reactions-out-bg: rgba(255, 255, 255, 0.18);
-  --chat-menu-bg: rgba(255, 255, 255, 0.98);
-  --chat-menu-text: #000;
-  --chat-menu-hover: rgba(0, 122, 255, 0.1);
-  --chat-bg-pattern: none;
-}
-
-:root[data-chat-theme="dark"] {
-  --chat-bg: #0f1419;
-  --chat-header-bg: rgba(22, 26, 32, 0.96);
-  --chat-border: rgba(255, 255, 255, 0.08);
-  --chat-text: #e7e9ea;
-  --chat-text-muted: #7a8899;
-  --chat-bubble-in-bg: #1e2732;
-  --chat-bubble-in-text: #e7e9ea;
-  --chat-bubble-out-bg: #2b5278;
-  --chat-bubble-out-text: #ffffff;
-  --chat-input-bg: #1e2732;
-  --chat-input-border: rgba(255, 255, 255, 0.1);
-  --chat-accent: #5288c1;
-  --chat-reactions-bg: rgba(255, 255, 255, 0.06);
-  --chat-reactions-out-bg: rgba(255, 255, 255, 0.12);
-  --chat-menu-bg: rgba(30, 39, 50, 0.98);
-  --chat-menu-text: #e7e9ea;
-  --chat-menu-hover: rgba(82, 136, 193, 0.15);
-  --chat-bg-pattern: none;
-}
-
-:root[data-chat-theme="sunset"] {
-  --chat-bg: #fff5eb;
-  --chat-header-bg: rgba(255, 248, 240, 0.96);
-  --chat-border: rgba(194, 65, 12, 0.15);
-  --chat-text: #431407;
-  --chat-text-muted: #9a5a3a;
-  --chat-bubble-in-bg: #ffffff;
-  --chat-bubble-in-text: #431407;
-  --chat-bubble-out-bg: #ea580c;
-  --chat-bubble-out-text: #fff7ed;
-  --chat-input-bg: #ffffff;
-  --chat-input-border: rgba(194, 65, 12, 0.2);
-  --chat-accent: #ea580c;
-  --chat-reactions-bg: rgba(194, 65, 12, 0.05);
-  --chat-reactions-out-bg: rgba(255, 255, 255, 0.18);
-  --chat-menu-bg: rgba(255, 255, 255, 0.98);
-  --chat-menu-text: #431407;
-  --chat-menu-hover: rgba(234, 88, 12, 0.1);
-  --chat-bg-pattern: none;
-}
-
-:root[data-chat-theme="sunset-dark"] {
-  --chat-bg: #140810;
-  --chat-header-bg: rgba(28, 14, 24, 0.96);
-  --chat-border: rgba(255, 200, 150, 0.10);
-  --chat-text: #ffe0cc;
-  --chat-text-muted: #a08479;
-  --chat-bubble-in-bg: #22101a;
-  --chat-bubble-in-text: #ffe0cc;
-  --chat-bubble-out-bg: #7c2d12;
-  --chat-bubble-out-text: #fff1e6;
-  --chat-input-bg: #22101a;
-  --chat-input-border: rgba(255, 200, 150, 0.12);
-  --chat-accent: #fb923c;
-  --chat-reactions-bg: rgba(255, 200, 150, 0.06);
-  --chat-reactions-out-bg: rgba(255, 255, 255, 0.10);
-  --chat-menu-bg: rgba(40, 20, 32, 0.98);
-  --chat-menu-text: #ffe0cc;
-  --chat-menu-hover: rgba(251, 146, 60, 0.15);
-  --chat-bg-pattern: none;
-}
-
-:root[data-chat-theme="night"] {
-  --chat-bg: #070b14;
-  --chat-header-bg: rgba(12, 18, 30, 0.96);
-  --chat-border: rgba(120, 180, 255, 0.1);
-  --chat-text: #d6e4ff;
-  --chat-text-muted: #6b7a99;
-  --chat-bubble-in-bg: #101a2e;
-  --chat-bubble-in-text: #d6e4ff;
-  --chat-bubble-out-bg: #1e3a8a;
-  --chat-bubble-out-text: #e0ecff;
-  --chat-input-bg: #101a2e;
-  --chat-input-border: rgba(120, 180, 255, 0.12);
-  --chat-accent: #60a5fa;
-  --chat-reactions-bg: rgba(120, 180, 255, 0.08);
-  --chat-reactions-out-bg: rgba(255, 255, 255, 0.1);
-  --chat-menu-bg: rgba(16, 26, 46, 0.98);
-  --chat-menu-text: #d6e4ff;
-  --chat-menu-hover: rgba(96, 165, 250, 0.15);
-  --chat-bg-pattern: none;
-}
-
-:root[data-chat-theme="ocean"] {
-  --chat-bg: #eaf6fb;
-  --chat-header-bg: rgba(240, 249, 255, 0.96);
-  --chat-border: rgba(14, 116, 144, 0.15);
-  --chat-text: #082f49;
-  --chat-text-muted: #0e7490;
-  --chat-bubble-in-bg: #ffffff;
-  --chat-bubble-in-text: #082f49;
-  --chat-bubble-out-bg: #0891b2;
-  --chat-bubble-out-text: #ffffff;
-  --chat-input-bg: #ffffff;
-  --chat-input-border: rgba(14, 116, 144, 0.2);
-  --chat-accent: #0891b2;
-  --chat-reactions-bg: rgba(14, 116, 144, 0.05);
-  --chat-reactions-out-bg: rgba(255, 255, 255, 0.18);
-  --chat-menu-bg: rgba(255, 255, 255, 0.98);
-  --chat-menu-text: #082f49;
-  --chat-menu-hover: rgba(8, 145, 178, 0.1);
-  --chat-bg-pattern: none;
-}
-
-:root[data-chat-theme="ocean-dark"] {
-  --chat-bg: #041e2b;
-  --chat-header-bg: rgba(6, 32, 46, 0.96);
-  --chat-border: rgba(56, 189, 248, 0.10);
-  --chat-text: #cffafe;
-  --chat-text-muted: #5a8a9c;
-  --chat-bubble-in-bg: #0a3145;
-  --chat-bubble-in-text: #cffafe;
-  --chat-bubble-out-bg: #0e7490;
-  --chat-bubble-out-text: #e0f2fe;
-  --chat-input-bg: #0a3145;
-  --chat-input-border: rgba(56, 189, 248, 0.12);
-  --chat-accent: #38bdf8;
-  --chat-reactions-bg: rgba(56, 189, 248, 0.06);
-  --chat-reactions-out-bg: rgba(255, 255, 255, 0.10);
-  --chat-menu-bg: rgba(10, 49, 69, 0.98);
-  --chat-menu-text: #cffafe;
-  --chat-menu-hover: rgba(56, 189, 248, 0.15);
-  --chat-bg-pattern: none;
-}
-
-/* Применяем паттерн к фону body чата */
-.chat-body {
-  background-image: var(--chat-bg-pattern, none) !important;
-  background-attachment: local !important;
 }
