@@ -23,7 +23,6 @@ const { connect } = useWebSocket();
 const scanStore = useScanStore();
 const { applyTheme } = useAppTheme();
 
-// ✅ Применяем тему ДО рендера — устраняет белый флеш при загрузке
 applyTheme();
 
 const booting = ref(false);
@@ -186,10 +185,11 @@ onUnmounted(() => {
   </div>
 </template>
 
+<!-- ✅ БЕЗ scoped — стили глобальные и точно применятся -->
 <style>
-/* ✅ Обёртки прозрачные — фон полностью обеспечивает body/страница */
-/* ✅ Обёртки прозрачные в светлой теме, тёмные в тёмной */
-/* ✅ Обёртки полностью прозрачные — фон обеспечивает body */
+/* ============================================================
+   КОРНЕВЫЕ ОБЁРТКИ
+   ============================================================ */
 .app-root {
   position: relative;
   min-height: 100vh;
@@ -212,9 +212,8 @@ onUnmounted(() => {
 }
 
 /* ============================================================
-   Переходы между страницами
+   ПЕРЕХОДЫ МЕЖДУ СТРАНИЦАМИ
    ============================================================ */
-
 .slide-left-leave-active,
 .slide-right-leave-active,
 .fade-page-leave-active {
@@ -252,4 +251,162 @@ onUnmounted(() => {
 .fade-page-leave-active { transition: opacity 0.25s ease; }
 .fade-page-enter-from,
 .fade-page-leave-to { opacity: 0; }
+
+/* ============================================================
+   ✅ ЖЁСТКИЕ ТЁМНЫЕ ФИКСЫ ДЛЯ PROFILE
+   Без scoped — компилируется в глобальный CSS, применяется всегда.
+   ============================================================ */
+
+html[data-app-theme="dark"] .hero-photo-blur {
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(20, 9, 31, 0.15) 30%,
+    rgba(20, 9, 31, 0.5) 55%,
+    rgba(20, 9, 31, 0.8) 75%,
+    rgba(20, 9, 31, 0.95) 90%,
+    #14091f 100%
+  ) !important;
+}
+
+html[data-app-theme="dark"] .c-value {
+  color: #f4f4f6 !important;
+  text-shadow: 0 0 8px rgba(168, 85, 247, 0.25) !important;
+}
+
+html[data-app-theme="dark"] .c-label {
+  color: #8b8ba0 !important;
+}
+
+html[data-app-theme="dark"] .compare-row {
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)) !important;
+  border-color: rgba(139, 92, 246, 0.15) !important;
+}
+
+html[data-app-theme="dark"] .c-delta.up {
+  color: #4ade80 !important;
+  background: rgba(34, 197, 94, 0.18) !important;
+  border: 1px solid rgba(74, 222, 128, 0.45) !important;
+  text-shadow: 0 0 8px rgba(74, 222, 128, 0.6) !important;
+}
+
+html[data-app-theme="dark"] .c-delta.down {
+  color: #f43f5e !important;
+  background: rgba(244, 63, 94, 0.18) !important;
+  border: 1px solid rgba(244, 63, 94, 0.45) !important;
+  text-shadow: 0 0 8px rgba(244, 63, 94, 0.6) !important;
+}
+
+html[data-app-theme="dark"] .c-delta.flat {
+  color: #8b8ba0 !important;
+  background: rgba(255,255,255,0.05) !important;
+  border: 1px solid rgba(139, 92, 246, 0.15) !important;
+}
+
+html[data-app-theme="dark"] .hero-card {
+  background: #14091f !important;
+  outline-color: rgba(139, 92, 246, 0.2) !important;
+}
+
+html[data-app-theme="dark"] .profile-card {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(139, 92, 246, 0.08), transparent 50%),
+    radial-gradient(circle at 0% 100%, rgba(34, 211, 238, 0.05), transparent 50%),
+    linear-gradient(180deg, rgba(30, 16, 48, 0.9) 0%, rgba(20, 9, 31, 0.95) 100%) !important;
+  border-color: rgba(139, 92, 246, 0.15) !important;
+}
+
+html[data-app-theme="dark"] .stat {
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)) !important;
+  border-color: rgba(139, 92, 246, 0.12) !important;
+}
+
+html[data-app-theme="dark"] .stat-value {
+  color: #f4f4f6 !important;
+}
+
+html[data-app-theme="dark"] .stat-label,
+html[data-app-theme="dark"] .card-title {
+  color: #8b8ba0 !important;
+}
+
+html[data-app-theme="dark"] .hero-meta {
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)) !important;
+  border-color: rgba(139, 92, 246, 0.15) !important;
+}
+
+html[data-app-theme="dark"] .hero-meta-row {
+  color: #8b8ba0 !important;
+}
+
+html[data-app-theme="dark"] .hero-name {
+  color: #f4f4f6 !important;
+  text-shadow: 0 2px 12px rgba(20, 9, 31, 0.9) !important;
+}
+
+html[data-app-theme="dark"] .hero-username {
+  color: #8b8ba0 !important;
+  text-shadow: 0 2px 12px rgba(20, 9, 31, 0.9) !important;
+}
+
+html[data-app-theme="dark"] .top-cat {
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)) !important;
+  border-color: rgba(139, 92, 246, 0.12) !important;
+}
+
+html[data-app-theme="dark"] .tc-name,
+html[data-app-theme="dark"] .tc-amount-value {
+  color: #f4f4f6 !important;
+}
+
+html[data-app-theme="dark"] .tc-amount-pct {
+  color: #8b8ba0 !important;
+}
+
+html[data-app-theme="dark"] .tc-bar {
+  background: linear-gradient(180deg, rgba(0,0,0,0.3), rgba(0,0,0,0.2)) !important;
+}
+
+html[data-app-theme="dark"] .tc-bar-fill {
+  background: linear-gradient(180deg, #a855f7, #8b5cf6) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 0 12px rgba(168, 85, 247, 0.6) !important;
+}
+
+html[data-app-theme="dark"] .logout-btn {
+  background: linear-gradient(180deg, rgba(244,63,94,0.15), rgba(244,63,94,0.05)) !important;
+  border-color: rgba(244, 63, 94, 0.4) !important;
+  color: #f43f5e !important;
+}
+
+html[data-app-theme="dark"] .sync-indicator {
+  background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03)) !important;
+  border-color: rgba(139, 92, 246, 0.2) !important;
+  color: #8b8ba0 !important;
+}
+
+html[data-app-theme="dark"] .stat-extra-row.income {
+  background: rgba(34, 197, 94, 0.12) !important;
+  border-color: rgba(74, 222, 128, 0.3) !important;
+}
+html[data-app-theme="dark"] .stat-extra-row.income .se-label {
+  color: #8b8ba0 !important;
+}
+html[data-app-theme="dark"] .stat-extra-row.income .se-value {
+  color: #4ade80 !important;
+  text-shadow: 0 0 10px rgba(74, 222, 128, 0.5) !important;
+}
+
+html[data-app-theme="dark"] .stat-extra-row.expense {
+  background: rgba(244, 63, 94, 0.12) !important;
+  border-color: rgba(244, 63, 94, 0.3) !important;
+}
+html[data-app-theme="dark"] .stat-extra-row.expense .se-label {
+  color: #8b8ba0 !important;
+}
+html[data-app-theme="dark"] .stat-extra-row.expense .se-value {
+  color: #f43f5e !important;
+  text-shadow: 0 0 10px rgba(244, 63, 94, 0.5) !important;
+}
 </style>
