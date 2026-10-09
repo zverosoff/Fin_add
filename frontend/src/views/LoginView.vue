@@ -198,6 +198,24 @@ async function submit() {
   }
 }
 
+:global(:root[data-app-theme="dark"]) .login-card {
+  background: #14091f;
+  border-color: rgba(139, 92, 246, 0.3);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.5),
+    0 30px 80px -20px rgba(139, 92, 246, 0.5),
+    0 0 0 1px rgba(139, 92, 246, 0.2) inset;
+
+  &.has-error {
+    background: linear-gradient(180deg, rgba(244, 63, 94, 0.15) 0%, #14091f 100%);
+    border-color: rgba(244, 63, 94, 0.6);
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.5),
+      0 30px 80px -20px rgba(244, 63, 94, 0.5),
+      0 0 0 1px rgba(244, 63, 94, 0.3) inset;
+  }
+}
+
 .login-logo {
   display: inline-flex;
   align-items: center;
@@ -229,6 +247,19 @@ async function submit() {
   }
 }
 
+:global(:root[data-app-theme="dark"]) .login-logo {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(168, 85, 247, 0.15));
+  border-color: rgba(168, 85, 247, 0.4);
+  box-shadow:
+    0 8px 24px -8px rgba(168, 85, 247, 0.5),
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+
+  .logo-text {
+    color: #e9d5ff;
+    text-shadow: 0 0 12px rgba(168, 85, 247, 0.5);
+  }
+}
+
 @keyframes logoIn {
   from { opacity: 0; transform: scale(.7) translateY(-20px); }
   to   { opacity: 1; transform: scale(1) translateY(0); }
@@ -241,19 +272,28 @@ async function submit() {
 
 .hint {
   font-size: 13px;
-  color: var(--muted);
+  color: var(--muted, #64748b);
   font-weight: 600;
   margin: 0 0 16px;
   min-height: 18px;
 
   strong {
-    color: var(--accent);
+    color: var(--accent, #0284c7);
     font-weight: 800;
   }
 
   &--attention {
     color: #3b82f6;
     animation: hintPulse 2s ease-in-out infinite;
+  }
+}
+
+:global(:root[data-app-theme="dark"]) .hint {
+  color: #8b8ba0;
+
+  strong {
+    color: #a855f7;
+    text-shadow: 0 0 8px rgba(168, 85, 247, 0.4);
   }
 }
 
@@ -275,7 +315,7 @@ async function submit() {
   justify-content: center;
   gap: 6px;
   padding: 16px 12px;
-  border: 1.5px solid var(--border);
+  border: 1.5px solid var(--border, #e2e8f0);
   border-radius: 14px;
   background: #f8fafc;
   color: #334155;
@@ -294,7 +334,7 @@ async function submit() {
   .name { line-height: 1; }
 
   &:hover {
-    border-color: var(--accent);
+    border-color: var(--accent, #0284c7);
     background: rgba(2, 132, 199, 0.06);
     transform: translateY(-2px);
 
@@ -304,6 +344,19 @@ async function submit() {
   &:active { transform: scale(0.97); }
 }
 
+:global(:root[data-app-theme="dark"]) .user-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(139, 92, 246, 0.2);
+  color: #f4f4f6;
+
+  &:hover {
+    border-color: #a855f7;
+    background: rgba(168, 85, 247, 0.15);
+    box-shadow: 0 4px 12px -4px rgba(168, 85, 247, 0.4);
+  }
+}
+
+/* ✅ PIN-DISPLAY — точки */
 .pin-display {
   display: flex;
   justify-content: center;
@@ -326,6 +379,18 @@ async function submit() {
   }
 }
 
+:global(:root[data-app-theme="dark"]) .pin-display .pin-dot {
+  border-color: rgba(139, 92, 246, 0.4);
+
+  &.filled {
+    background: linear-gradient(135deg, #a855f7, #c084fc);
+    box-shadow:
+      0 0 12px rgba(168, 85, 247, 0.6),
+      0 4px 12px -2px rgba(168, 85, 247, 0.5);
+  }
+}
+
+/* ✅ PIN-PAD — кнопки с цифрами */
 .pin-pad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -335,10 +400,13 @@ async function submit() {
   button {
     height: 56px;
     border-radius: 14px;
-    border: 1px solid var(--border);
+    border: 1px solid #e2e8f0;
     background: linear-gradient(180deg, #ffffff, #f8fafc);
-    color: var(--text);
-    font-family: var(--mono);
+
+    /* ✅ ЧЁТКИЙ ТЁМНЫЙ ЦВЕТ ДЛЯ СВЕТЛОЙ ТЕМЫ */
+    color: #0f172a;
+
+    font-family: var(--mono, monospace);
     font-size: 22px;
     font-weight: 700;
     cursor: pointer;
@@ -356,14 +424,49 @@ async function submit() {
     }
 
     &.special {
-      color: var(--muted);
+      color: #64748b;
       font-size: 18px;
 
       &:hover {
-        color: var(--danger);
+        color: #dc2626;
         border-color: rgba(220, 38, 38, 0.3);
         background: rgba(220, 38, 38, 0.05);
       }
+    }
+  }
+}
+
+/* ✅ ТЁМНАЯ ТЕМА для PIN-PAD — БЕЛЫЕ цифры на тёмных кнопках */
+:global(:root[data-app-theme="dark"]) .pin-pad button {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(139, 92, 246, 0.2);
+  color: #f4f4f6;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.05) inset,
+    0 2px 6px rgba(0, 0, 0, 0.4);
+
+  &:hover {
+    background: rgba(168, 85, 247, 0.15);
+    border-color: rgba(168, 85, 247, 0.5);
+    color: #ffffff;
+    box-shadow:
+      0 0 12px -2px rgba(168, 85, 247, 0.5),
+      0 2px 6px rgba(0, 0, 0, 0.4);
+  }
+
+  &:active {
+    background: linear-gradient(135deg, rgba(168, 85, 247, 0.3), rgba(139, 92, 246, 0.4));
+    transform: scale(0.94);
+  }
+
+  &.special {
+    color: #8b8ba0;
+
+    &:hover {
+      color: #f43f5e;
+      border-color: rgba(244, 63, 94, 0.5);
+      background: rgba(244, 63, 94, 0.12);
+      box-shadow: 0 0 12px -2px rgba(244, 63, 94, 0.5);
     }
   }
 }
@@ -396,13 +499,28 @@ async function submit() {
   &:not(:disabled):active { transform: scale(0.97); }
 }
 
+:global(:root[data-app-theme="dark"]) .submit-btn {
+  background: linear-gradient(135deg, #8b5cf6, #a855f7);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 -2px 0 rgba(0, 0, 0, 0.2) inset,
+    0 12px 32px -10px rgba(168, 85, 247, 0.8);
+
+  &:not(:disabled):hover {
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 -2px 0 rgba(0, 0, 0, 0.2) inset,
+      0 16px 40px -10px rgba(168, 85, 247, 1);
+  }
+}
+
 .back-btn {
   display: block;
   width: 100%;
   margin-top: 12px;
   background: none;
   border: none;
-  color: var(--muted);
+  color: #64748b;
   font-family: inherit;
   font-size: 12px;
   font-weight: 600;
@@ -410,7 +528,13 @@ async function submit() {
   text-decoration: underline;
   transition: color 0.15s;
 
-  &:hover { color: var(--accent); }
+  &:hover { color: var(--accent, #0284c7); }
+}
+
+:global(:root[data-app-theme="dark"]) .back-btn {
+  color: #8b8ba0;
+
+  &:hover { color: #a855f7; }
 }
 
 .error-msg {
@@ -419,10 +543,16 @@ async function submit() {
   background: rgba(239, 68, 68, 0.08);
   border: 1px solid rgba(239, 68, 68, 0.3);
   border-radius: 10px;
-  color: var(--danger);
+  color: #dc2626;
   font-size: 12.5px;
   font-weight: 600;
   line-height: 1.4;
+}
+
+:global(:root[data-app-theme="dark"]) .error-msg {
+  background: rgba(244, 63, 94, 0.15);
+  border-color: rgba(244, 63, 94, 0.4);
+  color: #f43f5e;
 }
 
 .err-enter-active, .err-leave-active {
