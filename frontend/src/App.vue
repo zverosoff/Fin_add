@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth';
 import { useAccountsStore } from '@/stores/accounts';
 import { useWebSocket } from '@/composables/useWebSocket';
 import { useScanStore } from '@/stores/scan';
+import { useAppTheme } from '@/composables/useAppTheme';
 import { notifySaved } from '@/composables/useDataStatus';
 import { initPushHandlers, subscribeToPush } from '@/composables/usePushNotifications';
 import WelcomeOverlay from '@/components/ui/WelcomeOverlay.vue';
@@ -20,6 +21,7 @@ const router = useRouter();
 const route = useRoute();
 const { connect } = useWebSocket();
 const scanStore = useScanStore();
+const { applyTheme } = useAppTheme();
 
 const booting = ref(false);
 const percent = ref(0);
@@ -35,6 +37,9 @@ const transitionName = ref('fade-page');
 
 const BASE_TITLE = 'Финансы PRO+';
 document.title = BASE_TITLE;
+
+// ✅ Применяем тему ДО любого рендера
+applyTheme();
 
 watch(() => route.name, (newName, oldName) => {
   const newIdx = TAB_ORDER.indexOf(newName);
@@ -149,37 +154,46 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="page-transition-wrap">
-    <router-view v-slot="{ Component, route: r }">
-      <Transition :name="transitionName" mode="out-in">
-        <component :is="Component" :key="r.path" />
-      </Transition>
-    </router-view>
+  <div class="app-root">
+    <div class="page-transition-wrap">
+      <router-view v-slot="{ Component, route: r }">
+        <Transition :name="transitionName" mode="out-in">
+          <component :is="Component" :key="r.path" />
+        </Transition>
+      </router-view>
+    </div>
+
+    <BottomNav v-if="showBottomNav" />
+
+    <ScanModal
+      v-model="scanStore.isOpen"
+      @switch-to-manual="switchToManual"
+      @switch-to-pdf="switchToPdf"
+    />
+
+    <ManualModal v-model="manualOpen" />
+    <PdfImportModal v-model="pdfOpen" />
+
+    <WelcomeOverlay
+      :visible="booting"
+      :user-name="auth.user"
+      :percent="percent"
+      :stage="stage"
+      :done="done"
+    />
+
+    <ToastContainer />
   </div>
-
-  <BottomNav v-if="showBottomNav" />
-
-  <ScanModal
-    v-model="scanStore.isOpen"
-    @switch-to-manual="switchToManual"
-    @switch-to-pdf="switchToPdf"
-  />
-
-  <ManualModal v-model="manualOpen" />
-  <PdfImportModal v-model="pdfOpen" />
-
-  <WelcomeOverlay
-    :visible="booting"
-    :user-name="auth.user"
-    :percent="percent"
-    :stage="stage"
-    :done="done"
-  />
-
-  <ToastContainer />
 </template>
 
 <style>
+/* ✅ Фон на корневом контейнере — чтобы при переходах не было «прозрачной прослойки» */
+.app-root {
+  min-height: 100vh;
+  width: 100%;
+  position: relative;
+}
+
 .page-transition-wrap {
   position: relative;
   min-height: 100vh;
@@ -192,6 +206,32 @@ onUnmounted(() => {
   .page-transition-wrap { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0)); }
 }
 
+/* ============================================================
+   Переходы между страницами — без мелькания фона
+   ============================================================ */
+
+/* ✅ ВАЖНО: leave-active элемент должен иметь свой фон,
+   чтобы под ним не просвечивал светлый body */
+.slide-left-leave-active,
+.slide-right-leave-active,
+.fade-page-leave-active {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  width: 100%;
+  pointer-events: none;
+  /* ✅ фон наследуется от .page-transition-wrap, но т.к. оно absolute — 
+       принудительно задаём непрозрачный: */
+  z-index: 1;
+}
+
+/* ✅ Приходящая страница — поверх уходящей, с непрозрачным фоном */
+.slide-left-enter-active,
+.slide-right-enter-active,
+.fade-page-enter-active {
+  position: relative;
+  z-index: 2;
+}
+
 .slide-left-enter-active,
 .slide-right-enter-active {
   transition: transform 0.28s cubic-bezier(.22,.61,.36,1), opacity 0.28s;
@@ -201,23 +241,13 @@ onUnmounted(() => {
 
 .slide-left-leave-active,
 .slide-right-leave-active {
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  width: 100%;
   transition: transform 0.28s cubic-bezier(.22,.61,.36,1), opacity 0.28s;
-  pointer-events: none;
 }
 .slide-left-leave-to { transform: translateX(-30px); opacity: 0; }
 .slide-right-leave-to { transform: translateX(30px); opacity: 0; }
 
 .fade-page-enter-active,
 .fade-page-leave-active { transition: opacity 0.25s ease; }
-.fade-page-leave-active {
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  width: 100%;
-  pointer-events: none;
-}
 .fade-page-enter-from,
 .fade-page-leave-to { opacity: 0; }
 </style>
