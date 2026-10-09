@@ -1,7 +1,7 @@
 @use './variables' as *;
 
 /* ============================================================
-   БАЗА
+   БАЗА — фон на HTML (не только на body!)
    ============================================================ */
 * {
   box-sizing: border-box;
@@ -11,6 +11,17 @@
 html, body, #app {
   height: 100%;
   margin: 0;
+}
+
+html {
+  /* ✅ Фон на html — чтобы не было белого по краям при оверскролле */
+  background: #eef2f8;
+  transition: background 0.3s ease;
+}
+
+:root[data-app-theme="dark"] html,
+html[data-app-theme="dark"] {
+  background: #0a0612;
 }
 
 html, body {
@@ -34,8 +45,8 @@ body {
     #e8eefc 100%
   );
   background-size: 400% 400%;
-  animation: bgGradient 10s ease-in-out infinite;
   background-attachment: fixed;
+  animation: bgGradient 10s ease-in-out infinite;
 
   color: var(--text);
   -webkit-font-smoothing: antialiased;
@@ -47,16 +58,16 @@ body {
   padding-left: env(safe-area-inset-left);
   padding-right: env(safe-area-inset-right);
 
-  transition: background 0.4s ease, color 0.3s ease;
+  transition: background 0.3s ease, color 0.3s ease;
 }
 
-/* Тёмная тема — глубокий фиолетово-чёрный */
+/* Тёмная тема — глубокий фиолетово-чёрный, БЕЗ анимации (чтобы не мигало) */
 :root[data-app-theme="dark"] body {
   background:
     radial-gradient(ellipse 80% 60% at 15% 0%, rgba(139, 92, 246, 0.15), transparent 60%),
     radial-gradient(ellipse 60% 50% at 85% 40%, rgba(34, 211, 238, 0.08), transparent 60%),
     radial-gradient(ellipse 80% 60% at 50% 100%, rgba(236, 72, 153, 0.08), transparent 65%),
-    linear-gradient(180deg, #0a0612 0%, #0d0718 50%, #0a0612 100%);
+    #0a0612;
   background-attachment: fixed;
   animation: none;
 }
@@ -205,7 +216,7 @@ input, select, textarea {
 
 .tx-modal {
   position: relative;
-  background: #ffffff;
+  background: var(--panel-solid, #ffffff);
   border: 1px solid var(--border);
   border-radius: 20px;
   padding: 22px 24px;
