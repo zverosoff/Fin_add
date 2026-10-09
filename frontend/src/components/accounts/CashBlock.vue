@@ -129,7 +129,7 @@ const fallingBills = [
       <div class="cn-pattern"></div>
       <div class="cn-watermark">₽</div>
 
-      <!-- ✅ ЗАГОЛОВОК: клик = свернуть/развернуть. Шрифт — Inter (как у всего приложения) -->
+      <!-- ✅ ЗАГОЛОВОК: клик = свернуть/развернуть -->
       <div
         class="cn-header"
         @click="toggle"
@@ -252,15 +252,12 @@ const fallingBills = [
     0 10px 24px -6px rgba(5, 150, 105, 0.35),
     0 20px 40px -12px rgba(16, 185, 129, 0.3);
 
-  transition: transform 0.35s cubic-bezier(.34,1.56,.64,1), box-shadow 0.35s ease;
+  transition: transform 0.35s cubic-bezier(.34,1.56,.64,1), box-shadow 0.35s ease, padding 0.3s ease;
 }
 
-/* ✅ Свёрнутое состояние: вертикально центрируем содержимое, убираем padding снизу */
+/* ✅ Свёрнутое состояние — обычный flex-контейнер, БЕЗ flex на дочерних */
 .cash-note.collapsed {
-  padding: 16px 20px;
-  display: flex;
-  align-items: center;
-  min-height: 72px;
+  padding: 14px 20px;
 }
 
 .cash-note:hover {
@@ -354,8 +351,8 @@ const fallingBills = [
 }
 
 /* ============================================================
-   ✅ ЗАГОЛОВОК — шрифт Inter как у всего приложения.
-   В свёрнутом состоянии — вертикальное центрирование.
+   ✅ ЗАГОЛОВОК — всегда space-between, всегда на всю ширину.
+   Сумма справа прижата жёстко.
    ============================================================ */
 .cn-header {
   position: relative;
@@ -367,6 +364,7 @@ const fallingBills = [
   cursor: pointer;
   user-select: none;
   padding: 4px 0;
+  width: 100%;
   transition: transform 0.2s ease;
 }
 
@@ -377,6 +375,7 @@ const fallingBills = [
   align-items: center;
   gap: 10px;
   min-width: 0;
+  flex: 0 1 auto;
 }
 
 .cn-header-icon {
@@ -418,9 +417,11 @@ const fallingBills = [
   white-space: nowrap;
 }
 
+/* ✅ Правый блок жёстко прижат вправо и не сжимается */
 .cn-header-right {
   text-align: right;
-  flex-shrink: 0;
+  flex: 0 0 auto;
+  margin-left: auto;
 }
 
 .cn-header-value {
@@ -444,13 +445,6 @@ const fallingBills = [
   opacity: 0.85;
   margin-top: 2px;
   white-space: nowrap;
-}
-
-/* ✅ В свёрнутом состоянии header растягивается по вертикали родителя */
-.cash-note.collapsed .cn-header {
-  flex: 1;
-  width: 100%;
-  padding: 0;
 }
 
 /* ============================================================
@@ -752,13 +746,17 @@ const fallingBills = [
    ============================================================ */
 @media (max-width: 700px) {
   .cash-note { padding: 14px 16px 12px; border-radius: 18px; }
-  .cash-note.collapsed { padding: 12px 14px; min-height: 64px; }
+  .cash-note.collapsed { padding: 12px 14px; }
 
-  .cn-header-title { font-size: 14px; letter-spacing: 0.06em; }
-  .cn-header-sub { font-size: 8.5px; letter-spacing: 0.14em; }
-  .cn-header-icon { font-size: 20px; }
-  .cn-header-value { font-size: 22px; }
-  .cn-header-label { font-size: 9px; }
+  .cn-header { gap: 8px; padding: 2px 0; }
+  .cn-header-left { gap: 8px; }
+
+  .cn-header-title { font-size: 13.5px; letter-spacing: 0.06em; }
+  .cn-header-sub { font-size: 8px; letter-spacing: 0.12em; }
+  .cn-header-icon { font-size: 18px; }
+
+  .cn-header-value { font-size: 20px; }
+  .cn-header-label { font-size: 8.5px; letter-spacing: 0.08em; }
 
   .cn-owners { padding-top: 8px; gap: 5px; }
   .cn-owner { padding: 6px 10px; gap: 8px; border-radius: 10px; }
@@ -782,15 +780,19 @@ const fallingBills = [
   .cn-goal-track { height: 7px; }
 }
 
-@media (max-width: 380px) {
-  .cn-header-title { font-size: 13px; }
+@media (max-width: 400px) {
+  .cn-header-title { font-size: 12.5px; letter-spacing: 0.04em; }
   .cn-header-sub { display: none; }
-  .cn-header-value { font-size: 19px; }
-  .cn-act { font-size: 10px; }
-  .cn-owner-name { font-size: 11px; }
-  .cn-owner-value { font-size: 12px; }
-  .cn-goal-name { font-size: 11.5px; }
-  .cn-goal-left { font-size: 11px; }
+  .cn-header-value { font-size: 18px; }
+  .cn-header-label { font-size: 8px; }
+  .cn-header-icon { font-size: 16px; }
+  .cn-header-left { gap: 6px; }
+}
+
+@media (max-width: 340px) {
+  .cn-header-title { font-size: 11.5px; }
+  .cn-header-value { font-size: 16px; }
+  .cn-header-icon { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {
