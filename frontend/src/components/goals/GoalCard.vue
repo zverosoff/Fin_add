@@ -28,7 +28,6 @@ function plural(n, one, few, many) {
   return many;
 }
 
-// ✅ ETA-счётчик — «печатает» число
 const etaDisplay = ref(0);
 const etaVisible = computed(() => eta.value != null);
 
@@ -54,7 +53,6 @@ const etaText = computed(() => {
   return `≈ ${n} ${plural(n, 'месяц', 'месяца', 'месяцев')}`;
 });
 
-// ✅ Конфетти при достижении 100%
 const confettiActive = ref(false);
 const confettiParticles = ref([]);
 
@@ -64,8 +62,6 @@ function spawnConfetti() {
   for (let i = 0; i < 60; i++) {
     particles.push({
       id: i,
-      x: 0,
-      y: 0,
       angle: Math.random() * 360,
       distance: 60 + Math.random() * 120,
       size: 4 + Math.random() * 6,
@@ -83,9 +79,7 @@ function spawnConfetti() {
 }
 
 onMounted(() => {
-  if (props.goal.done) {
-    setTimeout(spawnConfetti, 300);
-  }
+  if (props.goal.done) setTimeout(spawnConfetti, 300);
 });
 
 watch(() => props.goal.done, (isDone, wasDone) => {
@@ -109,14 +103,10 @@ const ownerCls = computed(() => props.goal.owner === 'Сергей' ? 'sergey' :
 function onEditContrib(user) {
   emit('edit-contrib', { goal: props.goal, user });
 }
-
-// Уникальный id для градиента волны
-const waveId = computed(() => 'wave-' + props.goal.id);
 </script>
 
 <template>
   <div class="goal-card" :class="{ done: goal.done, primary: goal.primary }">
-    <!-- ✅ Конфетти при 100% -->
     <div v-if="confettiActive" class="goal-confetti" aria-hidden="true">
       <span
         v-for="p in confettiParticles"
@@ -171,7 +161,6 @@ const waveId = computed(() => 'wave-' + props.goal.id);
       <span class="target">из {{ fmt(goal.target) }} ₽</span>
     </div>
 
-    <!-- ✅ Прогресс-бар с волной -->
     <div class="goal-track">
       <div
         class="goal-fill"
@@ -221,13 +210,17 @@ const waveId = computed(() => 'wave-' + props.goal.id);
 .goal-card {
   position: relative;
   padding: 14px 16px;
-  background: #ffffff;
+  background: var(--grad-card);
   border: 1px solid var(--border);
   border-radius: 12px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  transition: transform 0.15s, box-shadow 0.2s, border-color 0.2s;
+  transition:
+    transform 0.15s,
+    box-shadow 0.2s,
+    border-color 0.2s,
+    background 0.3s ease;
   min-width: 0;
   overflow: hidden;
 
@@ -238,19 +231,20 @@ const waveId = computed(() => 'wave-' + props.goal.id);
 
   &.done {
     border-color: rgba(34, 197, 94, 0.4);
-    background: linear-gradient(135deg, rgba(34, 197, 94, 0.04), transparent 60%), #ffffff;
+    background:
+      linear-gradient(135deg, rgba(34, 197, 94, 0.06), transparent 60%),
+      var(--grad-card);
   }
 
   &.primary {
-    border-color: rgba(245, 158, 11, 0.5);
+    border-color: rgba(251, 191, 36, 0.5);
     background:
       linear-gradient(135deg, rgba(251, 191, 36, 0.08), rgba(245, 158, 11, 0.03)),
-      #ffffff;
+      var(--grad-card);
     box-shadow: 0 6px 20px -10px rgba(245, 158, 11, 0.5);
   }
 }
 
-/* ✅ Конфетти */
 .goal-confetti {
   position: absolute;
   left: 30px;
@@ -346,7 +340,7 @@ const waveId = computed(() => 'wave-' + props.goal.id);
     height: 30px;
     border-radius: 8px;
     border: 1px solid var(--border);
-    background: transparent;
+    background: var(--panel-2);
     color: var(--muted);
     font-size: 12px;
     font-weight: 700;
@@ -358,8 +352,17 @@ const waveId = computed(() => 'wave-' + props.goal.id);
     transition: all 0.15s;
     font-family: inherit;
 
-    &:hover { color: var(--accent); border-color: var(--accent); background: rgba(56, 189, 248, 0.08); }
-    &.danger:hover { color: var(--danger); border-color: var(--danger); background: rgba(239, 68, 68, 0.08); }
+    &:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+      background: rgba(139, 92, 246, 0.1);
+      transform: translateY(-1px);
+    }
+    &.danger:hover {
+      color: var(--danger);
+      border-color: var(--danger);
+      background: rgba(244, 63, 94, 0.1);
+    }
 
     &.act-primary {
       min-width: 30px;
@@ -377,14 +380,18 @@ const waveId = computed(() => 'wave-' + props.goal.id);
     }
 
     &.act-contribute {
-      background: linear-gradient(135deg, #22c55e, #4ade80);
+      background: var(--grad-income);
       border-color: transparent;
       color: #fff;
       font-size: 12px;
       font-weight: 700;
       width: auto;
       padding: 0 12px;
-      &:hover { color: #fff; transform: translateY(-1px); box-shadow: 0 6px 16px -4px rgba(34, 197, 94, 0.7); }
+      box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.3) inset,
+        0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+        0 6px 14px -4px rgba(34, 197, 94, 0.5);
+      &:hover { color: #fff; transform: translateY(-1px); box-shadow: 0 8px 18px -4px rgba(34, 197, 94, 0.7); }
     }
   }
 }
@@ -399,7 +406,6 @@ const waveId = computed(() => 'wave-' + props.goal.id);
   .target  { font-family: var(--mono); font-size: 11.5px; font-weight: 700; color: var(--muted); }
 }
 
-/* ✅ Прогресс-бар с волной */
 .goal-track {
   position: relative;
   height: 10px;
@@ -411,13 +417,13 @@ const waveId = computed(() => 'wave-' + props.goal.id);
   position: relative;
   height: 100%;
   border-radius: 5px;
-  background: linear-gradient(90deg, #38bdf8, #8b5cf6);
+  background: var(--grad-primary);
   transition: width 0.6s cubic-bezier(.22,.61,.36,1);
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
   overflow: hidden;
 
   &.done {
-    background: linear-gradient(90deg, #22c55e, #4ade80);
+    background: var(--grad-income);
     box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
   }
 }
@@ -456,7 +462,7 @@ const waveId = computed(() => 'wave-' + props.goal.id);
     font-weight: 800;
     color: var(--accent);
     font-variant-numeric: tabular-nums;
-    &.done { color: #22c55e; }
+    &.done { color: var(--accent-2, #22c55e); }
   }
 }
 
@@ -476,10 +482,10 @@ const waveId = computed(() => 'wave-' + props.goal.id);
   font-size: 11px;
   font-weight: 700;
   border: 1px solid var(--border);
-  background: rgba(148, 163, 184, 0.1);
+  background: var(--panel-2);
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.2s;
-  &:hover { transform: translateY(-1px); box-shadow: 0 4px 12px -4px rgba(15, 23, 42, 0.15); }
+  &:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
   .name { color: var(--muted); font-weight: 600; }
   .amount { font-family: var(--mono); font-weight: 800; color: var(--text); }
   &.sergey { background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.25); .amount { color: #2563eb; } }
@@ -492,13 +498,53 @@ const waveId = computed(() => 'wave-' + props.goal.id);
   gap: 6px;
   padding: 6px 10px;
   border-radius: 8px;
-  background: rgba(148, 163, 184, 0.08);
+  background: var(--panel-2);
   color: var(--muted);
   font-size: 11px;
   font-style: italic;
   text-align: center;
+  border: 1px dashed var(--border);
   .emoji { font-style: normal; }
   .hint { color: var(--accent); font-weight: 600; font-style: normal; }
+}
+
+:global(:root[data-app-theme="dark"]) {
+  .goal-card.primary {
+    border-color: rgba(251, 191, 36, 0.4);
+    background:
+      linear-gradient(135deg, rgba(251, 191, 36, 0.12), rgba(245, 158, 11, 0.04)),
+      linear-gradient(180deg, rgba(30, 16, 48, 0.9) 0%, rgba(20, 9, 31, 0.95) 100%);
+    box-shadow:
+      0 6px 20px -10px rgba(245, 158, 11, 0.6),
+      0 0 0 1px rgba(251, 191, 36, 0.15);
+  }
+
+  .goal-card.done {
+    border-color: rgba(74, 222, 128, 0.4);
+    background:
+      linear-gradient(135deg, rgba(34, 197, 94, 0.12), transparent 60%),
+      linear-gradient(180deg, rgba(30, 16, 48, 0.9) 0%, rgba(20, 9, 31, 0.95) 100%);
+  }
+
+  .goal-fill {
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 0 16px rgba(168, 85, 247, 0.6);
+  }
+  .goal-fill.done {
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 0 16px rgba(74, 222, 128, 0.6);
+  }
+
+  .goal-contrib.sergey .amount {
+    color: #60a5fa;
+    text-shadow: 0 0 8px rgba(96, 165, 250, 0.4);
+  }
+  .goal-contrib.sasha .amount {
+    color: #f472b6;
+    text-shadow: 0 0 8px rgba(244, 114, 182, 0.4);
+  }
 }
 
 @media (max-width: 700px) {

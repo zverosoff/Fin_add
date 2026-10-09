@@ -31,34 +31,60 @@ const periods = [
   gap: 4px;
   flex-wrap: wrap;
   padding: 6px 8px;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--grad-card);
   border: 1px solid var(--border);
   border-radius: 12px;
+
+  box-shadow: var(--shadow-sm);
+
+  transition: background 0.3s ease, border-color 0.3s ease;
 
   button {
     padding: 6px 12px;
     border-radius: 999px;
     border: 1px solid var(--border);
-    background: #f8fafc;
+    background: var(--panel-2);
     color: var(--muted);
     font-family: inherit;
     font-size: 12px;
     font-weight: 700;
     cursor: pointer;
-    transition: all 0.15s;
+    transition: all 0.18s cubic-bezier(.34,1.56,.64,1);
     white-space: nowrap;
 
     &:hover {
       border-color: var(--accent);
       color: var(--accent);
+      transform: translateY(-1px);
     }
 
+    &:active { transform: scale(0.97); }
+
     &.active {
-      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      background: var(--grad-primary);
       color: #fff;
       border-color: transparent;
-      box-shadow: 0 6px 16px -8px rgba(59, 130, 246, 0.7);
+      box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.3) inset,
+        0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+        0 6px 16px -4px rgba(139, 92, 246, 0.6);
     }
+  }
+}
+
+:global(:root[data-app-theme="dark"]) {
+  .period-selector {
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.35),
+      0 8px 20px -6px rgba(139, 92, 246, 0.2);
+  }
+
+  .period-selector button.active {
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.25) inset,
+      0 -2px 0 rgba(0, 0, 0, 0.25) inset,
+      0 6px 20px -4px rgba(168, 85, 247, 0.7),
+      0 0 0 1px rgba(168, 85, 247, 0.4);
   }
 }
 

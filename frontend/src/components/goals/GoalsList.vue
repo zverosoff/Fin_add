@@ -49,6 +49,8 @@ const goalsStore = useGoalsStore();
   font-size: 12px;
   border: 1px dashed var(--border);
   border-radius: 12px;
+  background: var(--panel-2);
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 @media (max-width: 700px) {

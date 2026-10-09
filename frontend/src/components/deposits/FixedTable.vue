@@ -43,7 +43,6 @@ function ensureLockedIncome() {
   }
 }
 
-// ✅ Проставляем dueDay: null по умолчанию
 function ensureDueDays() {
   for (const it of expenses.value) {
     if (!('dueDay' in it)) it.dueDay = null;
@@ -136,9 +135,6 @@ function isSasha(name) {
   return name && /саш/i.test(name);
 }
 
-// ============================================================
-// ✅ Платежи по дням
-// ============================================================
 function daysUntilDue(dueDay) {
   if (!dueDay || dueDay < 1 || dueDay > 31) return null;
   const now = new Date();
@@ -153,17 +149,6 @@ function daysUntilDue(dueDay) {
   return diffDays;
 }
 
-function dueBadge(item) {
-  const d = daysUntilDue(item.dueDay);
-  if (d === null) return null;
-  if (d === 0) return { text: 'сегодня', cls: 'today' };
-  if (d === 1) return { text: 'завтра', cls: 'soon' };
-  if (d <= 3)  return { text: `через ${d} дн`, cls: 'soon' };
-  if (d <= 7)  return { text: `через ${d} дн`, cls: 'week' };
-  return null;
-}
-
-// Список ближайших платежей (для отображения наверху таблицы)
 const upcomingPayments = computed(() => {
   const list = [];
   const push = (arr, type) => {
@@ -177,7 +162,7 @@ const upcomingPayments = computed(() => {
         value: Number(it.value) || 0,
         dueDay: it.dueDay,
         days: d,
-        type, // 'income' | 'expense'
+        type,
       });
     }
   };
@@ -235,7 +220,7 @@ const byUser = computed(() => {
       </div>
     </div>
 
-    <!-- ✅ БЛИЖАЙШИЕ ПЛАТЕЖИ -->
+    <!-- БЛИЖАЙШИЕ ПЛАТЕЖИ -->
     <div v-if="upcomingPayments.length > 0" class="upcoming-card">
       <div class="upcoming-head">
         <span class="upcoming-icon">🔔</span>
@@ -308,12 +293,8 @@ const byUser = computed(() => {
       <div class="card-head">
         <h2 class="card-title">📊 Доходы и расходы</h2>
         <div class="card-actions">
-          <button class="btn-add-mini income" @click="addIncome" type="button">
-            + доход
-          </button>
-          <button class="btn-add-mini expense" @click="addExpense" type="button">
-            + расход
-          </button>
+          <button class="btn-add-mini income" @click="addIncome" type="button">+ доход</button>
+          <button class="btn-add-mini expense" @click="addExpense" type="button">+ расход</button>
         </div>
       </div>
 
@@ -527,6 +508,18 @@ const byUser = computed(() => {
   box-shadow:
     0 20px 40px -18px rgba(59, 130, 246, 0.6),
     0 10px 20px -10px rgba(124, 58, 237, 0.4);
+  transition: background 0.4s ease, box-shadow 0.4s ease;
+}
+
+:global(:root[data-app-theme="dark"]) .summary-card {
+  background:
+    radial-gradient(circle at 15% 0%, rgba(168, 85, 247, 0.25), transparent 55%),
+    radial-gradient(circle at 95% 100%, rgba(34, 211, 238, 0.2), transparent 60%),
+    linear-gradient(135deg, #1e1b4b 0%, #312e81 45%, #4c1d95 100%);
+  box-shadow:
+    0 6px 12px rgba(0, 0, 0, 0.5),
+    0 20px 48px -18px rgba(139, 92, 246, 0.55),
+    0 0 0 1px rgba(139, 92, 246, 0.2);
 }
 
 .sc-top {
@@ -566,10 +559,7 @@ const byUser = computed(() => {
   line-height: 1.35;
 }
 
-.sc-graph {
-  text-align: right;
-  flex-shrink: 0;
-}
+.sc-graph { text-align: right; flex-shrink: 0; }
 
 .sc-graph-value {
   font-size: 15px;
@@ -627,16 +617,15 @@ const byUser = computed(() => {
 }
 
 /* ============================================================
-   ✅ БЛИЖАЙШИЕ ПЛАТЕЖИ
+   БЛИЖАЙШИЕ ПЛАТЕЖИ
    ============================================================ */
 .upcoming-card {
   padding: 14px 16px;
   border-radius: 16px;
-  background:
-    linear-gradient(135deg, rgba(251, 191, 36, 0.12), rgba(249, 115, 22, 0.06)),
-    #ffffff;
+  background: var(--grad-card);
   border: 1px solid rgba(251, 146, 60, 0.35);
   box-shadow: 0 8px 20px -10px rgba(251, 146, 60, 0.4);
+  transition: background 0.3s ease, border-color 0.3s ease;
 }
 
 .upcoming-head {
@@ -681,8 +670,8 @@ const byUser = computed(() => {
   align-items: center;
   padding: 8px 12px;
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.75);
-  border: 1px solid rgba(148, 163, 184, 0.15);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
 
   &.income  { border-left: 3px solid #22c55e; }
   &.expense { border-left: 3px solid #ef4444; }
@@ -722,12 +711,10 @@ const byUser = computed(() => {
     color: #fff;
     box-shadow: 0 4px 12px -4px rgba(239, 68, 68, 0.6);
   }
-
   &.soon {
     background: linear-gradient(135deg, #f59e0b, #f97316);
     color: #fff;
   }
-
   &.week {
     background: rgba(251, 191, 36, 0.2);
     color: #b45309;
@@ -740,11 +727,12 @@ const byUser = computed(() => {
    ============================================================ */
 .card {
   padding: 18px 20px;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--grad-card);
   border: 1px solid var(--border);
   border-radius: 18px;
   box-shadow: var(--shadow-md);
   min-width: 0;
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .card-head {
@@ -784,22 +772,13 @@ const byUser = computed(() => {
     background: rgba(34, 197, 94, 0.12);
     border-color: rgba(34, 197, 94, 0.35);
     color: #16a34a;
-
-    &:hover {
-      background: rgba(34, 197, 94, 0.22);
-      transform: translateY(-1px);
-    }
+    &:hover { background: rgba(34, 197, 94, 0.22); transform: translateY(-1px); }
   }
-
   &.expense {
     background: rgba(239, 68, 68, 0.1);
     border-color: rgba(239, 68, 68, 0.32);
     color: #dc2626;
-
-    &:hover {
-      background: rgba(239, 68, 68, 0.2);
-      transform: translateY(-1px);
-    }
+    &:hover { background: rgba(239, 68, 68, 0.2); transform: translateY(-1px); }
   }
 }
 
@@ -829,7 +808,7 @@ const byUser = computed(() => {
     padding: 11px 36px 11px 14px;
     border: 1px solid var(--border);
     border-radius: 12px;
-    background: #ffffff;
+    background: var(--panel-2);
     color: var(--text);
     font-family: var(--mono);
     font-size: 15px;
@@ -840,7 +819,7 @@ const byUser = computed(() => {
 
     &:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
     }
   }
 
@@ -865,14 +844,14 @@ const byUser = computed(() => {
 .percent-result {
   padding: 12px 14px;
   border-radius: 14px;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(139, 92, 246, 0.05));
-  border: 1px solid rgba(56, 189, 248, 0.2);
+  background: rgba(139, 92, 246, 0.08);
+  border: 1px solid rgba(139, 92, 246, 0.2);
 
   &.accent {
-    background: linear-gradient(135deg, #3b82f6, #7c3aed);
+    background: var(--grad-primary);
     border-color: transparent;
     color: #fff;
-    box-shadow: 0 8px 20px -8px rgba(59, 130, 246, 0.6);
+    box-shadow: 0 8px 20px -8px rgba(139, 92, 246, 0.6);
 
     .pr-label { color: rgba(255, 255, 255, 0.85); }
     .pr-value { color: #fff; }
@@ -919,7 +898,8 @@ const byUser = computed(() => {
   gap: 8px;
   padding: 8px 12px;
   border-radius: 12px;
-  background: rgba(148, 163, 184, 0.08);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
 }
 
 .dt-col-icon { font-size: 14px; }
@@ -937,7 +917,6 @@ const byUser = computed(() => {
   gap: 6px;
 }
 
-/* ✅ + колонка для дня платежа */
 .dt-row {
   display: grid;
   grid-template-columns: 1fr 90px 52px auto;
@@ -967,12 +946,12 @@ const byUser = computed(() => {
   outline: none;
   min-width: 0;
   width: 100%;
-  background: #ffffff;
+  background: var(--panel-2);
   transition: border-color 0.15s, box-shadow 0.15s;
 
   &:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
   }
 }
 
@@ -983,18 +962,17 @@ const byUser = computed(() => {
   font-size: 11.5px;
 }
 
-/* ✅ Поле дня платежа */
 .dt-day {
   text-align: center;
   font-family: var(--mono);
   font-weight: 700;
   font-size: 11.5px;
   color: #c2410c;
-  background: rgba(251, 146, 60, 0.06);
+  background: rgba(251, 146, 60, 0.08);
   border-color: rgba(251, 146, 60, 0.25);
 
   &::placeholder {
-    color: rgba(194, 65, 12, 0.4);
+    color: rgba(194, 65, 12, 0.5);
     font-weight: 600;
   }
 
@@ -1003,18 +981,16 @@ const byUser = computed(() => {
     box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
   }
 
-  /* Убираем стрелки у number-input */
-/* убираем стрелки у number-input */
-&::-webkit-outer-spin-button,
-&::-webkit-inner-spin-button {
-  appearance: none;
-  -webkit-appearance: none;
-  margin: 0;
-}
-&[type="number"] {
-  appearance: textfield;
-  -moz-appearance: textfield;
-}
+  &::-webkit-outer-spin-button,
+  &::-webkit-inner-spin-button {
+    appearance: none;
+    -webkit-appearance: none;
+    margin: 0;
+  }
+  &[type="number"] {
+    appearance: textfield;
+    -moz-appearance: textfield;
+  }
 }
 
 .dt-del,
@@ -1036,7 +1012,7 @@ const byUser = computed(() => {
   &:hover {
     border-color: var(--danger);
     color: var(--danger);
-    background: rgba(239, 68, 68, 0.08);
+    background: rgba(244, 63, 94, 0.08);
   }
 }
 
@@ -1058,7 +1034,7 @@ const byUser = computed(() => {
   text-align: center;
   font-size: 12px;
   color: var(--muted);
-  background: rgba(148, 163, 184, 0.06);
+  background: var(--panel-2);
   border-radius: 10px;
   border: 1px dashed var(--border);
 }
@@ -1086,8 +1062,8 @@ const byUser = computed(() => {
   }
 
   &.expense {
-    background: rgba(239, 68, 68, 0.08);
-    border: 1px solid rgba(239, 68, 68, 0.25);
+    background: rgba(244, 63, 94, 0.1);
+    border: 1px solid rgba(244, 63, 94, 0.25);
     color: #dc2626;
     strong { color: #b91c1c; }
   }
@@ -1111,8 +1087,8 @@ const byUser = computed(() => {
   }
 
   &.negative {
-    background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(239, 68, 68, 0.06));
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: linear-gradient(135deg, rgba(244, 63, 94, 0.12), rgba(244, 63, 94, 0.06));
+    border: 1px solid rgba(244, 63, 94, 0.3);
     .gt-value { color: #dc2626; }
   }
 }
@@ -1158,22 +1134,23 @@ const byUser = computed(() => {
   padding: 16px 18px;
   border-radius: 18px;
   border: 1px solid var(--border);
-  background: #ffffff;
+  background: var(--grad-card);
   display: flex;
   flex-direction: column;
   gap: 12px;
+  transition: background 0.3s ease, border-color 0.3s ease;
 
   &.sergey {
     background:
       radial-gradient(circle at 15% 0%, rgba(59, 130, 246, 0.08), transparent 60%),
-      #ffffff;
+      var(--grad-card);
     border-color: rgba(59, 130, 246, 0.2);
   }
 
   &.sasha {
     background:
       radial-gradient(circle at 15% 0%, rgba(236, 72, 153, 0.08), transparent 60%),
-      #ffffff;
+      var(--grad-card);
     border-color: rgba(236, 72, 153, 0.2);
   }
 }
@@ -1198,7 +1175,6 @@ const byUser = computed(() => {
     background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(139, 92, 246, 0.15));
     border: 1.5px solid rgba(59, 130, 246, 0.35);
   }
-
   .sasha & {
     background: linear-gradient(135deg, rgba(236, 72, 153, 0.2), rgba(245, 158, 11, 0.15));
     border: 1.5px solid rgba(236, 72, 153, 0.35);
@@ -1228,7 +1204,7 @@ const byUser = computed(() => {
     color: #16a34a;
   }
   &.negative {
-    background: rgba(239, 68, 68, 0.12);
+    background: rgba(244, 63, 94, 0.12);
     color: #dc2626;
   }
 }
@@ -1245,7 +1221,8 @@ const byUser = computed(() => {
   align-items: center;
   padding: 6px 10px;
   border-radius: 10px;
-  background: rgba(148, 163, 184, 0.06);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
   font-size: 12.5px;
 
   .k { color: var(--muted); font-weight: 600; }
@@ -1272,7 +1249,7 @@ const byUser = computed(() => {
   }
 
   &.negative {
-    background: linear-gradient(135deg, rgba(239, 68, 68, 0.12), rgba(239, 68, 68, 0.06));
+    background: linear-gradient(135deg, rgba(244, 63, 94, 0.12), rgba(244, 63, 94, 0.06));
     .uc-total-value { color: #dc2626; }
   }
 }
@@ -1327,5 +1304,9 @@ const byUser = computed(() => {
   .sc-amount { font-size: 18px; }
   .up-name { font-size: 11.5px; }
   .up-amount { font-size: 11px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .upcoming-icon { animation: none !important; }
 }
 </style>

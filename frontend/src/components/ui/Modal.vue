@@ -31,9 +31,7 @@ watch(() => props.modelValue, (val) => {
   else document.removeEventListener('keydown', onKeydown);
 }, { immediate: true });
 
-function isMobile() {
-  return window.innerWidth <= 700;
-}
+function isMobile() { return window.innerWidth <= 700; }
 
 function onTouchStart(e) {
   if (!isMobile()) return;
@@ -124,7 +122,7 @@ onUnmounted(() => {
 
           <header class="modal-head">
             <slot name="header">
-              <h3>{{ title }}</h3>
+              <h3 class="modal-title">{{ title }}</h3>
             </slot>
 
             <button class="modal-close" @click="close" aria-label="Закрыть">✕</button>
@@ -159,7 +157,7 @@ onUnmounted(() => {
 }
 
 :global(:root[data-app-theme="dark"]) .modal-overlay {
-  background: rgba(0, 0, 0, 0.72);
+  background: rgba(0, 0, 0, 0.75);
 }
 
 .modal-box {
@@ -206,17 +204,26 @@ onUnmounted(() => {
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
   gap: 12px;
+}
 
-  h3 {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 700;
-    color: var(--text);
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
+/* ✅ ФИКС: явный цвет заголовка, не наследуется */
+.modal-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ✅ Если title передан через слот-header как <h3> без класса — тоже стилизуем */
+:deep(.modal-head) h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
 }
 
 .modal-close {
@@ -262,13 +269,9 @@ onUnmounted(() => {
 }
 
 .modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.22s ease;
-}
+.modal-leave-active { transition: opacity 0.22s ease; }
 .modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
+.modal-leave-to { opacity: 0; }
 .modal-enter-active .modal-box,
 .modal-leave-active .modal-box {
   transition: transform 0.28s cubic-bezier(.34,1.56,.64,1), opacity 0.22s;
@@ -280,10 +283,7 @@ onUnmounted(() => {
 }
 
 @media (max-width: 700px) {
-  .modal-overlay {
-    padding: 0;
-    align-items: flex-end;
-  }
+  .modal-overlay { padding: 0; align-items: flex-end; }
 
   .modal-box {
     max-width: 100%;
@@ -315,24 +315,17 @@ onUnmounted(() => {
     background: #14091f;
   }
 
-  .modal-head h3 {
-    font-size: 15px;
-  }
+  .modal-title,
+  :deep(.modal-head) h3 { font-size: 15px; }
 
-  .modal-body {
-    padding: 14px 16px;
-  }
+  .modal-body { padding: 14px 16px; }
 
   .modal-foot {
     padding: 12px 16px 16px;
     flex-direction: column-reverse;
     gap: 8px;
 
-    button {
-      width: 100%;
-      min-height: 48px;
-      font-size: 14px;
-    }
+    button { width: 100%; min-height: 48px; font-size: 14px; }
   }
 
   .modal-enter-active .modal-box,

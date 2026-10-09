@@ -42,7 +42,6 @@ function prev() {
 }
 
 onMounted(() => {
-  // Каждые 15 секунд — новая цитата
   interval = setInterval(next, 15000);
 });
 
@@ -97,12 +96,13 @@ onUnmounted(() => {
   padding: 16px 18px;
   background:
     radial-gradient(circle at 0% 100%, rgba(236, 72, 153, 0.06), transparent 60%),
-    rgba(255, 255, 255, 0.9);
+    var(--grad-card);
   border: 1px solid var(--border);
   border-radius: 16px;
   box-shadow: var(--shadow-md);
   animation: cardEnter 0.55s cubic-bezier(.34,1.56,.64,1) both;
   animation-delay: 400ms;
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 @keyframes cardEnter {
@@ -127,7 +127,10 @@ onUnmounted(() => {
   justify-content: center;
   font-size: 18px;
   flex-shrink: 0;
-  box-shadow: 0 6px 16px -8px rgba(236, 72, 153, 0.7);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 -2px 0 rgba(0, 0, 0, 0.2) inset,
+    0 6px 16px -6px rgba(236, 72, 153, 0.7);
 }
 
 .qc-head-text { min-width: 0; }
@@ -148,9 +151,9 @@ onUnmounted(() => {
   position: relative;
   padding: 14px 16px 12px;
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(236, 72, 153, 0.06), rgba(99, 102, 241, 0.04));
+  background: rgba(236, 72, 153, 0.06);
   border: 1px solid rgba(236, 72, 153, 0.15);
-  transition: opacity 0.3s ease, transform 0.3s ease;
+  transition: opacity 0.3s ease, transform 0.3s ease, background 0.3s ease, border-color 0.3s ease;
   min-height: 110px;
   display: flex;
   flex-direction: column;
@@ -168,7 +171,7 @@ onUnmounted(() => {
   left: 10px;
   font-size: 42px;
   font-weight: 900;
-  color: rgba(236, 72, 153, 0.18);
+  color: rgba(236, 72, 153, 0.2);
   line-height: 1;
   pointer-events: none;
   font-family: Georgia, serif;
@@ -210,7 +213,7 @@ onUnmounted(() => {
   min-height: 28px;
   border-radius: 50%;
   border: 1px solid var(--border);
-  background: #ffffff;
+  background: var(--panel-2);
   color: var(--muted);
   cursor: pointer;
   display: inline-flex;
@@ -222,7 +225,8 @@ onUnmounted(() => {
   &:hover {
     border-color: #ec4899;
     color: #ec4899;
-    background: rgba(236, 72, 153, 0.06);
+    background: rgba(236, 72, 153, 0.08);
+    transform: translateY(-1px);
   }
   &:active { transform: scale(0.92); }
 }
@@ -247,6 +251,32 @@ onUnmounted(() => {
     width: 16px;
     border-radius: 3px;
     background: linear-gradient(90deg, #ec4899, #8b5cf6);
+    box-shadow: 0 0 12px rgba(236, 72, 153, 0.6);
+  }
+}
+
+:global(:root[data-app-theme="dark"]) {
+  .quotes-card {
+    background:
+      radial-gradient(circle at 0% 100%, rgba(236, 72, 153, 0.15), transparent 60%),
+      linear-gradient(180deg, rgba(30, 16, 48, 0.9) 0%, rgba(20, 9, 31, 0.95) 100%);
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.35),
+      0 12px 28px -8px rgba(236, 72, 153, 0.25),
+      0 0 0 1px rgba(236, 72, 153, 0.08) inset;
+  }
+
+  .qc-body {
+    background: rgba(236, 72, 153, 0.1);
+    border-color: rgba(236, 72, 153, 0.25);
+  }
+
+  .qc-quote-mark {
+    color: rgba(236, 72, 153, 0.3);
+  }
+
+  .qc-btn:hover {
+    box-shadow: 0 0 16px rgba(236, 72, 153, 0.4);
   }
 }
 

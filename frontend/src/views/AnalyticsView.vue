@@ -118,7 +118,6 @@ function openEditContrib({ goal, user }) {
 <template>
   <div class="analytics-page">
     <div class="analytics-grid">
-      <!-- ЛЕВАЯ КОЛОНКА -->
       <div class="an-col an-col-left">
         <div class="metrics-grid">
           <MetricCard
@@ -160,7 +159,6 @@ function openEditContrib({ goal, user }) {
           <ComparisonCard />
         </section>
 
-        <!-- ✅ ЦЕЛИ — теперь в левой колонке -->
         <section class="card">
           <div class="card-head">
             <h2 class="card-title">🎯 Цели накоплений и желаемые покупки</h2>
@@ -177,12 +175,8 @@ function openEditContrib({ goal, user }) {
         </section>
       </div>
 
-      <!-- ПРАВАЯ КОЛОНКА -->
       <div class="an-col an-col-right">
-        <!-- ✅ Финансовый помощник -->
         <FinancialAssistant />
-
-        <!-- ✅ Цитаты -->
         <FinanceQuotes />
       </div>
     </div>
@@ -211,15 +205,18 @@ function openEditContrib({ goal, user }) {
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(ellipse 70% 50% at 15% 0%, rgba(99, 102, 241, 0.06), transparent 60%),
-    radial-gradient(ellipse 60% 40% at 85% 40%, rgba(139, 92, 246, 0.05), transparent 60%);
+    radial-gradient(ellipse 70% 50% at 15% 0%, rgba(99, 102, 241, 0.08), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 85% 40%, rgba(139, 92, 246, 0.06), transparent 60%),
+    radial-gradient(ellipse 80% 60% at 50% 100%, rgba(236, 72, 153, 0.05), transparent 65%),
+    linear-gradient(180deg, #fafbff 0%, #f3f5fb 100%);
   transition: background 0.4s ease;
 }
 
 :global(:root[data-app-theme="dark"]) .analytics-page::before {
   background:
-    radial-gradient(ellipse 70% 50% at 15% 0%, rgba(139, 92, 246, 0.12), transparent 60%),
-    radial-gradient(ellipse 60% 40% at 85% 40%, rgba(168, 85, 247, 0.08), transparent 60%);
+    radial-gradient(ellipse 70% 50% at 15% 0%, rgba(139, 92, 246, 0.15), transparent 60%),
+    radial-gradient(ellipse 60% 40% at 85% 40%, rgba(168, 85, 247, 0.1), transparent 60%),
+    radial-gradient(ellipse 80% 60% at 50% 100%, rgba(236, 72, 153, 0.08), transparent 65%);
 }
 
 .analytics-grid {
@@ -251,11 +248,12 @@ function openEditContrib({ goal, user }) {
 
 .card {
   padding: 16px 18px;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--grad-card);
   border: 1px solid var(--border);
   border-radius: 16px;
   box-shadow: var(--shadow-md);
   animation: cardEnter 0.55s cubic-bezier(.34,1.56,.64,1) both;
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 @keyframes cardEnter {
@@ -287,23 +285,41 @@ function openEditContrib({ goal, user }) {
   padding: 6px 14px;
   border-radius: 999px;
   border: none;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: var(--grad-primary);
   color: #fff;
   font-family: inherit;
   font-size: 12px;
   font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 6px 16px -8px rgba(59, 130, 246, 0.7);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+    0 6px 16px -8px rgba(139, 92, 246, 0.7);
   transition: all 0.15s;
   white-space: nowrap;
 
-  &:hover { transform: translateY(-1px); box-shadow: 0 10px 22px -10px rgba(59, 130, 246, 0.9); }
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+      0 10px 22px -10px rgba(139, 92, 246, 0.9);
+  }
 }
 
 .an-col-left .card:nth-child(3) { animation-delay: 280ms; }
 .an-col-left .card:nth-child(4) { animation-delay: 350ms; }
 .an-col-right .card:nth-child(1) { animation-delay: 300ms; }
 .an-col-right .card:nth-child(2) { animation-delay: 400ms; }
+
+:global(:root[data-app-theme="dark"]) {
+  .card {
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.35),
+      0 12px 28px -8px rgba(139, 92, 246, 0.25),
+      0 0 0 1px rgba(139, 92, 246, 0.08) inset;
+  }
+}
 
 @media (max-width: 1100px) {
   .analytics-grid { grid-template-columns: 1fr; max-width: 900px; }
@@ -331,8 +347,6 @@ function openEditContrib({ goal, user }) {
 
 @media (prefers-reduced-motion: reduce) {
   .card,
-  :deep(.metric-card) {
-    animation: none !important;
-  }
+  :deep(.metric-card) { animation: none !important; }
 }
 </style>
