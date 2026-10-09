@@ -26,44 +26,20 @@ const userClass = computed(() => (props.tx.user === 'Сергей' ? 'sergey' : 
 const displayUserName = computed(() => auth.nameFor(props.tx.user));
 const userAvatar = computed(() => auth.avatarFor(props.tx.user));
 
-// ✅ Информация о банке для правой «монеты»
 const bankStyle = computed(() => {
   const id = props.tx.accountId;
   if (!id) return null;
 
   if (id === 'cash' || id.startsWith('cash_')) {
-    return {
-      type: 'cash',
-      icon: '💵',
-      label: 'Наличные',
-      color: '#22c55e',
-    };
+    return { type: 'cash', icon: '💵', label: 'Наличные', color: '#22c55e' };
   }
-
   if (id.startsWith('tbank')) {
-    return {
-      type: 'tbank',
-      logo: bankLogoUrl.value,
-      label: 'Т-Банк',
-      color: '#eab308',
-    };
+    return { type: 'tbank', logo: bankLogoUrl.value, label: 'Т-Банк', color: '#eab308' };
   }
-
   if (id.startsWith('sber')) {
-    return {
-      type: 'sber',
-      logo: bankLogoUrl.value,
-      label: 'СберБанк',
-      color: '#21a038',
-    };
+    return { type: 'sber', logo: bankLogoUrl.value, label: 'СберБанк', color: '#21a038' };
   }
-
-  return {
-    type: 'default',
-    icon: '💳',
-    label: accountName.value || 'Счёт',
-    color: '#64748b',
-  };
+  return { type: 'default', icon: '💳', label: accountName.value || 'Счёт', color: '#64748b' };
 });
 
 const appearing = ref(false);
@@ -97,7 +73,7 @@ function onEdit() {
 }
 
 // ============================================================
-// ✅ SWIPE-REVEAL (мобильный): свайп влево открывает кнопки справа
+// SWIPE-REVEAL (мобильный)
 // ============================================================
 const el = ref(null);
 const offsetX = ref(0);
@@ -227,7 +203,6 @@ const progress = computed(() =>
       { 'is-appearing': appearing, 'is-deleting': deleting, 'is-revealed': revealed },
     ]"
   >
-    <!-- ✅ ПАНЕЛЬ ДЕЙСТВИЙ — выезжает СПРАВА при свайпе влево (мобильный) -->
     <div
       class="tx-actions-panel"
       :style="{ opacity: progress }"
@@ -251,7 +226,6 @@ const progress = computed(() =>
       </button>
     </div>
 
-    <!-- ✅ КАРТОЧКА -->
     <div
       class="tx-card"
       :style="itemStyle"
@@ -281,7 +255,6 @@ const progress = computed(() =>
         </div>
       </div>
 
-      <!-- ✅ ПРАВАЯ ЧАСТЬ: сумма + инлайн-кнопки (ПК) + банк-монета -->
       <div class="tx-right">
         <div
           class="tx-amount"
@@ -292,7 +265,6 @@ const progress = computed(() =>
         </div>
 
         <div class="tx-right-bottom">
-          <!-- ✅ Инлайн-кнопки для ПК -->
           <div class="tx-actions-inline">
             <button
               class="tx-inline-btn tx-inline-edit"
@@ -314,7 +286,6 @@ const progress = computed(() =>
             </button>
           </div>
 
-          <!-- Банк-монета -->
           <div
             v-if="bankStyle"
             class="tx-bank-coin"
@@ -367,13 +338,11 @@ const progress = computed(() =>
 }
 
 /* ============================================================
-   ПАНЕЛЬ ДЕЙСТВИЙ (мобильный свайп) — скрыта на ПК
+   ПАНЕЛЬ ДЕЙСТВИЙ (мобильный свайп)
    ============================================================ */
 .tx-actions-panel {
   position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
+  top: 0; right: 0; bottom: 0;
   width: 96px;
   display: flex;
   align-items: center;
@@ -385,8 +354,8 @@ const progress = computed(() =>
 
   background: linear-gradient(
     270deg,
-    rgba(99, 102, 241, 0.12) 0%,
-    rgba(99, 102, 241, 0.06) 100%
+    rgba(139, 92, 246, 0.14) 0%,
+    rgba(139, 92, 246, 0.06) 100%
   );
   transition: opacity 0.15s linear;
 
@@ -407,28 +376,22 @@ const progress = computed(() =>
   transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), box-shadow 0.2s;
   flex-shrink: 0;
 
-  .tab-icon {
-    font-size: 18px;
-    line-height: 1;
-    filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
-  }
-
+  .tab-icon { font-size: 18px; line-height: 1; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2)); }
   &:active { transform: scale(0.92); }
 }
 
 .tx-action-edit {
-  background: linear-gradient(180deg, #60a5fa, #3b82f6);
+  background: linear-gradient(180deg, #818cf8, #6366f1);
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.4) inset,
     0 -2px 0 rgba(29, 78, 216, 0.3) inset,
-    0 4px 10px -2px rgba(59, 130, 246, 0.5);
-
+    0 4px 10px -2px rgba(99, 102, 241, 0.5);
   &:hover {
     transform: translateY(-2px);
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.4) inset,
       0 -2px 0 rgba(29, 78, 216, 0.3) inset,
-      0 8px 16px -2px rgba(59, 130, 246, 0.7);
+      0 8px 16px -2px rgba(99, 102, 241, 0.7);
   }
 }
 
@@ -438,7 +401,6 @@ const progress = computed(() =>
     0 1px 0 rgba(255, 255, 255, 0.4) inset,
     0 -2px 0 rgba(153, 27, 27, 0.3) inset,
     0 4px 10px -2px rgba(239, 68, 68, 0.5);
-
   &:hover {
     transform: translateY(-2px);
     box-shadow:
@@ -449,7 +411,7 @@ const progress = computed(() =>
 }
 
 /* ============================================================
-   КАРТОЧКА
+   КАРТОЧКА — адаптируется под тему
    ============================================================ */
 .tx-card {
   position: relative;
@@ -459,34 +421,24 @@ const progress = computed(() =>
   gap: 12px;
   padding: 14px 16px;
 
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.98) 0%,
-    rgba(250, 251, 255, 0.95) 100%
-  );
-
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  background: var(--grad-card);
+  border: 1px solid var(--border);
   border-radius: 16px;
   overflow: hidden;
   box-sizing: border-box;
 
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.95) inset,
-    0 -1px 0 rgba(148, 163, 184, 0.06) inset,
-    0 2px 6px rgba(15, 23, 42, 0.05),
-    0 8px 20px -6px rgba(15, 23, 42, 0.08);
+  box-shadow: var(--shadow-md);
 
   will-change: transform;
-  transition: transform 0.32s cubic-bezier(.34,1.56,.64,1), box-shadow 0.3s ease, border-color 0.2s ease;
+  transition:
+    transform 0.32s cubic-bezier(.34,1.56,.64,1),
+    box-shadow 0.3s ease,
+    border-color 0.25s ease,
+    background 0.3s ease;
 
   &:hover {
-    border-color: rgba(99, 102, 241, 0.4);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.95) inset,
-      0 -1px 0 rgba(148, 163, 184, 0.06) inset,
-      0 4px 10px rgba(15, 23, 42, 0.06),
-      0 16px 32px -10px rgba(99, 102, 241, 0.2),
-      0 24px 48px -16px rgba(15, 23, 42, 0.12);
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-lg);
   }
 }
 
@@ -508,40 +460,26 @@ const progress = computed(() =>
 
 .tx-avatar.sergey {
   background: linear-gradient(180deg, rgba(147, 197, 253, 0.35), rgba(139, 92, 246, 0.35));
-  border: 1.5px solid rgba(59, 130, 246, 0.4);
+  border: 1.5px solid rgba(99, 102, 241, 0.55);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.6) inset,
-    0 4px 10px -2px rgba(59, 130, 246, 0.25);
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 4px 10px -2px rgba(99, 102, 241, 0.35);
 }
 .tx-avatar.sasha {
-  background: linear-gradient(180deg, rgba(251, 207, 232, 0.4), rgba(253, 186, 116, 0.3));
-  border: 1.5px solid rgba(236, 72, 153, 0.4);
+  background: linear-gradient(180deg, rgba(251, 207, 232, 0.35), rgba(253, 186, 116, 0.3));
+  border: 1.5px solid rgba(236, 72, 153, 0.55);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.6) inset,
-    0 4px 10px -2px rgba(236, 72, 153, 0.25);
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 4px 10px -2px rgba(236, 72, 153, 0.35);
 }
 
-.tx-avatar-img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  display: block;
-}
-
-.tx-avatar-emoji {
-  font-size: 20px;
-  line-height: 1;
-}
+.tx-avatar-img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.tx-avatar-emoji { font-size: 20px; line-height: 1; }
 
 /* ============================================================
    ТЕКСТ
    ============================================================ */
-.tx-main {
-  flex: 1;
-  min-width: 0;
-  position: relative;
-  z-index: 2;
-}
+.tx-main { flex: 1; min-width: 0; position: relative; z-index: 2; }
 
 .tx-name {
   font-weight: 700;
@@ -569,40 +507,35 @@ const progress = computed(() =>
   font-weight: 700;
   color: var(--text);
   cursor: pointer;
-  transition: color 0.15s ease;
   user-select: none;
+  transition: color 0.15s ease;
   &:hover { color: var(--accent); }
 }
 
 .tx-meta .cat {
   padding: 3px 9px;
   border-radius: 999px;
-  background: linear-gradient(180deg, rgba(241, 245, 249, 0.95), rgba(226, 232, 240, 0.85));
+  background: var(--panel-2);
   color: var(--accent);
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.15s ease;
   user-select: none;
   white-space: nowrap;
-  border: 1px solid rgba(148, 163, 184, 0.15);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.8) inset,
-    0 1px 2px rgba(15, 23, 42, 0.04);
+  border: 1px solid var(--border);
+  transition: all 0.18s ease;
 
   &:hover {
-    background: linear-gradient(180deg, #818cf8, #6366f1);
+    background: var(--grad-primary);
     color: #ffffff;
     border-color: transparent;
     transform: translateY(-1px);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.3) inset,
-      0 4px 10px -2px rgba(99, 102, 241, 0.5);
+    box-shadow: 0 4px 12px -2px rgba(139, 92, 246, 0.5);
   }
 }
 
 /* ============================================================
-   ПРАВАЯ ЧАСТЬ: сумма + инлайн-кнопки (ПК) + банк-монета
+   ПРАВАЯ ЧАСТЬ
    ============================================================ */
 .tx-right {
   flex: 0 0 auto;
@@ -621,25 +554,26 @@ const progress = computed(() =>
 }
 
 .tx-amount {
-  font-family: var(--mono, "JetBrains Mono", monospace);
+  font-family: var(--mono);
   font-size: 18px;
   font-weight: 800;
   letter-spacing: -0.02em;
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.15s ease;
   user-select: none;
   border-radius: 8px;
-  padding: 2px 6px;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
+  padding: 2px 8px;
+  transition: all 0.2s ease;
 
   &.income {
-    color: #16a34a;
-    background: linear-gradient(180deg, rgba(220, 252, 231, 0.5), rgba(187, 247, 208, 0.3));
+    color: var(--accent-2);
+    background: rgba(34, 197, 94, 0.12);
+    text-shadow: 0 0 12px rgba(34, 197, 94, 0.35);
   }
   &.expense {
-    color: #dc2626;
-    background: linear-gradient(180deg, rgba(254, 226, 226, 0.5), rgba(254, 202, 202, 0.3));
+    color: var(--danger);
+    background: rgba(244, 63, 94, 0.12);
+    text-shadow: 0 0 12px rgba(244, 63, 94, 0.35);
   }
 
   &:hover { transform: scale(1.04); }
@@ -649,16 +583,16 @@ const progress = computed(() =>
 }
 
 @keyframes amountFlashUp {
-  0%   { background: rgba(34, 197, 94, 0.4); transform: scale(1.12); }
+  0%   { background: rgba(34, 197, 94, 0.5); transform: scale(1.12); }
   100% { background: transparent; transform: scale(1); }
 }
 @keyframes amountFlashDown {
-  0%   { background: rgba(239, 68, 68, 0.4); transform: scale(1.12); }
+  0%   { background: rgba(244, 63, 94, 0.5); transform: scale(1.12); }
   100% { background: transparent; transform: scale(1); }
 }
 
 /* ============================================================
-   ✅ ИНЛАЙН-КНОПКИ для ПК — скрыты на мобильном
+   ИНЛАЙН-КНОПКИ (ПК)
    ============================================================ */
 .tx-actions-inline {
   display: none;
@@ -670,9 +604,9 @@ const progress = computed(() =>
   width: 34px;
   height: 34px;
   border-radius: 10px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  background: linear-gradient(180deg, #ffffff, #f8fafc);
-  color: var(--muted, #64748b);
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  color: var(--muted);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
@@ -680,10 +614,7 @@ const progress = computed(() =>
   padding: 0;
   flex-shrink: 0;
 
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.95) inset,
-    0 -1px 0 rgba(148, 163, 184, 0.06) inset,
-    0 2px 4px rgba(15, 23, 42, 0.04);
+  box-shadow: var(--shadow-sm);
 
   transition:
     transform 0.18s cubic-bezier(.34,1.56,.64,1),
@@ -696,54 +627,42 @@ const progress = computed(() =>
     font-size: 15px;
     line-height: 1;
     display: inline-block;
-    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.08));
     transition: transform 0.2s cubic-bezier(.34,1.56,.64,1);
   }
 
   &:active { transform: scale(0.94); }
-
-  &:active .tib-icon { transform: scale(0.9); }
 }
 
-/* Edit — синяя */
 .tx-inline-edit:hover {
-  background: linear-gradient(180deg, #eef2ff, #e0e7ff);
-  border-color: rgba(99, 102, 241, 0.5);
-  color: #4f46e5;
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.5);
+  color: var(--neon-purple);
   transform: translateY(-2px);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.95) inset,
-    0 -1px 0 rgba(99, 102, 241, 0.1) inset,
-    0 6px 14px -4px rgba(99, 102, 241, 0.4);
+    0 6px 14px -4px rgba(139, 92, 246, 0.4),
+    0 0 0 1px rgba(139, 92, 246, 0.3);
 }
 .tx-inline-edit:hover .tib-icon {
   transform: translateY(-1px) rotate(-6deg) scale(1.1);
 }
 
-/* Delete — красная */
 .tx-inline-delete:hover {
-  background: linear-gradient(180deg, #fef2f2, #fee2e2);
-  border-color: rgba(239, 68, 68, 0.5);
-  color: #dc2626;
+  background: rgba(244, 63, 94, 0.15);
+  border-color: rgba(244, 63, 94, 0.5);
+  color: var(--danger);
   transform: translateY(-2px);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.95) inset,
-    0 -1px 0 rgba(239, 68, 68, 0.1) inset,
-    0 6px 14px -4px rgba(239, 68, 68, 0.4);
+    0 6px 14px -4px rgba(244, 63, 94, 0.4),
+    0 0 0 1px rgba(244, 63, 94, 0.3);
 }
-.tx-inline-delete:hover .tib-icon {
-  transform: scale(1.12);
-}
+.tx-inline-delete:hover .tib-icon { transform: scale(1.12); }
 
-/* ✅ Показываем инлайн-кнопки ТОЛЬКО на десктопе */
 @media (min-width: 701px) {
-  .tx-actions-inline {
-    display: inline-flex;
-  }
+  .tx-actions-inline { display: inline-flex; }
 }
 
 /* ============================================================
-   БАНК-МОНЕТА — белый фон, крупная, справа
+   БАНК-МОНЕТА
    ============================================================ */
 .tx-bank-coin {
   position: relative;
@@ -758,7 +677,7 @@ const progress = computed(() =>
   overflow: hidden;
 
   background: #ffffff;
-  border: 1px solid rgba(148, 163, 184, 0.25);
+  border: 1px solid var(--border);
 
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.95) inset,
@@ -772,31 +691,14 @@ const progress = computed(() =>
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.95) inset,
       0 -1px 0 rgba(148, 163, 184, 0.08) inset,
-      0 8px 18px -2px rgba(15, 23, 42, 0.28);
+      0 8px 18px -2px rgba(139, 92, 246, 0.4),
+      0 0 0 1px var(--neon-purple);
   }
   &:active { transform: scale(0.95); }
 
-  &.coin-tbank {
-    border-color: rgba(234, 179, 8, 0.5);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.95) inset,
-      0 -1px 0 rgba(148, 163, 184, 0.08) inset,
-      0 4px 10px -2px rgba(234, 179, 8, 0.35);
-  }
-  &.coin-sber {
-    border-color: rgba(33, 160, 56, 0.5);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.95) inset,
-      0 -1px 0 rgba(148, 163, 184, 0.08) inset,
-      0 4px 10px -2px rgba(33, 160, 56, 0.35);
-  }
-  &.coin-cash {
-    border-color: rgba(34, 197, 94, 0.5);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.95) inset,
-      0 -1px 0 rgba(148, 163, 184, 0.08) inset,
-      0 4px 10px -2px rgba(34, 197, 94, 0.35);
-  }
+  &.coin-tbank { border-color: rgba(234, 179, 8, 0.5); }
+  &.coin-sber { border-color: rgba(33, 160, 56, 0.5); }
+  &.coin-cash { border-color: rgba(34, 197, 94, 0.5); }
 }
 
 .tx-bank-coin-img {
@@ -806,9 +708,28 @@ const progress = computed(() =>
   display: block;
 }
 
-.tx-bank-coin-emoji {
-  font-size: 16px;
-  line-height: 1;
+.tx-bank-coin-emoji { font-size: 16px; line-height: 1; }
+
+/* ============================================================
+   ТЁМНАЯ ТЕМА — доработки
+   ============================================================ */
+:global(:root[data-app-theme="dark"]) {
+  .tx-bank-coin {
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.9) inset,
+      0 -1px 0 rgba(0, 0, 0, 0.2) inset,
+      0 4px 12px -2px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(139, 92, 246, 0.3);
+  }
+
+  .tx-inline-btn {
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.75);
+    border-color: rgba(139, 92, 246, 0.2);
+
+    &:hover { color: #ffffff; }
+  }
 }
 
 /* ============================================================
