@@ -11,7 +11,6 @@ const goalsStore = useGoalsStore();
 const auth = useAuthStore();
 
 const LS_KEY = 'financeProCashCollapsed_v1';
-
 const collapsed = ref(false);
 
 onMounted(() => {
@@ -42,9 +41,6 @@ const owners = computed(() =>
   }))
 );
 
-// ============================================================
-// ОСНОВНАЯ ЦЕЛЬ — учитываем наличные как накопления
-// ============================================================
 const cashInWallets = computed(() => accounts.totalCash);
 
 const goalContributionsSum = computed(() => {
@@ -80,7 +76,6 @@ function openModal(owner = '', mode = 'add') {
   cashModalOpen.value = true;
 }
 
-// Купюры
 const fallingBills = [
   { id: 1,  left: '6%',   delay: '0s',    duration: '14s', rotate: -12, scale: 0.75 },
   { id: 2,  left: '18%',  delay: '2.5s',  duration: '18s', rotate: 8,   scale: 0.9 },
@@ -129,7 +124,6 @@ const fallingBills = [
       <div class="cn-pattern"></div>
       <div class="cn-watermark">₽</div>
 
-      <!-- ✅ ЗАГОЛОВОК: клик = свернуть/развернуть -->
       <div
         class="cn-header"
         @click="toggle"
@@ -153,7 +147,6 @@ const fallingBills = [
         </div>
       </div>
 
-      <!-- ✅ Сворачиваемое содержимое -->
       <div class="cn-collapsible">
         <div class="cn-collapsible-inner">
           <div class="cn-owners">
@@ -183,7 +176,6 @@ const fallingBills = [
             </button>
           </div>
 
-          <!-- ОСНОВНАЯ ЦЕЛЬ -->
           <div v-if="goalsStore.primaryGoal" class="cn-goal" :class="{ done: isDone }">
             <div class="cn-goal-head">
               <span class="cn-goal-emoji">{{ goalsStore.primaryGoal.emoji || '🎯' }}</span>
@@ -229,7 +221,7 @@ const fallingBills = [
 }
 
 /* ============================================================
-   Купюра — многослойная тень + объём
+   КУПЮРА
    ============================================================ */
 .cash-note {
   position: relative;
@@ -252,13 +244,13 @@ const fallingBills = [
     0 10px 24px -6px rgba(5, 150, 105, 0.35),
     0 20px 40px -12px rgba(16, 185, 129, 0.3);
 
-  transition: transform 0.35s cubic-bezier(.34,1.56,.64,1), box-shadow 0.35s ease, padding 0.3s ease;
+  transition:
+    transform 0.35s cubic-bezier(.34,1.56,.64,1),
+    box-shadow 0.35s ease,
+    padding 0.3s ease;
 }
 
-/* ✅ Свёрнутое состояние — обычный flex-контейнер, БЕЗ flex на дочерних */
-.cash-note.collapsed {
-  padding: 14px 20px;
-}
+.cash-note.collapsed { padding: 14px 20px; }
 
 .cash-note:hover {
   transform: translateY(-2px);
@@ -351,8 +343,7 @@ const fallingBills = [
 }
 
 /* ============================================================
-   ✅ ЗАГОЛОВОК — всегда space-between, всегда на всю ширину.
-   Сумма справа прижата жёстко.
+   ЗАГОЛОВОК
    ============================================================ */
 .cn-header {
   position: relative;
@@ -417,7 +408,6 @@ const fallingBills = [
   white-space: nowrap;
 }
 
-/* ✅ Правый блок жёстко прижат вправо и не сжимается */
 .cn-header-right {
   text-align: right;
   flex: 0 0 auto;
@@ -448,7 +438,7 @@ const fallingBills = [
 }
 
 /* ============================================================
-   ✅ СВОРАЧИВАЕМОЕ СОДЕРЖИМОЕ
+   СВОРАЧИВАЕМОЕ
    ============================================================ */
 .cn-collapsible {
   position: relative;
@@ -476,9 +466,6 @@ const fallingBills = [
   padding-top: 6px;
 }
 
-/* ============================================================
-   ПОЛЬЗОВАТЕЛИ
-   ============================================================ */
 .cn-owners {
   display: flex;
   flex-direction: column;
@@ -523,9 +510,6 @@ const fallingBills = [
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
-/* ============================================================
-   КНОПКИ
-   ============================================================ */
 .cn-actions {
   display: grid;
   grid-template-columns: 1.3fr 1fr 1fr;
@@ -569,8 +553,7 @@ const fallingBills = [
   }
   &:active {
     transform: translateY(0) scale(0.97);
-    box-shadow:
-      0 2px 4px rgba(0, 0, 0, 0.15) inset;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15) inset;
   }
 
   &.cn-act-primary {
@@ -598,14 +581,8 @@ const fallingBills = [
   }
 }
 
-.cn-act-icon {
-  font-size: 13px;
-  line-height: 1;
-}
+.cn-act-icon { font-size: 13px; line-height: 1; }
 
-/* ============================================================
-   ЦЕЛЬ
-   ============================================================ */
 .cn-goal {
   padding: 12px 14px;
   border-radius: 14px;
@@ -634,18 +611,8 @@ const fallingBills = [
   }
 }
 
-.cn-goal-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.cn-goal-emoji {
-  font-size: 16px;
-  line-height: 1;
-  flex-shrink: 0;
-}
+.cn-goal-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.cn-goal-emoji { font-size: 16px; line-height: 1; flex-shrink: 0; }
 
 .cn-goal-name {
   flex: 1;
@@ -683,11 +650,7 @@ const fallingBills = [
   }
 }
 
-.cn-goal-progress {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
+.cn-goal-progress { display: flex; flex-direction: column; gap: 6px; }
 
 .cn-goal-track {
   height: 8px;
@@ -742,6 +705,45 @@ const fallingBills = [
 }
 
 /* ============================================================
+   ТЁМНАЯ ТЕМА — купюра становится неоновой
+   ============================================================ */
+:global(:root[data-app-theme="dark"]) {
+  .cash-note {
+    background:
+      radial-gradient(circle at 10% 20%, rgba(74, 222, 128, 0.15), transparent 40%),
+      radial-gradient(circle at 90% 80%, rgba(34, 211, 238, 0.12), transparent 45%),
+      linear-gradient(135deg, #064e3b 0%, #065f46 40%, #047857 70%, #064e3b 100%);
+    box-shadow:
+      0 1px 0 rgba(74, 222, 128, 0.25) inset,
+      0 -1px 0 rgba(0, 0, 0, 0.3) inset,
+      0 6px 16px rgba(34, 197, 94, 0.25),
+      0 16px 32px -8px rgba(16, 185, 129, 0.35),
+      0 28px 56px -16px rgba(34, 197, 94, 0.25),
+      0 0 0 1px rgba(74, 222, 128, 0.15);
+  }
+
+  .cash-note:hover {
+    box-shadow:
+      0 1px 0 rgba(74, 222, 128, 0.35) inset,
+      0 -1px 0 rgba(0, 0, 0, 0.3) inset,
+      0 8px 20px rgba(34, 197, 94, 0.35),
+      0 22px 44px -8px rgba(16, 185, 129, 0.5),
+      0 40px 72px -16px rgba(34, 197, 94, 0.35),
+      0 0 0 1px rgba(74, 222, 128, 0.25);
+  }
+
+  .cn-bill { color: rgba(74, 222, 128, 0.4); }
+
+  .cn-watermark {
+    color: rgba(74, 222, 128, 0.08);
+  }
+
+  .cn-owner-value {
+    text-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
+  }
+}
+
+/* ============================================================
    МОБИЛЬНЫЙ
    ============================================================ */
 @media (max-width: 700px) {
@@ -787,12 +789,6 @@ const fallingBills = [
   .cn-header-label { font-size: 8px; }
   .cn-header-icon { font-size: 16px; }
   .cn-header-left { gap: 6px; }
-}
-
-@media (max-width: 340px) {
-  .cn-header-title { font-size: 11.5px; }
-  .cn-header-value { font-size: 16px; }
-  .cn-header-icon { display: none; }
 }
 
 @media (prefers-reduced-motion: reduce) {

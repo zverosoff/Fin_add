@@ -3,6 +3,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useAccountsStore } from '@/stores/accounts';
+import ThemeToggle from '@/components/ui/ThemeToggle.vue';
 import { useToast } from '@/composables/useToast';
 import { fmt, categoryIcon } from '@/composables/useFormat';
 
@@ -546,6 +547,10 @@ onUnmounted(() => {
           </div>
         </div>
       </div>
+
+      <div class="profile-card">
+  <ThemeToggle />
+</div>
 
       <div class="profile-card">
         <button class="logout-btn" type="button" @click="handleLogout">
