@@ -97,10 +97,10 @@ function onEdit() {
 }
 
 // ============================================================
-// ✅ SWIPE-REVEAL: свайп ВЛЕВО открывает кнопки СПРАВА
+// ✅ SWIPE-REVEAL (мобильный): свайп влево открывает кнопки справа
 // ============================================================
 const el = ref(null);
-const offsetX = ref(0);        // всегда ≤ 0 (сдвиг влево)
+const offsetX = ref(0);
 const revealed = ref(false);
 const dragging = ref(false);
 
@@ -122,7 +122,6 @@ function applyOffset() {
   rafId = null;
 }
 
-// ✅ Диапазон: [-REVEAL_WIDTH, 0]
 function setOffset(x) {
   pendingX = Math.min(0, Math.max(-(REVEAL_WIDTH + 20), x));
   if (!rafId) rafId = requestAnimationFrame(applyOffset);
@@ -152,10 +151,8 @@ function onTouchMove(e) {
   if (!isHorizontal) return;
 
   if (revealed.value) {
-    // Уже открыто: dx > 0 двигает обратно к 0
     setOffset(-REVEAL_WIDTH + dx);
   } else {
-    // Закрыто: свайп только влево (dx < 0)
     if (dx >= 0) { setOffset(0); return; }
     setOffset(dx);
   }
@@ -170,7 +167,7 @@ function onTouchEnd() {
     return;
   }
 
-  const current = offsetX.value;      // отрицательное или 0
+  const current = offsetX.value;
   const absX = Math.abs(current);
 
   if (revealed.value) {
@@ -230,7 +227,7 @@ const progress = computed(() =>
       { 'is-appearing': appearing, 'is-deleting': deleting, 'is-revealed': revealed },
     ]"
   >
-    <!-- ✅ ПАНЕЛЬ ДЕЙСТВИЙ — выезжает СПРАВА при свайпе влево -->
+    <!-- ✅ ПАНЕЛЬ ДЕЙСТВИЙ — выезжает СПРАВА при свайпе влево (мобильный) -->
     <div
       class="tx-actions-panel"
       :style="{ opacity: progress }"
@@ -254,7 +251,7 @@ const progress = computed(() =>
       </button>
     </div>
 
-    <!-- ✅ КАРТОЧКА (сдвигается влево) -->
+    <!-- ✅ КАРТОЧКА -->
     <div
       class="tx-card"
       :style="itemStyle"
@@ -284,7 +281,7 @@ const progress = computed(() =>
         </div>
       </div>
 
-      <!-- ✅ ПРАВАЯ ЧАСТЬ: сумма + банк-монета (белый фон) -->
+      <!-- ✅ ПРАВАЯ ЧАСТЬ: сумма + инлайн-кнопки (ПК) + банк-монета -->
       <div class="tx-right">
         <div
           class="tx-amount"
@@ -294,22 +291,47 @@ const progress = computed(() =>
           {{ amountSign }} {{ fmt(tx.amount) }} ₽
         </div>
 
-        <div
-          v-if="bankStyle"
-          class="tx-bank-coin"
-          :class="'coin-' + bankStyle.type"
-          :title="bankStyle.label"
-          @click.stop="tx.accountId && onFilter('account', tx.accountId)"
-        >
-          <img
-            v-if="bankStyle.logo"
-            :src="bankStyle.logo"
-            class="tx-bank-coin-img"
-            :alt="bankStyle.label"
-            loading="lazy"
-            @error="(e) => (e.target.style.display = 'none')"
-          />
-          <span v-else class="tx-bank-coin-emoji">{{ bankStyle.icon }}</span>
+        <div class="tx-right-bottom">
+          <!-- ✅ Инлайн-кнопки для ПК -->
+          <div class="tx-actions-inline">
+            <button
+              class="tx-inline-btn tx-inline-edit"
+              type="button"
+              @click.stop="onEdit"
+              title="Редактировать"
+              aria-label="Редактировать"
+            >
+              <span class="tib-icon">✏️</span>
+            </button>
+            <button
+              class="tx-inline-btn tx-inline-delete"
+              type="button"
+              @click.stop="onDelete"
+              title="Удалить"
+              aria-label="Удалить"
+            >
+              <span class="tib-icon">🗑</span>
+            </button>
+          </div>
+
+          <!-- Банк-монета -->
+          <div
+            v-if="bankStyle"
+            class="tx-bank-coin"
+            :class="'coin-' + bankStyle.type"
+            :title="bankStyle.label"
+            @click.stop="tx.accountId && onFilter('account', tx.accountId)"
+          >
+            <img
+              v-if="bankStyle.logo"
+              :src="bankStyle.logo"
+              class="tx-bank-coin-img"
+              :alt="bankStyle.label"
+              loading="lazy"
+              @error="(e) => (e.target.style.display = 'none')"
+            />
+            <span v-else class="tx-bank-coin-emoji">{{ bankStyle.icon }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -345,7 +367,7 @@ const progress = computed(() =>
 }
 
 /* ============================================================
-   ПАНЕЛЬ ДЕЙСТВИЙ — СПРАВА, на заднем плане
+   ПАНЕЛЬ ДЕЙСТВИЙ (мобильный свайп) — скрыта на ПК
    ============================================================ */
 .tx-actions-panel {
   position: absolute;
@@ -580,7 +602,7 @@ const progress = computed(() =>
 }
 
 /* ============================================================
-   ПРАВАЯ ЧАСТЬ: сумма + банк-монета
+   ПРАВАЯ ЧАСТЬ: сумма + инлайн-кнопки (ПК) + банк-монета
    ============================================================ */
 .tx-right {
   flex: 0 0 auto;
@@ -590,6 +612,12 @@ const progress = computed(() =>
   gap: 6px;
   position: relative;
   z-index: 2;
+}
+
+.tx-right-bottom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 
 .tx-amount {
@@ -629,7 +657,94 @@ const progress = computed(() =>
   100% { background: transparent; transform: scale(1); }
 }
 
-/* ✅ БАНК-МОНЕТА — БЕЛЫЙ ФОН, чтобы логотипы не сливались */
+/* ============================================================
+   ✅ ИНЛАЙН-КНОПКИ для ПК — скрыты на мобильном
+   ============================================================ */
+.tx-actions-inline {
+  display: none;
+  align-items: center;
+  gap: 6px;
+}
+
+.tx-inline-btn {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid rgba(226, 232, 240, 0.9);
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  color: var(--muted, #64748b);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.06) inset,
+    0 2px 4px rgba(15, 23, 42, 0.04);
+
+  transition:
+    transform 0.18s cubic-bezier(.34,1.56,.64,1),
+    box-shadow 0.22s ease,
+    color 0.15s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+
+  .tib-icon {
+    font-size: 15px;
+    line-height: 1;
+    display: inline-block;
+    filter: drop-shadow(0 1px 1px rgba(0, 0, 0, 0.08));
+    transition: transform 0.2s cubic-bezier(.34,1.56,.64,1);
+  }
+
+  &:active { transform: scale(0.94); }
+
+  &:active .tib-icon { transform: scale(0.9); }
+}
+
+/* Edit — синяя */
+.tx-inline-edit:hover {
+  background: linear-gradient(180deg, #eef2ff, #e0e7ff);
+  border-color: rgba(99, 102, 241, 0.5);
+  color: #4f46e5;
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(99, 102, 241, 0.1) inset,
+    0 6px 14px -4px rgba(99, 102, 241, 0.4);
+}
+.tx-inline-edit:hover .tib-icon {
+  transform: translateY(-1px) rotate(-6deg) scale(1.1);
+}
+
+/* Delete — красная */
+.tx-inline-delete:hover {
+  background: linear-gradient(180deg, #fef2f2, #fee2e2);
+  border-color: rgba(239, 68, 68, 0.5);
+  color: #dc2626;
+  transform: translateY(-2px);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(239, 68, 68, 0.1) inset,
+    0 6px 14px -4px rgba(239, 68, 68, 0.4);
+}
+.tx-inline-delete:hover .tib-icon {
+  transform: scale(1.12);
+}
+
+/* ✅ Показываем инлайн-кнопки ТОЛЬКО на десктопе */
+@media (min-width: 701px) {
+  .tx-actions-inline {
+    display: inline-flex;
+  }
+}
+
+/* ============================================================
+   БАНК-МОНЕТА — белый фон, крупная, справа
+   ============================================================ */
 .tx-bank-coin {
   position: relative;
   width: 30px;
@@ -661,7 +776,6 @@ const progress = computed(() =>
   }
   &:active { transform: scale(0.95); }
 
-  /* Лёгкий цветной контур под бренд — но фон белый */
   &.coin-tbank {
     border-color: rgba(234, 179, 8, 0.5);
     box-shadow:
@@ -669,7 +783,6 @@ const progress = computed(() =>
       0 -1px 0 rgba(148, 163, 184, 0.08) inset,
       0 4px 10px -2px rgba(234, 179, 8, 0.35);
   }
-
   &.coin-sber {
     border-color: rgba(33, 160, 56, 0.5);
     box-shadow:
@@ -677,7 +790,6 @@ const progress = computed(() =>
       0 -1px 0 rgba(148, 163, 184, 0.08) inset,
       0 4px 10px -2px rgba(33, 160, 56, 0.35);
   }
-
   &.coin-cash {
     border-color: rgba(34, 197, 94, 0.5);
     box-shadow:
@@ -725,8 +837,11 @@ const progress = computed(() =>
   .tx-card,
   .tx-avatar,
   .tx-bank-coin,
+  .tx-inline-btn,
   .tx-amount { transition: none !important; }
   .tx-card:hover { transform: none; }
+  .tx-inline-btn:hover { transform: none; }
+  .tx-inline-btn:hover .tib-icon { transform: none; }
   .tx-amount.flash-up,
   .tx-amount.flash-down,
   .tx-item.is-appearing,
