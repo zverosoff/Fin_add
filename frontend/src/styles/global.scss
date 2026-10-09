@@ -13,7 +13,6 @@ html, body, #app {
   margin: 0;
 }
 
-/* ✅ html — фоновый слой на случай оверскролла */
 html {
   background: #eef2f8;
   transition: background 0.3s ease;
@@ -32,9 +31,6 @@ html, body {
   -webkit-touch-callout: none;
 }
 
-/* ============================================================
-   BODY — светлая тема: анимированный градиент
-   ============================================================ */
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
 
@@ -63,26 +59,22 @@ body {
   transition: background 0.3s ease, color 0.3s ease;
 }
 
-/* ✅ ТЁМНАЯ ТЕМА — body плоский тёмный, БЕЗ attachment:fixed
-   (чтобы скролл над контентом тоже был тёмным) */
 :root[data-app-theme="dark"] body {
   background: #0a0612 !important;
   background-image:
     radial-gradient(ellipse 80% 60% at 15% 0%, rgba(139, 92, 246, 0.12), transparent 60%),
     radial-gradient(ellipse 60% 50% at 85% 40%, rgba(34, 211, 238, 0.06), transparent 60%),
     radial-gradient(ellipse 80% 60% at 50% 100%, rgba(236, 72, 153, 0.06), transparent 65%) !important;
-  /* ✅ НЕ fixed — чтобы при скролле фон прокручивался вместе с контентом */
   background-attachment: scroll !important;
   background-size: auto, auto, auto !important;
   animation: none !important;
   color: #f4f4f6;
 }
 
-/* ✅ Дополнительный слой: body::before закрывает ВСЁ, включая область оверскролла */
 :root[data-app-theme="dark"] body::before {
   content: '';
   position: fixed;
-  inset: -10vh -10vw;   /* запас по краям — перекрывает bounce-скролл */
+  inset: -10vh -10vw;
   z-index: -1;
   pointer-events: none;
   background: #0a0612;
@@ -117,23 +109,14 @@ samp {
   -webkit-touch-callout: default;
 }
 
-/* ============================================================
-   TOUCH ACTION
-   ============================================================ */
-* {
-  touch-action: manipulation;
-}
+* { touch-action: manipulation; }
 
 .tx-list,
 .list-scroll,
-[data-scrollable] {
-  touch-action: pan-y;
-}
+[data-scrollable] { touch-action: pan-y; }
 
 canvas,
-svg.interactive {
-  touch-action: auto;
-}
+svg.interactive { touch-action: auto; }
 
 /* ============================================================
    СКРОЛЛБАР
@@ -167,19 +150,9 @@ svg.interactive {
   box-shadow: 0 0 0 3px rgba(168, 85, 247, 0.45), 0 0 0 1px var(--accent);
 }
 
-/* ============================================================
-   INPUT: 16px на iOS
-   ============================================================ */
-input, select, textarea {
-  font-size: 16px;
-}
+input, select, textarea { font-size: 16px; }
 @media (max-width: 700px) {
-  input, select, textarea {
-    font-size: 16px !important;
-  }
-}
-
-@media (max-width: 700px) {
+  input, select, textarea { font-size: 16px !important; }
   body { font-size: 14px; }
   button:not(.min-tap) { min-height: 36px; }
 }
@@ -193,13 +166,203 @@ input, select, textarea {
   body { animation: none; }
 }
 
+.app-tabs { display: none !important; }
+
 /* ============================================================
-   LEGACY
+   ✅ ТОЧЕЧНАЯ ТЁМНАЯ ТЕМА ДЛЯ КОМПОНЕНТОВ
+   Правила идут с высокоспецифичным селектором :root[data-app-theme="dark"]
+   и с !important — гарантированно перебивают Vue-стили.
    ============================================================ */
-.app-tabs {
-  display: none !important;
+
+/* ========== PROFILE PAGE (весь светлый на скрине 3) ========== */
+:root[data-app-theme="dark"] .profile-page::before {
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 0%, rgba(139, 92, 246, 0.18), transparent 60%),
+    radial-gradient(ellipse 70% 50% at 80% 100%, rgba(34, 211, 238, 0.10), transparent 60%),
+    linear-gradient(180deg, #0a0612 0%, #100820 100%) !important;
 }
 
+:root[data-app-theme="dark"] .hero-card {
+  background: #14091f !important;
+  outline-color: rgba(139, 92, 246, 0.2) !important;
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 8px 24px -8px rgba(0, 0, 0, 0.5),
+    0 30px 60px -20px rgba(139, 92, 246, 0.35),
+    0 0 0 1px rgba(139, 92, 246, 0.15) inset !important;
+}
+
+:root[data-app-theme="dark"] .hero-name,
+:root[data-app-theme="dark"] .hero-username {
+  color: #f4f4f6 !important;
+  text-shadow: 0 2px 12px rgba(20, 9, 31, 0.9) !important;
+}
+
+:root[data-app-theme="dark"] .hero-meta {
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)) !important;
+  border-color: rgba(139, 92, 246, 0.15) !important;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.05) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.2) inset,
+    0 2px 6px rgba(0, 0, 0, 0.3) !important;
+}
+
+:root[data-app-theme="dark"] .hero-meta-row {
+  color: #8b8ba0 !important;
+}
+
+:root[data-app-theme="dark"] .profile-card {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(139, 92, 246, 0.08), transparent 50%),
+    radial-gradient(circle at 0% 100%, rgba(34, 211, 238, 0.05), transparent 50%),
+    linear-gradient(180deg, rgba(30, 16, 48, 0.9) 0%, rgba(20, 9, 31, 0.95) 100%) !important;
+  border-color: rgba(139, 92, 246, 0.15) !important;
+}
+
+:root[data-app-theme="dark"] .card-title {
+  color: #8b8ba0 !important;
+}
+
+:root[data-app-theme="dark"] .stat {
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)) !important;
+  border-color: rgba(139, 92, 246, 0.12) !important;
+}
+
+:root[data-app-theme="dark"] .stat-value { color: #f4f4f6 !important; }
+:root[data-app-theme="dark"] .stat-label { color: #8b8ba0 !important; }
+
+:root[data-app-theme="dark"] .compare-row,
+:root[data-app-theme="dark"] .top-cat {
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)) !important;
+  border-color: rgba(139, 92, 246, 0.12) !important;
+}
+
+:root[data-app-theme="dark"] .tc-name { color: #f4f4f6 !important; }
+:root[data-app-theme="dark"] .tc-amount-value { color: #f4f4f6 !important; }
+
+/* ========== MONTH NAV ("Октябрь 2026") ========== */
+:root[data-app-theme="dark"] .month-nav {
+  background: linear-gradient(180deg, rgba(30, 16, 48, 0.9) 0%, rgba(20, 9, 31, 0.95) 100%) !important;
+  border-color: rgba(139, 92, 246, 0.15) !important;
+}
+
+:root[data-app-theme="dark"] .month-name { color: #f4f4f6 !important; }
+
+:root[data-app-theme="dark"] .mn-arrow,
+:root[data-app-theme="dark"] .today-btn,
+:root[data-app-theme="dark"] .del-month-btn {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(139, 92, 246, 0.2) !important;
+  color: #f4f4f6 !important;
+}
+
+:root[data-app-theme="dark"] .del-month-btn { color: #8b8ba0 !important; }
+
+:root[data-app-theme="dark"] .today-badge {
+  background: rgba(34, 197, 94, 0.15) !important;
+  color: #4ade80 !important;
+  border-color: rgba(74, 222, 128, 0.4) !important;
+}
+
+/* ========== SUMMARY COMPACT ("По пользователям") ========== */
+:root[data-app-theme="dark"] .summary-compact {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(139, 92, 246, 0.08), transparent 50%),
+    radial-gradient(circle at 0% 100%, rgba(34, 211, 238, 0.05), transparent 50%),
+    linear-gradient(180deg, rgba(30, 16, 48, 0.9) 0%, rgba(20, 9, 31, 0.95) 100%) !important;
+  border-color: rgba(139, 92, 246, 0.15) !important;
+}
+
+:root[data-app-theme="dark"] .sc-value {
+  color: #f4f4f6 !important;
+}
+:root[data-app-theme="dark"] .sc-value.income,
+:root[data-app-theme="dark"] .sc-value.positive { color: #4ade80 !important; }
+:root[data-app-theme="dark"] .sc-value.expense,
+:root[data-app-theme="dark"] .sc-value.negative { color: #f43f5e !important; }
+
+:root[data-app-theme="dark"] .sc-divider {
+  background: linear-gradient(180deg, transparent, rgba(139, 92, 246, 0.3), transparent) !important;
+}
+
+:root[data-app-theme="dark"] .sc-user-row {
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02)) !important;
+  border-color: rgba(139, 92, 246, 0.12) !important;
+}
+
+:root[data-app-theme="dark"] .sc-user-name { color: #f4f4f6 !important; }
+:root[data-app-theme="dark"] .sc-user-inc { color: #4ade80 !important; }
+:root[data-app-theme="dark"] .sc-user-exp { color: #f43f5e !important; }
+
+:root[data-app-theme="dark"] .sc-toggle {
+  background: rgba(255, 255, 255, 0.05) !important;
+  border-color: rgba(139, 92, 246, 0.2) !important;
+  color: #8b8ba0 !important;
+}
+
+/* ========== CASH BLOCK (купюра) ========== */
+:root[data-app-theme="dark"] .cash-note {
+  background:
+    radial-gradient(circle at 10% 20%, rgba(74, 222, 128, 0.15), transparent 40%),
+    radial-gradient(circle at 90% 80%, rgba(34, 211, 238, 0.12), transparent 45%),
+    linear-gradient(135deg, #064e3b 0%, #065f46 40%, #047857 70%, #064e3b 100%) !important;
+  box-shadow:
+    0 1px 0 rgba(74, 222, 128, 0.25) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.3) inset,
+    0 6px 16px rgba(34, 197, 94, 0.25),
+    0 16px 32px -8px rgba(16, 185, 129, 0.35),
+    0 28px 56px -16px rgba(34, 197, 94, 0.25),
+    0 0 0 1px rgba(74, 222, 128, 0.15) !important;
+}
+
+:root[data-app-theme="dark"] .cn-bill { color: rgba(74, 222, 128, 0.4) !important; }
+:root[data-app-theme="dark"] .cn-watermark { color: rgba(74, 222, 128, 0.08) !important; }
+
+/* ========== CARDS (аналитика, вклады) ========== */
+:root[data-app-theme="dark"] .card,
+:root[data-app-theme="dark"] .metric-card,
+:root[data-app-theme="dark"] .period-selector,
+:root[data-app-theme="dark"] .compare-item,
+:root[data-app-theme="dark"] .assistant-card,
+:root[data-app-theme="dark"] .quotes-card,
+:root[data-app-theme="dark"] .goal-card,
+:root[data-app-theme="dark"] .upcoming-card,
+:root[data-app-theme="dark"] .user-card,
+:root[data-app-theme="dark"] .summary-card {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(139, 92, 246, 0.08), transparent 50%),
+    radial-gradient(circle at 0% 100%, rgba(34, 211, 238, 0.05), transparent 50%),
+    linear-gradient(180deg, rgba(30, 16, 48, 0.9) 0%, rgba(20, 9, 31, 0.95) 100%) !important;
+  border-color: rgba(139, 92, 246, 0.15) !important;
+  color: #f4f4f6 !important;
+}
+
+/* Внутренние элементы аналитики */
+:root[data-app-theme="dark"] .metric-label,
+:root[data-app-theme="dark"] .metric-hint,
+:root[data-app-theme="dark"] .compare-label,
+:root[data-app-theme="dark"] .se-label,
+:root[data-app-theme="dark"] .acf-text,
+:root[data-app-theme="dark"] .tip-text,
+:root[data-app-theme="dark"] .qc-text,
+:root[data-app-theme="dark"] .qc-author {
+  color: #8b8ba0 !important;
+}
+
+:root[data-app-theme="dark"] .metric-value,
+:root[data-app-theme="dark"] .compare-value,
+:root[data-app-theme="dark"] .acf-title,
+:root[data-app-theme="dark"] .tip-title,
+:root[data-app-theme="dark"] .qc-title,
+:root[data-app-theme="dark"] .uc-name,
+:root[data-app-theme="dark"] .uc-total-value,
+:root[data-app-theme="dark"] .gt-value,
+:root[data-app-theme="dark"] .up-name,
+:root[data-app-theme="dark"] .up-amount {
+  color: #f4f4f6 !important;
+}
+
+/* ========== LEGACY MODAL OVERLAY ========== */
 .tx-modal-overlay {
   position: fixed;
   inset: 0;
@@ -243,10 +406,7 @@ input, select, textarea {
 }
 
 @media (max-width: 700px) {
-  .tx-modal-overlay {
-    padding: 0;
-    align-items: flex-end;
-  }
+  .tx-modal-overlay { padding: 0; align-items: flex-end; }
   .tx-modal {
     max-width: 100%;
     width: 100%;
@@ -256,7 +416,5 @@ input, select, textarea {
     transform: translateY(100%);
     opacity: 1;
   }
-  .tx-modal-overlay.show .tx-modal {
-    transform: translateY(0);
-  }
+  .tx-modal-overlay.show .tx-modal { transform: translateY(0); }
 }
