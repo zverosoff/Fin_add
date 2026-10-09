@@ -187,12 +187,11 @@ onUnmounted(() => {
 </template>
 
 <style>
-/* ✅ Прозрачные обёртки — фон обеспечивает body (светлый градиент или тёмный) */
+/* ✅ Обёртки прозрачные — фон полностью обеспечивает body/страница */
 .app-root {
   position: relative;
   min-height: 100vh;
   width: 100%;
-  /* ✅ НЕТ background — прозрачно, виден body */
   background: transparent;
 }
 
@@ -202,25 +201,8 @@ onUnmounted(() => {
   width: 100%;
   overflow-x: hidden;
   padding-bottom: calc(90px + env(safe-area-inset-bottom, 0));
-  /* ✅ Тоже прозрачный, чтобы body просвечивал */
   background: transparent;
   isolation: isolate;
-}
-
-/* ✅ В тёмной теме body уже тёмный — дополнительный фон не нужен,
-   но оставляем для надёжности на случай просветов при переходах */
-:global(:root[data-app-theme="dark"]) .app-root {
-  background: #0a0612;
-}
-
-:global(:root[data-app-theme="dark"]) .page-transition-wrap {
-  background: transparent;
-}
-
-/* ✅ В СВЕТЛОЙ теме — прозрачный, чтобы body-градиент был виден */
-:global(:root[data-app-theme="light"]) .app-root,
-:global(:root[data-app-theme="light"]) .page-transition-wrap {
-  background: transparent;
 }
 
 @media (max-width: 700px) {
@@ -228,7 +210,7 @@ onUnmounted(() => {
 }
 
 /* ============================================================
-   Переходы между страницами — без мелькания
+   Переходы — фон берётся из переменной --bg-page (светлый/тёмный)
    ============================================================ */
 
 .slide-left-leave-active,
@@ -239,6 +221,7 @@ onUnmounted(() => {
   width: 100%;
   pointer-events: none;
   z-index: 1;
+  background: var(--bg-page, transparent);
 }
 
 .slide-left-enter-active,
@@ -246,6 +229,7 @@ onUnmounted(() => {
 .fade-page-enter-active {
   position: relative;
   z-index: 2;
+  background: var(--bg-page, transparent);
 }
 
 .slide-left-enter-active,

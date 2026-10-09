@@ -584,12 +584,21 @@ onUnmounted(() => {
   position: fixed;
   inset: 0;
   z-index: -1;
+  pointer-events: none;
+
   background:
     radial-gradient(ellipse 80% 60% at 20% 0%, rgba(99, 102, 241, 0.08), transparent 60%),
     radial-gradient(ellipse 70% 50% at 80% 100%, rgba(236, 72, 153, 0.06), transparent 60%),
     linear-gradient(180deg, #fafbff 0%, #f4f6fb 100%);
-  pointer-events: none;
+
   transition: background 0.4s ease;
+}
+
+:global(:root[data-app-theme="dark"]) .profile-page::before {
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 0%, rgba(139, 92, 246, 0.18), transparent 60%),
+    radial-gradient(ellipse 70% 50% at 80% 100%, rgba(34, 211, 238, 0.10), transparent 60%),
+    linear-gradient(180deg, #0a0612 0%, #100820 100%);
 }
 
 @media (max-width: 980px) { .profile-page { grid-template-columns: 1fr; } }

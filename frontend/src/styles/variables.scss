@@ -29,6 +29,9 @@
 
   --mono: "JetBrains Mono", "SF Mono", Consolas, monospace;
 
+  /* ✅ Базовый цвет фона для переходов между страницами */
+  --bg-page: #eef2f8;
+
   /* Неоновые токены (в светлой — приглушённые) */
   --neon-purple: #8b5cf6;
   --neon-cyan: #06b6d4;
@@ -96,6 +99,9 @@
   --radius-sm: 8px;
 
   --mono: "JetBrains Mono", "SF Mono", Consolas, monospace;
+
+  /* ✅ Базовый цвет фона для переходов — тёмный */
+  --bg-page: #0a0612;
 
   /* Неоновая палитра */
   --neon-purple: #a855f7;
