@@ -4,14 +4,12 @@ import { useRoute, useRouter } from 'vue-router';
 import { useWebSocket } from '@/composables/useWebSocket';
 import { useAccountsStore } from '@/stores/accounts';
 import { useScanStore } from '@/stores/scan';
-import { useMessagesStore } from '@/stores/messages';
 
 const route = useRoute();
 const router = useRouter();
 const { connected } = useWebSocket();
 const accounts = useAccountsStore();
 const scanStore = useScanStore();
-const messagesStore = useMessagesStore();
 
 const LOADING_MS = 2500;
 const SUCCESS_MS = 1500;
@@ -89,17 +87,6 @@ function isActive(item) {
   return route.path === item.to || route.path.startsWith(item.to + '/');
 }
 
-const tabHasDot = computed(() => ({
-  '/finance': false,
-  '/analytics': false,
-  '/deposits': false,
-  '/profile': messagesStore.totalUnread > 0,
-}));
-
-function hasDot(item) {
-  return !!tabHasDot.value[item.to];
-}
-
 function go(item) {
   if (route.path === item.to) return;
   router.push(item.to);
@@ -113,7 +100,6 @@ function handleFabClick() {
 <template>
   <nav class="bottom-nav">
     <div class="bn-inner">
-      <!-- ✅ Индикатор с многоуровневой тенью -->
       <div class="bn-indicator" :style="indicatorStyle">
         <div class="bn-indicator-shine"></div>
       </div>
@@ -127,16 +113,10 @@ function handleFabClick() {
         :class="{ active: isActive(item) }"
         @click="go(item)"
       >
-        <span class="bn-icon">
-          {{ item.icon }}
-          <Transition name="dot-pop">
-            <span v-if="hasDot(item)" class="bn-dot" aria-hidden="true"></span>
-          </Transition>
-        </span>
+        <span class="bn-icon">{{ item.icon }}</span>
         <span class="bn-label">{{ item.label }}</span>
       </button>
 
-      <!-- ✅ FAB с объёмом -->
       <div class="bn-fab-wrapper">
         <button
           type="button"
@@ -171,12 +151,7 @@ function handleFabClick() {
         :class="{ active: isActive(item) }"
         @click="go(item)"
       >
-        <span class="bn-icon">
-          {{ item.icon }}
-          <Transition name="dot-pop">
-            <span v-if="hasDot(item)" class="bn-dot" aria-hidden="true"></span>
-          </Transition>
-        </span>
+        <span class="bn-icon">{{ item.icon }}</span>
         <span class="bn-label">{{ item.label }}</span>
       </button>
     </div>
@@ -184,9 +159,6 @@ function handleFabClick() {
 </template>
 
 <style scoped lang="scss">
-/* ============================================================
-   ОБЩИЙ КОНТЕЙНЕР
-   ============================================================ */
 .bottom-nav {
   position: fixed;
   left: 50%;
@@ -200,9 +172,6 @@ function handleFabClick() {
   pointer-events: none;
 }
 
-/* ============================================================
-   INNER — стеклянный эффект + 4-уровневая тень + глянец
-   ============================================================ */
 .bn-inner {
   position: relative;
   display: grid;
@@ -222,19 +191,12 @@ function handleFabClick() {
   backdrop-filter: blur(24px) saturate(180%);
   -webkit-backdrop-filter: blur(24px) saturate(180%);
 
-  /* ✅ 5-уровневая тень для настоящей глубины */
   box-shadow:
-    /* верхняя внутренняя подсветка (глянец) */
     0 1px 0 rgba(255, 255, 255, 0.95) inset,
-    /* нижняя внутренняя тень */
     0 -1px 0 rgba(148, 163, 184, 0.1) inset,
-    /* тонкая ближняя */
     0 2px 4px rgba(15, 23, 42, 0.06),
-    /* средняя */
     0 8px 20px -4px rgba(15, 23, 42, 0.12),
-    /* широкая фиолетовая (объём) */
     0 24px 48px -12px rgba(99, 102, 241, 0.25),
-    /* глубокая чёрная (парящий эффект) */
     0 40px 80px -20px rgba(15, 23, 42, 0.18);
 
   border: 1px solid rgba(255, 255, 255, 0.9);
@@ -243,9 +205,6 @@ function handleFabClick() {
   transition: transform 0.35s cubic-bezier(.34,1.56,.64,1), box-shadow 0.35s ease;
 }
 
-/* ============================================================
-   ИНДИКАТОР активной вкладки — с многослойным свечением
-   ============================================================ */
 .bn-indicator {
   position: absolute;
   top: 6px;
@@ -265,7 +224,6 @@ function handleFabClick() {
   background-size: 300% 300%;
   animation: indGradientShift 6s ease-in-out infinite;
 
-  /* ✅ Многослойная тень + внутренний глянец */
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.35) inset,
     0 -1px 0 rgba(0, 0, 0, 0.15) inset,
@@ -279,7 +237,6 @@ function handleFabClick() {
     opacity 0.25s ease;
 }
 
-/* ✅ Световая полоса поверх индикатора */
 .bn-indicator-shine {
   position: absolute;
   inset: 0;
@@ -299,9 +256,6 @@ function handleFabClick() {
   100% { background-position: 0% 50%; }
 }
 
-/* ============================================================
-   ПУНКТЫ МЕНЮ
-   ============================================================ */
 .bn-item {
   position: relative;
   z-index: 2;
@@ -366,73 +320,6 @@ function handleFabClick() {
   transition: color 0.25s, text-shadow 0.25s;
 }
 
-/* ============================================================
-   ТОЧКА непрочитанных — с объёмом и пульсацией
-   ============================================================ */
-.bn-dot {
-  position: absolute;
-  top: -4px;
-  right: -6px;
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-
-  background: linear-gradient(180deg, #f87171, #dc2626);
-
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.4) inset,
-    0 0 0 0 rgba(239, 68, 68, 0.6),
-    0 0 0 2px rgba(255, 255, 255, 0.95),
-    0 2px 6px rgba(239, 68, 68, 0.5);
-
-  animation: navDotPulse 1.6s ease-in-out infinite;
-}
-
-@keyframes navDotPulse {
-  0% {
-    transform: scale(1);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.4) inset,
-      0 0 0 0 rgba(239, 68, 68, 0.7),
-      0 0 0 2px rgba(255, 255, 255, 0.9),
-      0 2px 6px rgba(239, 68, 68, 0.5);
-  }
-  70% {
-    transform: scale(1.15);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.4) inset,
-      0 0 0 8px rgba(239, 68, 68, 0),
-      0 0 0 2px rgba(255, 255, 255, 0.9),
-      0 2px 6px rgba(239, 68, 68, 0.5);
-  }
-  100% {
-    transform: scale(1);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.4) inset,
-      0 0 0 0 rgba(239, 68, 68, 0),
-      0 0 0 2px rgba(255, 255, 255, 0.9),
-      0 2px 6px rgba(239, 68, 68, 0.5);
-  }
-}
-
-.dot-pop-enter-active {
-  transition: opacity 0.25s ease, transform 0.3s cubic-bezier(.34,1.56,.64,1);
-}
-.dot-pop-leave-active {
-  transition: opacity 0.15s ease, transform 0.15s ease;
-}
-.dot-pop-enter-from {
-  opacity: 0;
-  transform: scale(0.3);
-}
-.dot-pop-leave-to {
-  opacity: 0;
-  transform: scale(0.3);
-}
-
-/* ============================================================
-   FAB — объёмная круглая кнопка
-   ============================================================ */
 .bn-fab-wrapper {
   display: flex;
   justify-content: center;
@@ -465,7 +352,6 @@ function handleFabClick() {
   &:active { transform: scale(0.94); }
 }
 
-/* ✅ Световое кольцо вокруг FAB */
 .bn-fab-ring {
   position: absolute;
   inset: -8px;
@@ -478,7 +364,6 @@ function handleFabClick() {
 
 .bn-fab:hover .bn-fab-ring { opacity: 1; }
 
-/* Loading */
 .bn-fab.is-loading {
   background: linear-gradient(180deg, #60a5fa, #3b82f6);
 
@@ -498,7 +383,6 @@ function handleFabClick() {
   }
 }
 
-/* Success */
 .bn-fab.is-success {
   background: linear-gradient(180deg, #4ade80, #22c55e);
 
@@ -518,7 +402,6 @@ function handleFabClick() {
   }
 }
 
-/* OK (готов) */
 .bn-fab.is-ok {
   background: linear-gradient(180deg, #6366f1, #8b5cf6);
 
@@ -547,7 +430,6 @@ function handleFabClick() {
   }
 }
 
-/* Error */
 .bn-fab.is-error {
   background: linear-gradient(180deg, #f87171, #dc2626);
 
@@ -585,7 +467,6 @@ function handleFabClick() {
   100% { transform: scale(1); }
 }
 
-/* Спиннер */
 .bn-fab-spinner {
   width: 28px; height: 28px;
   animation: spinFab 1s linear infinite;
@@ -619,9 +500,6 @@ function handleFabClick() {
   to   { stroke-dasharray: 30; stroke-dashoffset: 0; }
 }
 
-/* ============================================================
-   DESKTOP
-   ============================================================ */
 @media (min-width: 701px) {
   .bottom-nav {
     max-width: 640px;
@@ -632,7 +510,6 @@ function handleFabClick() {
     padding: 10px 12px 8px;
     border-radius: 28px;
 
-    /* ✅ Усиленные тени для десктопа */
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.95) inset,
       0 -1px 0 rgba(148, 163, 184, 0.1) inset,
@@ -666,9 +543,6 @@ function handleFabClick() {
   .bn-indicator { border-radius: 20px; top: 8px; bottom: 8px; }
 }
 
-/* ============================================================
-   MOBILE
-   ============================================================ */
 @media (max-width: 700px) {
   .bottom-nav {
     max-width: 100%;
@@ -702,17 +576,11 @@ function handleFabClick() {
   .bn-fab.is-success .bn-fab-icon { width: 30px; height: 30px; }
 
   .bn-indicator { border-radius: 16px; top: 4px; bottom: 4px; }
-
-  .bn-dot { width: 9px; height: 9px; top: -3px; right: -5px; }
 }
 
-/* ============================================================
-   REDUCED MOTION
-   ============================================================ */
 @media (prefers-reduced-motion: reduce) {
   .bn-indicator,
   .bn-fab,
-  .bn-dot,
   .bn-fab-ring,
   .bn-item,
   .bn-icon { animation: none !important; transition: none !important; }

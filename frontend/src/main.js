@@ -21,8 +21,6 @@ if ('serviceWorker' in navigator) {
         console.warn('[pwa] SW не зарегистрирован:', e);
       });
 
-    // ✅ Авто-подписка на push (если пользователь уже дал разрешение)
-    // Первый раз запросит разрешение при логине через App.vue
     if (Notification.permission === 'granted') {
       subscribeToPush().catch((e) => console.warn('[push] subscribe failed:', e));
     }
