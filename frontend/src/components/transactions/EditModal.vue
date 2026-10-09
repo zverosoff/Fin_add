@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
 import { useTransactionsStore } from '@/stores/transactions';
 import { useToast } from '@/composables/useToast';
-import { notifySaved, notifyError } from '@/composables/useDataStatus';  
+import { notifySaved, notifyError } from '@/composables/useDataStatus';
 import Modal from '@/components/ui/Modal.vue';
 
 const props = defineProps({
@@ -16,9 +16,6 @@ const accounts = useAccountsStore();
 const txStore = useTransactionsStore();
 const toast = useToast();
 
-// ============================================================
-// Форма
-// ============================================================
 const form = ref({
   type: 'expense',
   name: '',
@@ -32,9 +29,6 @@ const form = ref({
 const error = ref('');
 const saving = ref(false);
 
-// ============================================================
-// Категории
-// ============================================================
 const INCOME_CATEGORIES = [
   'Зарплата', 'Аванс', 'Премия', 'Фриланс', 'Бизнес',
   'Инвестиции', 'Дивиденды', 'Проценты по вкладу', 'Кэшбэк',
@@ -60,9 +54,6 @@ const userAccounts = computed(() =>
   accounts.accounts.filter(a => (a.owner || 'Сергей') === form.value.user)
 );
 
-// ============================================================
-// Заполнение формы при открытии
-// ============================================================
 watch(() => [props.modelValue, props.tx], ([open, t]) => {
   if (!open || !t) return;
 
@@ -81,7 +72,6 @@ watch(() => [props.modelValue, props.tx], ([open, t]) => {
   error.value = '';
 }, { immediate: true });
 
-// При смене типа — сбросить категорию если не подходит
 watch(() => form.value.type, (newType, oldType) => {
   if (newType === oldType) return;
   const list = newType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
@@ -90,7 +80,6 @@ watch(() => form.value.type, (newType, oldType) => {
   }
 });
 
-// При смене пользователя — обновить счёт
 watch(() => form.value.user, () => {
   const accs = userAccounts.value;
   if (!accs.find(a => a.id === form.value.accountId)) {
@@ -98,9 +87,6 @@ watch(() => form.value.user, () => {
   }
 });
 
-// ============================================================
-// Сохранение
-// ============================================================
 async function save() {
   error.value = '';
 
@@ -161,7 +147,6 @@ function close() {
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div class="form">
-      <!-- Тип -->
       <div class="field">
         <label>Тип</label>
         <div class="type-switch">
@@ -178,13 +163,11 @@ function close() {
         </div>
       </div>
 
-      <!-- Название -->
       <div class="field">
         <label>📝 Название</label>
         <input v-model="form.name" type="text" autocomplete="off" />
       </div>
 
-      <!-- Сумма -->
       <div class="field">
         <label>💰 Сумма, ₽</label>
         <input
@@ -196,7 +179,6 @@ function close() {
         />
       </div>
 
-      <!-- Категория -->
       <div class="field">
         <label>📁 Категория</label>
         <select v-model="form.category">
@@ -204,7 +186,6 @@ function close() {
         </select>
       </div>
 
-      <!-- Дата + Кто -->
       <div class="row">
         <div class="field">
           <label>📅 Дата</label>
@@ -219,7 +200,6 @@ function close() {
         </div>
       </div>
 
-      <!-- Счёт -->
       <div class="field">
         <label>💳 Счёт</label>
         <select v-model="form.accountId">
@@ -229,11 +209,9 @@ function close() {
         </select>
       </div>
 
-      <!-- Ошибка -->
       <div v-if="error" class="error-msg">{{ error }}</div>
     </div>
 
-    <!-- Футер с кнопками -->
     <template #footer>
       <button class="btn-cancel" type="button" @click="close">Отмена</button>
       <button class="btn-save" type="button" :disabled="saving" @click="save">
@@ -244,11 +222,7 @@ function close() {
 </template>
 
 <style scoped lang="scss">
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
+.form { display: flex; flex-direction: column; gap: 12px; }
 
 .field {
   display: flex;
@@ -267,16 +241,17 @@ function close() {
     padding: 9px 12px;
     border: 1px solid var(--border);
     border-radius: 10px;
-    background: #ffffff;
+    background: var(--panel-2);
     color: var(--text);
     font-family: inherit;
     font-size: 14px;
     outline: none;
     width: 100%;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.3s ease;
 
     &:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
     }
   }
 }
@@ -291,7 +266,8 @@ function close() {
   display: inline-flex;
   gap: 0;
   padding: 3px;
-  background: #f1f5f9;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
   border-radius: 10px;
 
   button {
@@ -308,9 +284,12 @@ function close() {
     transition: all 0.18s;
 
     &.active {
-      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      background: var(--grad-primary);
       color: #fff;
-      box-shadow: 0 4px 12px -4px rgba(59, 130, 246, 0.6);
+      box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.3) inset,
+        0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+        0 4px 12px -4px rgba(139, 92, 246, 0.6);
     }
   }
 }
@@ -318,8 +297,8 @@ function close() {
 .error-msg {
   padding: 8px 12px;
   border-radius: 8px;
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(244, 63, 94, 0.1);
+  border: 1px solid rgba(244, 63, 94, 0.3);
   color: var(--danger);
   font-size: 12.5px;
   font-weight: 600;
@@ -336,31 +315,34 @@ function close() {
 }
 
 .btn-cancel {
-  background: #f1f5f9;
+  background: var(--panel-2);
   color: var(--text);
   border-color: var(--border);
-
-  &:hover { background: #e2e8f0; }
+  transition: all 0.15s;
+  &:hover { border-color: var(--border-strong); }
 }
 
 .btn-save {
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: var(--grad-primary);
   color: #fff;
-  box-shadow: 0 10px 24px -10px rgba(59, 130, 246, 0.7);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+    0 6px 18px -6px rgba(139, 92, 246, 0.7);
+  transition: all 0.15s;
 
   &:disabled { opacity: 0.5; cursor: wait; }
 
   &:not(:disabled):hover {
     transform: translateY(-1px);
-    box-shadow: 0 14px 30px -10px rgba(59, 130, 246, 0.9);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+      0 10px 24px -6px rgba(139, 92, 246, 0.9);
   }
 }
 
-/* Мобильная версия */
 @media (max-width: 700px) {
-  .row {
-    grid-template-columns: 1fr;
-    gap: 10px;
-  }
+  .row { grid-template-columns: 1fr; gap: 10px; }
 }
 </style>

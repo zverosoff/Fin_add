@@ -7,7 +7,7 @@ import Modal from '@/components/ui/Modal.vue';
 
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
-  goal: { type: Object, default: null }, // null = создание новой
+  goal: { type: Object, default: null },
 });
 const emit = defineEmits(['update:modelValue', 'saved']);
 
@@ -25,7 +25,6 @@ const form = ref({
 const error = ref('');
 const saving = ref(false);
 
-// Эмодзи
 const EMOJIS = [
   '🎯', '✈️', '🏖️', '🏔️', '🗺️', '🏝️', '🚢', '🌍',
   '🚗', '🏍️', '🚲', '🚙', '🏠', '🏡', '🏢', '🛋️',
@@ -35,7 +34,6 @@ const EMOJIS = [
   '📸', '🎬', '🐶', '🐱', '⭐', '❤️', '🌈',
 ];
 
-// Заполняем форму при открытии
 watch(() => [props.modelValue, props.goal], ([open, g]) => {
   if (!open) return;
 
@@ -187,17 +185,19 @@ function close() {
     padding: 9px 12px;
     border: 1px solid var(--border);
     border-radius: 10px;
-    background: #ffffff;
+    background: var(--panel-2);
     color: var(--text);
     font-family: inherit;
     font-size: 14px;
     outline: none;
     width: 100%;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.3s ease;
 
     &:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
     }
+    &::placeholder { color: var(--muted); opacity: 0.6; }
   }
 }
 
@@ -209,14 +209,15 @@ function close() {
   overflow-y: auto;
   padding: 4px;
   border-radius: 10px;
-  background: rgba(148, 163, 184, 0.06);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
 
   button {
     width: 38px;
     height: 38px;
     border-radius: 10px;
     border: 1px solid var(--border);
-    background: #ffffff;
+    background: var(--panel-solid);
     font-size: 18px;
     cursor: pointer;
     display: inline-flex;
@@ -230,9 +231,10 @@ function close() {
       transform: scale(1.08);
     }
     &.active {
-      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      background: var(--grad-primary);
       border-color: transparent;
       transform: scale(1.06);
+      box-shadow: 0 4px 12px -4px rgba(139, 92, 246, 0.6);
     }
   }
 }
@@ -240,8 +242,8 @@ function close() {
 .error-msg {
   padding: 8px 12px;
   border-radius: 8px;
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(244, 63, 94, 0.1);
+  border: 1px solid rgba(244, 63, 94, 0.3);
   color: var(--danger);
   font-size: 12.5px;
   font-weight: 600;
@@ -258,16 +260,29 @@ function close() {
 }
 
 .btn-cancel {
-  background: #f1f5f9;
+  background: var(--panel-2);
   color: var(--text);
   border-color: var(--border);
+  transition: all 0.15s;
+  &:hover { border-color: var(--border-strong); }
 }
 
 .btn-save {
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: var(--grad-primary);
   color: #fff;
-  box-shadow: 0 10px 24px -10px rgba(59, 130, 246, 0.7);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+    0 6px 18px -6px rgba(139, 92, 246, 0.7);
+  transition: all 0.15s;
 
   &:disabled { opacity: 0.5; cursor: wait; }
+  &:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+      0 10px 24px -6px rgba(139, 92, 246, 0.9);
+  }
 }
 </style>

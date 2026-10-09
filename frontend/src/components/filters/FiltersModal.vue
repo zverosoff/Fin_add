@@ -16,7 +16,6 @@ const accounts = useAccountsStore();
 const categories = useCategoriesStore();
 const txStore = useTransactionsStore();
 
-// Локальные значения (чтобы не менять фильтры до «Применить»)
 const local = ref({
   type: 'all',
   user: 'all',
@@ -35,20 +34,17 @@ watch(() => props.modelValue, (open) => {
   }
 }, { immediate: true });
 
-// Счёт, отфильтрованный по пользователю
 const filteredAccounts = computed(() => {
   if (local.value.user === 'all') return accounts.accounts;
   return accounts.accounts.filter(a => (a.owner || 'Сергей') === local.value.user);
 });
 
-// Категории по типу
 const filteredCategories = computed(() => {
   if (local.value.type === 'income') return categories.incomeCategories;
   if (local.value.type === 'expense') return categories.expenseCategories;
   return categories.all;
 });
 
-// Сброс при смене пользователя
 watch(() => local.value.user, () => {
   if (local.value.account !== 'all') {
     const found = filteredAccounts.value.find(a => a.id === local.value.account);
@@ -56,7 +52,6 @@ watch(() => local.value.user, () => {
   }
 });
 
-// Сброс категории при смене типа
 watch(() => local.value.type, () => {
   if (local.value.category !== 'all') {
     const found = filteredCategories.value.includes(local.value.category);
@@ -88,66 +83,28 @@ function close() {
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div class="form">
-      <!-- Тип -->
       <div class="field">
         <label>Тип операции</label>
         <div class="chips-row">
-          <button
-            type="button"
-            class="chip"
-            :class="{ active: local.type === 'all' }"
-            @click="local.type = 'all'"
-          >Все</button>
-          <button
-            type="button"
-            class="chip"
-            :class="{ active: local.type === 'income' }"
-            @click="local.type = 'income'"
-          >📈 Доходы</button>
-          <button
-            type="button"
-            class="chip"
-            :class="{ active: local.type === 'expense' }"
-            @click="local.type = 'expense'"
-          >📉 Расходы</button>
+          <button type="button" class="chip" :class="{ active: local.type === 'all' }" @click="local.type = 'all'">Все</button>
+          <button type="button" class="chip" :class="{ active: local.type === 'income' }" @click="local.type = 'income'">📈 Доходы</button>
+          <button type="button" class="chip" :class="{ active: local.type === 'expense' }" @click="local.type = 'expense'">📉 Расходы</button>
         </div>
       </div>
 
-      <!-- Пользователь -->
       <div class="field">
         <label>Пользователь</label>
         <div class="chips-row">
-          <button
-            type="button"
-            class="chip"
-            :class="{ active: local.user === 'all' }"
-            @click="local.user = 'all'"
-          >Все</button>
-          <button
-            type="button"
-            class="chip"
-            :class="{ active: local.user === 'Сергей' }"
-            @click="local.user = 'Сергей'"
-          >👨 Сергей</button>
-          <button
-            type="button"
-            class="chip"
-            :class="{ active: local.user === 'Саша' }"
-            @click="local.user = 'Саша'"
-          >👩 Саша</button>
+          <button type="button" class="chip" :class="{ active: local.user === 'all' }" @click="local.user = 'all'">Все</button>
+          <button type="button" class="chip" :class="{ active: local.user === 'Сергей' }" @click="local.user = 'Сергей'">👨 Сергей</button>
+          <button type="button" class="chip" :class="{ active: local.user === 'Саша' }" @click="local.user = 'Саша'">👩 Саша</button>
         </div>
       </div>
 
-      <!-- Счёт -->
       <div class="field">
         <label>Счёт</label>
         <div class="chips-row">
-          <button
-            type="button"
-            class="chip"
-            :class="{ active: local.account === 'all' }"
-            @click="local.account = 'all'"
-          >Все счета</button>
+          <button type="button" class="chip" :class="{ active: local.account === 'all' }" @click="local.account = 'all'">Все счета</button>
           <button
             v-for="acc in filteredAccounts"
             :key="acc.id"
@@ -160,16 +117,8 @@ function close() {
             }"
             @click="local.account = acc.id"
           >
-            <img
-              v-if="acc.id.startsWith('sber')"
-              src="/img/sber.png"
-              class="chip-logo"
-            />
-            <img
-              v-else-if="acc.id.startsWith('tbank')"
-              src="/img/tbank.png"
-              class="chip-logo"
-            />
+            <img v-if="acc.id.startsWith('sber')" src="/img/sber.png" class="chip-logo" />
+            <img v-else-if="acc.id.startsWith('tbank')" src="/img/tbank.png" class="chip-logo" />
             {{ acc.name }}
             <span v-if="local.user === 'all'" class="chip-owner">
               ({{ acc.owner || 'Сергей' }})
@@ -178,40 +127,29 @@ function close() {
         </div>
       </div>
 
-      <!-- Категория -->
       <div class="field">
         <label>Категория</label>
         <div class="category-select-wrap">
           <select v-model="local.category" class="category-select">
             <option value="all">Все категории</option>
-            <option
-              v-for="c in filteredCategories"
-              :key="c"
-              :value="c"
-            >{{ categories.icon(c) }} {{ c }}</option>
+            <option v-for="c in filteredCategories" :key="c" :value="c">
+              {{ categories.icon(c) }} {{ c }}
+            </option>
           </select>
         </div>
       </div>
     </div>
 
     <template #footer>
-      <button class="btn-reset" type="button" @click="resetAll">
-        🗑 Сбросить
-      </button>
+      <button class="btn-reset" type="button" @click="resetAll">🗑 Сбросить</button>
       <button class="btn-cancel" type="button" @click="close">Отмена</button>
-      <button class="btn-apply" type="button" @click="apply">
-        ✅ Применить
-      </button>
+      <button class="btn-apply" type="button" @click="apply">✅ Применить</button>
     </template>
   </Modal>
 </template>
 
 <style scoped lang="scss">
-.form {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-}
+.form { display: flex; flex-direction: column; gap: 16px; }
 
 .field {
   display: flex;
@@ -240,7 +178,7 @@ function close() {
   padding: 7px 12px;
   border-radius: 999px;
   border: 1px solid var(--border);
-  background: #f8fafc;
+  background: var(--panel-2);
   color: var(--text);
   font-family: inherit;
   font-size: 12px;
@@ -255,10 +193,13 @@ function close() {
   }
 
   &.active {
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    background: var(--grad-primary);
     color: #fff;
     border-color: transparent;
-    box-shadow: 0 6px 16px -8px rgba(59, 130, 246, 0.7);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+      0 6px 16px -8px rgba(139, 92, 246, 0.7);
   }
 
   &.sber.active {
@@ -286,7 +227,6 @@ function close() {
   font-size: 10px;
 }
 
-/* Селект категории */
 .category-select-wrap {
   position: relative;
 }
@@ -296,7 +236,7 @@ function close() {
   padding: 10px 36px 10px 14px;
   border-radius: 10px;
   border: 1px solid var(--border);
-  background: #fff;
+  background: var(--panel-2);
   color: var(--text);
   font-family: inherit;
   font-size: 14px;
@@ -308,17 +248,15 @@ function close() {
   background-repeat: no-repeat;
   background-position: right 10px center;
   background-size: 18px;
+  transition: border-color 0.15s, box-shadow 0.15s, background-color 0.3s ease;
 
   &:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+    box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
   }
 }
 
-/* Кнопки */
-.btn-reset,
-.btn-cancel,
-.btn-apply {
+.btn-reset, .btn-cancel, .btn-apply {
   padding: 10px 18px;
   border-radius: 10px;
   font-family: inherit;
@@ -331,31 +269,32 @@ function close() {
 
 .btn-reset {
   margin-right: auto;
-  background: rgba(239, 68, 68, 0.08);
+  background: rgba(244, 63, 94, 0.1);
   color: var(--danger);
-  border-color: rgba(239, 68, 68, 0.3);
-
-  &:hover {
-    background: rgba(239, 68, 68, 0.15);
-  }
+  border-color: rgba(244, 63, 94, 0.3);
+  &:hover { background: rgba(244, 63, 94, 0.2); }
 }
 
 .btn-cancel {
-  background: #f1f5f9;
+  background: var(--panel-2);
   color: var(--text);
   border-color: var(--border);
-
-  &:hover { background: #e2e8f0; }
+  &:hover { border-color: var(--border-strong); }
 }
 
 .btn-apply {
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: var(--grad-primary);
   color: #fff;
-  box-shadow: 0 10px 24px -10px rgba(59, 130, 246, 0.7);
-
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+    0 6px 18px -6px rgba(139, 92, 246, 0.7);
   &:hover {
     transform: translateY(-1px);
-    box-shadow: 0 14px 30px -10px rgba(59, 130, 246, 0.9);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+      0 10px 24px -6px rgba(139, 92, 246, 0.9);
   }
 }
 </style>

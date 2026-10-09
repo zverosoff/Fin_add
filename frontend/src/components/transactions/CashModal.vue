@@ -1,4 +1,3 @@
-<!-- src/components/transactions/CashModal.vue -->
 <script setup>
 import { ref, computed, watch } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
@@ -21,7 +20,6 @@ const toast = useToast();
 
 const OWNERS = ['Сергей', 'Саша'];
 
-// ✅ Режимы: add | withdraw | set
 const mode = ref('add');
 const user = ref('Сергей');
 const amount = ref('');
@@ -148,7 +146,6 @@ function close() {
     @update:model-value="emit('update:modelValue', $event)"
   >
     <div class="form">
-      <!-- Текущие балансы -->
       <div class="cash-info">
         <div class="ci-row">
           <span class="ci-label">👛 Кошелёк {{ user }}:</span>
@@ -160,7 +157,6 @@ function close() {
         </div>
       </div>
 
-      <!-- Пользователь -->
       <div v-if="!isOwnerLocked" class="field">
         <label>👤 Пользователь</label>
         <div class="chips-row">
@@ -177,7 +173,6 @@ function close() {
         </div>
       </div>
 
-      <!-- Действие -->
       <div class="field">
         <label>Действие</label>
         <div class="mode-switch">
@@ -199,7 +194,6 @@ function close() {
         </div>
       </div>
 
-      <!-- Сумма -->
       <div class="field">
         <label>{{ amountLabel }}</label>
         <input
@@ -212,7 +206,6 @@ function close() {
         />
       </div>
 
-      <!-- Комментарий -->
       <div class="field">
         <label>📝 Комментарий (необязательно)</label>
         <input
@@ -223,7 +216,6 @@ function close() {
         />
       </div>
 
-      <!-- Превью -->
       <div v-if="preview !== null" class="preview">
         <div class="pv-row">
           <span class="pv-label">Кошелёк:</span>
@@ -238,7 +230,6 @@ function close() {
         >⚠️ Отрицательное значение</div>
       </div>
 
-      <!-- Последние операции -->
       <div v-if="recentOps.length > 0" class="recent">
         <div class="recent-title">Последние операции {{ user }}</div>
         <div class="recent-list">
@@ -280,7 +271,7 @@ function close() {
   gap: 4px;
   padding: 12px 14px;
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(34, 197, 94, 0.1), rgba(56, 189, 248, 0.06));
+  background: rgba(34, 197, 94, 0.1);
   border: 1px solid rgba(34, 197, 94, 0.3);
 
   .ci-row {
@@ -302,7 +293,7 @@ function close() {
     font-family: var(--mono);
     font-size: 15px;
     font-weight: 800;
-    color: #16a34a;
+    color: var(--accent-2, #16a34a);
 
     &.subtle {
       font-size: 12px;
@@ -331,14 +322,16 @@ function close() {
     font-family: inherit;
     font-size: 15px;
     outline: none;
-    background: #fff;
+    background: var(--panel-2);
     color: var(--text);
     width: 100%;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.3s ease;
 
     &:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
     }
+    &::placeholder { color: var(--muted); opacity: 0.6; }
   }
 }
 
@@ -355,7 +348,7 @@ function close() {
   padding: 8px 14px;
   border-radius: 999px;
   border: 1px solid var(--border);
-  background: #f8fafc;
+  background: var(--panel-2);
   color: var(--text);
   font-family: inherit;
   font-size: 13px;
@@ -367,10 +360,10 @@ function close() {
   &:hover { border-color: var(--accent); color: var(--accent); }
 
   &.active {
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    background: var(--grad-primary);
     color: #fff;
     border-color: transparent;
-    box-shadow: 0 6px 16px -8px rgba(59, 130, 246, 0.7);
+    box-shadow: 0 6px 16px -8px rgba(139, 92, 246, 0.7);
   }
 }
 
@@ -379,7 +372,8 @@ function close() {
   grid-template-columns: 1fr 1fr 1fr;
   gap: 0;
   padding: 3px;
-  background: #f1f5f9;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
   border-radius: 10px;
 
   button {
@@ -396,9 +390,9 @@ function close() {
     white-space: nowrap;
 
     &.active {
-      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      background: var(--grad-primary);
       color: #fff;
-      box-shadow: 0 4px 12px -4px rgba(59, 130, 246, 0.6);
+      box-shadow: 0 4px 12px -4px rgba(139, 92, 246, 0.6);
     }
   }
 }
@@ -409,7 +403,7 @@ function close() {
   gap: 4px;
   padding: 10px 14px;
   border-radius: 10px;
-  background: rgba(148, 163, 184, 0.08);
+  background: var(--panel-2);
   border: 1px dashed var(--border);
 
   .pv-row {
@@ -431,13 +425,13 @@ function close() {
     font-size: 15px;
     font-weight: 800;
 
-    &.positive { color: #16a34a; }
-    &.negative { color: #dc2626; }
+    &.positive { color: var(--accent-2, #16a34a); }
+    &.negative { color: var(--danger); }
   }
 
   .pv-warn {
     font-size: 11.5px;
-    color: #d97706;
+    color: var(--warning, #d97706);
     font-weight: 700;
     text-align: center;
     margin-top: 2px;
@@ -450,7 +444,7 @@ function close() {
   gap: 6px;
   padding: 10px 12px;
   border-radius: 10px;
-  background: rgba(148, 163, 184, 0.05);
+  background: var(--panel-2);
   border: 1px solid var(--border);
 }
 
@@ -498,16 +492,16 @@ function close() {
     font-weight: 800;
     white-space: nowrap;
 
-    &.income { color: #16a34a; }
-    &.expense { color: #dc2626; }
+    &.income { color: var(--accent-2, #16a34a); }
+    &.expense { color: var(--danger); }
   }
 }
 
 .error-msg {
   padding: 8px 12px;
   border-radius: 8px;
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(244, 63, 94, 0.1);
+  border: 1px solid rgba(244, 63, 94, 0.3);
   color: var(--danger);
   font-size: 12.5px;
   font-weight: 600;
@@ -524,23 +518,44 @@ function close() {
 }
 
 .btn-cancel {
-  background: #f1f5f9;
+  background: var(--panel-2);
   color: var(--text);
   border-color: var(--border);
-
-  &:hover { background: #e2e8f0; }
+  transition: all 0.15s;
+  &:hover { border-color: var(--border-strong); }
 }
 
 .btn-save {
-  background: linear-gradient(135deg, #22c55e, #16a34a);
+  background: var(--grad-income);
   color: #fff;
-  box-shadow: 0 10px 24px -10px rgba(34, 197, 94, 0.7);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+    0 6px 18px -6px rgba(34, 197, 94, 0.7);
+  transition: all 0.15s;
 
   &:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 
   &:not(:disabled):hover {
     transform: translateY(-1px);
-    box-shadow: 0 14px 30px -10px rgba(34, 197, 94, 0.9);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+      0 10px 24px -6px rgba(34, 197, 94, 0.9);
+  }
+}
+
+/* Тёмная тема — доп. свечение */
+:global(:root[data-app-theme="dark"]) {
+  .cash-info {
+    background: rgba(34, 197, 94, 0.12);
+    border-color: rgba(74, 222, 128, 0.35);
+    box-shadow: 0 0 20px -6px rgba(74, 222, 128, 0.25);
+  }
+
+  .ci-value {
+    color: #4ade80;
+    text-shadow: 0 0 10px rgba(74, 222, 128, 0.4);
   }
 }
 </style>
