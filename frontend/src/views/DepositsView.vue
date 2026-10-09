@@ -35,26 +35,6 @@ onMounted(async () => {
   position: relative;
 }
 
-.deposits-page::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse 70% 50% at 15% 0%, rgba(99, 102, 241, 0.06), transparent 60%),
-    radial-gradient(ellipse 60% 40% at 85% 40%, rgba(139, 92, 246, 0.05), transparent 60%),
-    linear-gradient(180deg, #fafbff 0%, #f3f5fb 100%);
-  transition: background 0.4s ease;
-}
-
-:global(:root[data-app-theme="dark"]) .deposits-page::before {
-  background:
-    radial-gradient(ellipse 70% 50% at 15% 0%, rgba(139, 92, 246, 0.12), transparent 60%),
-    radial-gradient(ellipse 60% 40% at 85% 40%, rgba(168, 85, 247, 0.08), transparent 60%),
-    linear-gradient(180deg, #0a0612 0%, #100820 100%);
-}
-
 .container {
   max-width: 1000px;
   margin: 0 auto;

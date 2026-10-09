@@ -13,7 +13,7 @@ html, body, #app {
   margin: 0;
 }
 
-/* ✅ Фон на html — устраняет белый просвет при оверскролле */
+/* ✅ html — фоновый слой на случай оверскролла */
 html {
   background: #eef2f8;
   transition: background 0.3s ease;
@@ -21,7 +21,7 @@ html {
 
 :root[data-app-theme="dark"] html,
 html[data-app-theme="dark"] {
-  background: #0a0612;
+  background: #0a0612 !important;
 }
 
 html, body {
@@ -33,12 +33,11 @@ html, body {
 }
 
 /* ============================================================
-   BODY
+   BODY — светлая тема: анимированный градиент
    ============================================================ */
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
 
-  /* ✅ Светлая тема — анимированный градиент */
   background: linear-gradient(
     135deg,
     #e8eefc 0%,
@@ -64,17 +63,29 @@ body {
   transition: background 0.3s ease, color 0.3s ease;
 }
 
-/* ✅ ТЁМНАЯ ТЕМА — body получает НЕПРОЗРАЧНЫЙ тёмный фон БЕЗ rgba-слоёв */
+/* ✅ ТЁМНАЯ ТЕМА — body плоский тёмный, БЕЗ attachment:fixed
+   (чтобы скролл над контентом тоже был тёмным) */
 :root[data-app-theme="dark"] body {
   background: #0a0612 !important;
   background-image:
     radial-gradient(ellipse 80% 60% at 15% 0%, rgba(139, 92, 246, 0.12), transparent 60%),
     radial-gradient(ellipse 60% 50% at 85% 40%, rgba(34, 211, 238, 0.06), transparent 60%),
     radial-gradient(ellipse 80% 60% at 50% 100%, rgba(236, 72, 153, 0.06), transparent 65%) !important;
-  background-attachment: fixed;
-  background-size: auto, auto, auto;
+  /* ✅ НЕ fixed — чтобы при скролле фон прокручивался вместе с контентом */
+  background-attachment: scroll !important;
+  background-size: auto, auto, auto !important;
   animation: none !important;
   color: #f4f4f6;
+}
+
+/* ✅ Дополнительный слой: body::before закрывает ВСЁ, включая область оверскролла */
+:root[data-app-theme="dark"] body::before {
+  content: '';
+  position: fixed;
+  inset: -10vh -10vw;   /* запас по краям — перекрывает bounce-скролл */
+  z-index: -1;
+  pointer-events: none;
+  background: #0a0612;
 }
 
 @keyframes bgGradient {
@@ -83,11 +94,9 @@ body {
   100% { background-position: 0% 50%; }
 }
 
-/* ============================================================
-   #app — тоже без фона (прозрачный), но не сломает наследование
-   ============================================================ */
 #app {
   background: transparent;
+  min-height: 100%;
 }
 
 /* ============================================================
@@ -170,17 +179,11 @@ input, select, textarea {
   }
 }
 
-/* ============================================================
-   МОБИЛЬНЫЕ ПРАВКИ
-   ============================================================ */
 @media (max-width: 700px) {
   body { font-size: 14px; }
   button:not(.min-tap) { min-height: 36px; }
 }
 
-/* ============================================================
-   УМЕНЬШЕНИЕ АНИМАЦИЙ
-   ============================================================ */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
