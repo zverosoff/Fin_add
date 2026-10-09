@@ -13,17 +13,17 @@ self.addEventListener('push', (event) => {
   try {
     data = event.data ? event.data.json() : {};
   } catch (e) {
-    data = { title: 'Новое сообщение', body: event.data?.text() || '' };
+    data = { title: 'Финансы PRO+', body: event.data?.text() || '' };
   }
 
-  const title = data.title || 'Новое сообщение';
+  const title = data.title || 'Финансы PRO+';
   const options = {
     body: data.body || '',
     icon: '/img/favicon.png',
     badge: '/img/badge.png',
     tag: data.tag || undefined,
     renotify: !!data.tag,
-    data: { url: data.url || '/', messageId: data.messageId },
+    data: { url: data.url || '/' },
     vibrate: [80, 40, 80],
   };
 
@@ -42,21 +42,6 @@ self.addEventListener('notificationclick', (event) => {
       }
       return clients.openWindow(url);
     })
-  );
-});
-
-self.addEventListener('pushsubscriptionchange', (event) => {
-  event.waitUntil(
-    self.registration.pushManager
-      .subscribe(event.oldSubscription.options)
-      .then((subscription) =>
-        fetch('/api/push/subscribe', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          credentials: 'include',
-          body: JSON.stringify({ subscription }),
-        })
-      )
   );
 });
 

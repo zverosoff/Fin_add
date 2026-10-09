@@ -15,7 +15,6 @@ runMigrations();
 import authRoutes from './routes/auth.js';
 import stateRoutes from './routes/state.js';
 import txRoutes from './routes/transactions.js';
-import messagesRoutes from './routes/messages.js';
 import pushRoutes from './routes/push.js';
 import profileRoutes from './routes/profile.js';
 import { attachSocket } from './services/wsService.js';
@@ -78,7 +77,6 @@ app.use((req, _res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/state', stateRoutes);
 app.use('/api/transactions', txRoutes);
-app.use('/api/messages', messagesRoutes);
 app.use('/api/push', pushRoutes);
 app.use('/api/profile', profileRoutes);
 
@@ -87,7 +85,7 @@ app.get('/api/health', (_req, res) => {
 });
 
 // ============================================================
-// Socket.IO
+// Socket.IO — синхронизация состояния счетов
 // ============================================================
 const io = new SocketServer(server, {
   cors: { origin: ALLOWED_ORIGINS, credentials: true },
@@ -143,4 +141,4 @@ server.listen(PORT, () => {
   console.log('='.repeat(60));
 });
 
-startDailyReminderCron(io);
+startDailyReminderCron();
