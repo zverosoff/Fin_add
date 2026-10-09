@@ -189,6 +189,7 @@ onUnmounted(() => {
 <style>
 /* ✅ Обёртки прозрачные — фон полностью обеспечивает body/страница */
 /* ✅ Обёртки прозрачные в светлой теме, тёмные в тёмной */
+/* ✅ Обёртки полностью прозрачные — фон обеспечивает body */
 .app-root {
   position: relative;
   min-height: 100vh;
@@ -204,12 +205,6 @@ onUnmounted(() => {
   padding-bottom: calc(90px + env(safe-area-inset-bottom, 0));
   background: transparent;
   isolation: isolate;
-}
-
-/* ✅ Тёмная тема — обёртки явно тёмные, чтобы при переходах не было просветов */
-:global(:root[data-app-theme="dark"]) .app-root,
-:global(:root[data-app-theme="dark"]) .page-transition-wrap {
-  background: #0a0612;
 }
 
 @media (max-width: 700px) {
