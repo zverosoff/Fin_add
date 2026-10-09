@@ -188,6 +188,7 @@ onUnmounted(() => {
 
 <style>
 /* ✅ Обёртки прозрачные — фон полностью обеспечивает body/страница */
+/* ✅ Обёртки прозрачные в светлой теме, тёмные в тёмной */
 .app-root {
   position: relative;
   min-height: 100vh;
@@ -205,12 +206,18 @@ onUnmounted(() => {
   isolation: isolate;
 }
 
+/* ✅ Тёмная тема — обёртки явно тёмные, чтобы при переходах не было просветов */
+:global(:root[data-app-theme="dark"]) .app-root,
+:global(:root[data-app-theme="dark"]) .page-transition-wrap {
+  background: #0a0612;
+}
+
 @media (max-width: 700px) {
   .page-transition-wrap { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0)); }
 }
 
 /* ============================================================
-   Переходы — фон берётся из переменной --bg-page (светлый/тёмный)
+   Переходы между страницами
    ============================================================ */
 
 .slide-left-leave-active,

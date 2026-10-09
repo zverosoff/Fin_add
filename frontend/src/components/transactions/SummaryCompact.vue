@@ -92,15 +92,26 @@ const balanceClass = computed(() => {
 </template>
 
 <style scoped lang="scss">
+/* ============================================================
+   КОНТЕЙНЕР — в СВЕТЛОЙ теме светлый, в ТЁМНОЙ — тёмный
+   ============================================================ */
 .summary-compact {
   position: relative;
   padding: 14px 16px;
   border-radius: 16px;
 
-  background: var(--grad-card);
-  border: 1px solid var(--border);
+  /* Светлая тема */
+  background:
+    radial-gradient(circle at 100% 0%, rgba(34, 197, 94, 0.06), transparent 50%),
+    linear-gradient(180deg, #ffffff 0%, #fafbff 100%);
+  border: 1px solid rgba(226, 232, 240, 0.8);
 
-  box-shadow: var(--shadow-md);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.06) inset,
+    0 2px 6px rgba(15, 23, 42, 0.05),
+    0 8px 20px -6px rgba(15, 23, 42, 0.08),
+    0 16px 32px -14px rgba(34, 197, 94, 0.15);
 
   transition:
     transform 0.3s cubic-bezier(.34,1.56,.64,1),
@@ -110,10 +121,35 @@ const balanceClass = computed(() => {
 
   &:hover {
     transform: translateY(-1px);
-    box-shadow: var(--shadow-lg);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 -1px 0 rgba(148, 163, 184, 0.06) inset,
+      0 4px 10px rgba(15, 23, 42, 0.06),
+      0 12px 28px -8px rgba(34, 197, 94, 0.22),
+      0 20px 40px -16px rgba(15, 23, 42, 0.1);
   }
 
   &.collapsed { padding: 14px 16px 12px; }
+}
+
+/* ✅ ТЁМНАЯ ТЕМА */
+:global(:root[data-app-theme="dark"]) .summary-compact {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(139, 92, 246, 0.08), transparent 50%),
+    radial-gradient(circle at 0% 100%, rgba(34, 211, 238, 0.05), transparent 50%),
+    linear-gradient(180deg, rgba(30, 16, 48, 0.9) 0%, rgba(20, 9, 31, 0.95) 100%);
+  border-color: rgba(139, 92, 246, 0.15);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.35),
+    0 12px 28px -8px rgba(139, 92, 246, 0.25),
+    0 0 0 1px rgba(139, 92, 246, 0.08) inset;
+}
+
+:global(:root[data-app-theme="dark"]) .summary-compact:hover {
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.45),
+    0 20px 48px -10px rgba(168, 85, 247, 0.35),
+    0 0 0 1px rgba(139, 92, 246, 0.2) inset;
 }
 
 .sc-top {
@@ -137,14 +173,10 @@ const balanceClass = computed(() => {
   transition: color 0.3s ease;
   color: var(--text);
 
-  &.income {
-    color: var(--accent-2, #16a34a);
-  }
-  &.expense {
-    color: var(--danger, #dc2626);
-  }
-  &.positive { color: var(--accent-2, #16a34a); }
-  &.negative { color: var(--danger, #dc2626); }
+  &.income   { color: #16a34a; }
+  &.expense  { color: #dc2626; }
+  &.positive { color: #16a34a; }
+  &.negative { color: #dc2626; }
 }
 
 .sc-label {
@@ -158,7 +190,11 @@ const balanceClass = computed(() => {
 .sc-divider {
   width: 1px;
   height: 32px;
-  background: linear-gradient(180deg, transparent, var(--border), transparent);
+  background: linear-gradient(180deg, transparent, rgba(148, 163, 184, 0.3), transparent);
+}
+
+:global(:root[data-app-theme="dark"]) .sc-divider {
+  background: linear-gradient(180deg, transparent, rgba(139, 92, 246, 0.3), transparent);
 }
 
 .sc-users-header {
@@ -167,11 +203,15 @@ const balanceClass = computed(() => {
   gap: 8px;
   margin-top: 12px;
   padding-top: 12px;
-  border-top: 1px dashed var(--border);
+  border-top: 1px dashed rgba(148, 163, 184, 0.3);
   cursor: pointer;
   user-select: none;
 
   &:hover .sc-users-title { color: var(--accent); }
+}
+
+:global(:root[data-app-theme="dark"]) .sc-users-header {
+  border-top-color: rgba(139, 92, 246, 0.2);
 }
 
 .sc-users-icon { font-size: 14px; flex-shrink: 0; }
@@ -200,12 +240,15 @@ const balanceClass = computed(() => {
   padding: 0;
   flex-shrink: 0;
   transition: all 0.18s cubic-bezier(.34,1.56,.64,1);
-  box-shadow: var(--shadow-sm);
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 2px 4px rgba(15, 23, 42, 0.06);
 
   &:hover {
-    background: var(--grad-primary);
-    color: #ffffff;
-    border-color: transparent;
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(139, 92, 246, 0.1);
     transform: translateY(-1px);
   }
 
@@ -216,6 +259,14 @@ const balanceClass = computed(() => {
     transition: transform 0.25s;
   }
   .chev.open { transform: rotate(180deg); }
+}
+
+:global(:root[data-app-theme="dark"]) .sc-toggle {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(139, 92, 246, 0.2);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.03) inset,
+    0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 .sc-users {
@@ -243,17 +294,29 @@ const balanceClass = computed(() => {
   margin: 0 -4px;
   border-radius: 10px;
   font-size: 12px;
-  background: var(--panel-2);
-  border: 1px solid var(--border);
+  background: linear-gradient(180deg, rgba(248, 250, 252, 0.8), rgba(241, 245, 249, 0.5));
+  border: 1px solid rgba(226, 232, 240, 0.6);
 
-  box-shadow: var(--shadow-sm);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 1px 3px rgba(15, 23, 42, 0.03);
 
-  transition: transform 0.15s ease, box-shadow 0.2s ease;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.3s ease, border-color 0.3s ease;
 
   &:hover {
     transform: translateY(-1px);
-    box-shadow: var(--shadow-md);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.9) inset,
+      0 4px 10px -2px rgba(15, 23, 42, 0.08);
   }
+}
+
+:global(:root[data-app-theme="dark"]) .sc-user-row {
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+  border-color: rgba(139, 92, 246, 0.12);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.03) inset,
+    0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 .sc-user-avatar { font-size: 14px; }
@@ -279,68 +342,57 @@ const balanceClass = computed(() => {
   font-weight: 800;
   white-space: nowrap;
 }
-.sc-user-inc { color: var(--accent-2, #16a34a); }
-.sc-user-exp { color: var(--danger, #dc2626); }
+.sc-user-inc { color: #16a34a; }
+.sc-user-exp { color: #dc2626; }
 
 .sc-user-bal {
   padding: 3px 10px;
   border-radius: 999px;
-  background: rgba(56, 189, 248, 0.15);
+  background: linear-gradient(180deg, rgba(224, 242, 254, 1), rgba(186, 230, 253, 0.7));
   border: 1px solid rgba(56, 189, 248, 0.3);
-  color: var(--accent);
+  color: #0284c7;
   font-family: var(--mono);
   font-size: 11px;
   font-weight: 800;
   white-space: nowrap;
 
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08) inset;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 2px 4px rgba(56, 189, 248, 0.12);
 
   &.positive {
-    color: var(--accent-2, #16a34a);
-    background: rgba(34, 197, 94, 0.15);
+    color: #16a34a;
+    background: linear-gradient(180deg, #dcfce7, #bbf7d0);
     border-color: rgba(34, 197, 94, 0.3);
   }
   &.negative {
-    color: var(--danger, #dc2626);
-    background: rgba(244, 63, 94, 0.15);
-    border-color: rgba(244, 63, 94, 0.3);
+    color: #dc2626;
+    background: linear-gradient(180deg, #fee2e2, #fecaca);
+    border-color: rgba(239, 68, 68, 0.3);
   }
 }
 
-/* Тёмная тема — доп. неон */
+/* ✅ Тёмная тема — свечения и цвета */
 :global(:root[data-app-theme="dark"]) {
-  .summary-compact {
-    box-shadow:
-      0 2px 6px rgba(0, 0, 0, 0.35),
-      0 12px 28px -8px rgba(139, 92, 246, 0.25),
-      0 0 0 1px rgba(139, 92, 246, 0.08) inset;
+  .sc-value.income,
+  .sc-value.positive {
+    color: #4ade80;
+    text-shadow: 0 0 10px rgba(74, 222, 128, 0.4);
+  }
+  .sc-value.expense,
+  .sc-value.negative {
+    color: #f43f5e;
+    text-shadow: 0 0 10px rgba(244, 63, 94, 0.4);
   }
 
-  .summary-compact:hover {
-    box-shadow:
-      0 4px 12px rgba(0, 0, 0, 0.45),
-      0 20px 48px -10px rgba(168, 85, 247, 0.35),
-      0 0 0 1px rgba(139, 92, 246, 0.2) inset;
+  .sc-user-inc {
+    color: #4ade80;
+    text-shadow: 0 0 10px rgba(74, 222, 128, 0.4);
   }
-
-  .sc-value {
-    &.income, &.positive {
-      color: #4ade80;
-      text-shadow: 0 0 10px rgba(74, 222, 128, 0.4);
-    }
-    &.expense, &.negative {
-      color: #f43f5e;
-      text-shadow: 0 0 10px rgba(244, 63, 94, 0.4);
-    }
+  .sc-user-exp {
+    color: #f43f5e;
+    text-shadow: 0 0 10px rgba(244, 63, 94, 0.4);
   }
-
-  .sc-user-row {
-    background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
-    border-color: rgba(139, 92, 246, 0.12);
-  }
-
-  .sc-user-inc { color: #4ade80; text-shadow: 0 0 10px rgba(74, 222, 128, 0.4); }
-  .sc-user-exp { color: #f43f5e; text-shadow: 0 0 10px rgba(244, 63, 94, 0.4); }
 
   .sc-user-bal {
     &.positive {
@@ -355,12 +407,6 @@ const balanceClass = computed(() => {
       border-color: rgba(244, 63, 94, 0.35);
       box-shadow: 0 0 12px rgba(244, 63, 94, 0.2);
     }
-  }
-
-  .sc-toggle {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(139, 92, 246, 0.2);
-    color: #8b8ba0;
   }
 }
 

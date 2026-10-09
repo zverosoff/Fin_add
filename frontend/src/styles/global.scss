@@ -1,7 +1,7 @@
 @use './variables' as *;
 
 /* ============================================================
-   БАЗА — фон на HTML (не только на body!)
+   БАЗА
    ============================================================ */
 * {
   box-sizing: border-box;
@@ -13,8 +13,8 @@ html, body, #app {
   margin: 0;
 }
 
+/* ✅ Фон на html — устраняет белый просвет при оверскролле */
 html {
-  /* ✅ Фон на html — чтобы не было белого по краям при оверскролле */
   background: #eef2f8;
   transition: background 0.3s ease;
 }
@@ -32,10 +32,13 @@ html, body {
   -webkit-touch-callout: none;
 }
 
+/* ============================================================
+   BODY
+   ============================================================ */
 body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
 
-  /* Светлая тема */
+  /* ✅ Светлая тема — анимированный градиент */
   background: linear-gradient(
     135deg,
     #e8eefc 0%,
@@ -61,21 +64,30 @@ body {
   transition: background 0.3s ease, color 0.3s ease;
 }
 
-/* Тёмная тема — глубокий фиолетово-чёрный, БЕЗ анимации (чтобы не мигало) */
+/* ✅ ТЁМНАЯ ТЕМА — body получает НЕПРОЗРАЧНЫЙ тёмный фон БЕЗ rgba-слоёв */
 :root[data-app-theme="dark"] body {
-  background:
-    radial-gradient(ellipse 80% 60% at 15% 0%, rgba(139, 92, 246, 0.15), transparent 60%),
-    radial-gradient(ellipse 60% 50% at 85% 40%, rgba(34, 211, 238, 0.08), transparent 60%),
-    radial-gradient(ellipse 80% 60% at 50% 100%, rgba(236, 72, 153, 0.08), transparent 65%),
-    #0a0612;
+  background: #0a0612 !important;
+  background-image:
+    radial-gradient(ellipse 80% 60% at 15% 0%, rgba(139, 92, 246, 0.12), transparent 60%),
+    radial-gradient(ellipse 60% 50% at 85% 40%, rgba(34, 211, 238, 0.06), transparent 60%),
+    radial-gradient(ellipse 80% 60% at 50% 100%, rgba(236, 72, 153, 0.06), transparent 65%) !important;
   background-attachment: fixed;
-  animation: none;
+  background-size: auto, auto, auto;
+  animation: none !important;
+  color: #f4f4f6;
 }
 
 @keyframes bgGradient {
   0%   { background-position: 0% 50%; }
   50%  { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
+}
+
+/* ============================================================
+   #app — тоже без фона (прозрачный), но не сломает наследование
+   ============================================================ */
+#app {
+  background: transparent;
 }
 
 /* ============================================================
@@ -94,13 +106,6 @@ samp {
   -ms-user-select: text;
   user-select: text;
   -webkit-touch-callout: default;
-}
-
-.chat-text,
-.chat-text * {
-  -webkit-user-select: text;
-  -moz-user-select: text;
-  user-select: text;
 }
 
 /* ============================================================
