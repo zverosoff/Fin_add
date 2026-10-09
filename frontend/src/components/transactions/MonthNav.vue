@@ -127,9 +127,6 @@ async function deleteMonth() {
 </template>
 
 <style scoped lang="scss">
-/* ============================================================
-   ✅ Контейнер — стеклянный с многослойной тенью
-   ============================================================ */
 .month-nav {
   display: flex;
   align-items: center;
@@ -137,47 +134,29 @@ async function deleteMonth() {
   padding: 10px 14px;
   border-radius: 16px;
 
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.98) 0%,
-    rgba(250, 251, 255, 0.94) 100%
-  );
+  background: var(--grad-card);
+  border: 1px solid var(--border);
 
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
 
-  border: 1px solid rgba(226, 232, 240, 0.8);
+  box-shadow: var(--shadow-md);
 
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.95) inset,
-    0 -1px 0 rgba(148, 163, 184, 0.06) inset,
-    0 2px 6px rgba(15, 23, 42, 0.05),
-    0 8px 20px -6px rgba(15, 23, 42, 0.08),
-    0 16px 32px -14px rgba(99, 102, 241, 0.15);
-
-  transition: box-shadow 0.3s ease, transform 0.3s ease;
+  transition: box-shadow 0.3s ease, transform 0.3s ease, background 0.3s ease, border-color 0.3s ease;
 
   &:hover {
     transform: translateY(-1px);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.95) inset,
-      0 -1px 0 rgba(148, 163, 184, 0.06) inset,
-      0 4px 10px rgba(15, 23, 42, 0.06),
-      0 12px 28px -8px rgba(99, 102, 241, 0.22),
-      0 20px 40px -16px rgba(15, 23, 42, 0.1);
+    box-shadow: var(--shadow-lg);
   }
 }
 
-/* ============================================================
-   ✅ Стрелки — рельефные, с подъёмом
-   ============================================================ */
 .mn-arrow {
   width: 38px;
   height: 38px;
   border-radius: 12px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid var(--border);
 
-  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  background: var(--panel-2);
   color: var(--text);
   font-size: 13px;
   font-weight: 800;
@@ -188,35 +167,24 @@ async function deleteMonth() {
   justify-content: center;
   flex-shrink: 0;
 
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.95) inset,
-    -1px -1px 0 rgba(148, 163, 184, 0.06) inset,
-    0 2px 6px rgba(15, 23, 42, 0.06),
-    0 4px 10px -2px rgba(15, 23, 42, 0.08);
-
+  box-shadow: var(--shadow-sm);
   transition: all 0.18s cubic-bezier(.34,1.56,.64,1);
 
   &:hover {
-    background: linear-gradient(180deg, #eef2ff, #e0e7ff);
-    border-color: rgba(99, 102, 241, 0.4);
-    color: #6366f1;
+    background: var(--grad-primary);
+    border-color: transparent;
+    color: #ffffff;
     transform: translateY(-2px);
     box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.95) inset,
-      0 4px 10px -2px rgba(99, 102, 241, 0.3),
-      0 8px 16px -4px rgba(99, 102, 241, 0.2);
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 6px 14px -4px rgba(139, 92, 246, 0.5);
   }
 
   &:active {
     transform: translateY(0) scale(0.95);
-    box-shadow:
-      0 2px 4px rgba(15, 23, 42, 0.1) inset;
   }
 }
 
-/* ============================================================
-   МЕТКА МЕСЯЦА
-   ============================================================ */
 .month-label {
   flex: 1;
   display: flex;
@@ -236,39 +204,33 @@ async function deleteMonth() {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
-  color: #0f172a;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
+  color: var(--text);
 }
 
-/* ✅ Зелёная плашка — объёмная */
 .today-badge {
   display: inline-flex;
   align-items: center;
   padding: 2px 10px;
   border-radius: 999px;
-  background: linear-gradient(180deg, #dcfce7, #bbf7d0);
-  color: #166534;
+  background: rgba(34, 197, 94, 0.15);
+  color: var(--accent-2, #16a34a);
   border: 1px solid rgba(34, 197, 94, 0.35);
   font-size: 10.5px;
   font-weight: 800;
   white-space: nowrap;
   letter-spacing: 0.02em;
   line-height: 1.4;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.9) inset,
-    0 2px 4px rgba(34, 197, 94, 0.15);
+
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1) inset;
 }
 
-/* ============================================================
-   ✅ Кнопка «Сегодня» — рельефная
-   ============================================================ */
 .today-btn {
   padding: 0 16px;
   height: 38px;
   border-radius: 12px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid var(--border);
 
-  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  background: var(--panel-2);
   color: var(--text);
   font-family: inherit;
   font-size: 12px;
@@ -277,42 +239,32 @@ async function deleteMonth() {
   white-space: nowrap;
   flex-shrink: 0;
 
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.95) inset,
-    0 -1px 0 rgba(148, 163, 184, 0.06) inset,
-    0 2px 6px rgba(15, 23, 42, 0.06),
-    0 4px 10px -2px rgba(15, 23, 42, 0.08);
-
+  box-shadow: var(--shadow-sm);
   transition: all 0.18s cubic-bezier(.34,1.56,.64,1);
 
   &:hover {
-    background: linear-gradient(180deg, #eef2ff, #e0e7ff);
-    border-color: rgba(99, 102, 241, 0.4);
-    color: #6366f1;
+    background: var(--grad-primary);
+    border-color: transparent;
+    color: #ffffff;
     transform: translateY(-2px);
     box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.95) inset,
-      0 4px 10px -2px rgba(99, 102, 241, 0.3),
-      0 8px 16px -4px rgba(99, 102, 241, 0.2);
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 6px 14px -4px rgba(139, 92, 246, 0.5);
   }
 
   &:active {
     transform: translateY(0) scale(0.96);
-    box-shadow: 0 2px 4px rgba(15, 23, 42, 0.1) inset;
   }
 }
 
-/* ============================================================
-   ✅ Кнопка удаления — рельефная красная
-   ============================================================ */
 .del-month-btn {
   width: 38px;
   height: 38px;
   padding: 0;
   font-size: 16px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
+  border: 1px solid var(--border);
 
-  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  background: var(--panel-2);
   color: var(--muted);
   border-radius: 12px;
   cursor: pointer;
@@ -321,28 +273,21 @@ async function deleteMonth() {
   justify-content: center;
   flex-shrink: 0;
 
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.95) inset,
-    0 -1px 0 rgba(148, 163, 184, 0.06) inset,
-    0 2px 6px rgba(15, 23, 42, 0.06),
-    0 4px 10px -2px rgba(15, 23, 42, 0.08);
-
+  box-shadow: var(--shadow-sm);
   transition: all 0.18s cubic-bezier(.34,1.56,.64,1);
 
   &:hover {
-    background: linear-gradient(180deg, #fef2f2, #fee2e2);
-    border-color: rgba(239, 68, 68, 0.4);
-    color: #dc2626;
+    background: var(--grad-expense);
+    border-color: transparent;
+    color: #ffffff;
     transform: translateY(-2px);
     box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.95) inset,
-      0 4px 10px -2px rgba(239, 68, 68, 0.3),
-      0 8px 16px -4px rgba(239, 68, 68, 0.2);
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 6px 14px -4px rgba(244, 63, 94, 0.5);
   }
 
   &:active {
     transform: translateY(0) scale(0.95);
-    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2) inset;
   }
 
   &:disabled {
@@ -352,13 +297,42 @@ async function deleteMonth() {
   }
 }
 
-.desktop-only {
-  display: inline-flex;
+.desktop-only { display: inline-flex; }
+
+/* Тёмная тема — доп. неон */
+:global(:root[data-app-theme="dark"]) {
+  .month-nav {
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.35),
+      0 12px 28px -8px rgba(139, 92, 246, 0.25),
+      0 0 0 1px rgba(139, 92, 246, 0.08) inset;
+  }
+
+  .month-nav:hover {
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.45),
+      0 20px 48px -10px rgba(168, 85, 247, 0.35),
+      0 0 0 1px rgba(139, 92, 246, 0.2) inset;
+  }
+
+  .mn-arrow, .today-btn, .del-month-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(139, 92, 246, 0.2);
+    color: #f4f4f6;
+  }
+
+  .del-month-btn { color: #8b8ba0; }
+
+  .month-name { color: #f4f4f6; }
+
+  .today-badge {
+    background: rgba(34, 197, 94, 0.15);
+    color: #4ade80;
+    border-color: rgba(74, 222, 128, 0.4);
+    box-shadow: 0 0 12px rgba(74, 222, 128, 0.2);
+  }
 }
 
-/* ============================================================
-   МОБИЛЬНЫЙ
-   ============================================================ */
 @media (max-width: 700px) {
   .month-nav {
     padding: 8px 10px;
@@ -373,25 +347,11 @@ async function deleteMonth() {
     border-radius: 10px;
   }
 
-  .month-name {
-    font-size: 13.5px;
-  }
+  .month-name { font-size: 13.5px; }
+  .today-badge { font-size: 9.5px; padding: 2px 8px; }
+  .today-btn { height: 34px; padding: 0 12px; font-size: 11px; border-radius: 10px; }
 
-  .today-badge {
-    font-size: 9.5px;
-    padding: 2px 8px;
-  }
-
-  .today-btn {
-    height: 34px;
-    padding: 0 12px;
-    font-size: 11px;
-    border-radius: 10px;
-  }
-
-  .desktop-only {
-    display: none !important;
-  }
+  .desktop-only { display: none !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {

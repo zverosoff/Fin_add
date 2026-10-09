@@ -32,6 +32,21 @@ onMounted(async () => {
 .deposits-page {
   min-height: 100vh;
   padding: 20px 20px 20px;
+  position: relative;
+}
+
+.deposits-page::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: linear-gradient(180deg, #fafbff 0%, #f3f5fb 100%);
+  transition: background 0.4s ease;
+}
+
+:global(:root[data-app-theme="dark"]) .deposits-page::before {
+  background: transparent;
 }
 
 .container {

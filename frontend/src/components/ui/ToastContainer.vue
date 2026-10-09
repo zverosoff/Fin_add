@@ -35,9 +35,6 @@ const { toasts, runAction, dismiss } = useToast();
 </template>
 
 <style scoped lang="scss">
-/* ============================================================
-   КОНТЕЙНЕР — фиксирован внизу, ограничен по ширине
-   ============================================================ */
 .toast-container {
   position: fixed;
   bottom: calc(90px + env(safe-area-inset-bottom, 0));
@@ -57,9 +54,6 @@ const { toasts, runAction, dismiss } = useToast();
   pointer-events: none;
 }
 
-/* ============================================================
-   ТОСТ — растянут по ширине контейнера
-   ============================================================ */
 .toast {
   display: flex;
   align-items: center;
@@ -79,16 +73,14 @@ const { toasts, runAction, dismiss } = useToast();
   font-weight: 600;
   line-height: 1.35;
 
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.95) inset,
-    0 4px 12px -4px rgba(15, 23, 42, 0.12),
-    0 12px 32px -8px rgba(15, 23, 42, 0.18),
-    0 24px 48px -20px rgba(15, 23, 42, 0.12);
+  box-shadow: var(--shadow-lg);
 
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
 
   pointer-events: auto;
+
+  transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
 
   &.success { border-color: var(--accent-2, #16a34a); }
   &.error   { border-color: var(--danger, #dc2626); }
@@ -98,9 +90,30 @@ const { toasts, runAction, dismiss } = useToast();
   }
 }
 
-/* ============================================================
-   ТЕКСТ — занимает всё место, аккуратно переносится
-   ============================================================ */
+:global(:root[data-app-theme="dark"]) .toast {
+  background: rgba(30, 16, 48, 0.95);
+  border-color: rgba(168, 85, 247, 0.6);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.6),
+    0 16px 40px -12px rgba(139, 92, 246, 0.5),
+    0 0 0 1px rgba(168, 85, 247, 0.3);
+
+  &.success {
+    border-color: rgba(74, 222, 128, 0.7);
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.6),
+      0 16px 40px -12px rgba(34, 197, 94, 0.4),
+      0 0 0 1px rgba(74, 222, 128, 0.3);
+  }
+  &.error {
+    border-color: rgba(244, 63, 94, 0.7);
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.6),
+      0 16px 40px -12px rgba(244, 63, 94, 0.4),
+      0 0 0 1px rgba(244, 63, 94, 0.3);
+  }
+}
+
 .toast-msg {
   flex: 1;
   min-width: 0;
@@ -108,9 +121,6 @@ const { toasts, runAction, dismiss } = useToast();
   overflow-wrap: anywhere;
 }
 
-/* ============================================================
-   КНОПКИ — справа, не сжимаются
-   ============================================================ */
 .toast-actions {
   display: flex;
   align-items: center;
@@ -121,9 +131,9 @@ const { toasts, runAction, dismiss } = useToast();
 .toast-action {
   padding: 7px 14px;
   border-radius: 10px;
-  border: 1px solid var(--accent, #0284c7);
-  background: linear-gradient(180deg, rgba(56, 189, 248, 0.12), rgba(56, 189, 248, 0.06));
-  color: var(--accent, #0284c7);
+  border: 1px solid var(--accent);
+  background: rgba(139, 92, 246, 0.1);
+  color: var(--accent);
 
   font-family: inherit;
   font-size: 12.5px;
@@ -131,19 +141,17 @@ const { toasts, runAction, dismiss } = useToast();
   cursor: pointer;
   white-space: nowrap;
 
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.8) inset,
-    0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1) inset;
 
   transition: all 0.15s cubic-bezier(.34,1.56,.64,1);
 
   &:hover {
-    background: var(--accent, #0284c7);
+    background: var(--accent);
     color: #ffffff;
     transform: translateY(-1px);
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.3) inset,
-      0 4px 10px -2px rgba(2, 132, 199, 0.4);
+      0 4px 10px -2px rgba(139, 92, 246, 0.5);
   }
   &:active { transform: scale(0.96); }
 }
@@ -157,7 +165,7 @@ const { toasts, runAction, dismiss } = useToast();
   border-radius: 50%;
   border: none;
   background: rgba(148, 163, 184, 0.15);
-  color: var(--muted, #64748b);
+  color: var(--muted);
 
   font-family: inherit;
   font-size: 13px;
@@ -171,15 +179,12 @@ const { toasts, runAction, dismiss } = useToast();
   transition: all 0.15s;
 
   &:hover {
-    background: rgba(239, 68, 68, 0.15);
-    color: #dc2626;
+    background: rgba(244, 63, 94, 0.15);
+    color: var(--danger);
   }
   &:active { transform: scale(0.92); }
 }
 
-/* ============================================================
-   АНИМАЦИИ
-   ============================================================ */
 .toast-enter-active {
   transition:
     opacity 0.25s ease,
@@ -199,9 +204,6 @@ const { toasts, runAction, dismiss } = useToast();
   transform: translateY(-10px) scale(0.94);
 }
 
-/* ============================================================
-   МОБИЛЬНЫЙ
-   ============================================================ */
 @media (max-width: 700px) {
   .toast-container {
     bottom: calc(84px + env(safe-area-inset-bottom, 0));
@@ -248,9 +250,6 @@ const { toasts, runAction, dismiss } = useToast();
   }
 }
 
-/* ============================================================
-   REDUCED MOTION
-   ============================================================ */
 @media (prefers-reduced-motion: reduce) {
   .toast-enter-active,
   .toast-leave-active,

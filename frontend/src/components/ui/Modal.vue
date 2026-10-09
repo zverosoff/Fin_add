@@ -123,8 +123,6 @@ onUnmounted(() => {
           <div class="modal-handle"></div>
 
           <header class="modal-head">
-            <!-- ✅ Если передан кастомный slot header — рендерим его,
-                 иначе — стандартный h3 с title -->
             <slot name="header">
               <h3>{{ title }}</h3>
             </slot>
@@ -157,6 +155,11 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   padding: 16px;
+  transition: background 0.3s ease;
+}
+
+:global(:root[data-app-theme="dark"]) .modal-overlay {
+  background: rgba(0, 0, 0, 0.72);
 }
 
 .modal-box {
@@ -164,7 +167,7 @@ onUnmounted(() => {
   width: 100%;
   max-width: 460px;
   max-height: 92vh;
-  background: #ffffff;
+  background: var(--panel-solid, #ffffff);
   border: 1px solid var(--border);
   border-radius: 18px;
   box-shadow: var(--shadow-lg);
@@ -172,15 +175,25 @@ onUnmounted(() => {
   flex-direction: column;
   overflow: hidden;
   touch-action: pan-y;
+  color: var(--text);
+  transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
-/* ✅ Тонкая ручка — только на мобильных */
+:global(:root[data-app-theme="dark"]) .modal-box {
+  background: #14091f;
+  border-color: rgba(139, 92, 246, 0.25);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.6),
+    0 24px 60px -20px rgba(139, 92, 246, 0.45),
+    0 0 0 1px rgba(139, 92, 246, 0.15);
+}
+
 .modal-handle {
   display: none;
   width: 36px;
   height: 3px;
   border-radius: 2px;
-  background: rgba(148, 163, 184, 0.45);
+  background: var(--border-strong);
   margin: 6px auto 0;
   flex-shrink: 0;
 }
@@ -192,11 +205,17 @@ onUnmounted(() => {
   padding: 14px 20px 12px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  gap: 12px;
 
   h3 {
     margin: 0;
     font-size: 16px;
     font-weight: 700;
+    color: var(--text);
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 
@@ -205,7 +224,7 @@ onUnmounted(() => {
   height: 30px;
   border-radius: 8px;
   border: 1px solid var(--border);
-  background: #f8fafc;
+  background: var(--panel-2);
   color: var(--muted);
   cursor: pointer;
   font-size: 14px;
@@ -215,7 +234,7 @@ onUnmounted(() => {
   &:hover {
     border-color: var(--danger);
     color: var(--danger);
-    background: rgba(239, 68, 68, 0.08);
+    background: rgba(244, 63, 94, 0.1);
   }
 }
 
@@ -224,6 +243,7 @@ onUnmounted(() => {
   overflow-y: auto;
   flex: 1;
   min-height: 0;
+  color: var(--text);
 }
 
 .modal-foot {
@@ -233,7 +253,12 @@ onUnmounted(() => {
   justify-content: flex-end;
   gap: 8px;
   flex-shrink: 0;
-  background: #ffffff;
+  background: var(--panel-solid, #ffffff);
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+:global(:root[data-app-theme="dark"]) .modal-foot {
+  background: #14091f;
 }
 
 .modal-enter-active,
@@ -280,10 +305,14 @@ onUnmounted(() => {
 
   .modal-head {
     padding: 12px 18px 10px;
-    background: #fff;
+    background: var(--panel-solid, #fff);
     position: sticky;
     top: 0;
     z-index: 5;
+  }
+
+  :global(:root[data-app-theme="dark"]) .modal-head {
+    background: #14091f;
   }
 
   .modal-head h3 {

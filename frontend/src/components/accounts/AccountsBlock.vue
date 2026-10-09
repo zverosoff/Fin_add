@@ -1,4 +1,3 @@
-<!-- frontend/src/components/accounts/AccountsBlock.vue -->
 <script setup>
 import { computed, ref, onMounted, watch } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
@@ -77,13 +76,10 @@ watch(expandedOwners, (val) => {
       <div class="dc-bg" aria-hidden="true">
         <div class="dc-bg-photo">
           <template v-if="myAvatar">
-            <!-- ✅ Слой Кен Бёрнса — медленный zoom + pan -->
             <div
               class="dc-photo-kenburns"
               :style="{ backgroundImage: `url(${myAvatar})` }"
             ></div>
-
-            <!-- ✅ Слой глитча — поверх Кен Бёрнса -->
             <div
               class="dc-photo-glitch"
               :style="{ backgroundImage: `url(${myAvatar})` }"
@@ -98,7 +94,6 @@ watch(expandedOwners, (val) => {
           <div class="dc-bg-scanlines"></div>
         </div>
 
-        <!-- ✅ RGB-расслоение на границе -->
         <div class="dc-bg-chroma dc-bg-chroma-cyan"></div>
         <div class="dc-bg-chroma dc-bg-chroma-magenta"></div>
 
@@ -206,6 +201,8 @@ watch(expandedOwners, (val) => {
 
   user-select: none;
   -webkit-user-select: none;
+
+  transition: box-shadow 0.4s ease;
 }
 
 .dc-bg {
@@ -225,9 +222,6 @@ watch(expandedOwners, (val) => {
   overflow: hidden;
 }
 
-/* ============================================================
-   ✅ КЕН БЁРНС — медленный zoom + pan
-   ============================================================ */
 .dc-photo-kenburns {
   position: absolute;
   inset: 0;
@@ -250,9 +244,6 @@ watch(expandedOwners, (val) => {
   100% { transform: translateZ(0) scale(1.02) translate(0%, 0%); }
 }
 
-/* ============================================================
-   ✅ ГЛИТЧ — поверх Кен Бёрнса
-   ============================================================ */
 .dc-photo-glitch {
   position: absolute;
   inset: 0;
@@ -370,9 +361,6 @@ watch(expandedOwners, (val) => {
     );
 }
 
-/* ============================================================
-   RGB-РАССЛОЕНИЕ
-   ============================================================ */
 .dc-bg-chroma {
   position: absolute;
   top: 0;
@@ -413,9 +401,6 @@ watch(expandedOwners, (val) => {
   50%      { opacity: 0.8; }
 }
 
-/* ============================================================
-   ФИОЛЕТОВАЯ ЧАСТЬ
-   ============================================================ */
 .dc-bg-solid {
   position: absolute;
   top: 0;
@@ -428,6 +413,14 @@ watch(expandedOwners, (val) => {
     linear-gradient(135deg, #4338ca 0%, #6366f1 30%, #8b5cf6 60%, #4f46e5 100%);
   clip-path: polygon(22% 0%, 100% 0%, 100% 100%, 8% 100%);
   z-index: 10;
+}
+
+/* Тёмная тема — фиолетовый становится более глубоким */
+:global(:root[data-app-theme="dark"]) .dc-bg-solid {
+  background:
+    radial-gradient(circle at 85% 15%, rgba(168, 85, 247, 0.25), transparent 55%),
+    radial-gradient(circle at 95% 100%, rgba(34, 211, 238, 0.15), transparent 60%),
+    linear-gradient(135deg, #1e1b4b 0%, #312e81 30%, #4c1d95 60%, #3b0764 100%);
 }
 
 .dc-bg-ribbon {
@@ -496,9 +489,6 @@ watch(expandedOwners, (val) => {
   z-index: 14;
 }
 
-/* ============================================================
-   КОНТЕНТ
-   ============================================================ */
 .dc-top {
   position: relative;
   z-index: 15;
@@ -710,9 +700,32 @@ watch(expandedOwners, (val) => {
   box-shadow: 0 4px 10px -4px rgba(0, 0, 0, 0.35);
 }
 
-/* ============================================================
-   МОБИЛЬНЫЙ — всё то же, что и на ПК, только меньше размеры
-   ============================================================ */
+/* Тёмная тема — усиленный неон на карте */
+:global(:root[data-app-theme="dark"]) .debit-card {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.15) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.3) inset,
+    0 6px 12px rgba(0, 0, 0, 0.5),
+    0 16px 36px -6px rgba(139, 92, 246, 0.45),
+    0 32px 64px -20px rgba(168, 85, 247, 0.35),
+    0 0 0 1px rgba(139, 92, 246, 0.2);
+}
+
+:global(:root[data-app-theme="dark"]) .dc-owner-total {
+  background: rgba(168, 85, 247, 0.95);
+  color: #ffffff;
+  box-shadow:
+    0 4px 12px -2px rgba(168, 85, 247, 0.6),
+    0 0 20px -4px rgba(168, 85, 247, 0.4);
+}
+
+:global(:root[data-app-theme="dark"]) .dc-balance-value {
+  text-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.8),
+    0 0 30px rgba(168, 85, 247, 0.4),
+    0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
 @media (max-width: 700px) {
   .debit-card { padding: 14px 16px 12px; border-radius: 20px; gap: 8px; min-height: 200px; }
 
