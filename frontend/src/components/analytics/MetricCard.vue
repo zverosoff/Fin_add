@@ -22,7 +22,7 @@ defineProps({
 .metric-card {
   position: relative;
   padding: 14px 16px;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--grad-card);
   border: 1px solid var(--border);
   border-radius: 14px;
   box-shadow: var(--shadow-md);
@@ -30,10 +30,13 @@ defineProps({
   flex-direction: column;
   gap: 2px;
   overflow: hidden;
-  transition: transform 0.18s cubic-bezier(.34,1.56,.64,1), box-shadow 0.18s;
+  transition:
+    transform 0.18s cubic-bezier(.34,1.56,.64,1),
+    box-shadow 0.25s ease,
+    background 0.3s ease,
+    border-color 0.3s ease;
   min-width: 0;
 
-  /* ✅ Каскадное появление */
   animation: cardEnter 0.55s cubic-bezier(.34,1.56,.64,1) both;
 
   &:hover {
@@ -43,8 +46,8 @@ defineProps({
 
   &.accent {
     background:
-      linear-gradient(135deg, rgba(56, 189, 248, 0.12), rgba(139, 92, 246, 0.08)),
-      rgba(255, 255, 255, 0.9);
+      linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(34, 211, 238, 0.06)),
+      var(--grad-card);
   }
 }
 
@@ -62,6 +65,7 @@ defineProps({
 }
 
 .metric-icon { font-size: 18px; line-height: 1; margin-bottom: 2px; }
+
 .metric-label {
   font-size: 10px;
   color: var(--muted);
@@ -73,6 +77,7 @@ defineProps({
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
 .metric-value {
   font-family: var(--mono);
   font-size: 19px;
@@ -85,13 +90,16 @@ defineProps({
   text-overflow: ellipsis;
   font-variant-numeric: tabular-nums;
 }
+
 .metric-card.big .metric-value { font-size: 24px; }
+
 .metric-card.accent .metric-value {
   background: linear-gradient(135deg, #4ade80, #22c55e);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
+
 .metric-hint {
   font-size: 10.5px;
   color: var(--muted);
@@ -102,8 +110,35 @@ defineProps({
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
-  line-clamp: 2;   /* ✅ стандартное свойство для новых браузеров */
-  overflow: hidden; /* ✅ обязательно для работы line-clamp */
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+/* Тёмная тема — свечение для accent */
+:global(:root[data-app-theme="dark"]) {
+  .metric-card.accent {
+    background:
+      radial-gradient(circle at 100% 0%, rgba(74, 222, 128, 0.12), transparent 60%),
+      radial-gradient(circle at 0% 100%, rgba(34, 211, 238, 0.08), transparent 60%),
+      linear-gradient(180deg, rgba(30, 16, 48, 0.9) 0%, rgba(20, 9, 31, 0.95) 100%);
+    border-color: rgba(74, 222, 128, 0.2);
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.35),
+      0 12px 28px -8px rgba(34, 197, 94, 0.3),
+      0 0 0 1px rgba(74, 222, 128, 0.1) inset;
+  }
+
+  .metric-card.accent .metric-value {
+    background: linear-gradient(135deg, #4ade80, #22d3ee);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 0 8px rgba(74, 222, 128, 0.4));
+  }
+
+  .metric-value {
+    text-shadow: 0 0 10px rgba(168, 85, 247, 0.15);
+  }
 }
 
 @media (max-width: 700px) {

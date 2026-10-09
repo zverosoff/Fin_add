@@ -69,10 +69,11 @@ const currBalance = computed(() =>
 
 .compare-item {
   padding: 12px 16px;
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--grad-card);
   border: 1px solid var(--border);
   border-radius: 14px;
   box-shadow: var(--shadow-md);
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 .compare-label {
@@ -92,8 +93,8 @@ const currBalance = computed(() =>
   line-height: 1.2;
   margin-top: 2px;
 
-  &.positive { color: #16a34a; }
-  &.negative { color: #dc2626; }
+  &.positive { color: var(--accent-2, #16a34a); }
+  &.negative { color: var(--danger, #dc2626); }
 }
 
 .compare-delta {
@@ -104,45 +105,48 @@ const currBalance = computed(() =>
   font-weight: 700;
   margin-top: 4px;
 
-  &.up   { color: #dc2626; }
-  &.down { color: #16a34a; }
+  &.up   { color: var(--danger, #dc2626); }
+  &.down { color: var(--accent-2, #16a34a); }
   &.flat { color: var(--muted); }
 }
 
-/* ============================================================
-   МОБИЛЬНЫЙ
-   ============================================================ */
-@media (max-width: 700px) {
-  .compare-grid {
-    grid-template-columns: repeat(3, 1fr);
-    gap: 6px;
-  }
-
+:global(:root[data-app-theme="dark"]) {
   .compare-item {
-    padding: 10px 10px;
-    border-radius: 12px;
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.35),
+      0 12px 28px -8px rgba(139, 92, 246, 0.15),
+      0 0 0 1px rgba(139, 92, 246, 0.06) inset;
   }
 
-  .compare-label {
-    font-size: 9px;
+  .compare-value.positive {
+    color: #4ade80;
+    text-shadow: 0 0 10px rgba(74, 222, 128, 0.4);
+  }
+  .compare-value.negative {
+    color: #f43f5e;
+    text-shadow: 0 0 10px rgba(244, 63, 94, 0.4);
   }
 
-  .compare-value {
-    font-size: 13px;
+  .compare-delta.up {
+    color: #f43f5e;
+    text-shadow: 0 0 8px rgba(244, 63, 94, 0.4);
   }
-
-  .compare-delta {
-    font-size: 10px;
-    margin-top: 2px;
+  .compare-delta.down {
+    color: #4ade80;
+    text-shadow: 0 0 8px rgba(74, 222, 128, 0.4);
   }
 }
 
+@media (max-width: 700px) {
+  .compare-grid { grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .compare-item { padding: 10px 10px; border-radius: 12px; }
+  .compare-label { font-size: 9px; }
+  .compare-value { font-size: 13px; }
+  .compare-delta { font-size: 10px; margin-top: 2px; }
+}
+
 @media (max-width: 380px) {
-  .compare-value {
-    font-size: 12px;
-  }
-  .compare-delta {
-    font-size: 9px;
-  }
+  .compare-value { font-size: 12px; }
+  .compare-delta { font-size: 9px; }
 }
 </style>

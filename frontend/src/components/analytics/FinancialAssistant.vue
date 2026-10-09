@@ -11,12 +11,10 @@ const goals = useGoalsStore();
 
 const metrics = computed(() => analytics.currentMonthMetrics);
 
-// ✅ Генерируем советы на основе метрик
 const tips = computed(() => {
   const m = metrics.value;
   const list = [];
 
-  // Расход > доход
   if (m.monthExpense > m.monthIncome && m.monthIncome > 0) {
     const overspend = m.monthExpense - m.monthIncome;
     list.push({
@@ -28,7 +26,6 @@ const tips = computed(() => {
     });
   }
 
-  // Нет подушки
   if (m.runway < 3 && m.avgExpense > 0) {
     list.push({
       id: 'runway',
@@ -39,7 +36,6 @@ const tips = computed(() => {
     });
   }
 
-  // Норма сбережений низкая
   if (m.monthIncome > 0 && m.realFree <= 0) {
     list.push({
       id: 'nosave',
@@ -50,7 +46,6 @@ const tips = computed(() => {
     });
   }
 
-  // Хорошая норма
   if (m.realFree > 0 && m.monthIncome > 0) {
     const pct = (m.realFree / m.monthIncome) * 100;
     if (pct >= 20) {
@@ -72,7 +67,6 @@ const tips = computed(() => {
     }
   }
 
-  // Есть основная цель — прогресс
   const primary = goals.primaryGoal;
   if (primary && !primary.done) {
     const monthsLeft = m.monthSave > 0
@@ -89,7 +83,6 @@ const tips = computed(() => {
     });
   }
 
-  // Много мелких расходов
   const dayAvg = m.dailyAvg;
   if (dayAvg > 0 && m.monthExpense > 0) {
     const pct = (dayAvg / m.monthExpense) * 100;
@@ -104,7 +97,6 @@ const tips = computed(() => {
     }
   }
 
-  // Всё хорошо
   if (list.length === 0) {
     list.push({
       id: 'default',
@@ -118,7 +110,6 @@ const tips = computed(() => {
   return list.slice(0, 5);
 });
 
-// ✅ Прогноз
 const forecast = computed(() => {
   const m = metrics.value;
   const dayOfMonth = new Date().getDate();
@@ -150,7 +141,6 @@ const forecast = computed(() => {
       </div>
     </header>
 
-    <!-- Прогноз месяца -->
     <div v-if="forecast" class="ac-forecast" :class="forecast.diff > 0 ? 'warn' : 'ok'">
       <div class="acf-icon">{{ forecast.diff > 0 ? '📉' : '📈' }}</div>
       <div class="acf-body">
@@ -169,7 +159,6 @@ const forecast = computed(() => {
       </div>
     </div>
 
-    <!-- Советы -->
     <div class="ac-tips">
       <article
         v-for="tip in tips"
@@ -191,12 +180,13 @@ const forecast = computed(() => {
 .assistant-card {
   padding: 16px 18px;
   background:
-    radial-gradient(circle at 100% 0%, rgba(99, 102, 241, 0.06), transparent 60%),
-    rgba(255, 255, 255, 0.9);
+    radial-gradient(circle at 100% 0%, rgba(139, 92, 246, 0.06), transparent 60%),
+    var(--grad-card);
   border: 1px solid var(--border);
   border-radius: 16px;
   box-shadow: var(--shadow-md);
   animation: cardEnter 0.55s cubic-bezier(.34,1.56,.64,1) both;
+  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
 @keyframes cardEnter {
@@ -215,13 +205,16 @@ const forecast = computed(() => {
   width: 36px;
   height: 36px;
   border-radius: 10px;
-  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  background: var(--grad-primary);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 18px;
   flex-shrink: 0;
-  box-shadow: 0 6px 16px -8px rgba(99, 102, 241, 0.7);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 -2px 0 rgba(0, 0, 0, 0.2) inset,
+    0 6px 16px -6px rgba(139, 92, 246, 0.7);
 }
 
 .ac-head-text { min-width: 0; }
@@ -238,7 +231,6 @@ const forecast = computed(() => {
   margin-top: 1px;
 }
 
-/* Прогноз */
 .ac-forecast {
   display: flex;
   gap: 10px;
@@ -247,8 +239,8 @@ const forecast = computed(() => {
   margin-bottom: 10px;
 
   &.warn {
-    background: rgba(239, 68, 68, 0.08);
-    border: 1px solid rgba(239, 68, 68, 0.3);
+    background: rgba(244, 63, 94, 0.08);
+    border: 1px solid rgba(244, 63, 94, 0.3);
   }
   &.ok {
     background: rgba(34, 197, 94, 0.08);
@@ -256,10 +248,7 @@ const forecast = computed(() => {
   }
 }
 
-.acf-icon {
-  font-size: 20px;
-  flex-shrink: 0;
-}
+.acf-icon { font-size: 20px; flex-shrink: 0; }
 
 .acf-body { min-width: 0; flex: 1; }
 .acf-title {
@@ -267,8 +256,8 @@ const forecast = computed(() => {
   font-weight: 800;
   margin-bottom: 3px;
 
-  .ac-forecast.warn & { color: #dc2626; }
-  .ac-forecast.ok & { color: #16a34a; }
+  .ac-forecast.warn & { color: var(--danger, #dc2626); }
+  .ac-forecast.ok & { color: var(--accent-2, #16a34a); }
 }
 .acf-text {
   font-size: 11.5px;
@@ -281,7 +270,6 @@ const forecast = computed(() => {
   }
 }
 
-/* Советы */
 .ac-tips {
   display: flex;
   flex-direction: column;
@@ -294,35 +282,30 @@ const forecast = computed(() => {
   padding: 10px 12px;
   border-radius: 12px;
   border: 1px solid var(--border);
-  background: #ffffff;
-  transition: transform 0.15s;
+  background: var(--panel-2);
+  transition: transform 0.15s, background 0.3s, border-color 0.3s;
 
   &:hover { transform: translateX(2px); }
 
   &.danger {
-    border-color: rgba(239, 68, 68, 0.35);
-    background: rgba(239, 68, 68, 0.05);
+    border-color: rgba(244, 63, 94, 0.35);
+    background: rgba(244, 63, 94, 0.05);
   }
   &.warning {
-    border-color: rgba(245, 158, 11, 0.35);
-    background: rgba(245, 158, 11, 0.05);
+    border-color: rgba(251, 191, 36, 0.35);
+    background: rgba(251, 191, 36, 0.05);
   }
   &.success {
     border-color: rgba(34, 197, 94, 0.35);
     background: rgba(34, 197, 94, 0.05);
   }
   &.info {
-    border-color: rgba(59, 130, 246, 0.25);
-    background: rgba(59, 130, 246, 0.04);
+    border-color: rgba(139, 92, 246, 0.25);
+    background: rgba(139, 92, 246, 0.04);
   }
 }
 
-.tip-icon {
-  font-size: 20px;
-  flex-shrink: 0;
-  line-height: 1.2;
-}
-
+.tip-icon { font-size: 20px; flex-shrink: 0; line-height: 1.2; }
 .tip-body { min-width: 0; flex: 1; }
 .tip-title {
   font-size: 12px;
@@ -334,6 +317,59 @@ const forecast = computed(() => {
   font-size: 11.5px;
   color: var(--muted);
   line-height: 1.45;
+}
+
+/* Тёмная тема */
+:global(:root[data-app-theme="dark"]) {
+  .assistant-card {
+    background:
+      radial-gradient(circle at 100% 0%, rgba(139, 92, 246, 0.15), transparent 60%),
+      linear-gradient(180deg, rgba(30, 16, 48, 0.9) 0%, rgba(20, 9, 31, 0.95) 100%);
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.35),
+      0 12px 28px -8px rgba(139, 92, 246, 0.25),
+      0 0 0 1px rgba(139, 92, 246, 0.08) inset;
+  }
+
+  .ac-forecast {
+    &.warn {
+      background: rgba(244, 63, 94, 0.12);
+      border-color: rgba(244, 63, 94, 0.4);
+      box-shadow: 0 0 20px -6px rgba(244, 63, 94, 0.3);
+    }
+    &.ok {
+      background: rgba(34, 197, 94, 0.12);
+      border-color: rgba(74, 222, 128, 0.4);
+      box-shadow: 0 0 20px -6px rgba(74, 222, 128, 0.3);
+    }
+  }
+
+  .acf-title {
+    .ac-forecast.warn & { color: #f43f5e; text-shadow: 0 0 10px rgba(244, 63, 94, 0.4); }
+    .ac-forecast.ok & { color: #4ade80; text-shadow: 0 0 10px rgba(74, 222, 128, 0.4); }
+  }
+
+  .ac-tip {
+    background: linear-gradient(180deg, rgba(255,255,255,0.04), rgba(255,255,255,0.02));
+    border-color: rgba(139, 92, 246, 0.15);
+
+    &.danger {
+      border-color: rgba(244, 63, 94, 0.4);
+      background: rgba(244, 63, 94, 0.08);
+    }
+    &.warning {
+      border-color: rgba(251, 191, 36, 0.4);
+      background: rgba(251, 191, 36, 0.08);
+    }
+    &.success {
+      border-color: rgba(74, 222, 128, 0.4);
+      background: rgba(34, 197, 94, 0.08);
+    }
+    &.info {
+      border-color: rgba(168, 85, 247, 0.3);
+      background: rgba(139, 92, 246, 0.08);
+    }
+  }
 }
 
 @media (max-width: 700px) {
