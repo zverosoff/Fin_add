@@ -18,7 +18,6 @@ const txStore = useTransactionsStore();
 const auth = useAuthStore();
 const toast = useToast();
 
-// Шаги: 'upload' → 'preview'
 const step = ref('upload');
 const file = ref(null);
 const fileName = ref('');
@@ -27,7 +26,6 @@ const detectedBank = ref('');
 const loading = ref(false);
 const error = ref('');
 
-// Предпросмотр
 const items = ref([]);
 const selectedIndices = ref(new Set());
 const availableMonths = ref([]);
@@ -40,7 +38,6 @@ const userAccounts = computed(() =>
   accounts.accounts.filter(a => (a.owner || 'Сергей') === user.value)
 );
 
-// Сброс
 function reset() {
   step.value = 'upload';
   file.value = null;
@@ -68,9 +65,6 @@ watch(user, () => {
   }
 });
 
-// ============================================================
-// Выбор файла
-// ============================================================
 function onFileSelected(e) {
   const f = e.target.files?.[0];
   if (!f) return;
@@ -87,9 +81,6 @@ function triggerFileInput() {
   document.getElementById('pdfFileInput')?.click();
 }
 
-// ============================================================
-// Разбор
-// ============================================================
 async function parse() {
   if (!file.value) {
     error.value = 'Сначала выберите PDF';
@@ -112,7 +103,6 @@ async function parse() {
     items.value = operations;
     selectedIndices.value = new Set(operations.map((_, i) => i));
 
-    // Собираем доступные месяцы
     const monthsMap = new Map();
     for (const op of operations) {
       const d = new Date(op.date);
@@ -145,9 +135,6 @@ async function parse() {
   }
 }
 
-// ============================================================
-// Фильтр по месяцам
-// ============================================================
 function toggleMonth(key) {
   const m = availableMonths.value.find(x => x.key === key);
   if (!m) return;
@@ -168,9 +155,6 @@ const visibleItems = computed(() => {
     });
 });
 
-// ============================================================
-// Работа с операциями
-// ============================================================
 function toggleItem(i) {
   const set = new Set(selectedIndices.value);
   if (set.has(i)) set.delete(i);
@@ -207,11 +191,11 @@ function formatDate(iso) {
   return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
-// ============================================================
-// Сохранение
-// ============================================================
 async function save() {
-  const toSave = items.value.filter((_, i) => selectedIndices.value.has(i));
+  const toSave = items.value
+    .map((it, i) => ({ ...it, _idx: i }))
+    .filter((it) => selectedIndices.value.has(it._idx));
+
   if (!toSave.length) {
     error.value = 'Ничего не выбрано';
     return;
@@ -222,6 +206,7 @@ async function save() {
 
   let added = 0, failed = 0;
 
+  // ✅ Сохраняем importOrder = порядок в PDF
   for (const it of toSave) {
     const txData = {
       name: it.name,
@@ -233,6 +218,7 @@ async function save() {
       accountId: accountId.value || null,
       fromPdf: true,
       internalTransfer: false,
+      importOrder: it._idx,
     };
 
     try {
@@ -323,13 +309,11 @@ function close() {
 
     <!-- ШАГ 2. Предпросмотр -->
     <div v-else-if="step === 'preview'" class="step">
-      <!-- Банк -->
       <div class="bank-badge">
         <span>{{ detectedBank === 'sber' ? '🟢 СберБанк' : detectedBank === 'tbank' ? '🟡 Т-Банк' : '🏦' }}</span>
         <span class="count">Найдено: {{ items.length }} операций</span>
       </div>
 
-      <!-- Фильтр по месяцам -->
       <div v-if="availableMonths.length > 1" class="months-bar">
         <span class="label">📅 Месяцы:</span>
         <button
@@ -344,7 +328,6 @@ function close() {
         </button>
       </div>
 
-      <!-- Список операций -->
       <div class="items-list">
         <div
           v-for="it in visibleItems"

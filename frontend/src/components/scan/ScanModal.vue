@@ -342,12 +342,14 @@ async function save() {
     dateFilters.value.filter(f => f.active).map(f => f.key)
   );
 
-  const toSave = items.value.filter((it, i) => {
-    if (!selectedIndices.value.has(i)) return false;
-    const d = new Date(it.date);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-    return activeKeys.has(key);
-  });
+  const toSave = items.value
+    .map((it, i) => ({ ...it, _idx: i }))
+    .filter((it) => {
+      if (!selectedIndices.value.has(it._idx)) return false;
+      const d = new Date(it.date);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+      return activeKeys.has(key);
+    });
 
   if (!toSave.length) {
     error.value = 'Ничего не выбрано';
@@ -359,6 +361,7 @@ async function save() {
 
   let added = 0, failed = 0;
 
+  // ✅ Сохраняем importOrder = порядок в чеке
   for (const it of toSave) {
     const txData = {
       name: it.description,
@@ -370,6 +373,7 @@ async function save() {
       accountId: accountId.value || null,
       fromScan: true,
       internalTransfer: false,
+      importOrder: it._idx,
     };
 
     try {
@@ -457,7 +461,6 @@ function close() {
         </div>
       </div>
 
-      <!-- ✅ Drop-zone / кнопка загрузки -->
       <div v-if="!file" class="field">
         <label>📷 Фото чека / скриншот</label>
         <input
@@ -487,7 +490,6 @@ function close() {
         </div>
       </div>
 
-      <!-- ✅ Если файл уже выбран — компактная кнопка «Заменить» -->
       <div v-else class="replace-file-row">
         <div class="rfp-icon">🖼️</div>
         <div class="rfp-info">
@@ -506,7 +508,6 @@ function close() {
         />
       </div>
 
-      <!-- ✅ Превью -->
       <div v-if="filePreview" class="preview-block">
         <div class="preview-header">
           <span class="preview-title">📸 Превью распознавания</span>
@@ -688,7 +689,7 @@ function close() {
 
 <style scoped lang="scss">
 /* ============================================================
-   ✅ КАСТОМНЫЙ ЗАГОЛОВОК
+   КАСТОМНЫЙ ЗАГОЛОВОК
    ============================================================ */
 .scan-header {
   display: flex;
@@ -732,7 +733,7 @@ function close() {
 }
 
 /* ============================================================
-   ✅ ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМА — сегментный
+   ПЕРЕКЛЮЧАТЕЛЬ РЕЖИМА — сегментный
    ============================================================ */
 .mode-switch {
   display: grid;
@@ -814,7 +815,6 @@ function close() {
   }
 }
 
-/* ✅ Кастомный select с объёмом */
 .select-wrap {
   position: relative;
 }
@@ -871,7 +871,7 @@ function close() {
 .select-wrap select:focus ~ .select-chevron { color: #6366f1; }
 
 /* ============================================================
-   ✅ DROP-ZONE
+   DROP-ZONE
    ============================================================ */
 .drop-zone {
   position: relative;
@@ -973,7 +973,7 @@ function close() {
   flex-shrink: 0;
 }
 
-/* ✅ Компактная строка «Файл выбран» */
+/* Компактная строка «Файл выбран» */
 .replace-file-row {
   display: flex;
   align-items: center;
@@ -1055,7 +1055,7 @@ function close() {
 }
 
 /* ============================================================
-   ✅ ПРЕВЬЮ
+   ПРЕВЬЮ
    ============================================================ */
 .preview-block {
   display: flex;
@@ -1202,7 +1202,6 @@ function close() {
   }
 }
 
-/* Сканирующий луч */
 .preview-image-wrapper.is-scanning .preview-image {
   filter: brightness(0.7) contrast(1.1);
   transition: filter 0.3s ease;
@@ -1449,6 +1448,7 @@ function close() {
     &.active {
       border-style: solid;
       background: linear-gradient(180deg, #fbbf24, #f59e0b);
+      color: #ffffff;
       box-shadow:
         0 1px 0 rgba(255, 255, 255, 0.4) inset,
         0 4px 10px -2px rgba(245, 158, 11, 0.4);
@@ -1689,7 +1689,7 @@ function close() {
 }
 
 /* ============================================================
-   ✅ КНОПКИ ФУТЕРА
+   КНОПКИ ФУТЕРА
    ============================================================ */
 .btn-cancel,
 .btn-save {
