@@ -711,7 +711,7 @@ const fallingBills = [
       0 28px 56px -16px rgba(34, 197, 94, 0.25),
       0 0 0 1px rgba(74, 222, 128, 0.15);
   }
-
+  
   .cash-note:hover {
     box-shadow:
       0 1px 0 rgba(74, 222, 128, 0.35) inset,
@@ -721,16 +721,10 @@ const fallingBills = [
       0 40px 72px -16px rgba(34, 197, 94, 0.35),
       0 0 0 1px rgba(74, 222, 128, 0.25);
   }
-
+  
   .cn-bill { color: rgba(74, 222, 128, 0.4); }
-
-  .cn-watermark {
-    color: rgba(74, 222, 128, 0.08);
-  }
-
-  .cn-owner-value {
-    text-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
-  }
+  .cn-watermark { color: rgba(74, 222, 128, 0.08); }
+  .cn-owner-value { text-shadow: 0 0 8px rgba(74, 222, 128, 0.5); }
 }
 
 @media (max-width: 700px) {

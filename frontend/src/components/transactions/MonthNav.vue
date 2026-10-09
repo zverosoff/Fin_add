@@ -127,6 +127,9 @@ async function deleteMonth() {
 </template>
 
 <style scoped lang="scss">
+/* ============================================================
+   КОНТЕЙНЕР — в СВЕТЛОЙ светлый, в ТЁМНОЙ тёмный
+   ============================================================ */
 .month-nav {
   display: flex;
   align-items: center;
@@ -134,19 +137,61 @@ async function deleteMonth() {
   padding: 10px 14px;
   border-radius: 16px;
 
-  background: var(--grad-card);
-  border: 1px solid var(--border);
+  /* Светлая тема */
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.98) 0%,
+    rgba(250, 251, 255, 0.94) 100%
+  );
 
   backdrop-filter: blur(12px) saturate(180%);
   -webkit-backdrop-filter: blur(12px) saturate(180%);
 
-  box-shadow: var(--shadow-md);
+  border: 1px solid rgba(226, 232, 240, 0.8);
 
-  transition: box-shadow 0.3s ease, transform 0.3s ease, background 0.3s ease, border-color 0.3s ease;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.06) inset,
+    0 2px 6px rgba(15, 23, 42, 0.05),
+    0 8px 20px -6px rgba(15, 23, 42, 0.08),
+    0 16px 32px -14px rgba(99, 102, 241, 0.15);
+
+  transition:
+    box-shadow 0.3s ease,
+    transform 0.3s ease,
+    background 0.3s ease,
+    border-color 0.3s ease;
 
   &:hover {
     transform: translateY(-1px);
-    box-shadow: var(--shadow-lg);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 -1px 0 rgba(148, 163, 184, 0.06) inset,
+      0 4px 10px rgba(15, 23, 42, 0.06),
+      0 12px 28px -8px rgba(99, 102, 241, 0.22),
+      0 20px 40px -16px rgba(15, 23, 42, 0.1);
+  }
+}
+
+/* ✅ ТЁМНАЯ ТЕМА */
+:global(:root[data-app-theme="dark"]) .month-nav {
+  background: linear-gradient(
+    180deg,
+    rgba(30, 16, 48, 0.9) 0%,
+    rgba(20, 9, 31, 0.95) 100%
+  );
+  border-color: rgba(139, 92, 246, 0.15);
+
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.35),
+    0 12px 28px -8px rgba(139, 92, 246, 0.25),
+    0 0 0 1px rgba(139, 92, 246, 0.08) inset;
+
+  &:hover {
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.45),
+      0 20px 48px -10px rgba(168, 85, 247, 0.35),
+      0 0 0 1px rgba(139, 92, 246, 0.2) inset;
   }
 }
 
@@ -154,9 +199,9 @@ async function deleteMonth() {
   width: 38px;
   height: 38px;
   border-radius: 12px;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(226, 232, 240, 0.9);
 
-  background: var(--panel-2);
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
   color: var(--text);
   font-size: 13px;
   font-weight: 800;
@@ -167,7 +212,12 @@ async function deleteMonth() {
   justify-content: center;
   flex-shrink: 0;
 
-  box-shadow: var(--shadow-sm);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    -1px -1px 0 rgba(148, 163, 184, 0.06) inset,
+    0 2px 6px rgba(15, 23, 42, 0.06),
+    0 4px 10px -2px rgba(15, 23, 42, 0.08);
+
   transition: all 0.18s cubic-bezier(.34,1.56,.64,1);
 
   &:hover {
@@ -177,12 +227,22 @@ async function deleteMonth() {
     transform: translateY(-2px);
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.3) inset,
-      0 6px 14px -4px rgba(139, 92, 246, 0.5);
+      0 4px 10px -2px rgba(139, 92, 246, 0.4),
+      0 8px 16px -4px rgba(139, 92, 246, 0.3);
   }
 
   &:active {
     transform: translateY(0) scale(0.95);
   }
+}
+
+:global(:root[data-app-theme="dark"]) .mn-arrow {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(139, 92, 246, 0.2);
+  color: #f4f4f6;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.03) inset,
+    0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 .month-label {
@@ -212,25 +272,33 @@ async function deleteMonth() {
   align-items: center;
   padding: 2px 10px;
   border-radius: 999px;
-  background: rgba(34, 197, 94, 0.15);
-  color: var(--accent-2, #16a34a);
+  background: linear-gradient(180deg, #dcfce7, #bbf7d0);
+  color: #166534;
   border: 1px solid rgba(34, 197, 94, 0.35);
   font-size: 10.5px;
   font-weight: 800;
   white-space: nowrap;
   letter-spacing: 0.02em;
   line-height: 1.4;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.9) inset,
+    0 2px 4px rgba(34, 197, 94, 0.15);
+}
 
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1) inset;
+:global(:root[data-app-theme="dark"]) .today-badge {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.4);
+  box-shadow: 0 0 12px rgba(74, 222, 128, 0.2);
 }
 
 .today-btn {
   padding: 0 16px;
   height: 38px;
   border-radius: 12px;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(226, 232, 240, 0.9);
 
-  background: var(--panel-2);
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
   color: var(--text);
   font-family: inherit;
   font-size: 12px;
@@ -239,7 +307,12 @@ async function deleteMonth() {
   white-space: nowrap;
   flex-shrink: 0;
 
-  box-shadow: var(--shadow-sm);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.06) inset,
+    0 2px 6px rgba(15, 23, 42, 0.06),
+    0 4px 10px -2px rgba(15, 23, 42, 0.08);
+
   transition: all 0.18s cubic-bezier(.34,1.56,.64,1);
 
   &:hover {
@@ -249,7 +322,8 @@ async function deleteMonth() {
     transform: translateY(-2px);
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.3) inset,
-      0 6px 14px -4px rgba(139, 92, 246, 0.5);
+      0 4px 10px -2px rgba(139, 92, 246, 0.4),
+      0 8px 16px -4px rgba(139, 92, 246, 0.3);
   }
 
   &:active {
@@ -257,14 +331,23 @@ async function deleteMonth() {
   }
 }
 
+:global(:root[data-app-theme="dark"]) .today-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(139, 92, 246, 0.2);
+  color: #f4f4f6;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.03) inset,
+    0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
 .del-month-btn {
   width: 38px;
   height: 38px;
   padding: 0;
   font-size: 16px;
-  border: 1px solid var(--border);
+  border: 1px solid rgba(226, 232, 240, 0.9);
 
-  background: var(--panel-2);
+  background: linear-gradient(180deg, #ffffff, #f8fafc);
   color: var(--muted);
   border-radius: 12px;
   cursor: pointer;
@@ -273,7 +356,12 @@ async function deleteMonth() {
   justify-content: center;
   flex-shrink: 0;
 
-  box-shadow: var(--shadow-sm);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.06) inset,
+    0 2px 6px rgba(15, 23, 42, 0.06),
+    0 4px 10px -2px rgba(15, 23, 42, 0.08);
+
   transition: all 0.18s cubic-bezier(.34,1.56,.64,1);
 
   &:hover {
@@ -283,7 +371,8 @@ async function deleteMonth() {
     transform: translateY(-2px);
     box-shadow:
       0 1px 0 rgba(255, 255, 255, 0.3) inset,
-      0 6px 14px -4px rgba(244, 63, 94, 0.5);
+      0 4px 10px -2px rgba(244, 63, 94, 0.4),
+      0 8px 16px -4px rgba(244, 63, 94, 0.3);
   }
 
   &:active {
@@ -297,41 +386,16 @@ async function deleteMonth() {
   }
 }
 
-.desktop-only { display: inline-flex; }
-
-/* Тёмная тема — доп. неон */
-:global(:root[data-app-theme="dark"]) {
-  .month-nav {
-    box-shadow:
-      0 2px 6px rgba(0, 0, 0, 0.35),
-      0 12px 28px -8px rgba(139, 92, 246, 0.25),
-      0 0 0 1px rgba(139, 92, 246, 0.08) inset;
-  }
-
-  .month-nav:hover {
-    box-shadow:
-      0 4px 12px rgba(0, 0, 0, 0.45),
-      0 20px 48px -10px rgba(168, 85, 247, 0.35),
-      0 0 0 1px rgba(139, 92, 246, 0.2) inset;
-  }
-
-  .mn-arrow, .today-btn, .del-month-btn {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(139, 92, 246, 0.2);
-    color: #f4f4f6;
-  }
-
-  .del-month-btn { color: #8b8ba0; }
-
-  .month-name { color: #f4f4f6; }
-
-  .today-badge {
-    background: rgba(34, 197, 94, 0.15);
-    color: #4ade80;
-    border-color: rgba(74, 222, 128, 0.4);
-    box-shadow: 0 0 12px rgba(74, 222, 128, 0.2);
-  }
+:global(:root[data-app-theme="dark"]) .del-month-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(139, 92, 246, 0.2);
+  color: #8b8ba0;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.03) inset,
+    0 2px 6px rgba(0, 0, 0, 0.4);
 }
+
+.desktop-only { display: inline-flex; }
 
 @media (max-width: 700px) {
   .month-nav {
