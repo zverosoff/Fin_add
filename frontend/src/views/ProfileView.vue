@@ -3,9 +3,9 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useAccountsStore } from '@/stores/accounts';
-import ThemeToggle from '@/components/ui/ThemeToggle.vue';
 import { useToast } from '@/composables/useToast';
 import { fmt, categoryIcon } from '@/composables/useFormat';
+import ThemeToggle from '@/components/ui/ThemeToggle.vue';
 
 const auth = useAuthStore();
 const accounts = useAccountsStore();
@@ -548,9 +548,10 @@ onUnmounted(() => {
         </div>
       </div>
 
+      <!-- ✅ ПЕРЕКЛЮЧАТЕЛЬ ТЕМЫ -->
       <div class="profile-card">
-  <ThemeToggle />
-</div>
+        <ThemeToggle />
+      </div>
 
       <div class="profile-card">
         <button class="logout-btn" type="button" @click="handleLogout">
@@ -564,7 +565,7 @@ onUnmounted(() => {
 
 <style scoped lang="scss">
 /* ============================================================
-   СТРАНИЦА — мягкий градиентный фон
+   СТРАНИЦА
    ============================================================ */
 .profile-page {
   display: grid;
@@ -588,6 +589,7 @@ onUnmounted(() => {
     radial-gradient(ellipse 70% 50% at 80% 100%, rgba(236, 72, 153, 0.06), transparent 60%),
     linear-gradient(180deg, #fafbff 0%, #f4f6fb 100%);
   pointer-events: none;
+  transition: background 0.4s ease;
 }
 
 @media (max-width: 980px) { .profile-page { grid-template-columns: 1fr; } }
@@ -595,7 +597,7 @@ onUnmounted(() => {
 .profile-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 
 /* ============================================================
-   HERO-КАРТОЧКА — многоуровневая тень + внутренний глянец
+   HERO-КАРТОЧКА
    ============================================================ */
 .hero-card {
   position: relative;
@@ -603,21 +605,18 @@ onUnmounted(() => {
   overflow: hidden;
   background: #ffffff;
 
-  /* ✅ Три уровня тени для глубины */
   box-shadow:
     0 1px 2px rgba(15, 23, 42, 0.04),
     0 8px 20px -8px rgba(15, 23, 42, 0.12),
     0 30px 60px -20px rgba(99, 102, 241, 0.25),
     0 40px 80px -30px rgba(15, 23, 42, 0.15);
 
-  /* ✅ Внутренняя подсветка — «глянец» */
   outline: 1px solid rgba(255, 255, 255, 0.6);
   outline-offset: -1px;
 
   display: flex;
   flex-direction: column;
 
-  /* ✅ Плавный подъём при наведении */
   transition: transform 0.35s cubic-bezier(.34,1.56,.64,1), box-shadow 0.35s ease;
 }
 
@@ -630,9 +629,6 @@ onUnmounted(() => {
     0 50px 100px -35px rgba(15, 23, 42, 0.18);
 }
 
-/* ============================================================
-   ФОТО — внутренняя виньетка + объём
-   ============================================================ */
 .hero-photo {
   position: relative;
   width: 100%;
@@ -662,7 +658,6 @@ onUnmounted(() => {
   background: linear-gradient(135deg, #a5b4fc, #818cf8);
 }
 
-/* ✅ Виньетка по краям фото */
 .hero-photo-vignette {
   position: absolute;
   inset: 0;
@@ -682,6 +677,7 @@ onUnmounted(() => {
   -webkit-backdrop-filter: blur(10px);
   mask-image: linear-gradient(180deg, transparent 0%, #000 60%, #000 100%);
   -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 60%, #000 100%);
+  transition: background 0.4s ease;
 }
 
 .hero-photo-loading {
@@ -728,7 +724,6 @@ onUnmounted(() => {
   span { overflow: hidden; text-overflow: ellipsis; max-width: 280px; white-space: nowrap; }
 }
 
-/* ✅ Кнопка-карандаш с рельефом */
 .hero-name-edit-btn {
   flex-shrink: 0;
   width: 34px; height: 34px;
@@ -791,9 +786,6 @@ onUnmounted(() => {
   text-shadow: 0 2px 12px rgba(255, 255, 255, 0.9);
 }
 
-/* ============================================================
-   КНОПКИ HERO — рельеф + тень + подъём
-   ============================================================ */
 .hero-actions {
   position: relative; z-index: 2;
   display: flex; gap: 12px;
@@ -823,7 +815,6 @@ onUnmounted(() => {
   background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
   color: #ffffff;
 
-  /* ✅ Рельеф: верхняя светлая полоса + внешняя тень */
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.15) inset,
     0 -1px 0 rgba(0, 0, 0, 0.3) inset,
@@ -878,9 +869,6 @@ onUnmounted(() => {
 
 .hero-file { display: none; }
 
-/* ============================================================
-   МЕТАДАННЫЕ — вложенная карточка с inset-тенью
-   ============================================================ */
 .hero-meta {
   position: relative; z-index: 2;
   display: flex; flex-direction: column;
@@ -890,7 +878,6 @@ onUnmounted(() => {
   padding: 14px 16px;
   margin: 0 20px 20px;
 
-  /* ✅ Внутренняя тень сверху */
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.9) inset,
     0 -1px 0 rgba(148, 163, 184, 0.1) inset,
@@ -911,7 +898,7 @@ onUnmounted(() => {
 .hm-text { font-weight: 500; }
 
 /* ============================================================
-   ПРАВЫЕ КАРТОЧКИ — многоуровневая тень + глянец
+   ПРАВЫЕ КАРТОЧКИ
    ============================================================ */
 .profile-card {
   position: relative;
@@ -919,7 +906,6 @@ onUnmounted(() => {
   border-radius: 20px;
   padding: 22px;
 
-  /* ✅ Три уровня тени */
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.9) inset,
     0 1px 2px rgba(15, 23, 42, 0.04),
@@ -947,9 +933,6 @@ onUnmounted(() => {
 
 .stats-card { padding-top: 18px; }
 
-/* ============================================================
-   SYNCED — двойная обводка + свечение
-   ============================================================ */
 .sync-indicator {
   position: absolute;
   top: 16px; right: 16px;
@@ -967,7 +950,6 @@ onUnmounted(() => {
   color: #94a3b8;
   transition: all 0.3s ease;
 
-  /* ✅ Лёгкая тень для объёма */
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.9) inset,
     0 2px 4px rgba(15, 23, 42, 0.06);
@@ -1022,9 +1004,6 @@ onUnmounted(() => {
   50%      { box-shadow: 0 0 0 5px rgba(34, 197, 94, 0); }
 }
 
-/* ============================================================
-   STATS — вложенные карточки с внутренним объёмом
-   ============================================================ */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1039,7 +1018,6 @@ onUnmounted(() => {
   text-align: center;
   border: 1px solid #eef0f4;
 
-  /* ✅ Объём: светлый верх, тёмный низ */
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.95) inset,
     0 -1px 0 rgba(148, 163, 184, 0.08) inset,
@@ -1072,9 +1050,6 @@ onUnmounted(() => {
   letter-spacing: 0.05em;
 }
 
-/* ============================================================
-   СРАВНЕНИЕ — вложенные строки с градиентом
-   ============================================================ */
 .compare-block {
   display: flex;
   flex-direction: column;
@@ -1095,7 +1070,6 @@ onUnmounted(() => {
   background: linear-gradient(180deg, #ffffff, #f8fafc);
   border: 1px solid #eef0f4;
 
-  /* ✅ Лёгкая вложенная тень */
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.9) inset,
     0 2px 4px rgba(15, 23, 42, 0.03);
@@ -1112,7 +1086,6 @@ onUnmounted(() => {
   border-radius: 999px;
   white-space: nowrap;
 
-  /* ✅ Объёмная таблетка */
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset;
 
   &.up   {
@@ -1154,9 +1127,6 @@ onUnmounted(() => {
 .se-label { font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; font-size: 10.5px; }
 .se-value { font-family: var(--mono); font-weight: 800; font-size: 13px; }
 
-/* ============================================================
-   ТОП-3 — карточки с подъёмом и медалями
-   ============================================================ */
 .top-cats { display: flex; flex-direction: column; gap: 10px; }
 
 .top-cat {
@@ -1169,7 +1139,6 @@ onUnmounted(() => {
   background: linear-gradient(180deg, #ffffff, #f8fafc);
   border: 1px solid #eef0f4;
 
-  /* ✅ Объёмная карточка */
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.95) inset,
     0 -1px 0 rgba(148, 163, 184, 0.06) inset,
@@ -1194,7 +1163,6 @@ onUnmounted(() => {
   color: #ffffff;
   text-shadow: 0 1px 2px rgba(0,0,0,0.25);
 
-  /* ✅ Объёмная медаль */
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.5) inset,
     0 -2px 4px rgba(0,0,0,0.15) inset,
@@ -1221,7 +1189,6 @@ onUnmounted(() => {
   border-radius: 3px;
   overflow: hidden;
 
-  /* ✅ Внутренняя тень трека */
   box-shadow:
     0 1px 2px rgba(15, 23, 42, 0.08) inset,
     0 1px 0 rgba(255, 255, 255, 0.9);
@@ -1233,7 +1200,6 @@ onUnmounted(() => {
   border-radius: 3px;
   transition: width 0.6s cubic-bezier(.22,.61,.36,1);
 
-  /* ✅ Подсветка сверху полосы */
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.5) inset,
     0 2px 4px rgba(99, 102, 241, 0.35);
@@ -1243,9 +1209,6 @@ onUnmounted(() => {
 .tc-amount-value { font-family: var(--mono); font-size: 12.5px; font-weight: 800; color: #0f172a; }
 .tc-amount-pct { font-size: 10.5px; color: #94a3b8; font-weight: 700; margin-top: 2px; }
 
-/* ============================================================
-   ВЫЙТИ — рельефная кнопка + пульсация при hover
-   ============================================================ */
 .logout-btn {
   display: flex; align-items: center; justify-content: center;
   gap: 8px; width: 100%;
@@ -1285,6 +1248,276 @@ onUnmounted(() => {
 }
 
 .logout-icon { font-size: 16px; }
+
+/* ============================================================
+   ТЁМНАЯ ТЕМА — ProfileView
+   ============================================================ */
+:global(:root[data-app-theme="dark"]) {
+  .profile-page::before {
+    background:
+      radial-gradient(ellipse 80% 60% at 20% 0%, rgba(139, 92, 246, 0.18), transparent 60%),
+      radial-gradient(ellipse 70% 50% at 80% 100%, rgba(34, 211, 238, 0.10), transparent 60%),
+      linear-gradient(180deg, #0a0612 0%, #100820 100%);
+  }
+
+  .hero-card {
+    background: #14091f;
+    outline-color: rgba(139, 92, 246, 0.2);
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.4),
+      0 8px 24px -8px rgba(0, 0, 0, 0.5),
+      0 30px 60px -20px rgba(139, 92, 246, 0.35),
+      0 0 0 1px rgba(139, 92, 246, 0.15) inset;
+  }
+
+  .hero-card:hover {
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.5),
+      0 12px 32px -10px rgba(0, 0, 0, 0.6),
+      0 40px 80px -25px rgba(168, 85, 247, 0.5),
+      0 0 0 1px rgba(139, 92, 246, 0.25) inset;
+  }
+
+  .hero-photo-blur {
+    background: linear-gradient(180deg, transparent 0%, rgba(20,9,31,0.2) 30%, rgba(20,9,31,0.5) 55%, rgba(20,9,31,0.85) 75%, rgba(20,9,31,0.98) 90%, #14091f 100%);
+  }
+
+  .hero-name {
+    color: #f4f4f6;
+    text-shadow: 0 2px 12px rgba(20, 9, 31, 0.9);
+  }
+
+  .hero-name-edit-btn {
+    background: linear-gradient(180deg, #2a1840, #1e1032);
+    color: #a855f7;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.06) inset,
+      0 2px 4px rgba(0, 0, 0, 0.4),
+      0 6px 12px -4px rgba(139, 92, 246, 0.4);
+
+    &:hover {
+      background: linear-gradient(180deg, #a855f7, #8b5cf6);
+      color: #ffffff;
+      box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.3) inset,
+        0 4px 12px rgba(168, 85, 247, 0.5),
+        0 10px 24px -4px rgba(168, 85, 247, 0.7);
+    }
+  }
+
+  .hero-name-input {
+    background: #14091f;
+    color: #f4f4f6;
+    border-color: #a855f7;
+    box-shadow:
+      0 8px 24px -8px rgba(168, 85, 247, 0.6),
+      0 0 0 4px rgba(168, 85, 247, 0.2);
+  }
+
+  .hero-name-hint { color: #8b8ba0; }
+
+  .hero-username {
+    color: #8b8ba0;
+    text-shadow: 0 2px 12px rgba(20, 9, 31, 0.9);
+  }
+
+  .hero-btn-primary {
+    background: var(--grad-primary);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 -2px 0 rgba(0, 0, 0, 0.3) inset,
+      0 6px 16px rgba(139, 92, 246, 0.5),
+      0 12px 32px -6px rgba(168, 85, 247, 0.6);
+
+    &:hover:not(:disabled) {
+      background: var(--grad-primary-hover);
+      box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.4) inset,
+        0 -2px 0 rgba(0, 0, 0, 0.3) inset,
+        0 8px 24px rgba(168, 85, 247, 0.6),
+        0 18px 44px -8px rgba(168, 85, 247, 0.75);
+    }
+  }
+
+  .hero-btn-danger {
+    background: linear-gradient(180deg, #2a1840, #1e1032);
+    color: #f43f5e;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.06) inset,
+      0 4px 10px rgba(0, 0, 0, 0.4),
+      0 10px 24px -6px rgba(244, 63, 94, 0.4);
+
+    &:hover:not(:disabled) {
+      background: linear-gradient(180deg, #3a1f4a, #2a1038);
+      box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.1) inset,
+        0 6px 16px rgba(244, 63, 94, 0.5),
+        0 16px 32px -6px rgba(244, 63, 94, 0.6);
+    }
+  }
+
+  .hero-meta {
+    background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+    border-color: rgba(139, 92, 246, 0.15);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.05) inset,
+      0 -1px 0 rgba(0, 0, 0, 0.2) inset,
+      0 2px 6px rgba(0, 0, 0, 0.3);
+  }
+
+  .hero-meta-row { color: #8b8ba0; }
+  .hero-meta-row.streak { color: #f43f5e; }
+  .hero-meta-row.streak strong { color: #f43f5e; }
+
+  .profile-card {
+    background: var(--grad-card);
+    border-color: rgba(139, 92, 246, 0.15);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.05) inset,
+      0 2px 6px rgba(0, 0, 0, 0.4),
+      0 12px 32px -10px rgba(139, 92, 246, 0.25),
+      0 0 0 1px rgba(139, 92, 246, 0.08) inset;
+  }
+
+  .profile-card:hover {
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.08) inset,
+      0 4px 12px rgba(0, 0, 0, 0.5),
+      0 20px 48px -10px rgba(168, 85, 247, 0.35),
+      0 0 0 1px rgba(139, 92, 246, 0.2) inset;
+  }
+
+  .card-title { color: #8b8ba0; }
+
+  .sync-indicator {
+    background: linear-gradient(180deg, rgba(255,255,255,0.06), rgba(255,255,255,0.03));
+    border-color: rgba(139, 92, 246, 0.2);
+    color: #8b8ba0;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.05) inset,
+      0 2px 4px rgba(0, 0, 0, 0.3);
+
+    &.syncing {
+      color: #a855f7;
+      border-color: rgba(168, 85, 247, 0.4);
+      background: linear-gradient(180deg, rgba(139,92,246,0.15), rgba(139,92,246,0.08));
+    }
+    &.synced {
+      color: #4ade80;
+      border-color: rgba(74, 222, 128, 0.4);
+      background: linear-gradient(180deg, rgba(34,197,94,0.15), rgba(34,197,94,0.08));
+    }
+  }
+
+  .stat {
+    background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+    border-color: rgba(139, 92, 246, 0.12);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.05) inset,
+      0 2px 6px rgba(0, 0, 0, 0.3);
+  }
+
+  .stat-value {
+    color: #f4f4f6;
+    text-shadow: 0 0 12px rgba(168, 85, 247, 0.25);
+  }
+  .stat-label { color: #8b8ba0; }
+
+  .compare-block {
+    border-top-color: rgba(139, 92, 246, 0.15);
+  }
+  .compare-row {
+    background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+    border-color: rgba(139, 92, 246, 0.12);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.05) inset,
+      0 2px 4px rgba(0, 0, 0, 0.3);
+  }
+  .c-label { color: #8b8ba0; }
+  .c-value { color: #f4f4f6; }
+
+  .c-delta {
+    &.up   {
+      color: #4ade80;
+      background: linear-gradient(180deg, rgba(34,197,94,0.2), rgba(34,197,94,0.1));
+      border-color: rgba(74, 222, 128, 0.3);
+      text-shadow: 0 0 10px rgba(74, 222, 128, 0.5);
+    }
+    &.down {
+      color: #f43f5e;
+      background: linear-gradient(180deg, rgba(244,63,94,0.2), rgba(244,63,94,0.1));
+      border-color: rgba(244, 63, 94, 0.3);
+      text-shadow: 0 0 10px rgba(244, 63, 94, 0.5);
+    }
+    &.flat {
+      color: #8b8ba0;
+      background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+      border-color: rgba(139, 92, 246, 0.15);
+    }
+  }
+
+  .stat-extra-row {
+    &.income {
+      background: linear-gradient(180deg, rgba(34,197,94,0.15), rgba(34,197,94,0.05));
+      border-color: rgba(74, 222, 128, 0.25);
+      .se-value { color: #4ade80; text-shadow: 0 0 10px rgba(74, 222, 128, 0.4); }
+    }
+    &.expense {
+      background: linear-gradient(180deg, rgba(244,63,94,0.15), rgba(244,63,94,0.05));
+      border-color: rgba(244, 63, 94, 0.25);
+      .se-value { color: #f43f5e; text-shadow: 0 0 10px rgba(244, 63, 94, 0.4); }
+    }
+  }
+  .se-label { color: #8b8ba0; }
+
+  .top-cat {
+    background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+    border-color: rgba(139, 92, 246, 0.12);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.05) inset,
+      0 2px 6px rgba(0, 0, 0, 0.3);
+
+    &:hover {
+      box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.08) inset,
+        0 8px 24px -4px rgba(168, 85, 247, 0.4);
+    }
+  }
+
+  .tc-name { color: #f4f4f6; }
+  .tc-bar {
+    background: linear-gradient(180deg, rgba(0,0,0,0.3), rgba(0,0,0,0.2));
+    box-shadow:
+      0 1px 2px rgba(0, 0, 0, 0.3) inset,
+      0 1px 0 rgba(255, 255, 255, 0.05);
+  }
+  .tc-bar-fill {
+    background: var(--grad-primary);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 0 12px rgba(168, 85, 247, 0.7);
+  }
+  .tc-amount-value { color: #f4f4f6; }
+  .tc-amount-pct { color: #8b8ba0; }
+
+  .logout-btn {
+    background: linear-gradient(180deg, rgba(244,63,94,0.15), rgba(244,63,94,0.05));
+    border-color: rgba(244, 63, 94, 0.4);
+    color: #f43f5e;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.05) inset,
+      0 4px 12px -2px rgba(244, 63, 94, 0.3);
+
+    &:hover {
+      background: linear-gradient(180deg, rgba(244,63,94,0.25), rgba(244,63,94,0.12));
+      border-color: #f43f5e;
+      box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.1) inset,
+        0 8px 24px -4px rgba(244, 63, 94, 0.55),
+        0 0 0 4px rgba(244, 63, 94, 0.15);
+    }
+  }
+}
 
 /* ============================================================
    МОБИЛЬНЫЙ

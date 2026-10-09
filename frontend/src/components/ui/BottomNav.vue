@@ -172,9 +172,6 @@ function handleFabClick() {
   pointer-events: none;
 }
 
-/* ============================================================
-   INNER — стеклянный контейнер
-   ============================================================ */
 .bn-inner {
   position: relative;
   display: grid;
@@ -195,9 +192,7 @@ function handleFabClick() {
   transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
 }
 
-/* ============================================================
-   НЕОНОВЫЙ ИНДИКАТОР активной вкладки
-   ============================================================ */
+/* Неоновый индикатор */
 .bn-indicator {
   position: absolute;
   top: 6px;
@@ -242,9 +237,6 @@ function handleFabClick() {
   100% { background-position: 0% 50%; }
 }
 
-/* ============================================================
-   ПУНКТЫ МЕНЮ
-   ============================================================ */
 .bn-item {
   position: relative;
   z-index: 2;
@@ -309,9 +301,7 @@ function handleFabClick() {
   transition: color 0.25s, text-shadow 0.25s;
 }
 
-/* ============================================================
-   FAB
-   ============================================================ */
+/* FAB */
 .bn-fab-wrapper {
   display: flex;
   justify-content: center;
@@ -357,9 +347,6 @@ function handleFabClick() {
 
 .bn-fab:hover .bn-fab-ring { opacity: 1; }
 
-/* ============================================================
-   FAB STATE — LOADING
-   ============================================================ */
 .bn-fab.is-loading {
   background: linear-gradient(180deg, #60a5fa, #3b82f6);
   box-shadow:
@@ -376,9 +363,6 @@ function handleFabClick() {
   }
 }
 
-/* ============================================================
-   FAB STATE — SUCCESS
-   ============================================================ */
 .bn-fab.is-success {
   background: linear-gradient(180deg, #4ade80, #22c55e);
   box-shadow:
@@ -395,9 +379,6 @@ function handleFabClick() {
   }
 }
 
-/* ============================================================
-   FAB STATE — OK (неон!)
-   ============================================================ */
 .bn-fab.is-ok {
   background: var(--grad-primary);
   box-shadow:
@@ -423,9 +404,6 @@ function handleFabClick() {
   }
 }
 
-/* ============================================================
-   FAB STATE — ERROR
-   ============================================================ */
 .bn-fab.is-error {
   background: linear-gradient(180deg, #f87171, #dc2626);
   box-shadow:
@@ -491,9 +469,7 @@ function handleFabClick() {
   to   { stroke-dasharray: 30; stroke-dashoffset: 0; }
 }
 
-/* ============================================================
-   ТЁМНАЯ ТЕМА — доп. неон на индикаторе
-   ============================================================ */
+/* Тёмная тема — доп. неон */
 :global(:root[data-app-theme="dark"]) {
   .bn-indicator {
     box-shadow:
@@ -525,16 +501,11 @@ function handleFabClick() {
   }
 }
 
-/* ============================================================
-   DESKTOP
-   ============================================================ */
+/* Desktop */
 @media (min-width: 701px) {
   .bottom-nav { max-width: 640px; padding: 0 24px 24px; }
 
-  .bn-inner {
-    padding: 10px 12px 8px;
-    border-radius: 28px;
-  }
+  .bn-inner { padding: 10px 12px 8px; border-radius: 28px; }
 
   .bn-item {
     padding: 10px 6px;
@@ -553,9 +524,6 @@ function handleFabClick() {
   .bn-indicator { border-radius: 20px; top: 8px; bottom: 8px; }
 }
 
-/* ============================================================
-   MOBILE
-   ============================================================ */
 @media (max-width: 700px) {
   .bottom-nav { max-width: 100%; padding: 0 8px calc(8px + env(safe-area-inset-bottom, 0)); }
 

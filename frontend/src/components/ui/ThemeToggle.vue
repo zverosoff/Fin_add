@@ -149,7 +149,6 @@ const OPTIONS = [
   max-height: 60px;
 }
 
-/* В тёмной теме — доп. свечение на активной кнопке */
 .theme-toggle.is-dark .tt-btn.active {
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.15) inset,
