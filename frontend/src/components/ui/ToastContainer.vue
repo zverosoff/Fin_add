@@ -1,6 +1,8 @@
 <script setup>
 import { useToast } from '@/composables/useToast';
 const { toasts, runAction, dismiss } = useToast();
+
+const ICON_CLOSE = '/img/icons/ui/close.png';
 </script>
 
 <template>
@@ -27,7 +29,9 @@ const { toasts, runAction, dismiss } = useToast();
             class="toast-close"
             @click="dismiss(t.id)"
             aria-label="Закрыть"
-          >✕</button>
+          >
+            <img :src="ICON_CLOSE" class="toast-close-img" alt="Закрыть" />
+          </button>
         </div>
       </div>
     </TransitionGroup>
@@ -156,35 +160,55 @@ const { toasts, runAction, dismiss } = useToast();
   &:active { transform: scale(0.96); }
 }
 
+/* ✅ Кнопка закрытия — фикс 26×26 */
 .toast-close {
   width: 26px;
   height: 26px;
   min-width: 26px;
+  max-width: 26px;
   min-height: 26px;
+  max-height: 26px;
 
   border-radius: 50%;
   border: none;
   background: rgba(148, 163, 184, 0.15);
-  color: var(--muted);
 
-  font-family: inherit;
-  font-size: 13px;
   cursor: pointer;
-
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
+  overflow: hidden;
+  flex-shrink: 0;
 
-  transition: all 0.15s;
+  transition: background 0.15s, transform 0.15s;
 
   &:hover {
     background: rgba(244, 63, 94, 0.15);
-    color: var(--danger);
   }
   &:active { transform: scale(0.92); }
 }
 
+/* ✅ PNG-крестик — фикс 14×14 */
+.toast-close-img {
+  display: block;
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  max-width: 14px;
+  max-height: 14px;
+  object-fit: contain;
+  opacity: 0.75;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+  transition: opacity 0.15s, filter 0.15s;
+}
+
+.toast-close:hover .toast-close-img {
+  opacity: 1;
+  filter: drop-shadow(0 0 6px rgba(244, 63, 94, 0.6)) brightness(1.15);
+}
+
+/* Анимации */
 .toast-enter-active {
   transition:
     opacity 0.25s ease,
@@ -204,6 +228,9 @@ const { toasts, runAction, dismiss } = useToast();
   transform: translateY(-10px) scale(0.94);
 }
 
+/* ============================================================
+   МОБИЛЬНЫЙ
+   ============================================================ */
 @media (max-width: 700px) {
   .toast-container {
     bottom: calc(84px + env(safe-area-inset-bottom, 0));
@@ -233,8 +260,17 @@ const { toasts, runAction, dismiss } = useToast();
     width: 24px;
     height: 24px;
     min-width: 24px;
+    max-width: 24px;
     min-height: 24px;
-    font-size: 12px;
+    max-height: 24px;
+  }
+
+  .toast-close-img {
+    width: 12px;
+    height: 12px;
+    min-width: 12px;
+    max-width: 12px;
+    max-height: 12px;
   }
 }
 
