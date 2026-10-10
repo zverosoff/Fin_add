@@ -20,6 +20,13 @@ const toast = useToast();
 
 const OWNERS = ['Сергей', 'Саша'];
 
+// ✅ PNG-иконки
+const ICON_PLUS    = '/img/icons/ui/plus.png';
+const ICON_MINUS   = '/img/icons/ui/minus.png';
+const ICON_BALANCE = '/img/icons/ui/balance.png';
+const AVATAR_MAN   = '/img/icons/mascots/avatar-man.png';
+const AVATAR_WOMAN = '/img/icons/mascots/avatar-woman.png';
+
 const mode = ref('add');
 const user = ref('Сергей');
 const amount = ref('');
@@ -31,15 +38,6 @@ const isOwnerLocked = computed(() => !!props.owner);
 
 const currentBalance = computed(() => accounts.getCash(user.value));
 const totalCash = computed(() => accounts.totalCash);
-
-const modeTitle = computed(() => {
-  switch (mode.value) {
-    case 'add':      return '➕ Добавить наличные';
-    case 'withdraw': return '➖ Изъять наличные';
-    case 'set':      return '🎯 Точный баланс';
-    default:         return 'Наличные';
-  }
-});
 
 const amountLabel = computed(() => {
   switch (mode.value) {
@@ -168,7 +166,12 @@ function close() {
             :class="{ active: user === o }"
             @click="user = o"
           >
-            {{ o === 'Сергей' ? '👨' : '👩' }} {{ o }}
+            <img
+              :src="o === 'Сергей' ? AVATAR_MAN : AVATAR_WOMAN"
+              class="chip-avatar"
+              :alt="o"
+            />
+            {{ o }}
           </button>
         </div>
       </div>
@@ -180,17 +183,26 @@ function close() {
             type="button"
             :class="{ active: mode === 'add' }"
             @click="mode = 'add'"
-          >➕ Добавить</button>
+          >
+            <img :src="ICON_PLUS" class="mode-switch-icon" alt="" />
+            Добавить
+          </button>
           <button
             type="button"
             :class="{ active: mode === 'withdraw' }"
             @click="mode = 'withdraw'"
-          >➖ Изъять</button>
+          >
+            <img :src="ICON_MINUS" class="mode-switch-icon" alt="" />
+            Изъять
+          </button>
           <button
             type="button"
             :class="{ active: mode === 'set' }"
             @click="mode = 'set'"
-          >🎯 Баланс</button>
+          >
+            <img :src="ICON_BALANCE" class="mode-switch-icon" alt="" />
+            Баланс
+          </button>
         </div>
       </div>
 
@@ -344,8 +356,8 @@ function close() {
 .chip {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
-  padding: 8px 14px;
+  gap: 6px;
+  padding: 6px 14px 6px 6px;
   border-radius: 999px;
   border: 1px solid var(--border);
   background: var(--panel-2);
@@ -367,6 +379,22 @@ function close() {
   }
 }
 
+/* ✅ PNG-аватар в чипе пользователя — фикс 20×20 */
+.chip-avatar {
+  display: block;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  max-width: 20px;
+  max-height: 20px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #fff;
+  border: 1.5px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
 .mode-switch {
   display: grid;
   grid-template-columns: 1fr 1fr 1fr;
@@ -377,6 +405,10 @@ function close() {
   border-radius: 10px;
 
   button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
     padding: 9px 8px;
     border: none;
     background: transparent;
@@ -393,8 +425,26 @@ function close() {
       background: var(--grad-primary);
       color: #fff;
       box-shadow: 0 4px 12px -4px rgba(139, 92, 246, 0.6);
+
+      .mode-switch-icon {
+        filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.6)) brightness(1.25);
+      }
     }
   }
+}
+
+/* ✅ PNG-иконки в mode-switch — фикс 16×16 */
+.mode-switch-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+  transition: filter 0.2s;
 }
 
 .preview {
@@ -545,7 +595,6 @@ function close() {
   }
 }
 
-/* Тёмная тема — доп. свечение */
 :global(:root[data-app-theme="dark"]) {
   .cash-info {
     background: rgba(34, 197, 94, 0.12);
