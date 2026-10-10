@@ -80,13 +80,7 @@ const hasItems = computed(() => enriched.value.length > 0);
 
 <style scoped lang="scss">
 .cat-breakdown {
-  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
-  border-radius: 20px;
-  padding: 20px;
   color: #ffffff;
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.08) inset,
-    0 12px 32px -10px rgba(139, 92, 246, 0.35);
 }
 
 .cat-breakdown__head {
@@ -221,16 +215,9 @@ const hasItems = computed(() => enriched.value.length > 0);
 }
 
 @media (max-width: 700px) {
-  .cat-breakdown { padding: 16px; border-radius: 16px; }
   .cat-row { padding: 8px 10px 8px 14px; gap: 10px; }
   .cat-row__icon { width: 32px; height: 32px; font-size: 18px; }
   .cat-row__name { font-size: 12px; }
   .cat-row__amount { font-size: 12px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .cat-row { transition: none; }
-  .cat-row:hover { transform: none; }
-  .cat-row__bar-fill { transition: none; }
 }
 </style>
