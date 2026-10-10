@@ -29,14 +29,15 @@ const serverStatus = computed(() => {
   return 'ok';
 });
 
+// ✅ PNG-иконки
 const navLeft = [
-  { to: '/finance',   icon: '💳', label: 'Финансы' },
-  { to: '/analytics', icon: '📊', label: 'Анализ' },
+  { to: '/finance',   icon: '/img/icons/nav/finance.png',   label: 'Финансы' },
+  { to: '/analytics', icon: '/img/icons/nav/analytics.png', label: 'Анализ' },
 ];
 
 const navRight = [
-  { to: '/deposits', icon: '💎', label: 'Вклады' },
-  { to: '/profile',  icon: '👤', label: 'Профиль' },
+  { to: '/deposits', icon: '/img/icons/nav/deposits.png', label: 'Вклады' },
+  { to: '/profile',  icon: '/img/icons/nav/profile.png',  label: 'Профиль' },
 ];
 
 const tabRefs = ref({});
@@ -113,7 +114,13 @@ function handleFabClick() {
         :class="{ active: isActive(item) }"
         @click="go(item)"
       >
-        <span class="bn-icon">{{ item.icon }}</span>
+        <img
+          :src="item.icon"
+          class="bn-icon-img"
+          :alt="item.label"
+          loading="lazy"
+          decoding="async"
+        />
         <span class="bn-label">{{ item.label }}</span>
       </button>
 
@@ -127,15 +134,27 @@ function handleFabClick() {
         >
           <span class="bn-fab-ring"></span>
 
+          <!-- LOADING -->
           <svg v-if="serverStatus === 'loading'" class="bn-fab-spinner" viewBox="0 0 50 50">
             <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" />
           </svg>
+
+          <!-- SUCCESS -->
           <svg v-else-if="serverStatus === 'success'" class="bn-fab-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
             <polyline points="20 6 9 17 4 12" />
           </svg>
-          <svg v-else-if="serverStatus === 'ok'" class="bn-fab-icon" viewBox="0 0 24 24" fill="currentColor">
-            <path d="M9 3 7.17 5H4a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2h-3.17L15 3H9zm3 15a5 5 0 1 1 0-10 5 5 0 0 1 0 10z"/>
-          </svg>
+
+          <!-- READY — PNG-камера -->
+          <img
+            v-else-if="serverStatus === 'ok'"
+            src="/img/icons/nav/camera.png"
+            class="bn-fab-icon-img"
+            alt="Сканировать"
+            loading="lazy"
+            decoding="async"
+          />
+
+          <!-- ERROR -->
           <svg v-else class="bn-fab-icon" viewBox="0 0 24 24" fill="currentColor">
             <path d="M12 2 1 21h22L12 2zm1 16h-2v-2h2v2zm0-4h-2V9h2v5z"/>
           </svg>
@@ -151,7 +170,13 @@ function handleFabClick() {
         :class="{ active: isActive(item) }"
         @click="go(item)"
       >
-        <span class="bn-icon">{{ item.icon }}</span>
+        <img
+          :src="item.icon"
+          class="bn-icon-img"
+          :alt="item.label"
+          loading="lazy"
+          decoding="async"
+        />
         <span class="bn-label">{{ item.label }}</span>
       </button>
     </div>
@@ -260,17 +285,22 @@ function handleFabClick() {
   &:hover {
     color: var(--text);
     transform: translateY(-1px);
+
+    .bn-icon-img {
+      transform: translateY(-2px) scale(1.08);
+    }
   }
   &:active { transform: scale(0.94); }
 
   &.active {
     color: #ffffff;
 
-    .bn-icon {
-      transform: translateY(-2px) scale(1.12);
+    .bn-icon-img {
+      transform: translateY(-2px) scale(1.15);
       filter:
-        drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5))
-        drop-shadow(0 0 8px rgba(255, 255, 255, 0.4));
+        drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5))
+        drop-shadow(0 0 10px rgba(255, 255, 255, 0.6))
+        brightness(1.15) saturate(1.2);
     }
 
     .bn-label {
@@ -283,12 +313,18 @@ function handleFabClick() {
   }
 }
 
-.bn-icon {
-  position: relative;
-  display: inline-flex;
-  font-size: 22px;
-  line-height: 1;
-  transition: transform 0.35s cubic-bezier(.34,1.56,.64,1), filter 0.25s;
+/* ✅ PNG-иконки */
+.bn-icon-img {
+  display: block;
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.18));
+  transition:
+    transform 0.35s cubic-bezier(.34,1.56,.64,1),
+    filter 0.25s ease;
+  will-change: transform;
 }
 
 .bn-label {
@@ -401,6 +437,10 @@ function handleFabClick() {
       0 8px 18px rgba(139, 92, 246, 0.55),
       0 18px 40px -4px rgba(168, 85, 247, 0.75),
       0 32px 64px -10px rgba(139, 92, 246, 0.5);
+
+    .bn-fab-icon-img {
+      transform: scale(1.08) rotate(-4deg);
+    }
   }
 }
 
@@ -469,6 +509,20 @@ function handleFabClick() {
   to   { stroke-dasharray: 30; stroke-dashoffset: 0; }
 }
 
+/* ✅ PNG-камера внутри FAB */
+.bn-fab-icon-img {
+  display: block;
+  width: 36px;
+  height: 36px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter:
+    drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45))
+    brightness(1.1) saturate(1.15);
+  transition: transform 0.3s cubic-bezier(.34,1.56,.64,1);
+  will-change: transform;
+}
+
 /* Тёмная тема — доп. неон */
 :global(:root[data-app-theme="dark"]) {
   .bn-indicator {
@@ -511,13 +565,14 @@ function handleFabClick() {
     padding: 10px 6px;
     font-size: 12px;
     gap: 4px;
-    .bn-icon { font-size: 26px; }
+    .bn-icon-img { width: 32px; height: 32px; }
     .bn-label { font-size: 12px; }
   }
 
   .bn-fab-wrapper { padding: 0 12px 6px; }
   .bn-fab { width: 76px; height: 76px; border-width: 5px; margin-top: -38px; }
   .bn-fab-icon { width: 34px; height: 34px; }
+  .bn-fab-icon-img { width: 42px; height: 42px; }
   .bn-fab-spinner { width: 34px; height: 34px; }
   .bn-fab.is-success .bn-fab-icon { width: 38px; height: 38px; }
 
@@ -529,11 +584,12 @@ function handleFabClick() {
 
   .bn-inner { padding: 6px 6px 4px; border-radius: 22px; }
 
-  .bn-icon { font-size: 20px; }
+  .bn-icon-img { width: 26px; height: 26px; }
   .bn-label { font-size: 10px; }
 
   .bn-fab { width: 60px; height: 60px; margin-top: -26px; }
   .bn-fab-icon { width: 26px; height: 26px; }
+  .bn-fab-icon-img { width: 32px; height: 32px; }
   .bn-fab-spinner { width: 26px; height: 26px; }
   .bn-fab.is-success .bn-fab-icon { width: 30px; height: 30px; }
 
@@ -545,6 +601,7 @@ function handleFabClick() {
   .bn-fab,
   .bn-fab-ring,
   .bn-item,
-  .bn-icon { animation: none !important; transition: none !important; }
+  .bn-icon-img,
+  .bn-fab-icon-img { animation: none !important; transition: none !important; }
 }
 </style>
