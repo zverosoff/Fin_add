@@ -85,7 +85,6 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
 <template>
   <div class="analytics-page">
     <div class="analytics-grid">
-      <!-- ЛЕВАЯ КОЛОНКА -->
       <div class="an-col an-col-left">
         <AnalyticsHero />
 
@@ -135,11 +134,9 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
         </section>
       </div>
 
-      <!-- ПРАВАЯ КОЛОНКА -->
       <div class="an-col an-col-right">
         <FinancialAssistant />
 
-        <!-- ✅ ЦЕЛИ со звездой -->
         <section class="card card-dark card-goals">
           <MascotImage
             name="star"
@@ -178,29 +175,12 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
 </template>
 
 <style scoped lang="scss">
-/* ============================================================
-   ✅ ГЛОБАЛЬНЫЙ ТЁМНЫЙ ФОН — перебивает body при переходах
-   ============================================================ */
-:global(body),
-:global(html) {
-  background: #1a0f3a !important;
-}
-
-:global(#app) {
-  background: #1a0f3a !important;
-  min-height: 100vh !important;
-}
-
-/* ✅ .page-transition-wrap тоже получает фон */
-:global(.page-transition-wrap) {
-  background: linear-gradient(135deg, #1a0f3a 0%, #2d1b5e 50%, #4c1d95 100%) !important;
-}
-
+/* ✅ ТОЛЬКО локальный фон — не трогает body */
 .analytics-page {
   position: relative;
   min-height: 100vh;
   padding: 20px 40px 100px;
-  color: #ffffff !important;
+  color: #ffffff;
   background: linear-gradient(135deg, #1a0f3a 0%, #2d1b5e 50%, #4c1d95 100%);
   background-attachment: fixed;
 }
@@ -245,11 +225,10 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
 }
 
 .card-dark {
-  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%) !important;
-  color: #ffffff !important;
+  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+  color: #ffffff;
 }
 
-/* ✅ ЦЕЛИ — overflow visible, звезда в углу */
 .card-goals {
   position: relative;
   overflow: visible;
@@ -297,21 +276,20 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
   &:hover { transform: translateY(-1px); }
 }
 
-/* Перебиваем светлые стили GoalCard */
 .card-goals :deep(.goal-card),
 .card-goals :deep(.goals-list),
 .card-goals :deep(.goal-item) {
-  background: rgba(255, 255, 255, 0.05) !important;
-  color: #ffffff !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+  border-color: rgba(255, 255, 255, 0.1);
 }
 
 .card-goals :deep(.goal-card__empty),
 .card-goals :deep(.goal-empty),
 .card-goals :deep([class*="empty"]),
 .card-goals :deep([class*="hint"]) {
-  color: #1e1b4b !important;
-  font-weight: 700 !important;
+  color: #1e1b4b;
+  font-weight: 700;
 }
 
 @media (max-width: 1100px) {
