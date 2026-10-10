@@ -12,7 +12,7 @@ import {
   AVATAR_WOMAN,
 } from '@/composables/useFormat';
 
-// ✅ Пути к иконкам — через :src, чтобы Vite не пытался резолвить
+// ✅ Пути к иконкам через :src — Vite не пытается резолвить как модуль
 const ICON_EDIT   = '/img/icons/ui/edit.png';
 const ICON_DELETE = '/img/icons/ui/delete.png';
 
@@ -321,4 +321,574 @@ const progress = computed(() =>
   </div>
 </template>
 
-<!-- Стили оставь без изменений из прошлой версии -->
+<style scoped lang="scss">
+/* ============================================================
+   КОНТЕЙНЕР
+   ============================================================ */
+.tx-item {
+  position: relative;
+  border-radius: 16px;
+  overflow: hidden;
+  touch-action: pan-y;
+  box-sizing: border-box;
+
+  &.is-appearing { animation: txAppear 0.5s cubic-bezier(.34,1.56,.64,1); }
+  &.is-deleting {
+    animation: txDelete 0.3s cubic-bezier(.4,0,.6,1) forwards;
+    pointer-events: none;
+  }
+}
+
+/* ✅ ЖЁСТКИЙ СБРОС — все картинки внутри карточки ограничены */
+.tx-item img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
+@keyframes txAppear {
+  from { opacity: 0; transform: translateY(8px) scale(0.96); filter: blur(4px); }
+  to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+}
+
+@keyframes txDelete {
+  from { opacity: 1; transform: translateX(0) scale(1); }
+  to   { opacity: 0; transform: translateX(60px) scale(0.9); }
+}
+
+/* ============================================================
+   ПАНЕЛЬ ДЕЙСТВИЙ (свайп)
+   ============================================================ */
+.tx-actions-panel {
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 0 8px;
+  z-index: 0;
+  pointer-events: none;
+
+  background: linear-gradient(
+    270deg,
+    rgba(139, 92, 246, 0.14) 0%,
+    rgba(139, 92, 246, 0.06) 100%
+  );
+  transition: opacity 0.15s linear;
+
+  .tx-item.is-revealed & { pointer-events: auto; }
+}
+
+/* ✅ Кнопки swipe — фикс 40×40 */
+.tx-action-btn {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  max-height: 40px;
+  border-radius: 12px;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), box-shadow 0.2s;
+
+  &:active { transform: scale(0.92); }
+}
+
+/* ✅ Иконка внутри swipe-кнопки — фикс 22×22 */
+.tab-icon-img {
+  display: block;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  max-width: 22px;
+  max-height: 22px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25)) brightness(1.05);
+}
+
+.tx-action-edit {
+  background: linear-gradient(180deg, #818cf8, #6366f1);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.4) inset,
+    0 -2px 0 rgba(29, 78, 216, 0.3) inset,
+    0 4px 10px -2px rgba(99, 102, 241, 0.5);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.4) inset,
+      0 -2px 0 rgba(29, 78, 216, 0.3) inset,
+      0 8px 16px -2px rgba(99, 102, 241, 0.7);
+  }
+}
+
+.tx-action-delete {
+  background: linear-gradient(180deg, #f87171, #dc2626);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.4) inset,
+    0 -2px 0 rgba(153, 27, 27, 0.3) inset,
+    0 4px 10px -2px rgba(239, 68, 68, 0.5);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.4) inset,
+      0 -2px 0 rgba(153, 27, 27, 0.3) inset,
+      0 8px 16px -2px rgba(239, 68, 68, 0.7);
+  }
+}
+
+/* ============================================================
+   КАРТОЧКА
+   ============================================================ */
+.tx-card {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+
+  background: var(--grad-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  box-sizing: border-box;
+
+  box-shadow: var(--shadow-md);
+
+  will-change: transform;
+  transition:
+    transform 0.32s cubic-bezier(.34,1.56,.64,1),
+    box-shadow 0.3s ease,
+    border-color 0.25s ease,
+    background 0.3s ease;
+
+  &:hover {
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-lg);
+  }
+}
+
+/* ============================================================
+   АВАТАР — жёстко 42×42
+   ============================================================ */
+.tx-avatar {
+  flex: 0 0 42px;
+  width: 42px;
+  height: 42px;
+  min-width: 42px;
+  max-width: 42px;
+  max-height: 42px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  position: relative;
+  z-index: 2;
+}
+
+.tx-avatar.sergey {
+  background: linear-gradient(180deg, rgba(147, 197, 253, 0.35), rgba(139, 92, 246, 0.35));
+  border: 1.5px solid rgba(99, 102, 241, 0.55);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 4px 10px -2px rgba(99, 102, 241, 0.35);
+}
+.tx-avatar.sasha {
+  background: linear-gradient(180deg, rgba(251, 207, 232, 0.35), rgba(253, 186, 116, 0.3));
+  border: 1.5px solid rgba(236, 72, 153, 0.55);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 4px 10px -2px rgba(236, 72, 153, 0.35);
+}
+
+/* ✅ Аватар-картинка — 100% родителя, не больше */
+.tx-avatar-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  max-width: 42px;
+  max-height: 42px;
+  object-fit: cover;
+  border-radius: 50%;
+}
+
+/* ============================================================
+   ТЕКСТ
+   ============================================================ */
+.tx-main { flex: 1; min-width: 0; position: relative; z-index: 2; }
+
+.tx-name {
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 4px;
+  letter-spacing: -0.01em;
+}
+
+.tx-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  align-items: center;
+  font-size: 12px;
+  color: var(--muted);
+  position: relative;
+  z-index: 2;
+}
+
+.tx-meta .who {
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+  transition: color 0.15s ease;
+  &:hover { color: var(--accent); }
+}
+
+.tx-meta .cat {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 3px 5px;
+  border-radius: 999px;
+  background: var(--panel-2);
+  color: var(--accent);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+  border: 1px solid var(--border);
+  transition: all 0.18s ease;
+
+  &:hover {
+    background: var(--grad-primary);
+    color: #ffffff;
+    border-color: transparent;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px -2px rgba(139, 92, 246, 0.5);
+
+    .tx-cat-icon { filter: drop-shadow(0 0 6px rgba(255,255,255,0.5)); }
+  }
+}
+
+/* ✅ Иконка категории — фикс 16×16 */
+.tx-cat-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+  transition: filter 0.2s ease;
+}
+
+/* ============================================================
+   ПРАВАЯ ЧАСТЬ
+   ============================================================ */
+.tx-right {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 6px;
+  position: relative;
+  z-index: 2;
+}
+
+.tx-right-bottom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.tx-amount {
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+  user-select: none;
+  border-radius: 8px;
+  padding: 2px 8px;
+  transition: all 0.2s ease;
+
+  &.income {
+    color: var(--accent-2);
+    background: rgba(34, 197, 94, 0.12);
+    text-shadow: 0 0 12px rgba(34, 197, 94, 0.35);
+  }
+  &.expense {
+    color: var(--danger);
+    background: rgba(244, 63, 94, 0.12);
+    text-shadow: 0 0 12px rgba(244, 63, 94, 0.35);
+  }
+
+  &:hover { transform: scale(1.04); }
+
+  &.flash-up { animation: amountFlashUp 0.9s ease-out; }
+  &.flash-down { animation: amountFlashDown 0.9s ease-out; }
+}
+
+@keyframes amountFlashUp {
+  0%   { background: rgba(34, 197, 94, 0.5); transform: scale(1.12); }
+  100% { background: transparent; transform: scale(1); }
+}
+@keyframes amountFlashDown {
+  0%   { background: rgba(244, 63, 94, 0.5); transform: scale(1.12); }
+  100% { background: transparent; transform: scale(1); }
+}
+
+/* ============================================================
+   ИНЛАЙН-КНОПКИ (ПК) — фикс 34×34
+   ============================================================ */
+.tx-actions-inline {
+  display: none;
+  align-items: center;
+  gap: 6px;
+}
+
+.tx-inline-btn {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  max-width: 34px;
+  max-height: 34px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+  overflow: hidden;
+
+  box-shadow: var(--shadow-sm);
+
+  transition:
+    transform 0.18s cubic-bezier(.34,1.56,.64,1),
+    box-shadow 0.22s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+
+  &:active { transform: scale(0.94); }
+}
+
+/* ✅ Иконка внутри inline-кнопки — фикс 18×18 */
+.tib-icon-img {
+  display: block;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  max-height: 18px;
+  object-fit: contain;
+  flex-shrink: 0;
+  opacity: 0.8;
+  transition: opacity 0.15s ease, transform 0.2s cubic-bezier(.34,1.56,.64,1);
+}
+
+.tx-inline-edit:hover {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.5);
+  transform: translateY(-2px);
+  box-shadow:
+    0 6px 14px -4px rgba(139, 92, 246, 0.4),
+    0 0 0 1px rgba(139, 92, 246, 0.3);
+
+  .tib-icon-img { opacity: 1; transform: translateY(-1px) rotate(-6deg) scale(1.1); }
+}
+
+.tx-inline-delete:hover {
+  background: rgba(244, 63, 94, 0.15);
+  border-color: rgba(244, 63, 94, 0.5);
+  transform: translateY(-2px);
+  box-shadow:
+    0 6px 14px -4px rgba(244, 63, 94, 0.4),
+    0 0 0 1px rgba(244, 63, 94, 0.3);
+
+  .tib-icon-img { opacity: 1; transform: scale(1.12); }
+}
+
+@media (min-width: 701px) {
+  .tx-actions-inline { display: inline-flex; }
+}
+
+/* ============================================================
+   БАНК-МОНЕТА — фикс 30×30
+   ============================================================ */
+.tx-bank-coin {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  max-width: 30px;
+  max-height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  overflow: hidden;
+
+  background: #ffffff;
+  border: 1px solid var(--border);
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.08) inset,
+    0 4px 10px -2px rgba(15, 23, 42, 0.18);
+
+  transition: transform 0.18s cubic-bezier(.34,1.56,.64,1), box-shadow 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px) scale(1.06);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 -1px 0 rgba(148, 163, 184, 0.08) inset,
+      0 8px 18px -2px rgba(139, 92, 246, 0.4),
+      0 0 0 1px var(--neon-purple);
+  }
+  &:active { transform: scale(0.95); }
+
+  &.coin-tbank { border-color: rgba(234, 179, 8, 0.5); }
+  &.coin-sber { border-color: rgba(33, 160, 56, 0.5); }
+  &.coin-cash { border-color: rgba(34, 197, 94, 0.5); }
+  &.coin-default { border-color: rgba(139, 92, 246, 0.5); }
+}
+
+/* ✅ Логотип банка внутри монеты — 78%, не больше 24px */
+.tx-bank-coin-img {
+  display: block;
+  width: 78%;
+  height: 78%;
+  max-width: 24px;
+  max-height: 24px;
+  object-fit: contain;
+}
+
+/* ============================================================
+   ТЁМНАЯ ТЕМА
+   ============================================================ */
+:global(:root[data-app-theme="dark"]) {
+  .tx-bank-coin {
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.9) inset,
+      0 -1px 0 rgba(0, 0, 0, 0.2) inset,
+      0 4px 12px -2px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(139, 92, 246, 0.3);
+  }
+
+  .tx-inline-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(139, 92, 246, 0.2);
+  }
+}
+
+/* ============================================================
+   МОБИЛЬНЫЙ
+   ============================================================ */
+@media (max-width: 700px) {
+  .tx-card { padding: 12px 14px; gap: 10px; border-radius: 14px; }
+
+  .tx-avatar {
+    flex: 0 0 38px;
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    max-width: 38px;
+    max-height: 38px;
+  }
+  .tx-avatar-img { max-width: 38px; max-height: 38px; }
+
+  .tx-name { font-size: 14px; }
+  .tx-meta { font-size: 11px; gap: 5px; }
+  .tx-meta .cat { font-size: 10px; padding: 2px 8px 2px 4px; gap: 4px; }
+
+  .tx-cat-icon {
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
+    max-width: 14px;
+    max-height: 14px;
+  }
+
+  .tx-amount { font-size: 15px; }
+
+  .tx-bank-coin {
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    max-width: 26px;
+    max-height: 26px;
+  }
+  .tx-bank-coin-img { max-width: 20px; max-height: 20px; }
+
+  .tx-actions-panel { width: 92px; }
+  .tx-action-btn {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    max-width: 36px;
+    max-height: 36px;
+  }
+  .tab-icon-img {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    max-width: 20px;
+    max-height: 20px;
+  }
+}
+
+@media (max-width: 380px) {
+  .tx-bank-coin {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    max-width: 24px;
+    max-height: 24px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tx-card,
+  .tx-avatar,
+  .tx-bank-coin,
+  .tx-inline-btn,
+  .tx-amount,
+  .tib-icon-img { transition: none !important; }
+  .tx-card:hover { transform: none; }
+  .tx-inline-btn:hover { transform: none; }
+  .tx-inline-btn:hover .tib-icon-img { transform: none; }
+  .tx-amount.flash-up,
+  .tx-amount.flash-down,
+  .tx-item.is-appearing,
+  .tx-item.is-deleting { animation: none !important; }
+}
+</style>
