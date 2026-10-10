@@ -24,22 +24,12 @@ function scrollToGoals() {
     <div class="hero-card__bg" aria-hidden="true">
       <div class="hero-card__glow"></div>
       <div class="hero-card__pattern"></div>
-      <div class="hero-card__shine"></div>
-      <div class="hero-card__rain">
-        <span class="hero-particle hero-particle--1"></span>
-        <span class="hero-particle hero-particle--2"></span>
-        <span class="hero-particle hero-particle--3"></span>
-        <span class="hero-particle hero-particle--4"></span>
-        <span class="hero-particle hero-particle--5"></span>
-        <span class="hero-particle hero-particle--6"></span>
-      </div>
     </div>
 
-    <!-- ✅ Копилка — слева, на границе (50/50) -->
     <MascotImage
       name="piggy"
       position="hero-left"
-      :size="260"
+      :size="240"
       fallback="🐷"
       alt="Копилка"
     />
@@ -65,9 +55,9 @@ function scrollToGoals() {
   position: relative;
   border-radius: 24px;
   overflow: visible;
-  /* ✅ Отступ под копилку = половина 260 = 130 + запас */
-  padding: 22px 24px 22px 150px;
-  min-height: 220px;
+  /* ✅ padding-left = половина копилки (240/2 = 120) + запас */
+  padding: 22px 24px 22px 140px;
+  min-height: 200px;
   isolation: isolate;
   color: #ffffff;
   display: flex;
@@ -87,7 +77,7 @@ function scrollToGoals() {
     radial-gradient(circle at 0% 100%, rgba(99, 102, 241, 0.45), transparent 50%),
     linear-gradient(135deg, #4c1d95 0%, #6d28d9 35%, #8b5cf6 70%, #a855f7 100%);
   background-size: 200% 200%;
-  animation: heroGradientShift 10s ease-in-out infinite;
+  animation: heroGradientShift 12s ease-in-out infinite;
 
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.1) inset,
@@ -99,32 +89,6 @@ function scrollToGoals() {
 @keyframes heroGradientShift {
   0%, 100% { background-position: 0% 50%; }
   50%      { background-position: 100% 50%; }
-}
-
-.hero-card__shine {
-  position: absolute;
-  top: -50%;
-  left: -100%;
-  width: 60%;
-  height: 200%;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.15) 45%,
-    rgba(255, 255, 255, 0.35) 50%,
-    rgba(255, 255, 255, 0.15) 55%,
-    transparent 100%
-  );
-  transform: rotate(25deg);
-  animation: heroShineSweep 8s ease-in-out infinite;
-  pointer-events: none;
-  z-index: 1;
-}
-
-@keyframes heroShineSweep {
-  0%, 60% { left: -100%; opacity: 0; }
-  65%     { opacity: 1; }
-  100%    { left: 200%; opacity: 0; }
 }
 
 .hero-card__glow {
@@ -145,35 +109,7 @@ function scrollToGoals() {
   pointer-events: none;
 }
 
-.hero-card__rain {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.hero-particle {
-  position: absolute;
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.7);
-}
-
-.hero-particle--1 { top: -10%; left: 20%; animation: heroRain1 5s linear infinite; }
-.hero-particle--2 { top: -10%; left: 40%; width: 2px; height: 2px; animation: heroRain2 6s linear infinite 0.8s; }
-.hero-particle--3 { top: -10%; left: 60%; width: 4px; height: 4px; animation: heroRain3 7s linear infinite 1.5s; }
-.hero-particle--4 { top: -10%; left: 75%; animation: heroRain4 5.5s linear infinite 2.2s; }
-.hero-particle--5 { top: -10%; left: 88%; width: 2px; height: 2px; animation: heroRain5 6.5s linear infinite 0.5s; }
-.hero-particle--6 { top: -10%; left: 95%; width: 3px; height: 3px; animation: heroRain6 8s linear infinite 3s; }
-
-@keyframes heroRain1 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translate(-40px, 240px); opacity: 0; } }
-@keyframes heroRain2 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.8; } 90% { opacity: 0.8; } 100% { transform: translate(30px, 240px); opacity: 0; } }
-@keyframes heroRain3 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translate(-60px, 240px); opacity: 0; } }
-@keyframes heroRain4 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.9; } 90% { opacity: 0.9; } 100% { transform: translate(50px, 240px); opacity: 0; } }
-@keyframes heroRain5 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.7; } 90% { opacity: 0.7; } 100% { transform: translate(-25px, 240px); opacity: 0; } }
-@keyframes heroRain6 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translate(70px, 240px); opacity: 0; } }
-
+/* ✅ КОНТЕНТ — центр по вертикали */
 .hero-card__content {
   position: relative;
   z-index: 4;
@@ -181,6 +117,49 @@ function scrollToGoals() {
   min-width: 0;
   margin-left: auto;
   text-align: right;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+}
+
+.hero-card__label {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  opacity: 0.9;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.hero-card__month {
+  font-weight: 600;
+  opacity: 0.7;
+  letter-spacing: 0.08em;
+}
+
+.hero-card__value {
+  font-family: var(--mono);
+  font-size: 46px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+  color: #facc15;
+  text-shadow:
+    0 0 24px rgba(250, 204, 21, 0.5),
+    0 2px 6px rgba(0, 0, 0, 0.3);
+  margin-bottom: 4px;
+}
+
+.hero-card__sub {
+  font-size: 12.5px;
+  opacity: 0.85;
+  margin-bottom: 12px;
 }
 
 .hero-card__btn {
@@ -199,92 +178,36 @@ function scrollToGoals() {
     0 1px 0 rgba(255, 255, 255, 0.5) inset,
     0 8px 24px -6px rgba(250, 204, 21, 0.6);
   cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.2s;
+  transition: transform 0.15s;
   margin-left: auto;
 
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.5) inset,
-      0 12px 28px -6px rgba(250, 204, 21, 0.8);
-  }
+  &:hover { transform: translateY(-2px); }
   &:active { transform: scale(0.97); }
 }
 
-.hero-card__label {
-  font-size: 12px;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  opacity: 0.9;
-  margin-bottom: 8px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-.hero-card__month {
-  font-weight: 600;
-  opacity: 0.7;
-  letter-spacing: 0.08em;
-}
-
-.hero-card__value {
-  font-family: var(--mono);
-  font-size: 48px;
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1.05;
-  color: #facc15;
-  text-shadow:
-    0 0 24px rgba(250, 204, 21, 0.5),
-    0 2px 6px rgba(0, 0, 0, 0.3);
-  margin-bottom: 6px;
-}
-
-.hero-card__sub {
-  font-size: 12.5px;
-  opacity: 0.85;
-  margin-bottom: 14px;
-}
-
-/* ✅ МОБИЛЬНЫЙ — копилка слева на границе, текст справа, БЕЗ анимации */
 @media (max-width: 700px) {
   .hero-card {
-    padding: 18px 16px 18px 120px;
+    padding: 18px 16px 18px 130px;
     min-height: 180px;
     border-radius: 20px;
     justify-content: flex-end;
   }
   .hero-card__bg {
     border-radius: 20px;
-    /* ✅ Убираем анимацию градиента на мобиле */
     animation: none !important;
     background-size: 100% 100% !important;
   }
-
-  /* ✅ Убираем отблеск и частицы на мобиле */
-  .hero-card__shine { animation: none !important; opacity: 0 !important; }
-  .hero-card__rain { display: none !important; }
-
   .hero-card__content {
-    text-align: right !important;
-    margin-left: auto !important;
+    text-align: right;
+    margin-left: auto;
   }
-  .hero-card__label { justify-content: flex-end !important; }
-  .hero-card__btn { margin-left: auto !important; }
-  .hero-card__value { font-size: 32px; }
+  .hero-card__label { justify-content: flex-end; }
+  .hero-card__value { font-size: 30px; }
   .hero-card__sub { font-size: 11.5px; }
+  .hero-card__btn { margin-left: auto; }
 }
 
-/* ✅ prefers-reduced-motion */
 @media (prefers-reduced-motion: reduce) {
-  .hero-card__bg,
-  .hero-card__shine,
-  .hero-particle {
-    animation: none !important;
-  }
+  .hero-card__bg { animation: none !important; }
 }
 </style>

@@ -199,117 +199,17 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
 </template>
 
 <style scoped lang="scss">
-/* ✅ ХАРДКОД ТЁМНОГО ФОНА */
 .analytics-page {
   position: relative;
   min-height: 100vh;
-  padding: 20px 20px 100px;
+  /* ✅ Запас слева/справа под выступающих персонажей */
+  padding: 20px 80px 100px;
   color: #ffffff !important;
   z-index: 0;
   isolation: isolate;
+  background: linear-gradient(135deg, #1a0f3a 0%, #2d1b5e 50%, #4c1d95 100%);
+  background-attachment: fixed;
 }
-
-/* ✅ ФОН СТРАНИЦЫ — КАК У HERO-КОПИЛКИ */
-.page-bg {
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  overflow: hidden;
-
-  background:
-    radial-gradient(circle at 80% 0%, rgba(236, 72, 153, 0.25), transparent 55%),
-    radial-gradient(circle at 0% 100%, rgba(99, 102, 241, 0.35), transparent 50%),
-    linear-gradient(135deg, #1a0f3a 0%, #2d1b5e 35%, #4c1d95 70%, #6d28d9 100%);
-  background-size: 200% 200%;
-  animation: pageGradientShift 15s ease-in-out infinite;
-}
-
-@keyframes pageGradientShift {
-  0%, 100% { background-position: 0% 50%; }
-  50%      { background-position: 100% 50%; }
-}
-
-/* ✅ Отблеск как у hero */
-.page-bg__shine {
-  position: absolute;
-  top: -50%;
-  left: -100%;
-  width: 60%;
-  height: 200%;
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.04) 45%,
-    rgba(255, 255, 255, 0.1) 50%,
-    rgba(255, 255, 255, 0.04) 55%,
-    transparent 100%
-  );
-  transform: rotate(25deg);
-  animation: pageShineSweep 12s ease-in-out infinite;
-}
-
-@keyframes pageShineSweep {
-  0%, 60% { left: -100%; opacity: 0; }
-  65%     { opacity: 1; }
-  100%    { left: 200%; opacity: 0; }
-}
-
-.page-bg__glow {
-  position: absolute;
-  inset: -20%;
-  background: radial-gradient(circle at 70% 30%, rgba(250, 204, 21, 0.06), transparent 60%);
-  mix-blend-mode: screen;
-}
-
-.page-bg__pattern {
-  position: absolute;
-  inset: 0;
-  background-image:
-    radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-    radial-gradient(circle at 60% 20%, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
-  background-size: 30px 30px, 40px 40px;
-}
-
-/* ✅ Частицы-дождь как у hero */
-.page-bg__rain {
-  position: absolute;
-  inset: 0;
-}
-
-.page-particle {
-  position: absolute;
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.5);
-}
-
-.page-particle--1 { top: -10%; left: 8%; animation: pageRain1 12s linear infinite; }
-.page-particle--2 { top: -10%; left: 18%; width: 2px; height: 2px; animation: pageRain2 14s linear infinite 2s; }
-.page-particle--3 { top: -10%; left: 28%; width: 4px; height: 4px; animation: pageRain3 16s linear infinite 4s; }
-.page-particle--4 { top: -10%; left: 38%; animation: pageRain4 13s linear infinite 1s; }
-.page-particle--5 { top: -10%; left: 48%; width: 2px; height: 2px; animation: pageRain5 15s linear infinite 3s; }
-.page-particle--6 { top: -10%; left: 58%; width: 3px; height: 3px; animation: pageRain6 18s linear infinite 5s; }
-.page-particle--7 { top: -10%; left: 68%; width: 2px; height: 2px; animation: pageRain7 11s linear infinite 2.5s; }
-.page-particle--8 { top: -10%; left: 78%; animation: pageRain8 14.5s linear infinite 6s; }
-.page-particle--9 { top: -10%; left: 88%; width: 4px; height: 4px; animation: pageRain9 13.5s linear infinite 1.5s; }
-.page-particle--10 { top: -10%; left: 95%; width: 2px; height: 2px; animation: pageRain10 16.5s linear infinite 7s; }
-.page-particle--11 { top: -10%; left: 12%; width: 3px; height: 3px; animation: pageRain11 17s linear infinite 3.5s; }
-.page-particle--12 { top: -10%; left: 52%; width: 2px; height: 2px; animation: pageRain12 15.5s linear infinite 8s; }
-
-@keyframes pageRain1 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.7; } 90% { opacity: 0.7; } 100% { transform: translate(-80px, 100vh); opacity: 0; } }
-@keyframes pageRain2 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.5; } 90% { opacity: 0.5; } 100% { transform: translate(60px, 100vh); opacity: 0; } }
-@keyframes pageRain3 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.8; } 90% { opacity: 0.8; } 100% { transform: translate(-120px, 100vh); opacity: 0; } }
-@keyframes pageRain4 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.6; } 90% { opacity: 0.6; } 100% { transform: translate(100px, 100vh); opacity: 0; } }
-@keyframes pageRain5 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.4; } 90% { opacity: 0.4; } 100% { transform: translate(-50px, 100vh); opacity: 0; } }
-@keyframes pageRain6 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.7; } 90% { opacity: 0.7; } 100% { transform: translate(140px, 100vh); opacity: 0; } }
-@keyframes pageRain7 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.5; } 90% { opacity: 0.5; } 100% { transform: translate(-70px, 100vh); opacity: 0; } }
-@keyframes pageRain8 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.6; } 90% { opacity: 0.6; } 100% { transform: translate(90px, 100vh); opacity: 0; } }
-@keyframes pageRain9 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.8; } 90% { opacity: 0.8; } 100% { transform: translate(-100px, 100vh); opacity: 0; } }
-@keyframes pageRain10 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.4; } 90% { opacity: 0.4; } 100% { transform: translate(70px, 100vh); opacity: 0; } }
-@keyframes pageRain11 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.6; } 90% { opacity: 0.6; } 100% { transform: translate(-60px, 100vh); opacity: 0; } }
-@keyframes pageRain12 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.5; } 90% { opacity: 0.5; } 100% { transform: translate(110px, 100vh); opacity: 0; } }
 
 .analytics-grid {
   position: relative;
@@ -337,12 +237,13 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
 .metrics-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: 16px;
+  /* ✅ Запас по краям грида — под выступ персонажей */
+  padding: 0 4px;
 }
 
-/* ✅ УВЕЛИЧЕННЫЕ ОТСТУПЫ В КАРТОЧКАХ */
 .card {
-  padding: 24px 26px;
+  padding: 20px 22px;
   border-radius: 18px;
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.08) inset,
@@ -354,12 +255,11 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
   color: #ffffff !important;
 }
 
-/* ✅ ЦЕЛИ — звезда в верхнем правом углу */
+/* ✅ ЦЕЛИ — звезда внутри блока, не увеличивает высоту */
 .card-goals {
   position: relative;
   overflow: visible;
-  padding-right: 24px;
-  padding-top: 24px;
+  padding: 20px 22px;
 }
 
 .card-goals__content {
@@ -368,22 +268,7 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
   min-width: 0;
 }
 
-.card-goals :deep(.goal-card),
-.card-goals :deep(.goals-list),
-.card-goals :deep(.goal-item) {
-  background: rgba(255, 255, 255, 0.05) !important;
-  color: #ffffff !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-.card-goals :deep(.goal-card__empty),
-.card-goals :deep(.goal-empty),
-.card-goals :deep([class*="empty"]),
-.card-goals :deep([class*="hint"]) {
-  color: #1e1b4b !important;
-  font-weight: 700 !important;
-}
-
+/* ✅ Отступ справа под звезду в шапке */
 .card-head {
   display: flex;
   align-items: center;
@@ -391,7 +276,7 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 12px;
-  padding-right: 80px;
+  padding-right: 110px;
 }
 
 .card-title {
@@ -413,43 +298,47 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
   font-size: 12px;
   font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 6px 16px -8px rgba(250, 204, 21, 0.8);
   transition: transform 0.15s;
   white-space: nowrap;
 
   &:hover { transform: translateY(-1px); }
 }
 
-@media (max-width: 1100px) {
-  .analytics-grid { grid-template-columns: 1fr; max-width: 900px; }
-  .an-col-right { position: static; }
-  .metrics-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
+/* ✅ Перебиваем светлые стили GoalCard */
+.card-goals :deep(.goal-card),
+.card-goals :deep(.goals-list),
+.card-goals :deep(.goal-item) {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
-/* ✅ МОБИЛЬНЫЙ */
+.card-goals :deep(.goal-card__empty),
+.card-goals :deep(.goal-empty),
+.card-goals :deep([class*="empty"]),
+.card-goals :deep([class*="hint"]) {
+  color: #1e1b4b !important;
+  font-weight: 700 !important;
+}
+
+@media (max-width: 1100px) {
+  .analytics-page { padding: 20px 40px 100px; }
+  .analytics-grid { grid-template-columns: 1fr; max-width: 900px; }
+  .an-col-right { position: static; }
+  .metrics-grid { grid-template-columns: 1fr 1fr; gap: 14px; }
+}
+
 @media (max-width: 700px) {
-  .analytics-page {
-    padding: 16px 16px 120px;
-  }
+  .analytics-page { padding: 16px 24px 120px; }
   .analytics-grid { gap: 12px; }
   .an-col { gap: 12px; }
   .card { padding: 16px 18px; border-radius: 14px; }
   .card-title { font-size: 11px; letter-spacing: 0.06em; }
-  .metrics-grid { grid-template-columns: 1fr; }
+  .metrics-grid { grid-template-columns: 1fr; gap: 16px; padding: 0; }
 
-  /* ✅ Убираем анимации фоновых частиц и отблеска — разгрузка */
-  .page-bg__rain { display: none !important; }
-  .page-bg__shine { animation: none !important; opacity: 0 !important; }
-  .page-bg {
-    animation: none !important;
-    background-size: 100% 100% !important;
-  }
-
-  /* ✅ ЦЕЛЬ растянута по блоку */
-  .card-goals {
-    padding-right: 0;
-    padding-top: 100px;
-  }
+  /* ✅ ЦЕЛЬ растянута, звезда в углу блока */
+  .card-goals { padding: 16px 18px; }
+  .card-head { padding-right: 90px; }
 
   .card-goals :deep(.goal-card),
   .card-goals :deep(.goals-list > *),
@@ -460,16 +349,15 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
   }
 
   .card-goals :deep(.goal-card) {
-    padding-left: 16px !important;
-    padding-right: 16px !important;
+    padding-left: 12px !important;
+    padding-right: 12px !important;
   }
 }
-/* ✅ prefers-reduced-motion — отключаем ВСЁ */
+
 @media (prefers-reduced-motion: reduce) {
-  .page-bg,
-  .page-bg__shine,
-  .page-particle,
-  .card-goals {
+  .hero-card__bg,
+  .tile__bg,
+  .mascot {
     animation: none !important;
   }
 }

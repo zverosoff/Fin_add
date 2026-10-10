@@ -44,8 +44,8 @@ const formatted = computed(() => {
 
 const hasMascot = computed(() => !!props.mascot);
 
-// ✅ Отступ под персонажа = половина его размера
-const mascotOffset = computed(() => Math.round((props.mascotSize || 150) / 2));
+// ✅ Отступ под половину персонажа
+const halfOffset = computed(() => Math.round((props.mascotSize || 150) / 2));
 </script>
 
 <template>
@@ -54,16 +54,11 @@ const mascotOffset = computed(() => Math.round((props.mascotSize || 150) / 2));
     :class="[`tile--mascot-${mascotPos}`]"
     :style="{
       '--tile-glow': glow,
-      '--tile-mascot-offset': mascotOffset + 'px',
+      '--tile-half': halfOffset + 'px',
     }"
   >
     <div class="tile__bg" :style="{ background: gradient }" aria-hidden="true">
       <div class="tile__shine"></div>
-      <!-- ✅ Частицы только на ПК -->
-      <span class="tile__particle tile__particle--1"></span>
-      <span class="tile__particle tile__particle--2"></span>
-      <span class="tile__particle tile__particle--3"></span>
-      <span class="tile__particle tile__particle--4"></span>
     </div>
 
     <MascotImage
@@ -92,14 +87,18 @@ const mascotOffset = computed(() => Math.round((props.mascotSize || 150) / 2));
 .tile {
   position: relative;
   border-radius: 18px;
-  padding: 16px;
-  min-height: 160px;
+  min-height: 140px;
   color: #ffffff;
+  /* ✅ Не overflow: visible — иначе персонаж уходит за границы */
   overflow: visible;
   isolation: isolate;
-  transition: transform 0.2s cubic-bezier(.34,1.56,.64,1);
+  transition: transform 0.2s;
 
-  &:hover { transform: translateY(-3px); }
+  /* ✅ Внутренние отступы — половина персонажа + запас */
+  padding: 16px 20px;
+  box-sizing: border-box;
+
+  &:hover { transform: translateY(-2px); }
 }
 
 .tile__bg {
@@ -109,20 +108,11 @@ const mascotOffset = computed(() => Math.round((props.mascotSize || 150) / 2));
   overflow: hidden;
   z-index: 0;
 
-  /* ✅ На ПК — градиент анимирован */
-  background-size: 200% 200% !important;
-  animation: tileGradientShift 8s ease-in-out infinite;
-
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.1) inset,
     0 1px 0 rgba(255, 255, 255, 0.18) inset,
     0 12px 28px -10px var(--tile-glow),
     0 4px 10px -4px rgba(0, 0, 0, 0.25);
-}
-
-@keyframes tileGradientShift {
-  0%, 100% { background-position: 0% 50%; }
-  50%      { background-position: 100% 50%; }
 }
 
 .tile__shine {
@@ -133,44 +123,35 @@ const mascotOffset = computed(() => Math.round((props.mascotSize || 150) / 2));
   z-index: 1;
 }
 
-.tile__particle {
-  position: absolute;
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.85);
-  pointer-events: none;
-  z-index: 0;
-}
-
-.tile__particle--1 { top: -10%; left: 15%; animation: tileRain1 4s linear infinite; }
-.tile__particle--2 { top: -10%; left: 45%; width: 2px; height: 2px; animation: tileRain2 5s linear infinite 1s; }
-.tile__particle--3 { top: -10%; left: 65%; width: 4px; height: 4px; animation: tileRain3 6s linear infinite 0.5s; }
-.tile__particle--4 { top: -10%; left: 85%; width: 2px; height: 2px; animation: tileRain4 4.5s linear infinite 2s; }
-
-@keyframes tileRain1 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translate(-30px, 180px); opacity: 0; } }
-@keyframes tileRain2 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.8; } 90% { opacity: 0.8; } 100% { transform: translate(20px, 180px); opacity: 0; } }
-@keyframes tileRain3 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translate(-45px, 180px); opacity: 0; } }
-@keyframes tileRain4 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.7; } 90% { opacity: 0.7; } 100% { transform: translate(35px, 180px); opacity: 0; } }
-
+/* ✅ КОНТЕНТ — по центру вертикали */
 .tile__content {
   position: relative;
   z-index: 4;
   display: flex;
   flex-direction: column;
+  justify-content: center;   /* ✅ Центр по вертикали */
   gap: 4px;
+  height: 100%;
+  min-height: 108px;
+  box-sizing: border-box;
 }
 
-/* ✅ Отступ контента = offset персонажа (половина) */
+/* ✅ Отступы контента под половину персонажа */
 .tile--mascot-left .tile__content {
-  padding-left: calc(var(--tile-mascot-offset) + 12px);
+  padding-left: calc(var(--tile-half) + 8px);
+  text-align: left;
+  align-items: flex-start;
 }
 .tile--mascot-right .tile__content {
-  padding-right: calc(var(--tile-mascot-offset) + 12px);
+  padding-right: calc(var(--tile-half) + 8px);
+  text-align: right;
+  align-items: flex-end;
 }
 .tile--mascot-floating .tile__content,
 .tile--mascot-corner .tile__content {
-  padding-right: 100px;
+  padding-right: 90px;
+  text-align: right;
+  align-items: flex-end;
 }
 
 .tile__label {
@@ -189,7 +170,7 @@ const mascotOffset = computed(() => Math.round((props.mascotSize || 150) / 2));
 
 .tile__value {
   font-family: var(--mono);
-  font-size: 32px;
+  font-size: 30px;
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.1;
@@ -208,57 +189,29 @@ const mascotOffset = computed(() => Math.round((props.mascotSize || 150) / 2));
   font-weight: 600;
 }
 
-/* ✅ МОБИЛЬНЫЙ — меньше отступы, разгружаем анимации */
 @media (max-width: 700px) {
-  .tile {
-    padding: 16px 18px;
-    border-radius: 14px;
-    min-height: 130px;
-  }
-
-  /* ✅ Убираем анимацию градиента на мобиле — тормозит */
-  .tile__bg {
-    animation: none !important;
-    background-size: 100% 100% !important;
-  }
-
-  /* ✅ Убираем частицы-дождь на мобиле */
-  .tile__particle {
-    display: none !important;
-  }
-
+  .tile { padding: 14px 16px; border-radius: 14px; min-height: 120px; }
+  .tile__bg { border-radius: 14px; }
   .tile__value { font-size: 22px; }
   .tile__label { font-size: 10px; }
   .tile__sub { font-size: 10px; }
 
-  /* ✅ Отступы под персонажа на мобиле (половина) */
-  .tile--mascot-left .tile__content {
-    padding-left: 80px;
-    padding-right: 0;
-  }
+  /* ✅ Мобилка: контент по центру вертикали */
+  .tile__content { min-height: 92px; }
+
+  /* ✅ Мобилка: Подушка (right) — текст всё равно слева */
   .tile--mascot-right .tile__content {
-    padding-right: 80px;
+    text-align: left;
+    align-items: flex-start;
+    padding-right: calc(var(--tile-half) + 8px);
     padding-left: 0;
   }
-
-  /* ✅ Скрин 2: Подушка (mascot-right) — текст по ЛЕВОМУ краю */
-  .tile--mascot-right .tile__content {
-    text-align: left !important;
-    align-items: flex-start !important;
-  }
   .tile--mascot-right .tile__label {
-    justify-content: flex-start !important;
+    justify-content: flex-start;
   }
 
-  /* ✅ Скрин 3: Калькулятор — сдвигаем вправо, чтобы не уходил за границы */
-  .tile--mascot-right :deep(.mascot--right) {
-    right: -60px !important;
+  .tile--mascot-left .tile__content {
+    padding-left: calc(var(--tile-half) + 8px);
   }
-}
-
-/* ✅ Уважаем prefers-reduced-motion */
-@media (prefers-reduced-motion: reduce) {
-  .tile__bg { animation: none !important; }
-  .tile__particle { animation: none !important; }
 }
 </style>
