@@ -6,21 +6,14 @@ import { fmt } from '@/composables/useFormat';
 import { useAnalyticsStore } from '@/stores/analytics';
 
 const analytics = useAnalyticsStore();
-
 const PERCENT = 10;
 
-// ✅ Только реальные данные из стора, без демо-подмены
-const heroValue = computed(() => {
-  const v = analytics.savingsRecommended;
-  return (typeof v === 'number' && v > 0) ? v : 0;
-});
+const metrics = computed(() => analytics.currentMonthMetrics || {});
 
-const heroIncome = computed(() => {
-  const v = analytics.monthIncome
-    ?? analytics.currentMonthSummary?.income
-    ?? 0;
-  return v;
-});
+// ✅ РЕАЛЬНЫЕ поля из store
+const heroValue = computed(() => metrics.value.monthSave || 0);   // 10% от дохода
+const heroIncome = computed(() => metrics.value.monthIncome || 0);
+const monthName = computed(() => metrics.value.monthName || '');
 </script>
 
 <template>
@@ -31,20 +24,21 @@ const heroIncome = computed(() => {
     <MascotImage
       name="piggy"
       position="hero-left"
-      :size="180"
+      :size="220"
       fallback="🐷"
       alt="Копилка"
     />
 
     <div class="hero-card__content">
-      <div class="hero-card__label">💰 МОЖНО ОТКЛАДЫВАТЬ</div>
+      <div class="hero-card__label">
+        💰 МОЖНО ОТКЛАДЫВАТЬ
+        <span v-if="monthName" class="hero-card__month">· {{ monthName }}</span>
+      </div>
       <div class="hero-card__value">{{ fmt(heroValue) }} ₽</div>
       <div class="hero-card__sub">
         Рекомендовано {{ PERCENT }}% от дохода {{ fmt(heroIncome) }} ₽
       </div>
-      <button class="hero-card__btn" type="button">
-        Управлять →
-      </button>
+      <button class="hero-card__btn" type="button">Управлять →</button>
     </div>
   </section>
 </template>
@@ -54,21 +48,18 @@ const heroIncome = computed(() => {
   position: relative;
   border-radius: 24px;
   overflow: visible;
-  padding: 22px 24px 22px 200px;
-  min-height: 160px;
+  padding: 22px 24px 22px 240px;
+  min-height: 180px;
   isolation: isolate;
-
   background:
     radial-gradient(circle at 80% 0%, rgba(236, 72, 153, 0.35), transparent 55%),
     radial-gradient(circle at 0% 100%, rgba(99, 102, 241, 0.45), transparent 50%),
     linear-gradient(135deg, #4c1d95 0%, #6d28d9 50%, #8b5cf6 100%);
-
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.1) inset,
     0 1px 0 rgba(255, 255, 255, 0.15) inset,
     0 24px 48px -12px rgba(139, 92, 246, 0.5),
     0 0 80px -20px rgba(139, 92, 246, 0.4);
-
   color: #ffffff;
   display: flex;
   align-items: center;
@@ -108,11 +99,21 @@ const heroIncome = computed(() => {
   text-transform: uppercase;
   opacity: 0.85;
   margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.hero-card__month {
+  font-weight: 600;
+  opacity: 0.7;
+  letter-spacing: 0.08em;
 }
 
 .hero-card__value {
   font-family: var(--mono);
-  font-size: 40px;
+  font-size: 42px;
   font-weight: 300;
   letter-spacing: -0.03em;
   line-height: 1.05;
@@ -156,8 +157,8 @@ const heroIncome = computed(() => {
 
 @media (max-width: 700px) {
   .hero-card {
-    padding: 18px 16px 18px 150px;
-    min-height: 140px;
+    padding: 18px 16px 18px 170px;
+    min-height: 150px;
     border-radius: 20px;
   }
   .hero-card__value { font-size: 30px; }
@@ -166,11 +167,7 @@ const heroIncome = computed(() => {
 }
 
 @media (max-width: 380px) {
-  .hero-card { padding-left: 130px; }
+  .hero-card { padding-left: 150px; }
   .hero-card__value { font-size: 24px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hero-card__btn { transition: none; }
 }
 </style>

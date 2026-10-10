@@ -17,16 +17,16 @@ const failed = ref(false);
 const src = computed(() => `/img/mascots/${props.name}.png`);
 
 const defaultSizes = {
-  left: 120,
-  right: 100,
-  'hero-left': 180,
-  'hero-right': 180,
+  left: 130,
+  right: 130,
+  'hero-left': 220,
+  'hero-right': 220,
   background: 280,
-  floating: 80,
-  corner: 90,
+  floating: 90,
+  corner: 110,
 };
 
-const px = computed(() => props.size || defaultSizes[props.position] || 120);
+const px = computed(() => props.size || defaultSizes[props.position] || 130);
 
 const shouldFlip = computed(() => {
   if (props.flip) return true;
@@ -95,9 +95,7 @@ function onError() { failed.value = true; loaded.value = false; }
   user-select: none;
 }
 
-/* ============================================================
-   ПОЗИЦИИ — без анимации, статично
-   ============================================================ */
+/* Без анимаций — статичные позиции */
 .mascot--left     { left: -18px;  bottom: -12px; }
 .mascot--right    { right: -18px; bottom: -12px; }
 .mascot--hero-left  { left: -24px;  bottom: -18px; }
