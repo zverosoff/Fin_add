@@ -114,31 +114,45 @@ const hasMascot = computed(() => !!props.mascot);
   z-index: 1;
 }
 
-/* ✅ КОНТЕНТ — центр по ВЕРТИКАЛИ */
+/* ============================================================
+   ✅ КОНТЕНТ — базовая структура
+   ============================================================ */
 .tile__content {
   position: relative;
   z-index: 4;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: center;   /* ✅ по вертикали — ЦЕНТР */
   gap: 4px;
   height: 100%;
   min-height: 112px;
   box-sizing: border-box;
 }
 
-/* ✅ LEFT: текст СЛЕВА, персонаж слева */
+/* ============================================================
+   ✅ ВЫРАВНИВАНИЕ — ПК
+   ============================================================ */
+
+/* Свободно (кошелёк слева) — ТЕКСТ СПРАВА */
 .tile--mascot-left .tile__content {
   padding-left: 110px;
-  text-align: left;
-  align-items: flex-start;
+  padding-right: 0;
+  text-align: right;
+  align-items: flex-end;        /* ← все дети прижаты к правому краю */
+}
+.tile--mascot-left .tile__label {
+  justify-content: flex-end;    /* ← метка справа */
 }
 
-/* ✅ RIGHT: текст СПРАВА, персонаж справа */
+/* Подушка (щит справа) — ТЕКСТ СЛЕВА */
 .tile--mascot-right .tile__content {
   padding-right: 110px;
-  text-align: right;
-  align-items: flex-end;
+  padding-left: 0;
+  text-align: left;
+  align-items: flex-start;      /* ← все дети прижаты к левому краю */
+}
+.tile--mascot-right .tile__label {
+  justify-content: flex-start;  /* ← метка слева */
 }
 
 .tile--mascot-floating .tile__content,
@@ -148,6 +162,9 @@ const hasMascot = computed(() => !!props.mascot);
   align-items: flex-end;
 }
 
+/* ============================================================
+   ✅ Элементы
+   ============================================================ */
 .tile__label {
   display: flex;
   align-items: center;
@@ -184,7 +201,7 @@ const hasMascot = computed(() => !!props.mascot);
 }
 
 /* ============================================================
-   ✅ МОБИЛЬНЫЙ — особые правила для КАЛЬКУЛЯТОРА
+   ✅ МОБИЛЬНЫЙ
    ============================================================ */
 @media (max-width: 700px) {
   .tile { padding: 14px 16px; border-radius: 14px; min-height: 120px; }
@@ -194,42 +211,41 @@ const hasMascot = computed(() => !!props.mascot);
   .tile__sub { font-size: 10px; }
   .tile__content { min-height: 92px; }
 
-  /* Свободно (LEFT) — текст справа, персонаж слева */
+  /* Свободно (LEFT) — текст СПРАВА */
   .tile--mascot-left .tile__content {
     padding-left: 100px;
     padding-right: 0;
     text-align: right;
     align-items: flex-end;
   }
-  .tile--mascot-left .tile__label { justify-content: flex-end; }
+  .tile--mascot-left .tile__label {
+    justify-content: flex-end;
+  }
 
-  /* Подушка (RIGHT) — текст слева, персонаж справа */
+  /* Подушка (RIGHT) — текст СЛЕВА */
   .tile--mascot-right .tile__content {
     padding-right: 100px;
     padding-left: 0;
     text-align: left;
     align-items: flex-start;
   }
-  .tile--mascot-right .tile__label { justify-content: flex-start; }
-}
-
-/* ✅ Калькулятор на мобиле — ПЕРЕЕЗЖАЕТ ВЛЕВО, текст справа */
-@media (max-width: 700px) {
-  .tile-calc {
-    /* Персонаж слева — перебиваем .mascot--right */
-    :deep(.mascot--right) {
-      left: -15px !important;
-      right: auto !important;
-    }
+  .tile--mascot-right .tile__label {
+    justify-content: flex-start;
   }
 
-  /* Контент справа */
+  /* ✅ Калькулятор (tile-calc) — персонаж ВЛЕВО, текст СПРАВА */
+  .tile-calc :deep(.mascot--right) {
+    left: -15px !important;
+    right: auto !important;
+  }
   .tile-calc .tile__content {
     padding-left: 100px !important;
     padding-right: 0 !important;
     text-align: right !important;
     align-items: flex-end !important;
   }
-  .tile-calc .tile__label { justify-content: flex-end !important; }
+  .tile-calc .tile__label {
+    justify-content: flex-end !important;
+  }
 }
 </style>
