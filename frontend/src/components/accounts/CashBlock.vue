@@ -3,7 +3,7 @@ import { computed, ref, onMounted, watch } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
 import { useGoalsStore } from '@/stores/goals';
 import { useAuthStore } from '@/stores/auth';
-import { fmt } from '@/composables/useFormat';
+import { fmt, AVATAR_MAN, AVATAR_WOMAN } from '@/composables/useFormat';
 import CashModal from '@/components/transactions/CashModal.vue';
 
 const accounts = useAccountsStore();
@@ -39,11 +39,12 @@ const cashModalMode = ref('add');
 
 const totalBalance = computed(() => accounts.totalCash);
 
+// ✅ Аватары PNG вместо эмодзи
 const owners = computed(() =>
   ['Сергей', 'Саша'].map(owner => ({
     owner,
     displayName: auth.nameFor(owner),
-    emoji: owner === 'Сергей' ? '👨' : '👩',
+    avatar: owner === 'Сергей' ? AVATAR_MAN : AVATAR_WOMAN,
     balance: accounts.getCash(owner),
   }))
 );
@@ -156,13 +157,14 @@ const fallingBills = [
 
       <div class="cn-collapsible">
         <div class="cn-collapsible-inner">
+          <!-- ✅ Владельцы — с PNG-аватарами -->
           <div class="cn-owners">
             <div
               v-for="o in owners"
               :key="o.owner"
               class="cn-owner"
             >
-              <span class="cn-owner-emoji">{{ o.emoji }}</span>
+              <img :src="o.avatar" class="cn-owner-avatar" :alt="o.displayName" />
               <span class="cn-owner-name">{{ o.displayName }}</span>
               <span class="cn-owner-value">{{ fmt(o.balance) }} ₽</span>
             </div>
@@ -503,7 +505,21 @@ const fallingBills = [
     0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
-.cn-owner-emoji { font-size: 16px; line-height: 1; }
+/* ✅ PNG-аватар владельца — фикс 22×22 */
+.cn-owner-avatar {
+  display: block;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  max-width: 22px;
+  max-height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  background: #fff;
+}
 
 .cn-owner-name {
   font-size: 12.5px;
@@ -528,7 +544,6 @@ const fallingBills = [
   margin-top: 4px;
 }
 
-/* ✅ Кнопки с PNG-иконками */
 .cn-act {
   display: inline-flex;
   align-items: center;
@@ -803,7 +818,15 @@ const fallingBills = [
 
   .cn-owners { padding-top: 8px; gap: 5px; }
   .cn-owner { padding: 6px 10px; gap: 8px; border-radius: 10px; }
-  .cn-owner-emoji { font-size: 14px; }
+
+  .cn-owner-avatar {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    max-width: 20px;
+    max-height: 20px;
+  }
+
   .cn-owner-name { font-size: 11.5px; }
   .cn-owner-value { font-size: 12.5px; }
 

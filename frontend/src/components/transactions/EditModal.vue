@@ -16,6 +16,18 @@ const accounts = useAccountsStore();
 const txStore = useTransactionsStore();
 const toast = useToast();
 
+// ✅ PNG-иконки
+const ICON_EDIT      = '/img/icons/ui/edit.png';
+const ICON_EXPENSE   = '/img/icons/categories/expense.png';
+const ICON_INCOME    = '/img/icons/categories/income.png';
+const ICON_NOTE      = '/img/icons/ui/note.png';
+const ICON_MONEY_BAG = '/img/icons/nav/money-bag.png';
+const ICON_FOLDER    = '/img/icons/ui/folder.png';
+const ICON_CALENDAR  = '/img/icons/ui/calendar.png';
+const ICON_USER      = '/img/icons/ui/user.png';
+const ICON_CARD      = '/img/icons/banks/default.png';
+const ICON_SAVE      = '/img/icons/ui/save.png';
+
 const form = ref({
   type: 'expense',
   name: '',
@@ -143,9 +155,15 @@ function close() {
 <template>
   <Modal
     :model-value="modelValue"
-    title="✏️ Редактировать операцию"
     @update:model-value="emit('update:modelValue', $event)"
   >
+    <template #header>
+      <div class="modal-head-custom">
+        <img :src="ICON_EDIT" class="mhc-icon" alt="Редактировать" />
+        <h3 class="mhc-title">Редактировать операцию</h3>
+      </div>
+    </template>
+
     <div class="form">
       <div class="field">
         <label>Тип</label>
@@ -154,22 +172,34 @@ function close() {
             type="button"
             :class="{ active: form.type === 'expense' }"
             @click="form.type = 'expense'"
-          >📉 Расход</button>
+          >
+            <img :src="ICON_EXPENSE" class="switch-icon" alt="Расход" />
+            <span>Расход</span>
+          </button>
           <button
             type="button"
             :class="{ active: form.type === 'income' }"
             @click="form.type = 'income'"
-          >📈 Доход</button>
+          >
+            <img :src="ICON_INCOME" class="switch-icon" alt="Доход" />
+            <span>Доход</span>
+          </button>
         </div>
       </div>
 
       <div class="field">
-        <label>📝 Название</label>
+        <label>
+          <img :src="ICON_NOTE" class="label-icon" alt="" />
+          Название
+        </label>
         <input v-model="form.name" type="text" autocomplete="off" />
       </div>
 
       <div class="field">
-        <label>💰 Сумма, ₽</label>
+        <label>
+          <img :src="ICON_MONEY_BAG" class="label-icon" alt="" />
+          Сумма, ₽
+        </label>
         <input
           v-model="form.amount"
           type="number"
@@ -180,7 +210,10 @@ function close() {
       </div>
 
       <div class="field">
-        <label>📁 Категория</label>
+        <label>
+          <img :src="ICON_FOLDER" class="label-icon" alt="" />
+          Категория
+        </label>
         <select v-model="form.category">
           <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
         </select>
@@ -188,11 +221,17 @@ function close() {
 
       <div class="row">
         <div class="field">
-          <label>📅 Дата</label>
+          <label>
+            <img :src="ICON_CALENDAR" class="label-icon" alt="" />
+            Дата
+          </label>
           <input v-model="form.date" type="date" />
         </div>
         <div class="field">
-          <label>👤 Кто вносит</label>
+          <label>
+            <img :src="ICON_USER" class="label-icon" alt="" />
+            Кто вносит
+          </label>
           <select v-model="form.user">
             <option value="Сергей">👨 Сергей</option>
             <option value="Саша">👩 Саша</option>
@@ -201,7 +240,10 @@ function close() {
       </div>
 
       <div class="field">
-        <label>💳 Счёт</label>
+        <label>
+          <img :src="ICON_CARD" class="label-icon" alt="" />
+          Счёт
+        </label>
         <select v-model="form.accountId">
           <option v-for="acc in userAccounts" :key="acc.id" :value="acc.id">
             {{ acc.name }}
@@ -215,13 +257,43 @@ function close() {
     <template #footer>
       <button class="btn-cancel" type="button" @click="close">Отмена</button>
       <button class="btn-save" type="button" :disabled="saving" @click="save">
-        {{ saving ? 'Сохранение…' : '💾 Сохранить' }}
+        <img v-if="!saving" :src="ICON_SAVE" class="btn-save-icon" alt="" />
+        <span>{{ saving ? 'Сохранение…' : 'Сохранить' }}</span>
       </button>
     </template>
   </Modal>
 </template>
 
 <style scoped lang="scss">
+.modal-head-custom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mhc-icon {
+  display: block;
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  max-width: 26px;
+  max-height: 26px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.mhc-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .form { display: flex; flex-direction: column; gap: 12px; }
 
 .field {
@@ -230,6 +302,9 @@ function close() {
   gap: 5px;
 
   label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     font-size: 11px;
     font-weight: 700;
     color: var(--muted);
@@ -256,6 +331,18 @@ function close() {
   }
 }
 
+.label-icon {
+  display: block;
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  max-width: 14px;
+  max-height: 14px;
+  object-fit: contain;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
 .row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -272,6 +359,10 @@ function close() {
 
   button {
     flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     padding: 8px 14px;
     border: none;
     background: transparent;
@@ -290,8 +381,25 @@ function close() {
         0 1px 0 rgba(255, 255, 255, 0.3) inset,
         0 -2px 0 rgba(0, 0, 0, 0.15) inset,
         0 4px 12px -4px rgba(139, 92, 246, 0.6);
+
+      .switch-icon {
+        filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.6)) brightness(1.2);
+      }
     }
   }
+}
+
+.switch-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+  transition: filter 0.2s ease;
 }
 
 .error-msg {
@@ -323,6 +431,9 @@ function close() {
 }
 
 .btn-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: var(--grad-primary);
   color: #fff;
   box-shadow:
@@ -342,7 +453,27 @@ function close() {
   }
 }
 
+.btn-save-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.4)) brightness(1.15);
+}
+
 @media (max-width: 700px) {
   .row { grid-template-columns: 1fr; gap: 10px; }
+  .mhc-icon {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    max-width: 22px;
+    max-height: 22px;
+  }
+  .mhc-title { font-size: 15px; }
 }
 </style>

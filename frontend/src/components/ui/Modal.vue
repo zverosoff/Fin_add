@@ -125,7 +125,9 @@ onUnmounted(() => {
               <h3 class="modal-title">{{ title }}</h3>
             </slot>
 
-            <button class="modal-close" @click="close" aria-label="Закрыть">✕</button>
+            <button class="modal-close" @click="close" aria-label="Закрыть">
+  <img src="/img/icons/ui/close.png" class="modal-close-img" alt="Закрыть" />
+</button>
           </header>
 
           <div class="modal-body">
@@ -234,15 +236,37 @@ onUnmounted(() => {
   background: var(--panel-2);
   color: var(--muted);
   cursor: pointer;
-  font-size: 14px;
   transition: all 0.15s;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  overflow: hidden;
 
   &:hover {
     border-color: var(--danger);
-    color: var(--danger);
     background: rgba(244, 63, 94, 0.1);
   }
+}
+
+/* ✅ PNG-крестик — фикс 16×16 */
+.modal-close-img {
+  display: block;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  object-fit: contain;
+  opacity: 0.85;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+  transition: opacity 0.15s;
+}
+
+.modal-close:hover .modal-close-img {
+  opacity: 1;
+  filter: drop-shadow(0 0 6px rgba(244, 63, 94, 0.5)) brightness(1.1);
 }
 
 .modal-body {
