@@ -15,9 +15,7 @@ const monthName = computed(() => metrics.value.monthName || '');
 
 function scrollToGoals() {
   const el = document.querySelector('.card-goals');
-  if (el) {
-    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  }
+  if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 </script>
 
@@ -39,7 +37,6 @@ function scrollToGoals() {
       </div>
     </div>
 
-    <!-- ✅ Копилка слева -->
     <MascotImage
       name="piggy"
       position="hero-left"
@@ -48,7 +45,6 @@ function scrollToGoals() {
       alt="Копилка"
     />
 
-    <!-- ✅ Контент прижат к правому краю -->
     <div class="hero-card__content">
       <div class="hero-card__label">
         💰 МОЖНО ОТКЛАДЫВАТЬ
@@ -76,7 +72,7 @@ function scrollToGoals() {
   color: #ffffff;
   display: flex;
   align-items: center;
-  justify-content: flex-end; /* ✅ Контент справа */
+  justify-content: flex-end;
 }
 
 .hero-card__bg {
@@ -182,17 +178,15 @@ function scrollToGoals() {
 @keyframes heroRain7 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.8; } 90% { opacity: 0.8; } 100% { transform: translate(-35px, 240px); opacity: 0; } }
 @keyframes heroRain8 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.6; } 90% { opacity: 0.6; } 100% { transform: translate(45px, 240px); opacity: 0; } }
 
-/* ✅ Контент справа */
 .hero-card__content {
   position: relative;
   z-index: 4;
   flex: 1;
   min-width: 0;
   margin-left: auto;
-  text-align: right; /* ✅ Текст по правому краю */
+  text-align: right;
 }
 
-/* ✅ Кнопка — тоже к правому краю */
 .hero-card__btn {
   display: inline-flex;
   align-items: center;
@@ -210,7 +204,7 @@ function scrollToGoals() {
     0 8px 24px -6px rgba(250, 204, 21, 0.6);
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.2s;
-  margin-left: auto; /* ✅ Кнопка тоже вправо */
+  margin-left: auto;
 
   &:hover {
     transform: translateY(-2px);
@@ -232,7 +226,7 @@ function scrollToGoals() {
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
-  justify-content: flex-end; /* ✅ Ярлык справа */
+  justify-content: flex-end;
 }
 
 .hero-card__month {
@@ -241,7 +235,6 @@ function scrollToGoals() {
   letter-spacing: 0.08em;
 }
 
-/* ✅ Сумма справа */
 .hero-card__value {
   font-family: var(--mono);
   font-size: 48px;
@@ -270,8 +263,17 @@ function scrollToGoals() {
     justify-content: flex-end;
   }
   .hero-card__bg { border-radius: 20px; }
+  .hero-card__content {
+    text-align: right !important;
+    margin-left: auto !important;
+  }
+  .hero-card__label {
+    justify-content: flex-end !important;
+  }
+  .hero-card__btn {
+    margin-left: auto !important;
+  }
   .hero-card__value { font-size: 32px; }
   .hero-card__sub { font-size: 11.5px; }
-  .hero-card__btn { padding: 8px 14px; font-size: 11.5px; }
 }
 </style>
