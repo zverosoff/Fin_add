@@ -4,7 +4,6 @@ import { computed } from 'vue';
 import { fmt } from '@/composables/useFormat';
 
 const props = defineProps({
-  /** [{ category, amount, percent, color?, emoji? }] */
   items: { type: Array, default: () => [] },
   total: { type: Number, default: 0 },
 });
@@ -19,17 +18,20 @@ const palette = [
 ];
 
 const enriched = computed(() => {
+  if (!props.items.length) return [];
   const maxPercent = Math.max(...props.items.map(i => i.percent || 0), 1);
   return props.items.map((item, idx) => {
     const p = palette[idx % palette.length];
     return {
       ...item,
-      _grad: item.color ? null : p.grad,
+      _grad: item.color || p.grad,
       _glow: p.glow,
       _barWidth: ((item.percent || 0) / maxPercent) * 100,
     };
   });
 });
+
+const hasItems = computed(() => enriched.value.length > 0);
 </script>
 
 <template>
@@ -39,7 +41,7 @@ const enriched = computed(() => {
       <span class="cat-breakdown__title">Расходы по категориям</span>
     </div>
 
-    <div v-if="!items.length" class="cat-breakdown__empty">
+    <div v-if="!hasItems" class="cat-breakdown__empty">
       Нет данных за этот период
     </div>
 
@@ -129,9 +131,7 @@ const enriched = computed(() => {
   overflow: hidden;
 
   background: rgba(255, 255, 255, 0.04);
-  box-shadow:
-    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
-
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.05) inset;
   transition: transform 0.15s, background 0.2s;
 
   &:hover {
@@ -164,10 +164,7 @@ const enriched = computed(() => {
   flex-shrink: 0;
 }
 
-.cat-row__main {
-  flex: 1;
-  min-width: 0;
-}
+.cat-row__main { flex: 1; min-width: 0; }
 
 .cat-row__top {
   display: flex;

@@ -5,7 +5,7 @@ import { ref, computed } from 'vue';
 const props = defineProps({
   /** Имя файла без пути: 'finn-hero', 'piggy', 'shield' */
   name: { type: String, required: true },
-  /** Позиция: 'left' | 'right' | 'background' | 'floating' | 'corner' */
+  /** Позиция: 'left' | 'right' | 'hero-left' | 'hero-right' | 'background' | 'floating' | 'corner' */
   position: { type: String, default: 'left' },
   /** Размер на экране в px (по умолчанию зависит от позиции) */
   size: { type: Number, default: 0 },
@@ -13,7 +13,7 @@ const props = defineProps({
   fallback: { type: String, default: '🪙' },
   /** Alt-текст */
   alt: { type: String, default: '' },
-  /** Отзеркалить по горизонтали (для правой позиции) */
+  /** Принудительно отзеркалить */
   flip: { type: Boolean, default: false },
 });
 
@@ -22,14 +22,14 @@ const failed = ref(false);
 
 const src = computed(() => `/img/mascots/${props.name}.png`);
 
-/** Размеры по умолчанию для каждой позиции */
 const defaultSizes = {
   left: 120,
   right: 100,
+  'hero-left': 180,
+  'hero-right': 180,
   background: 280,
   floating: 80,
   corner: 90,
-  hero: 180,
 };
 
 const px = computed(() => props.size || defaultSizes[props.position] || 120);
@@ -118,6 +118,18 @@ function onError() { failed.value = true; loaded.value = false; }
   animation: mascotFloat 4s ease-in-out infinite;
 }
 
+.mascot--hero-left {
+  left: -30px;
+  bottom: -20px;
+  animation: mascotFloat 5s ease-in-out infinite;
+}
+
+.mascot--hero-right {
+  right: -30px;
+  bottom: -20px;
+  animation: mascotFloat 5s ease-in-out infinite;
+}
+
 .mascot--background {
   right: -40px;
   bottom: -30px;
@@ -137,12 +149,6 @@ function onError() { failed.value = true; loaded.value = false; }
   right: -10px;
   top: -10px;
   animation: mascotPeek 5s ease-in-out infinite;
-}
-
-.mascot--hero {
-  right: -30px;
-  bottom: -20px;
-  animation: mascotFloat 5s ease-in-out infinite;
 }
 
 @keyframes mascotFloat {

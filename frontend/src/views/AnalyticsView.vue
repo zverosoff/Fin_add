@@ -2,8 +2,6 @@
 <script setup>
 import { computed, onMounted } from 'vue';
 import { useAnalyticsStore } from '@/stores/analytics';
-import { useTransactionsStore } from '@/stores/transactions';
-import { useAccountsStore } from '@/stores/accounts';
 import { useGoalsStore } from '@/stores/goals';
 
 import AnalyticsHero from '@/components/analytics/AnalyticsHero.vue';
@@ -16,8 +14,6 @@ import PeriodSelector from '@/components/analytics/PeriodSelector.vue';
 import PageHero from '@/components/ui/PageHero.vue';
 
 const analytics = useAnalyticsStore();
-const txStore = useTransactionsStore();
-const accounts = useAccountsStore();
 const goals = useGoalsStore();
 
 onMounted(() => {
@@ -25,52 +21,89 @@ onMounted(() => {
 });
 
 // ============================================================
-// Мини-графики (тренд за 7 дней)
+// Демо-данные (используются, если стор пуст)
 // ============================================================
-const dailyExpenseChart = computed(() => analytics.dailyExpenseTrend || []);
-const dailyIncomeChart  = computed(() => analytics.dailyIncomeTrend  || []);
+const DEMO = {
+  freeAfterExpenses: 10703,
+  safetyMonths: 2.4,
+  dailyAverage: 17640,
+  dailyExpenseTrend: [3, 5, 8, 6, 9, 7, 10],
+  dailyIncomeTrend: [5, 4, 7, 8, 6, 9, 8],
+  categoriesBreakdown: [
+    { category: 'Продукты', amount: 5200, percent: 32, emoji: '🛒' },
+    { category: 'Кафе',     amount: 3100, percent: 19, emoji: '☕' },
+    { category: 'Такси',    amount: 2400, percent: 15, emoji: '🚕' },
+    { category: 'Связь',    amount: 1500, percent: 9,  emoji: '📱' },
+  ],
+  currentMonthSummary:  { income: 169465, expense: 158760, balance: 10705 },
+  previousMonthSummary: { income: 152000, expense: 149000, balance: 3000 },
+};
+
+// ============================================================
+// Метрики — берём из стора, иначе демо
+// ============================================================
+const freeAfterExpenses = computed(() =>
+  analytics.freeAfterExpenses || DEMO.freeAfterExpenses
+);
+
+const safetyMonths = computed(() =>
+  analytics.safetyMonths || DEMO.safetyMonths
+);
+
+const dailyAverage = computed(() =>
+  analytics.dailyAverage || DEMO.dailyAverage
+);
+
+const dailyExpenseChart = computed(() => {
+  const v = analytics.dailyExpenseTrend;
+  return (v && v.length) ? v : DEMO.dailyExpenseTrend;
+});
+
+const dailyIncomeChart = computed(() => {
+  const v = analytics.dailyIncomeTrend;
+  return (v && v.length) ? v : DEMO.dailyIncomeTrend;
+});
+
+const categories = computed(() => {
+  const v = analytics.categoriesBreakdown;
+  return (v && v.length) ? v : DEMO.categoriesBreakdown;
+});
+
+const comparison = computed(() => ({
+  current:  analytics.currentMonthSummary  || DEMO.currentMonthSummary,
+  previous: analytics.previousMonthSummary || DEMO.previousMonthSummary,
+}));
 
 // ============================================================
 // Цель
 // ============================================================
 const primaryGoal = computed(() => goals.primaryGoal);
+
 const goalSaved = computed(() => {
   const g = primaryGoal.value;
   if (!g) return 0;
-  return Object.values(g.contributions ?? {}).reduce((s, v) => s + (Number(v) || 0), 0);
+  return Object.values(g.contributions ?? {})
+    .reduce((s, v) => s + (Number(v) || 0), 0);
 });
+
 const goalPercent = computed(() => {
   const g = primaryGoal.value;
   if (!g || !g.target) return 0;
   return Math.min(100, (goalSaved.value / g.target) * 100);
 });
-
-// ============================================================
-// Плитки
-// ============================================================
-const freeAfterExpenses = computed(() => analytics.freeAfterExpenses || 0);
-const safetyMonths = computed(() => analytics.safetyMonths || 0);
-const dailyAverage = computed(() => analytics.dailyAverage || 0);
-
-const categories = computed(() => analytics.categoriesBreakdown || []);
-const comparison = computed(() => ({
-  current: analytics.currentMonthSummary || { income: 0, expense: 0, balance: 0 },
-  previous: analytics.previousMonthSummary || { income: 0, expense: 0, balance: 0 },
-}));
 </script>
 
 <template>
   <div class="analytics">
     <PageHero title="Аналитика" subtitle="Обзор финансов за период" />
 
-    <!-- Bento grid -->
     <div class="bento">
-      <!-- Hero — на всю ширину -->
+      <!-- Hero -->
       <div class="bento__hero">
         <AnalyticsHero />
       </div>
 
-      <!-- 4 плитки: 2×2 -->
+      <!-- Плитки — у каждой своя позиция персонажа -->
       <MetricTile
         label="Свободно"
         :value="freeAfterExpenses"
@@ -78,21 +111,21 @@ const comparison = computed(() => ({
         sub="после обязательных"
         color="emerald"
         mascot="wallet"
-        mascot-pos="floating"
+        mascot-pos="left"
         emoji="💰"
-        :mascot-size="80"
+        :mascot-size="90"
       />
 
       <MetricTile
         label="Подушка"
-        :value="safetyMonths.toFixed(1)"
+        :value="Number(safetyMonths).toFixed(1)"
         unit="мес"
         :sub="safetyMonths < 3 ? '⚠️ Мало' : '✅ Ок'"
         color="amber"
         mascot="shield"
-        mascot-pos="floating"
+        mascot-pos="right"
         emoji="⏳"
-        :mascot-size="80"
+        :mascot-size="90"
       />
 
       <MetricTile
@@ -102,12 +135,12 @@ const comparison = computed(() => ({
         sub="средний за месяц"
         color="rose"
         mascot="calculator"
-        mascot-pos="floating"
+        mascot-pos="corner"
         emoji="🔥"
         :mascot-size="80"
       />
 
-      <!-- Цель — с кольцом -->
+      <!-- Цель — кольцо или плитка -->
       <GoalRing
         v-if="primaryGoal"
         :percent="goalPercent"
@@ -128,7 +161,7 @@ const comparison = computed(() => ({
         :mascot-size="80"
       />
 
-      <!-- Мини-график: тренд расходов (на всю ширину, 2 колонки) -->
+      <!-- Тренды -->
       <div class="bento__chart">
         <div class="chart-card">
           <div class="chart-card__head">
@@ -145,7 +178,6 @@ const comparison = computed(() => ({
         </div>
       </div>
 
-      <!-- Мини-график: тренд доходов -->
       <div class="bento__chart">
         <div class="chart-card">
           <div class="chart-card__head">
@@ -162,12 +194,12 @@ const comparison = computed(() => ({
         </div>
       </div>
 
-      <!-- PeriodSelector — на всю ширину -->
+      <!-- Периоды -->
       <div class="bento__period">
         <PeriodSelector />
       </div>
 
-      <!-- ComparisonCard — на всю ширину -->
+      <!-- Сравнение -->
       <div class="bento__cmp">
         <ComparisonCard
           :current="comparison.current"
@@ -175,12 +207,9 @@ const comparison = computed(() => ({
         />
       </div>
 
-      <!-- CategoryBreakdown — на всю ширину -->
+      <!-- Категории -->
       <div class="bento__cat">
-        <CategoryBreakdown
-          :items="categories"
-          :total="analytics.currentMonthSummary?.expense || 0"
-        />
+        <CategoryBreakdown :items="categories" :total="comparison.current.expense" />
       </div>
     </div>
   </div>
@@ -194,9 +223,6 @@ const comparison = computed(() => ({
   padding-bottom: 80px;
 }
 
-/* ============================================================
-   BENTO GRID
-   ============================================================ */
 .bento {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -204,17 +230,15 @@ const comparison = computed(() => ({
 }
 
 .bento__hero { grid-column: 1 / -1; }
-
 .bento__chart { grid-column: span 2; }
-
 .bento__period,
 .bento__cmp,
 .bento__cat { grid-column: 1 / -1; }
 
 .chart-card {
   background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
-  border-radius: 20px;
-  padding: 18px 20px;
+  border-radius: 18px;
+  padding: 16px 18px;
   color: #ffffff;
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.08) inset,
@@ -225,7 +249,7 @@ const comparison = computed(() => ({
   display: flex;
   align-items: center;
   gap: 8px;
-  margin-bottom: 14px;
+  margin-bottom: 12px;
 }
 
 .chart-card__icon { font-size: 16px; }
@@ -238,9 +262,6 @@ const comparison = computed(() => ({
   opacity: 0.9;
 }
 
-/* ============================================================
-   АДАПТИВ
-   ============================================================ */
 @media (max-width: 1100px) {
   .bento { grid-template-columns: repeat(2, 1fr); }
 }
