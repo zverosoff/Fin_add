@@ -144,16 +144,21 @@ export function userEmoji(user) {
 }
 
 /* ============================================================
-   ✅ БАНКИ
+   ✅ БАНКИ — пути на /img/icons/banks/
    ============================================================ */
 
-/** ✅ Логотип банка (для банк-монеты в TransactionItem) */
-export function bankLogo(id) {
-  if (!id) return null;
-  if (id === 'cash' || id.startsWith('cash_')) return null;
-  if (id.startsWith('sber'))  return '/img/sber.png';
-  if (id.startsWith('tbank')) return '/img/tbank.png';
+/** ✅ Иконка счёта/банка (для банк-монеты) */
+export function bankIconPath(id) {
+  if (!id) return '/img/icons/banks/default.png';
+  if (id === 'cash' || id.startsWith('cash_')) return '/img/icons/nav/cash.png';
+  if (id.startsWith('sber'))  return '/img/icons/banks/sber.png';
+  if (id.startsWith('tbank')) return '/img/icons/banks/tbank.png';
   return '/img/icons/banks/default.png';
+}
+
+/** ✅ Логотип банка (алиас) */
+export function bankLogo(id) {
+  return bankIconPath(id);
 }
 
 /** ✅ Название банка */
@@ -163,13 +168,4 @@ export function bankLabel(id) {
   if (id.startsWith('sber'))  return 'СберБанк';
   if (id.startsWith('tbank')) return 'Т-Банк';
   return 'Счёт';
-}
-
-/** ✅ Универсальный хелпер — путь к иконке счёта/банка */
-export function bankIconPath(id) {
-  if (!id) return '/img/icons/banks/default.png';
-  if (id === 'cash' || id.startsWith('cash_')) return '/img/icons/nav/cash.png';
-  if (id.startsWith('sber'))  return '/img/sber.png';
-  if (id.startsWith('tbank')) return '/img/tbank.png';
-  return '/img/icons/banks/default.png';
 }
