@@ -114,13 +114,15 @@ function handleFabClick() {
         :class="{ active: isActive(item) }"
         @click="go(item)"
       >
-        <img
-          :src="item.icon"
-          class="bn-icon-img"
-          :alt="item.label"
-          loading="lazy"
-          decoding="async"
-        />
+        <span class="bn-icon-wrap">
+          <img
+            :src="item.icon"
+            class="bn-icon-img"
+            :alt="item.label"
+            loading="lazy"
+            decoding="async"
+          />
+        </span>
         <span class="bn-label">{{ item.label }}</span>
       </button>
 
@@ -170,13 +172,15 @@ function handleFabClick() {
         :class="{ active: isActive(item) }"
         @click="go(item)"
       >
-        <img
-          :src="item.icon"
-          class="bn-icon-img"
-          :alt="item.label"
-          loading="lazy"
-          decoding="async"
-        />
+        <span class="bn-icon-wrap">
+          <img
+            :src="item.icon"
+            class="bn-icon-img"
+            :alt="item.label"
+            loading="lazy"
+            decoding="async"
+          />
+        </span>
         <span class="bn-label">{{ item.label }}</span>
       </button>
     </div>
@@ -203,7 +207,7 @@ function handleFabClick() {
   grid-template-columns: 1fr 1fr auto 1fr 1fr;
   align-items: end;
   width: 100%;
-  padding: 8px 8px 6px;
+  padding: 10px 8px 6px;
   border-radius: 24px;
 
   background: var(--panel-solid);
@@ -220,7 +224,7 @@ function handleFabClick() {
 /* Неоновый индикатор */
 .bn-indicator {
   position: absolute;
-  top: 6px;
+  top: 8px;
   bottom: 6px;
   border-radius: 18px;
   pointer-events: none;
@@ -268,9 +272,9 @@ function handleFabClick() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 3px;
-  padding: 8px 4px;
+  justify-content: flex-end;
+  gap: 2px;
+  padding: 0 4px 6px;
   border: none;
   background: transparent;
   color: var(--muted);
@@ -282,12 +286,23 @@ function handleFabClick() {
   min-width: 0;
   transition: color 0.25s, transform 0.2s cubic-bezier(.34,1.56,.64,1);
 
+  /* ✅ контейнер иконки чуть выше — даёт выступ за блок */
+  .bn-icon-wrap {
+    display: inline-flex;
+    align-items: flex-end;
+    justify-content: center;
+    height: 26px;
+    margin-top: -14px;      /* иконка поднимается над блоком */
+    margin-bottom: 1px;
+    transition: transform 0.35s cubic-bezier(.34,1.56,.64,1);
+    will-change: transform;
+  }
+
   &:hover {
     color: var(--text);
-    transform: translateY(-1px);
 
-    .bn-icon-img {
-      transform: translateY(-2px) scale(1.08);
+    .bn-icon-wrap {
+      transform: translateY(-3px);
     }
   }
   &:active { transform: scale(0.94); }
@@ -295,12 +310,15 @@ function handleFabClick() {
   &.active {
     color: #ffffff;
 
+    .bn-icon-wrap {
+      transform: translateY(-5px) scale(1.08);
+    }
+
     .bn-icon-img {
-      transform: translateY(-2px) scale(1.15);
       filter:
-        drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5))
-        drop-shadow(0 0 10px rgba(255, 255, 255, 0.6))
-        brightness(1.15) saturate(1.2);
+        drop-shadow(0 3px 8px rgba(0, 0, 0, 0.55))
+        drop-shadow(0 0 12px rgba(255, 255, 255, 0.7))
+        brightness(1.18) saturate(1.25);
     }
 
     .bn-label {
@@ -313,18 +331,15 @@ function handleFabClick() {
   }
 }
 
-/* ✅ PNG-иконки */
+/* ✅ PNG-иконки — крупнее */
 .bn-icon-img {
   display: block;
-  width: 28px;
-  height: 28px;
+  width: 40px;
+  height: 40px;
   object-fit: contain;
   flex-shrink: 0;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.18));
-  transition:
-    transform 0.35s cubic-bezier(.34,1.56,.64,1),
-    filter 0.25s ease;
-  will-change: transform;
+  filter: drop-shadow(0 3px 5px rgba(0, 0, 0, 0.22));
+  transition: filter 0.25s ease;
 }
 
 .bn-label {
@@ -349,23 +364,25 @@ function handleFabClick() {
 
 .bn-fab {
   position: relative;
-  width: 64px;
-  height: 64px;
+  /* ✅ FAB больше */
+  width: 76px;
+  height: 76px;
   border-radius: 50%;
-  border: 4px solid var(--panel-solid);
+  border: 5px solid var(--panel-solid);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   color: #fff;
-  margin-top: -30px;
+  /* ✅ сильнее «заходим» за круг */
+  margin-top: -40px;
 
   transition:
     background 0.35s ease,
     box-shadow 0.35s ease,
     transform 0.2s cubic-bezier(.34,1.56,.64,1),
     border-color 0.3s ease;
-  z-index: 2;
+  z-index: 3;
   overflow: visible;
 
   &:active { transform: scale(0.94); }
@@ -373,7 +390,7 @@ function handleFabClick() {
 
 .bn-fab-ring {
   position: absolute;
-  inset: -8px;
+  inset: -10px;
   border-radius: 50%;
   pointer-events: none;
   z-index: -1;
@@ -439,7 +456,7 @@ function handleFabClick() {
       0 32px 64px -10px rgba(139, 92, 246, 0.5);
 
     .bn-fab-icon-img {
-      transform: scale(1.08) rotate(-4deg);
+      transform: scale(1.1) rotate(-4deg);
     }
   }
 }
@@ -477,7 +494,7 @@ function handleFabClick() {
 }
 
 .bn-fab-spinner {
-  width: 28px; height: 28px;
+  width: 32px; height: 32px;
   animation: spinFab 1s linear infinite;
   color: #fff;
 
@@ -495,13 +512,13 @@ function handleFabClick() {
 }
 
 .bn-fab-icon {
-  width: 28px; height: 28px;
+  width: 32px; height: 32px;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35));
 }
 
 .bn-fab.is-success .bn-fab-icon {
-  width: 32px;
-  height: 32px;
+  width: 38px;
+  height: 38px;
   animation: checkDraw 0.4s ease-out;
 }
 @keyframes checkDraw {
@@ -509,16 +526,16 @@ function handleFabClick() {
   to   { stroke-dasharray: 30; stroke-dashoffset: 0; }
 }
 
-/* ✅ PNG-камера внутри FAB */
+/* ✅ PNG-камера внутри FAB — крупнее */
 .bn-fab-icon-img {
   display: block;
-  width: 36px;
-  height: 36px;
+  width: 46px;
+  height: 46px;
   object-fit: contain;
   flex-shrink: 0;
   filter:
-    drop-shadow(0 2px 6px rgba(0, 0, 0, 0.45))
-    brightness(1.1) saturate(1.15);
+    drop-shadow(0 3px 8px rgba(0, 0, 0, 0.45))
+    brightness(1.12) saturate(1.15);
   transition: transform 0.3s cubic-bezier(.34,1.56,.64,1);
   will-change: transform;
 }
@@ -559,41 +576,58 @@ function handleFabClick() {
 @media (min-width: 701px) {
   .bottom-nav { max-width: 640px; padding: 0 24px 24px; }
 
-  .bn-inner { padding: 10px 12px 8px; border-radius: 28px; }
+  .bn-inner { padding: 12px 12px 8px; border-radius: 28px; }
 
   .bn-item {
-    padding: 10px 6px;
+    padding: 0 6px 8px;
     font-size: 12px;
-    gap: 4px;
-    .bn-icon-img { width: 32px; height: 32px; }
+    gap: 3px;
+
+    .bn-icon-wrap {
+      height: 30px;
+      margin-top: -18px;
+    }
+
+    .bn-icon-img { width: 46px; height: 46px; }
     .bn-label { font-size: 12px; }
   }
 
   .bn-fab-wrapper { padding: 0 12px 6px; }
-  .bn-fab { width: 76px; height: 76px; border-width: 5px; margin-top: -38px; }
-  .bn-fab-icon { width: 34px; height: 34px; }
-  .bn-fab-icon-img { width: 42px; height: 42px; }
-  .bn-fab-spinner { width: 34px; height: 34px; }
-  .bn-fab.is-success .bn-fab-icon { width: 38px; height: 38px; }
+  .bn-fab { width: 88px; height: 88px; border-width: 6px; margin-top: -48px; }
+  .bn-fab-icon { width: 38px; height: 38px; }
+  .bn-fab-icon-img { width: 54px; height: 54px; }
+  .bn-fab-spinner { width: 38px; height: 38px; }
+  .bn-fab.is-success .bn-fab-icon { width: 44px; height: 44px; }
+  .bn-fab-ring { inset: -12px; }
 
-  .bn-indicator { border-radius: 20px; top: 8px; bottom: 8px; }
+  .bn-indicator { border-radius: 20px; top: 10px; bottom: 8px; }
 }
 
 @media (max-width: 700px) {
   .bottom-nav { max-width: 100%; padding: 0 8px calc(8px + env(safe-area-inset-bottom, 0)); }
 
-  .bn-inner { padding: 6px 6px 4px; border-radius: 22px; }
+  .bn-inner { padding: 8px 6px 4px; border-radius: 22px; }
 
-  .bn-icon-img { width: 26px; height: 26px; }
+  .bn-item {
+    padding: 0 3px 4px;
+
+    .bn-icon-wrap {
+      height: 24px;
+      margin-top: -12px;
+    }
+  }
+
+  .bn-icon-img { width: 36px; height: 36px; }
   .bn-label { font-size: 10px; }
 
-  .bn-fab { width: 60px; height: 60px; margin-top: -26px; }
-  .bn-fab-icon { width: 26px; height: 26px; }
-  .bn-fab-icon-img { width: 32px; height: 32px; }
-  .bn-fab-spinner { width: 26px; height: 26px; }
-  .bn-fab.is-success .bn-fab-icon { width: 30px; height: 30px; }
+  .bn-fab { width: 70px; height: 70px; margin-top: -36px; border-width: 4px; }
+  .bn-fab-icon { width: 30px; height: 30px; }
+  .bn-fab-icon-img { width: 42px; height: 42px; }
+  .bn-fab-spinner { width: 30px; height: 30px; }
+  .bn-fab.is-success .bn-fab-icon { width: 34px; height: 34px; }
+  .bn-fab-ring { inset: -8px; }
 
-  .bn-indicator { border-radius: 16px; top: 4px; bottom: 4px; }
+  .bn-indicator { border-radius: 16px; top: 6px; bottom: 4px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -601,6 +635,7 @@ function handleFabClick() {
   .bn-fab,
   .bn-fab-ring,
   .bn-item,
+  .bn-icon-wrap,
   .bn-icon-img,
   .bn-fab-icon-img { animation: none !important; transition: none !important; }
 }
