@@ -1,10 +1,10 @@
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { fmt, categoryIcon } from '@/composables/useFormat';
+import { fmt, categoryIcon, categoryEmoji } from '@/composables/useFormat';
 import { useCategoriesStore } from '@/stores/categories';
 import { useAccountsStore } from '@/stores/accounts';
-import IconOrEmoji from '@/components/ui/IconOrEmoji.vue';
 import { useTransactionsStore } from '@/stores/transactions';
+import IconOrEmoji from '@/components/ui/IconOrEmoji.vue';
 
 const categories = useCategoriesStore();
 const accounts = useAccountsStore();
@@ -57,6 +57,7 @@ const items = computed(() => {
       amount,
       percent: (amount / totalExpense) * 100,
       iconPath: categoryIcon(category),
+      emoji: categoryEmoji(category),
       _grad: p.grad,
       _glow: p.glow,
       _selected: selected.value.has(category),
@@ -93,32 +94,6 @@ function clearAll() {
   initialized.value = true;
 }
 
-const CATEGORY_EMOJI = {
-  'Продукты': '🛒', 'Кафе и рестораны': '☕', 'Еда': '🍔',
-  'Такси': '🚕', 'Бензин': '⛽', 'Общественный транспорт': '🚌',
-  'Транспорт': '🚗', 'Аренда': '🔑', 'Ипотека': '🏦',
-  'Жильё': '🏠', 'Коммунальные': '💡', 'Интернет и связь': '📶',
-  'Развлечения': '🎬', 'Подписки': '📺', 'Покупки': '🛍️',
-  'Одежда и обувь': '👕', 'Техника': '📱', 'Аптека': '💉',
-  'Здоровье': '💊', 'Спорт': '🏋️', 'Красота': '💄',
-  'Образование': '📚', 'Дети': '👶', 'Домашние животные': '🐾',
-  'Путешествия': '✈️', 'Кредиты': '💳', 'Страхование': '🛡️',
-  'Налоги': '📋', 'Ремонт': '🔧', 'Автомобиль': '🚙',
-  'Гараж': '🏚️', 'Сад и огород': '🌱', 'Подарки': '🎁',
-  'Благотворительность': '❤️',
-  'Зарплата': '💼', 'Аванс': '💰', 'Премия': '🏆',
-  'Фриланс': '💻', 'Бизнес': '📊', 'Инвестиции': '📈',
-  'Дивиденды': '💹', 'Проценты по вкладу': '🏦',
-  'Кэшбэк': '💸', 'Возврат': '↩️', 'Перевод от': '👤',
-  'Перевод между счетами': '🔁', 'Перевод между пользователями': '👥',
-  'Внутренний перевод': '🔄',
-  'Прочее': '📦',
-};
-
-function categoryEmoji(category) {
-  return CATEGORY_EMOJI[category] || '📦';
-}
-
 const selectedTotal = computed(() =>
   items.value
     .filter(i => selected.value.has(i.category))
@@ -147,7 +122,13 @@ const monthLabel = computed(() => {
 
     <div class="cat-head">
       <div class="cat-head__left">
-        <img src="/img/icons/categories/expense.png" class="cat-head__icon-img" alt="График" />
+        <IconOrEmoji
+          src="/img/icons/ui/chart.png"
+          emoji="📊"
+          :size="26"
+          alt="График"
+          class-name="cat-head__icon-img"
+        />
         <div>
           <div class="cat-head__title">Расходы по категориям</div>
           <div class="cat-head__month">{{ monthLabel }}</div>
@@ -194,15 +175,15 @@ const monthLabel = computed(() => {
           </svg>
         </div>
 
-<div class="cat-row__icon">
-  <IconOrEmoji
-    :src="item.iconPath"
-    :emoji="categoryEmoji(item.category)"
-    :size="24"
-    :alt="item.category"
-    class-name="cat-row__icon-img"
-  />
-</div>
+        <div class="cat-row__icon">
+          <IconOrEmoji
+            :src="item.iconPath"
+            :emoji="item.emoji"
+            :size="24"
+            :alt="item.category"
+            class-name="cat-row__icon-img"
+          />
+        </div>
 
         <div class="cat-row__main">
           <div class="cat-row__top">
@@ -235,6 +216,8 @@ const monthLabel = computed(() => {
     </div>
   </section>
 </template>
+
+<!-- Стили — оставь без изменений -->
 
 <style scoped lang="scss">
 .cat-breakdown {
