@@ -26,7 +26,7 @@ function scrollToGoals() {
     <div class="hero-card__bg" aria-hidden="true">
       <div class="hero-card__glow"></div>
       <div class="hero-card__pattern"></div>
-      <div class="hero-card__shine" aria-hidden="true"></div>
+      <div class="hero-card__shine"></div>
       <div class="hero-card__rain">
         <span class="hero-particle hero-particle--1"></span>
         <span class="hero-particle hero-particle--2"></span>
@@ -39,6 +39,7 @@ function scrollToGoals() {
       </div>
     </div>
 
+    <!-- ✅ Копилка слева -->
     <MascotImage
       name="piggy"
       position="hero-left"
@@ -69,7 +70,6 @@ function scrollToGoals() {
   position: relative;
   border-radius: 24px;
   overflow: visible;
-  /* ✅ Уменьшен padding-left — контент сдвинется вправо */
   padding: 22px 24px 22px 160px;
   min-height: 220px;
   isolation: isolate;
@@ -105,7 +105,6 @@ function scrollToGoals() {
   50%      { background-position: 100% 50%; }
 }
 
-/* ✅ Анимированный отблеск */
 .hero-card__shine {
   position: absolute;
   top: -50%;
@@ -183,13 +182,43 @@ function scrollToGoals() {
 @keyframes heroRain7 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.8; } 90% { opacity: 0.8; } 100% { transform: translate(-35px, 240px); opacity: 0; } }
 @keyframes heroRain8 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.6; } 90% { opacity: 0.6; } 100% { transform: translate(45px, 240px); opacity: 0; } }
 
+/* ✅ Контент справа */
 .hero-card__content {
   position: relative;
   z-index: 4;
   flex: 1;
   min-width: 0;
-  margin-left: auto; /* ✅ Прижимает контент вправо */
-  text-align: left;
+  margin-left: auto;
+  text-align: right; /* ✅ Текст по правому краю */
+}
+
+/* ✅ Кнопка — тоже к правому краю */
+.hero-card__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 18px;
+  border-radius: 999px;
+  border: none;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #0a0612;
+  background: linear-gradient(180deg, #fde047, #facc15);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 8px 24px -6px rgba(250, 204, 21, 0.6);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.2s;
+  margin-left: auto; /* ✅ Кнопка тоже вправо */
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.5) inset,
+      0 12px 28px -6px rgba(250, 204, 21, 0.8);
+  }
+  &:active { transform: scale(0.97); }
 }
 
 .hero-card__label {
@@ -203,6 +232,7 @@ function scrollToGoals() {
   align-items: center;
   gap: 6px;
   flex-wrap: wrap;
+  justify-content: flex-end; /* ✅ Ярлык справа */
 }
 
 .hero-card__month {
@@ -211,6 +241,7 @@ function scrollToGoals() {
   letter-spacing: 0.08em;
 }
 
+/* ✅ Сумма справа */
 .hero-card__value {
   font-family: var(--mono);
   font-size: 48px;
@@ -230,33 +261,7 @@ function scrollToGoals() {
   margin-bottom: 14px;
 }
 
-.hero-card__btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 9px 18px;
-  border-radius: 999px;
-  border: none;
-  font-family: inherit;
-  font-size: 12.5px;
-  font-weight: 800;
-  color: #0a0612;
-  background: linear-gradient(180deg, #fde047, #facc15);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.5) inset,
-    0 8px 24px -6px rgba(250, 204, 21, 0.6);
-  cursor: pointer;
-  transition: transform 0.15s, box-shadow 0.2s;
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.5) inset,
-      0 12px 28px -6px rgba(250, 204, 21, 0.8);
-  }
-  &:active { transform: scale(0.97); }
-}
-
+/* ✅ МОБИЛЬНЫЙ — копилка слева, текст справа */
 @media (max-width: 700px) {
   .hero-card {
     padding: 18px 16px 18px 180px;

@@ -25,7 +25,8 @@ const defaultSizes = {
   floating: 100,
   corner: 130,
   static: 180,
-  'goals-right-center': 240,
+  'goals-right-center': 220,
+  'goals-star-mobile': 200,
 };
 
 const px = computed(() => props.size || defaultSizes[props.position] || 150);
@@ -102,14 +103,20 @@ function onError() { failed.value = true; loaded.value = false; }
   left: auto; right: auto; top: auto; bottom: auto;
 }
 
-/* ✅ Звезда справа — прижата к правому краю блока */
+/* ✅ ПК: звезда справа по центру */
 .mascot--goals-right-center {
-  right: -50px;                /* чуть выступает за правый край */
+  right: -50px;
   top: 50%;
   transform: translateY(-50%);
 }
 
-/* ✅ LEFT/RIGHT в плитках — выступают сверху и снизу */
+/* ✅ МОБ: звезда снизу-справа, напротив «+ Добавить» */
+.mascot--goals-star-mobile {
+  right: -50px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
 .mascot--left {
   left: -30px;
   top: -30px;
@@ -144,19 +151,30 @@ function onError() { failed.value = true; loaded.value = false; }
 .mascot--floating { right: 8px;   top: 8px; }
 .mascot--corner   { right: -20px; top: -20px; }
 
-/* Мобилка — звезда справа в углу */
+/* ✅ МОБИЛЬНЫЙ — звезда снизу-справа, напротив «+ Добавить» */
 @media (max-width: 700px) {
-  .mascot--goals-right-center {
+  .mascot--goals-right-center,
+  .mascot--goals-star-mobile {
     right: -30px;
-    top: -30px;
+    top: auto;
+    bottom: -60px;
     transform: none;
-    width: 130px !important;
-    height: 130px !important;
+    width: 180px !important;
+    height: 180px !important;
   }
 
-  .mascot--left, .mascot--right {
-    left: auto; right: -20px;
-    top: -20px; bottom: -20px;
+  .mascot--left {
+    left: -20px !important;
+    right: auto !important;
+    top: -20px;
+    bottom: -20px;
+    height: auto;
+  }
+  .mascot--right {
+    right: -20px !important;
+    left: auto !important;
+    top: -20px;
+    bottom: -20px;
     height: auto;
   }
 }

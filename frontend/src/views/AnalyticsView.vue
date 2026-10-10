@@ -146,7 +146,7 @@ function openEditContrib({ goal, user }) {
             :mascot-size="150"
           />
 
-          <!-- ✅ Калькулятор слева -->
+          <!-- ✅ ПК: калькулятор справа; МОБ: слева (см. CSS) -->
           <MetricTile
             label="Расход/день"
             :value="metrics.dailyAvg"
@@ -154,9 +154,10 @@ function openEditContrib({ goal, user }) {
             :sub="dailyAvgHint"
             color="rose"
             mascot="calculator"
-            mascot-pos="left"
+            mascot-pos="right"
             emoji="🔥"
             :mascot-size="150"
+            class="tile-calc"
           />
         </div>
 
@@ -166,12 +167,12 @@ function openEditContrib({ goal, user }) {
           <CategoryBreakdown />
         </section>
 
-        <!-- ✅ ЦЕЛИ: звезда справа по центру -->
+        <!-- ✅ ЦЕЛИ: звезда справа, сдвинута ниже и напротив «Добавить» -->
         <section class="card card-dark card-goals">
           <MascotImage
             name="star"
-            position="goals-right-center"
-            :size="220"
+            position="goals-star-mobile"
+            :size="200"
             fallback="🎯"
             alt="Цели"
           />
@@ -209,7 +210,6 @@ function openEditContrib({ goal, user }) {
 </template>
 
 <style scoped lang="scss">
-/* ✅ ХАРДКОД ТЁМНОГО ФОНА */
 .analytics-page {
   position: relative;
   min-height: 100vh;
@@ -219,7 +219,6 @@ function openEditContrib({ goal, user }) {
   z-index: 0;
 }
 
-/* ✅ Перебиваем белый фон body */
 .analytics-page::before {
   content: '';
   position: fixed;
@@ -269,20 +268,20 @@ function openEditContrib({ goal, user }) {
   color: #ffffff !important;
 }
 
-/* ✅ Блок целей — звезда справа по центру */
+/* ✅ ЦЕЛИ — звезда справа, контент не перекрыт */
 .card-goals {
   position: relative;
   overflow: visible;
-  padding-right: 100px;
+  padding-right: 180px; /* отступ под звезду */
 }
 
 .card-goals__content {
   position: relative;
-  z-index: 2;
+  z-index: 3;
   min-width: 0;
 }
 
-/* ✅ Перебиваем светлые стили GoalCard — тёмная тема */
+/* ✅ Перебиваем светлые стили GoalCard */
 .card-goals :deep(.goal-card),
 .card-goals :deep(.goals-list),
 .card-goals :deep(.goal-item) {
@@ -291,8 +290,16 @@ function openEditContrib({ goal, user }) {
   border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
-.card-goals :deep(.goal-card *) {
-  color: inherit;
+/* ✅ Текст «Ещё никто не поделился на мечту» — тёмный и читаемый */
+.card-goals :deep(.goal-card__empty),
+.card-goals :deep(.goal-empty),
+.card-goals :deep(.empty-hint),
+.card-goals :deep(.goal-hint),
+.card-goals :deep(.goal-card__hint),
+.card-goals :deep([class*="empty"]),
+.card-goals :deep([class*="hint"]) {
+  color: #1e1b4b !important;
+  font-weight: 700 !important;
 }
 
 .card-head {
@@ -338,7 +345,7 @@ function openEditContrib({ goal, user }) {
   .metrics-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
 }
 
-/* ✅ МОБИЛЬНЫЙ — звезда в углу, цель растянута */
+/* ✅ МОБИЛЬНЫЙ */
 @media (max-width: 700px) {
   .analytics-page {
     padding: 16px 16px 120px;
@@ -350,13 +357,23 @@ function openEditContrib({ goal, user }) {
   .card-title { font-size: 11px; letter-spacing: 0.06em; }
   .metrics-grid { grid-template-columns: 1fr; }
 
-  /* ✅ Цель растянута по блоку, звезда сверху */
-  .card-goals {
-    padding-right: 0;
-    padding-top: 130px;
+  /* ✅ МОБ: калькулятор — слева (перебиваем) */
+  .tile-calc :deep(.mascot--right) {
+    right: auto !important;
+    left: -30px !important;
+  }
+  .tile-calc :deep(.tile__content) {
+    padding-right: 0 !important;
+    padding-left: 140px !important;
   }
 
-  /* ✅ Растяжка цели по ширине */
+  /* ✅ ЦЕЛЬ: звезда снизу-справа, напротив «+ Добавить» */
+  .card-goals {
+    padding-right: 0;
+    padding-bottom: 130px; /* отступ снизу под звезду */
+  }
+
+  /* ✅ Цель растянута */
   .card-goals :deep(.goal-card),
   .card-goals :deep(.goals-list > *) {
     width: 100% !important;
