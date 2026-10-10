@@ -1,7 +1,6 @@
-<!-- frontend/src/components/analytics/CategoryBreakdown.vue -->
 <script setup>
 import { computed, ref, watch } from 'vue';
-import { fmt } from '@/composables/useFormat';
+import { fmt, categoryIcon } from '@/composables/useFormat';
 import { useCategoriesStore } from '@/stores/categories';
 import { useAccountsStore } from '@/stores/accounts';
 import { useTransactionsStore } from '@/stores/transactions';
@@ -56,7 +55,7 @@ const items = computed(() => {
       category,
       amount,
       percent: (amount / totalExpense) * 100,
-      emoji: categories.icon(category) || '💳',
+      iconPath: categoryIcon(category),
       _grad: p.grad,
       _glow: p.glow,
       _selected: selected.value.has(category),
@@ -115,21 +114,13 @@ const monthLabel = computed(() => {
 
 <template>
   <section class="cat-breakdown">
-    <!-- ✅ 1. Диагональные полосы (через ::before) -->
-    <!-- ✅ 2. Мелкая косая клетка (через ::after) -->
-
-    <!-- ✅ 3. Верхний глянец -->
     <div class="cat-gloss" aria-hidden="true"></div>
-
-    <!-- ✅ 4. Пунктирная кромка -->
     <div class="cat-frame" aria-hidden="true"></div>
-
-    <!-- Отблеск -->
     <div class="cat-glare" aria-hidden="true"></div>
 
     <div class="cat-head">
       <div class="cat-head__left">
-        <span class="cat-head__icon">📊</span>
+        <img src="/img/icons/ui/chart.png" class="cat-head__icon-img" alt="График" />
         <div>
           <div class="cat-head__title">Расходы по категориям</div>
           <div class="cat-head__month">{{ monthLabel }}</div>
@@ -176,7 +167,9 @@ const monthLabel = computed(() => {
           </svg>
         </div>
 
-        <div class="cat-row__icon">{{ item.emoji }}</div>
+        <div class="cat-row__icon">
+          <img :src="item.iconPath" class="cat-row__icon-img" :alt="item.category" />
+        </div>
 
         <div class="cat-row__main">
           <div class="cat-row__top">
@@ -220,8 +213,6 @@ const monthLabel = computed(() => {
   overflow: hidden;
 }
 
-
-/* ✅ 2. МЕЛКАЯ КОСАЯ КЛЕТКА 45° */
 .cat-breakdown::after {
   content: '';
   position: absolute;
@@ -235,7 +226,6 @@ const monthLabel = computed(() => {
   );
 }
 
-/* ✅ 3. ВЕРХНИЙ ГЛЯНЕЦ */
 .cat-gloss {
   position: absolute;
   inset: 0;
@@ -249,8 +239,6 @@ const monthLabel = computed(() => {
   mix-blend-mode: overlay;
 }
 
-
-/* Отблеск — уже был */
 .cat-glare {
   position: absolute;
   top: -50%;
@@ -294,7 +282,18 @@ const monthLabel = computed(() => {
   gap: 10px;
 }
 
-.cat-head__icon { font-size: 20px; }
+/* ✅ PNG-иконка графика — фикс 26×26 */
+.cat-head__icon-img {
+  display: block;
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  max-width: 26px;
+  max-height: 26px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35)) brightness(1.05);
+}
 
 .cat-head__title {
   font-size: 14px;
@@ -452,10 +451,10 @@ const monthLabel = computed(() => {
 }
 
 .cat-row__icon {
-  font-size: 22px;
-  line-height: 1;
   width: 36px;
   height: 36px;
+  min-width: 36px;
+  max-width: 36px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -463,6 +462,20 @@ const monthLabel = computed(() => {
   background: var(--cat-grad);
   box-shadow: 0 4px 12px -2px var(--cat-glow);
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* ✅ PNG-иконка категории внутри — фикс 24×24 */
+.cat-row__icon-img {
+  display: block;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  max-width: 24px;
+  max-height: 24px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.35)) brightness(1.05);
 }
 
 .cat-row__main { flex: 1; min-width: 0; }
@@ -568,14 +581,27 @@ const monthLabel = computed(() => {
   .cat-head { flex-direction: column; align-items: flex-start; }
   .cat-head__actions { align-self: stretch; }
   .cat-btn { flex: 1; }
+  .cat-head__icon-img {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    max-width: 22px;
+    max-height: 22px;
+  }
   .cat-row { padding: 8px 10px 8px 14px; gap: 10px; }
-  .cat-row__icon { width: 32px; height: 32px; font-size: 18px; }
+  .cat-row__icon { width: 32px; height: 32px; min-width: 32px; max-width: 32px; }
+  .cat-row__icon-img {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    max-width: 20px;
+    max-height: 20px;
+  }
   .cat-row__name { font-size: 12px; }
   .cat-row__amount { font-size: 12px; }
   .cat-check { width: 20px; height: 20px; }
   .cat-total { padding: 10px 12px; }
   .cat-total__sum { font-size: 18px; }
   .cat-empty__mascot { width: 130px; height: 130px; }
-  .cat-frame { inset: 4px; border-radius: 8px; }
 }
 </style>
