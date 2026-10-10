@@ -42,8 +42,8 @@ function ownerTotal(list) {
 }
 function bankLogo(id) {
   if (!id) return null;
-  if (id.startsWith('sber')) return '/img/sber.png';
-  if (id.startsWith('tbank')) return '/img/tbank.png';
+  if (id.startsWith('sber')) return '/img/icons/banks/sber.png';
+  if (id.startsWith('tbank')) return '/img/icons/banks/tbank.png';
   return null;
 }
 function isMe(owner) { return owner === userName.value; }
