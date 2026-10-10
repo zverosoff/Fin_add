@@ -26,10 +26,11 @@ function scrollToGoals() {
       <div class="hero-card__pattern"></div>
     </div>
 
+    <!-- ✅ Копилка поверх блока -->
     <MascotImage
       name="piggy"
       position="hero-left"
-      :size="240"
+      :size="200"
       fallback="🐷"
       alt="Копилка"
     />
@@ -55,9 +56,9 @@ function scrollToGoals() {
   position: relative;
   border-radius: 24px;
   overflow: visible;
-  /* ✅ padding-left = половина копилки (240/2 = 120) + запас */
-  padding: 22px 24px 22px 140px;
-  min-height: 200px;
+  /* ✅ padding-left под контент (персонаж поверх, отступ 170px) */
+  padding: 20px 24px 20px 170px;
+  min-height: 180px;
   isolation: isolate;
   color: #ffffff;
   display: flex;
@@ -82,8 +83,7 @@ function scrollToGoals() {
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.1) inset,
     0 1px 0 rgba(255, 255, 255, 0.15) inset,
-    0 24px 48px -12px rgba(139, 92, 246, 0.5),
-    0 0 80px -20px rgba(139, 92, 246, 0.4);
+    0 24px 48px -12px rgba(139, 92, 246, 0.5);
 }
 
 @keyframes heroGradientShift {
@@ -109,7 +109,6 @@ function scrollToGoals() {
   pointer-events: none;
 }
 
-/* ✅ КОНТЕНТ — центр по вертикали */
 .hero-card__content {
   position: relative;
   z-index: 4;
@@ -145,7 +144,7 @@ function scrollToGoals() {
 
 .hero-card__value {
   font-family: var(--mono);
-  font-size: 46px;
+  font-size: 42px;
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.05;
@@ -187,24 +186,17 @@ function scrollToGoals() {
 
 @media (max-width: 700px) {
   .hero-card {
-    padding: 18px 16px 18px 130px;
-    min-height: 180px;
+    padding: 16px 16px 16px 140px;
+    min-height: 160px;
     border-radius: 20px;
-    justify-content: flex-end;
   }
   .hero-card__bg {
     border-radius: 20px;
     animation: none !important;
     background-size: 100% 100% !important;
   }
-  .hero-card__content {
-    text-align: right;
-    margin-left: auto;
-  }
-  .hero-card__label { justify-content: flex-end; }
-  .hero-card__value { font-size: 30px; }
-  .hero-card__sub { font-size: 11.5px; }
-  .hero-card__btn { margin-left: auto; }
+  .hero-card__value { font-size: 28px; }
+  .hero-card__sub { font-size: 11px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

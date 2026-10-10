@@ -202,8 +202,7 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
 .analytics-page {
   position: relative;
   min-height: 100vh;
-  /* ✅ Запас слева/справа под выступающих персонажей */
-  padding: 20px 80px 100px;
+  padding: 20px 40px 100px;   /* ← уменьшили запас */
   color: #ffffff !important;
   z-index: 0;
   isolation: isolate;
@@ -238,8 +237,6 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
   display: grid;
   grid-template-columns: repeat(3, 1fr);
   gap: 16px;
-  /* ✅ Запас по краям грида — под выступ персонажей */
-  padding: 0 4px;
 }
 
 .card {
@@ -255,7 +252,6 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
   color: #ffffff !important;
 }
 
-/* ✅ ЦЕЛИ — звезда внутри блока, не увеличивает высоту */
 .card-goals {
   position: relative;
   overflow: visible;
@@ -268,7 +264,6 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
   min-width: 0;
 }
 
-/* ✅ Отступ справа под звезду в шапке */
 .card-head {
   display: flex;
   align-items: center;
@@ -304,7 +299,6 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
   &:hover { transform: translateY(-1px); }
 }
 
-/* ✅ Перебиваем светлые стили GoalCard */
 .card-goals :deep(.goal-card),
 .card-goals :deep(.goals-list),
 .card-goals :deep(.goal-item) {
@@ -322,21 +316,20 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
 }
 
 @media (max-width: 1100px) {
-  .analytics-page { padding: 20px 40px 100px; }
+  .analytics-page { padding: 20px 24px 100px; }
   .analytics-grid { grid-template-columns: 1fr; max-width: 900px; }
   .an-col-right { position: static; }
   .metrics-grid { grid-template-columns: 1fr 1fr; gap: 14px; }
 }
 
 @media (max-width: 700px) {
-  .analytics-page { padding: 16px 24px 120px; }
+  .analytics-page { padding: 16px 16px 120px; }
   .analytics-grid { gap: 12px; }
   .an-col { gap: 12px; }
   .card { padding: 16px 18px; border-radius: 14px; }
   .card-title { font-size: 11px; letter-spacing: 0.06em; }
-  .metrics-grid { grid-template-columns: 1fr; gap: 16px; padding: 0; }
+  .metrics-grid { grid-template-columns: 1fr; gap: 16px; }
 
-  /* ✅ ЦЕЛЬ растянута, звезда в углу блока */
   .card-goals { padding: 16px 18px; }
   .card-head { padding-right: 90px; }
 
@@ -356,8 +349,7 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
 
 @media (prefers-reduced-motion: reduce) {
   .hero-card__bg,
-  .tile__bg,
-  .mascot {
+  .tile__bg {
     animation: none !important;
   }
 }
