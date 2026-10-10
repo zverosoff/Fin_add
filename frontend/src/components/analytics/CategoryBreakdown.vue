@@ -5,7 +5,6 @@ import { fmt } from '@/composables/useFormat';
 import { useCategoriesStore } from '@/stores/categories';
 import { useAccountsStore } from '@/stores/accounts';
 import { useTransactionsStore } from '@/stores/transactions';
-import MascotImage from './MascotImage.vue';
 
 const categories = useCategoriesStore();
 const accounts = useAccountsStore();
@@ -116,7 +115,16 @@ const monthLabel = computed(() => {
 
 <template>
   <section class="cat-breakdown">
-    <!-- ✅ Отблеск -->
+    <!-- ✅ 1. Диагональные полосы (через ::before) -->
+    <!-- ✅ 2. Мелкая косая клетка (через ::after) -->
+
+    <!-- ✅ 3. Верхний глянец -->
+    <div class="cat-gloss" aria-hidden="true"></div>
+
+    <!-- ✅ 4. Пунктирная кромка -->
+    <div class="cat-frame" aria-hidden="true"></div>
+
+    <!-- Отблеск -->
     <div class="cat-glare" aria-hidden="true"></div>
 
     <div class="cat-head">
@@ -209,10 +217,65 @@ const monthLabel = computed(() => {
   isolation: isolate;
   min-height: 200px;
   border-radius: 14px;
-  /* ✅ overflow: hidden — ничего не выходит за пределы */
   overflow: hidden;
 }
 
+/* ✅ 1. ДИАГОНАЛЬНЫЕ ПОЛОСЫ 35° */
+.cat-breakdown::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: repeating-linear-gradient(
+    -35deg,
+    rgba(255, 255, 255, 0) 0px,
+    rgba(255, 255, 255, 0) 12px,
+    rgba(255, 255, 255, 0.06) 12px,
+    rgba(255, 255, 255, 0.06) 14px
+  );
+  opacity: 0.85;
+}
+
+/* ✅ 2. МЕЛКАЯ КОСАЯ КЛЕТКА 45° */
+.cat-breakdown::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.025) 0 2px,
+    transparent 2px 8px
+  );
+}
+
+/* ✅ 3. ВЕРХНИЙ ГЛЯНЕЦ */
+.cat-gloss {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background: radial-gradient(
+    ellipse 60% 40% at 20% 10%,
+    rgba(255, 255, 255, 0.15),
+    transparent 60%
+  );
+  mix-blend-mode: overlay;
+}
+
+/* ✅ 4. ПУНКТИРНАЯ РАМКА */
+.cat-frame {
+  position: absolute;
+  inset: 6px;
+  border-radius: 10px;
+  border: 1.5px dashed rgba(255, 255, 255, 0.15);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Отблеск — уже был */
 .cat-glare {
   position: absolute;
   top: -50%;
@@ -222,13 +285,13 @@ const monthLabel = computed(() => {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(255, 255, 255, 0.08) 45%,
-    rgba(255, 255, 255, 0.18) 50%,
-    rgba(255, 255, 255, 0.08) 55%,
+    rgba(255, 255, 255, 0.1) 45%,
+    rgba(255, 255, 255, 0.2) 50%,
+    rgba(255, 255, 255, 0.1) 55%,
     transparent 100%
   );
   transform: rotate(25deg);
-  animation: catGlareSweep 8s ease-in-out infinite;
+  animation: catGlareSweep 7s ease-in-out infinite;
   pointer-events: none;
   z-index: 1;
 }
@@ -241,7 +304,7 @@ const monthLabel = computed(() => {
 
 .cat-head {
   position: relative;
-  z-index: 2;
+  z-index: 3;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -299,7 +362,7 @@ const monthLabel = computed(() => {
 
 .cat-empty {
   position: relative;
-  z-index: 2;
+  z-index: 3;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -311,8 +374,8 @@ const monthLabel = computed(() => {
 }
 
 .cat-empty__mascot {
-  width: 140px;
-  height: 140px;
+  width: 160px;
+  height: 160px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -329,6 +392,7 @@ const monthLabel = computed(() => {
 .cat-empty__title {
   font-size: 15px;
   font-weight: 800;
+  letter-spacing: 0.02em;
   color: rgba(255, 255, 255, 0.9);
 }
 
@@ -340,7 +404,7 @@ const monthLabel = computed(() => {
 
 .cat-breakdown__list {
   position: relative;
-  z-index: 2;
+  z-index: 3;
   list-style: none;
   margin: 0;
   padding: 0;
@@ -484,7 +548,7 @@ const monthLabel = computed(() => {
 
 .cat-total {
   position: relative;
-  z-index: 2;
+  z-index: 3;
   margin-top: 14px;
   padding: 12px 16px;
   border-radius: 14px;
@@ -536,6 +600,7 @@ const monthLabel = computed(() => {
   .cat-check { width: 20px; height: 20px; }
   .cat-total { padding: 10px 12px; }
   .cat-total__sum { font-size: 18px; }
-  .cat-empty__mascot { width: 110px; height: 110px; }
+  .cat-empty__mascot { width: 130px; height: 130px; }
+  .cat-frame { inset: 4px; border-radius: 8px; }
 }
 </style>

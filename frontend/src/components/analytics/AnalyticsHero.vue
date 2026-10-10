@@ -23,10 +23,18 @@ function scrollToGoals() {
   <section class="hero-card">
     <div class="hero-card__bg" aria-hidden="true">
       <div class="hero-card__glow"></div>
+
+      <!-- ✅ 1. Диагональные полосы 35° -->
+      <div class="hero-card__stripes"></div>
+      <!-- ✅ 2. Мелкая косая клетка 45° -->
       <div class="hero-card__pattern"></div>
+      <!-- ✅ 3. Верхний глянец -->
+      <div class="hero-card__gloss"></div>
     </div>
 
-    <!-- ✅ Копилка крупнее — 200px, выходит за рамки -->
+    <!-- ✅ 4. Пунктирная рамка -->
+    <div class="hero-card__frame" aria-hidden="true"></div>
+
     <MascotImage
       name="piggy"
       position="hero-left"
@@ -56,7 +64,6 @@ function scrollToGoals() {
   position: relative;
   border-radius: 24px;
   overflow: visible;
-  /* ✅ padding-left 190px — под копилку 200px */
   padding: 22px 24px 22px 190px;
   min-height: 180px;
   isolation: isolate;
@@ -83,12 +90,63 @@ function scrollToGoals() {
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.1) inset,
     0 1px 0 rgba(255, 255, 255, 0.15) inset,
-    0 24px 48px -12px rgba(139, 92, 246, 0.5);
+    0 24px 48px -12px rgba(139, 92, 246, 0.5),
+    0 0 80px -20px rgba(139, 92, 246, 0.4);
 }
 
 @keyframes heroGradientShift {
   0%, 100% { background-position: 0% 50%; }
   50%      { background-position: 100% 50%; }
+}
+
+/* ✅ 1. ДИАГОНАЛЬНЫЕ ПОЛОСЫ 35° */
+.hero-card__stripes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    -35deg,
+    rgba(255, 255, 255, 0) 0px,
+    rgba(255, 255, 255, 0) 12px,
+    rgba(255, 255, 255, 0.12) 12px,
+    rgba(255, 255, 255, 0.12) 14px
+  );
+  opacity: 0.85;
+}
+
+/* ✅ 2. МЕЛКАЯ КОСАЯ КЛЕТКА 45° */
+.hero-card__pattern {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.035) 0 2px,
+    transparent 2px 8px
+  );
+}
+
+/* ✅ 3. ВЕРХНИЙ ГЛЯНЕЦ */
+.hero-card__gloss {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 60% 40% at 20% 10%,
+    rgba(255, 255, 255, 0.25),
+    transparent 60%
+  );
+  mix-blend-mode: overlay;
+}
+
+/* ✅ 4. ПУНКТИРНАЯ РАМКА */
+.hero-card__frame {
+  position: absolute;
+  inset: 6px;
+  border-radius: 18px;
+  border: 1.5px dashed rgba(255, 255, 255, 0.22);
+  pointer-events: none;
+  z-index: 3;
 }
 
 .hero-card__glow {
@@ -97,16 +155,6 @@ function scrollToGoals() {
   background: radial-gradient(circle at 70% 50%, rgba(250, 204, 21, 0.15), transparent 60%);
   pointer-events: none;
   mix-blend-mode: screen;
-}
-
-.hero-card__pattern {
-  position: absolute;
-  inset: 0;
-  background-image:
-    radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.06) 1px, transparent 1px),
-    radial-gradient(circle at 60% 20%, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
-  background-size: 24px 24px, 32px 32px;
-  pointer-events: none;
 }
 
 .hero-card__content {
@@ -195,6 +243,7 @@ function scrollToGoals() {
     animation: none !important;
     background-size: 100% 100% !important;
   }
+  .hero-card__frame { border-radius: 16px; inset: 5px; }
   .hero-card__value { font-size: 30px; }
   .hero-card__sub { font-size: 11.5px; }
 }

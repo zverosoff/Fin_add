@@ -52,8 +52,16 @@ const hasMascot = computed(() => !!props.mascot);
     :style="{ '--tile-glow': glow }"
   >
     <div class="tile__bg" :style="{ background: gradient }" aria-hidden="true">
-      <div class="tile__shine"></div>
+      <!-- ✅ 1. Диагональные полосы 35° -->
+      <div class="tile__stripes"></div>
+      <!-- ✅ 2. Мелкая косая клетка 45° -->
+      <div class="tile__pattern"></div>
+      <!-- ✅ 3. Верхний глянец -->
+      <div class="tile__gloss"></div>
     </div>
+
+    <!-- ✅ 4. Пунктирная рамка -->
+    <div class="tile__frame" aria-hidden="true"></div>
 
     <MascotImage
       v-if="hasMascot"
@@ -106,54 +114,83 @@ const hasMascot = computed(() => !!props.mascot);
     0 4px 10px -4px rgba(0, 0, 0, 0.25);
 }
 
-.tile__shine {
+/* ✅ 1. ДИАГОНАЛЬНЫЕ ПОЛОСЫ 35° */
+.tile__stripes {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, transparent 40%);
   pointer-events: none;
-  z-index: 1;
+  background: repeating-linear-gradient(
+    -35deg,
+    rgba(255, 255, 255, 0) 0px,
+    rgba(255, 255, 255, 0) 12px,
+    rgba(255, 255, 255, 0.12) 12px,
+    rgba(255, 255, 255, 0.12) 14px
+  );
+  opacity: 0.85;
 }
 
-/* ============================================================
-   ✅ КОНТЕНТ — базовая структура
-   ============================================================ */
+/* ✅ 2. МЕЛКАЯ КОСАЯ КЛЕТКА 45° */
+.tile__pattern {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.035) 0 2px,
+    transparent 2px 8px
+  );
+}
+
+/* ✅ 3. ВЕРХНИЙ ГЛЯНЕЦ */
+.tile__gloss {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: radial-gradient(
+    ellipse 60% 40% at 20% 10%,
+    rgba(255, 255, 255, 0.25),
+    transparent 60%
+  );
+  mix-blend-mode: overlay;
+}
+
+/* ✅ 4. ПУНКТИРНАЯ РАМКА */
+.tile__frame {
+  position: absolute;
+  inset: 6px;
+  border-radius: 14px;
+  border: 1.5px dashed rgba(255, 255, 255, 0.22);
+  pointer-events: none;
+  z-index: 3;
+}
+
 .tile__content {
   position: relative;
   z-index: 4;
   display: flex;
   flex-direction: column;
-  justify-content: center;   /* ✅ по вертикали — ЦЕНТР */
+  justify-content: center;
   gap: 4px;
   height: 100%;
   min-height: 112px;
   box-sizing: border-box;
 }
 
-/* ============================================================
-   ✅ ВЫРАВНИВАНИЕ — ПК
-   ============================================================ */
-
-/* Свободно (кошелёк слева) — ТЕКСТ СПРАВА */
 .tile--mascot-left .tile__content {
   padding-left: 110px;
   padding-right: 0;
   text-align: right;
-  align-items: flex-end;        /* ← все дети прижаты к правому краю */
+  align-items: flex-end;
 }
-.tile--mascot-left .tile__label {
-  justify-content: flex-end;    /* ← метка справа */
-}
+.tile--mascot-left .tile__label { justify-content: flex-end; }
 
-/* Подушка (щит справа) — ТЕКСТ СЛЕВА */
 .tile--mascot-right .tile__content {
   padding-right: 110px;
   padding-left: 0;
   text-align: left;
-  align-items: flex-start;      /* ← все дети прижаты к левому краю */
+  align-items: flex-start;
 }
-.tile--mascot-right .tile__label {
-  justify-content: flex-start;  /* ← метка слева */
-}
+.tile--mascot-right .tile__label { justify-content: flex-start; }
 
 .tile--mascot-floating .tile__content,
 .tile--mascot-corner .tile__content {
@@ -162,9 +199,6 @@ const hasMascot = computed(() => !!props.mascot);
   align-items: flex-end;
 }
 
-/* ============================================================
-   ✅ Элементы
-   ============================================================ */
 .tile__label {
   display: flex;
   align-items: center;
@@ -185,7 +219,9 @@ const hasMascot = computed(() => !!props.mascot);
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.1;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  text-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    0 0 20px rgba(255, 255, 255, 0.15);
 }
 
 .tile__unit {
@@ -200,40 +236,29 @@ const hasMascot = computed(() => !!props.mascot);
   font-weight: 600;
 }
 
-/* ============================================================
-   ✅ МОБИЛЬНЫЙ
-   ============================================================ */
 @media (max-width: 700px) {
   .tile { padding: 14px 16px; border-radius: 14px; min-height: 120px; }
   .tile__bg { border-radius: 14px; }
+  .tile__frame { border-radius: 10px; inset: 4px; }
   .tile__value { font-size: 22px; }
   .tile__label { font-size: 10px; }
   .tile__sub { font-size: 10px; }
   .tile__content { min-height: 92px; }
 
-  /* Свободно (LEFT) — текст СПРАВА */
   .tile--mascot-left .tile__content {
     padding-left: 100px;
-    padding-right: 0;
     text-align: right;
     align-items: flex-end;
   }
-  .tile--mascot-left .tile__label {
-    justify-content: flex-end;
-  }
+  .tile--mascot-left .tile__label { justify-content: flex-end; }
 
-  /* Подушка (RIGHT) — текст СЛЕВА */
   .tile--mascot-right .tile__content {
     padding-right: 100px;
-    padding-left: 0;
     text-align: left;
     align-items: flex-start;
   }
-  .tile--mascot-right .tile__label {
-    justify-content: flex-start;
-  }
+  .tile--mascot-right .tile__label { justify-content: flex-start; }
 
-  /* ✅ Калькулятор (tile-calc) — персонаж ВЛЕВО, текст СПРАВА */
   .tile-calc :deep(.mascot--right) {
     left: -15px !important;
     right: auto !important;
@@ -244,8 +269,6 @@ const hasMascot = computed(() => !!props.mascot);
     text-align: right !important;
     align-items: flex-end !important;
   }
-  .tile-calc .tile__label {
-    justify-content: flex-end !important;
-  }
+  .tile-calc .tile__label { justify-content: flex-end !important; }
 }
 </style>
