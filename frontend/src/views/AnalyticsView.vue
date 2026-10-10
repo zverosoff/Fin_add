@@ -10,6 +10,7 @@ import { fmt } from '@/composables/useFormat';
 
 import AnalyticsHero from '@/components/analytics/AnalyticsHero.vue';
 import MetricTile from '@/components/analytics/MetricTile.vue';
+import MascotImage from '@/components/analytics/MascotImage.vue';
 
 import MonthNav from '@/components/analytics/MonthNav.vue';
 import CategoryBreakdown from '@/components/analytics/CategoryBreakdown.vue';
@@ -89,7 +90,6 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
         <AnalyticsHero />
 
         <div class="metrics-grid">
-          <!-- ✅ Свободно: персонаж слева, текст справа -->
           <MetricTile
             label="Свободно"
             :value="metrics.realFree"
@@ -102,7 +102,6 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
             :mascot-size="120"
           />
 
-          <!-- ✅ Подушка: персонаж справа, текст слева -->
           <MetricTile
             label="Подушка"
             :value="Number(metrics.runway || 0).toFixed(1)"
@@ -115,7 +114,6 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
             :mascot-size="120"
           />
 
-          <!-- ✅ Расход/день: ПК — справа; МОБ — влево (класс tile-calc) -->
           <MetricTile
             label="Расход/день"
             :value="metrics.dailyAvg"
@@ -137,11 +135,20 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
         </section>
       </div>
 
-      <!-- ПРАВАЯ КОЛОНКА — ПОМОЩНИК + ЦЕЛИ -->
+      <!-- ПРАВАЯ КОЛОНКА -->
       <div class="an-col an-col-right">
         <FinancialAssistant />
 
+        <!-- ✅ ЦЕЛИ со звездой -->
         <section class="card card-dark card-goals">
+          <MascotImage
+            name="star"
+            position="goals-corner"
+            :size="90"
+            fallback="🎯"
+            alt="Цели"
+          />
+
           <div class="card-goals__content">
             <div class="card-head">
               <h2 class="card-title">🎯 Цели</h2>
@@ -171,14 +178,29 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
 </template>
 
 <style scoped lang="scss">
-/* ✅ ХАРДКОД ТЁМНОГО ФОНА */
+/* ============================================================
+   ✅ ГЛОБАЛЬНЫЙ ТЁМНЫЙ ФОН — перебивает body при переходах
+   ============================================================ */
+:global(body),
+:global(html) {
+  background: #1a0f3a !important;
+}
+
+:global(#app) {
+  background: #1a0f3a !important;
+  min-height: 100vh !important;
+}
+
+/* ✅ .page-transition-wrap тоже получает фон */
+:global(.page-transition-wrap) {
+  background: linear-gradient(135deg, #1a0f3a 0%, #2d1b5e 50%, #4c1d95 100%) !important;
+}
+
 .analytics-page {
   position: relative;
   min-height: 100vh;
   padding: 20px 40px 100px;
   color: #ffffff !important;
-  z-index: 0;
-  isolation: isolate;
   background: linear-gradient(135deg, #1a0f3a 0%, #2d1b5e 50%, #4c1d95 100%);
   background-attachment: fixed;
 }
@@ -191,7 +213,6 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
   grid-template-columns: 1fr 380px;
   gap: 20px;
   align-items: start;
-  z-index: 1;
 }
 
 .an-col {
@@ -228,10 +249,10 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
   color: #ffffff !important;
 }
 
-/* ✅ ЦЕЛИ — overflow hidden, звезда в углу не увеличивает высоту */
+/* ✅ ЦЕЛИ — overflow visible, звезда в углу */
 .card-goals {
   position: relative;
-  overflow: hidden;
+  overflow: visible;
   padding: 20px 22px;
 }
 
@@ -276,7 +297,7 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
   &:hover { transform: translateY(-1px); }
 }
 
-/* ✅ Перебиваем светлые стили GoalCard */
+/* Перебиваем светлые стили GoalCard */
 .card-goals :deep(.goal-card),
 .card-goals :deep(.goals-list),
 .card-goals :deep(.goal-item) {
@@ -317,14 +338,6 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
     width: 100% !important;
     max-width: 100% !important;
     box-sizing: border-box !important;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .hero-card__bg,
-  .tile__bg,
-  .cat-glare {
-    animation: none !important;
   }
 }
 </style>
