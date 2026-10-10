@@ -53,6 +53,8 @@ const hasMascot = computed(() => !!props.mascot);
   >
     <div class="tile__bg" :style="{ background: gradient }" aria-hidden="true">
       <div class="tile__shine"></div>
+      <div class="tile__glare" aria-hidden="true"></div>
+
       <span class="tile__orb tile__orb--1"></span>
       <span class="tile__orb tile__orb--2"></span>
       <span class="tile__orb tile__orb--3"></span>
@@ -130,6 +132,33 @@ const hasMascot = computed(() => !!props.mascot);
   z-index: 1;
 }
 
+/* ✅ Анимированный отблеск */
+.tile__glare {
+  position: absolute;
+  top: -50%;
+  left: -100%;
+  width: 60%;
+  height: 200%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.2) 45%,
+    rgba(255, 255, 255, 0.45) 50%,
+    rgba(255, 255, 255, 0.2) 55%,
+    transparent 100%
+  );
+  transform: rotate(25deg);
+  animation: tileGlareSweep 6s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 2;
+}
+
+@keyframes tileGlareSweep {
+  0%, 55% { left: -100%; opacity: 0; }
+  60%     { opacity: 1; }
+  100%    { left: 200%; opacity: 0; }
+}
+
 .tile__orb {
   position: absolute;
   border-radius: 50%;
@@ -183,7 +212,6 @@ const hasMascot = computed(() => !!props.mascot);
   gap: 4px;
 }
 
-/* ✅ Отступы под персонажа */
 .tile--mascot-left .tile__content   { padding-left: 140px; }
 .tile--mascot-right .tile__content  { padding-right: 140px; }
 .tile--mascot-floating .tile__content,
@@ -203,7 +231,6 @@ const hasMascot = computed(() => !!props.mascot);
 
 .tile__emoji { font-size: 13px; line-height: 1; }
 
-/* ✅ ЖИРНАЯ КРУПНАЯ СУММА */
 .tile__value {
   font-family: var(--mono);
   font-size: 32px;
