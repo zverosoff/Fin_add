@@ -43,24 +43,19 @@ const formatted = computed(() => {
 });
 
 const hasMascot = computed(() => !!props.mascot);
-
-// ✅ Отступ под половину персонажа
-const halfOffset = computed(() => Math.round((props.mascotSize || 150) / 2));
 </script>
 
 <template>
   <div
     class="tile"
     :class="[`tile--mascot-${mascotPos}`]"
-    :style="{
-      '--tile-glow': glow,
-      '--tile-half': halfOffset + 'px',
-    }"
+    :style="{ '--tile-glow': glow }"
   >
     <div class="tile__bg" :style="{ background: gradient }" aria-hidden="true">
       <div class="tile__shine"></div>
     </div>
 
+    <!-- ✅ Персонаж ПОВЕРХ блока (z-index выше, выходит за границы) -->
     <MascotImage
       v-if="hasMascot"
       :name="mascot"
@@ -87,15 +82,16 @@ const halfOffset = computed(() => Math.round((props.mascotSize || 150) / 2));
 .tile {
   position: relative;
   border-radius: 18px;
-  min-height: 140px;
+  /* ✅ УМЕНЬШЕНА высота */
+  min-height: 130px;
   color: #ffffff;
-  /* ✅ Не overflow: visible — иначе персонаж уходит за границы */
+  /* ✅ overflow: visible — персонаж выходит за границы */
   overflow: visible;
   isolation: isolate;
   transition: transform 0.2s;
 
-  /* ✅ Внутренние отступы — половина персонажа + запас */
-  padding: 16px 20px;
+  /* ✅ УМЕНЬШЕН padding — блок компактнее */
+  padding: 14px 16px;
   box-sizing: border-box;
 
   &:hover { transform: translateY(-2px); }
@@ -123,33 +119,33 @@ const halfOffset = computed(() => Math.round((props.mascotSize || 150) / 2));
   z-index: 1;
 }
 
-/* ✅ КОНТЕНТ — по центру вертикали */
+/* ✅ Контент — центр по вертикали */
 .tile__content {
   position: relative;
   z-index: 4;
   display: flex;
   flex-direction: column;
-  justify-content: center;   /* ✅ Центр по вертикали */
+  justify-content: center;
   gap: 4px;
   height: 100%;
-  min-height: 108px;
+  min-height: 102px;
   box-sizing: border-box;
 }
 
-/* ✅ Отступы контента под половину персонажа */
+/* ✅ Сдвиг контента под персонажа (персонаж поверх, контент правее) */
 .tile--mascot-left .tile__content {
-  padding-left: calc(var(--tile-half) + 8px);
+  padding-left: 100px;
   text-align: left;
   align-items: flex-start;
 }
 .tile--mascot-right .tile__content {
-  padding-right: calc(var(--tile-half) + 8px);
+  padding-right: 100px;
   text-align: right;
   align-items: flex-end;
 }
 .tile--mascot-floating .tile__content,
 .tile--mascot-corner .tile__content {
-  padding-right: 90px;
+  padding-right: 80px;
   text-align: right;
   align-items: flex-end;
 }
@@ -170,7 +166,7 @@ const halfOffset = computed(() => Math.round((props.mascotSize || 150) / 2));
 
 .tile__value {
   font-family: var(--mono);
-  font-size: 30px;
+  font-size: 28px;
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.1;
@@ -195,23 +191,16 @@ const halfOffset = computed(() => Math.round((props.mascotSize || 150) / 2));
   .tile__value { font-size: 22px; }
   .tile__label { font-size: 10px; }
   .tile__sub { font-size: 10px; }
-
-  /* ✅ Мобилка: контент по центру вертикали */
   .tile__content { min-height: 92px; }
 
-  /* ✅ Мобилка: Подушка (right) — текст всё равно слева */
   .tile--mascot-right .tile__content {
     text-align: left;
     align-items: flex-start;
-    padding-right: calc(var(--tile-half) + 8px);
+    padding-right: 90px;
     padding-left: 0;
   }
-  .tile--mascot-right .tile__label {
-    justify-content: flex-start;
-  }
+  .tile--mascot-right .tile__label { justify-content: flex-start; }
 
-  .tile--mascot-left .tile__content {
-    padding-left: calc(var(--tile-half) + 8px);
-  }
+  .tile--mascot-left .tile__content { padding-left: 90px; }
 }
 </style>

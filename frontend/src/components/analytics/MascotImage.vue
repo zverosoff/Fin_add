@@ -17,24 +17,18 @@ const failed = ref(false);
 const src = computed(() => `/img/mascots/${props.name}.png`);
 
 const defaultSizes = {
-  left: 150,
-  right: 150,
-  'hero-left': 260,
-  'hero-right': 260,
+  left: 130,
+  right: 130,
+  'hero-left': 200,
+  'hero-right': 200,
   background: 280,
   floating: 100,
   corner: 130,
   static: 180,
-  'goals-corner': 140,
+  'goals-corner': 100,
 };
 
-const px = computed(() => props.size || defaultSizes[props.position] || 150);
-
-/**
- * ✅ Смещение = половина размера
- * Персонаж стоит на границе: половина внутри, половина снаружи.
- */
-const offset = computed(() => Math.round(px.value / 2));
+const px = computed(() => props.size || defaultSizes[props.position] || 130);
 
 const shouldFlip = computed(() => {
   if (props.flip) return true;
@@ -51,7 +45,6 @@ function onError() { failed.value = true; loaded.value = false; }
     :class="[`mascot--${position}`, { 'is-loaded': loaded, 'is-failed': failed }]"
     :style="{
       '--mascot-size': px + 'px',
-      '--mascot-offset': offset + 'px',
       '--mascot-flip': shouldFlip ? -1 : 1,
     }"
     aria-hidden="true"
@@ -74,7 +67,8 @@ function onError() { failed.value = true; loaded.value = false; }
 .mascot {
   position: absolute;
   pointer-events: none;
-  z-index: 3;
+  /* ✅ ВЫШЕ блока — персонаж перекрывает */
+  z-index: 5;
   width: var(--mascot-size);
   height: var(--mascot-size);
   display: flex;
@@ -104,68 +98,72 @@ function onError() { failed.value = true; loaded.value = false; }
   user-select: none;
 }
 
-/* ✅ LEFT/RIGHT — половина в блоке, половина снаружи */
+/* ✅ LEFT — персонаж поверх блока, выходит за границы сверху/снизу */
 .mascot--left {
-  left: calc(var(--mascot-offset) * -1);
-  top: 50%;
-  transform: translateY(-50%);
+  left: 8px;
+  top: -20px;
+  bottom: -20px;
+  height: auto;
+  align-items: center;
 }
 
+/* ✅ RIGHT — то же */
 .mascot--right {
-  right: calc(var(--mascot-offset) * -1);
-  top: 50%;
-  transform: translateY(-50%);
+  right: 8px;
+  top: -20px;
+  bottom: -20px;
+  height: auto;
+  align-items: center;
 }
 
-/* ✅ HERO — копилка слева, на половину */
+/* ✅ HERO — копилка слева, выходит сверху/снизу */
 .mascot--hero-left {
-  left: calc(var(--mascot-offset) * -1);
-  top: 50%;
-  transform: translateY(-50%);
+  left: 10px;
+  top: -30px;
+  bottom: -30px;
+  height: auto;
+  align-items: center;
 }
 
 .mascot--hero-right {
-  right: calc(var(--mascot-offset) * -1);
-  top: 50%;
-  transform: translateY(-50%);
+  right: 10px;
+  top: -30px;
+  bottom: -30px;
+  height: auto;
+  align-items: center;
 }
 
 .mascot--background { right: -40px; bottom: -30px; opacity: 0.35; z-index: 0; }
-.mascot--floating { right: 8px;   top: 8px; }
-.mascot--corner   { right: -20px; top: -20px; }
-.mascot--static   { position: relative; left: auto; right: auto; top: auto; bottom: auto; }
+.mascot--floating {
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+}
+.mascot--corner { right: -10px; top: -10px; }
 
-/* ✅ Звезда целей */
-.mascot--goals-corner {
-  right: -20px;
-  top: -20px;
+.mascot--static {
+  position: relative;
+  left: auto; right: auto; top: auto; bottom: auto;
 }
 
-/* ✅ МОБИЛЬНЫЙ — меньше размеры, копилка/калькулятор слева */
+/* ✅ Звезда целей — внутри блока, не увеличивает высоту */
+.mascot--goals-corner {
+  right: 10px;
+  top: 10px;
+  width: 100px !important;
+  height: 100px !important;
+}
+
 @media (max-width: 700px) {
-  .mascot--left {
-    left: -60px;
-    top: 50%;
-    transform: translateY(-50%);
-  }
-
-  .mascot--right {
-    right: -60px;
-    top: 50%;
-    transform: translateY(-50%);
-  }
-
-  .mascot--hero-left {
-    left: -100px;
-    top: 50%;
-    transform: translateY(-50%);
-  }
+  .mascot--left { left: 6px; top: -15px; bottom: -15px; height: auto; }
+  .mascot--right { right: 6px; top: -15px; bottom: -15px; height: auto; }
+  .mascot--hero-left { left: 8px; top: -20px; bottom: -20px; height: auto; }
 
   .mascot--goals-corner {
-    right: -15px;
-    top: -15px;
-    width: 100px !important;
-    height: 100px !important;
+    right: 8px;
+    top: 8px;
+    width: 80px !important;
+    height: 80px !important;
   }
 }
 </style>
