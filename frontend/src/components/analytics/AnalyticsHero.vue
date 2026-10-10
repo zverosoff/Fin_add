@@ -32,11 +32,10 @@ function scrollToGoals() {
         <span class="hero-particle hero-particle--4"></span>
         <span class="hero-particle hero-particle--5"></span>
         <span class="hero-particle hero-particle--6"></span>
-        <span class="hero-particle hero-particle--7"></span>
-        <span class="hero-particle hero-particle--8"></span>
       </div>
     </div>
 
+    <!-- ✅ Копилка — слева, на границе (50/50) -->
     <MascotImage
       name="piggy"
       position="hero-left"
@@ -66,7 +65,8 @@ function scrollToGoals() {
   position: relative;
   border-radius: 24px;
   overflow: visible;
-  padding: 22px 24px 22px 160px;
+  /* ✅ Отступ под копилку = половина 260 = 130 + запас */
+  padding: 22px 24px 22px 150px;
   min-height: 220px;
   isolation: isolate;
   color: #ffffff;
@@ -160,14 +160,12 @@ function scrollToGoals() {
   background: rgba(255, 255, 255, 0.7);
 }
 
-.hero-particle--1 { top: -10%; left: 10%; animation: heroRain1 5s linear infinite; }
-.hero-particle--2 { top: -10%; left: 25%; width: 2px; height: 2px; animation: heroRain2 6s linear infinite 0.8s; }
-.hero-particle--3 { top: -10%; left: 40%; width: 4px; height: 4px; animation: heroRain3 7s linear infinite 1.5s; }
-.hero-particle--4 { top: -10%; left: 55%; animation: heroRain4 5.5s linear infinite 2.2s; }
-.hero-particle--5 { top: -10%; left: 70%; width: 2px; height: 2px; animation: heroRain5 6.5s linear infinite 0.5s; }
-.hero-particle--6 { top: -10%; left: 85%; width: 3px; height: 3px; animation: heroRain6 8s linear infinite 3s; }
-.hero-particle--7 { top: -10%; left: 95%; width: 2px; height: 2px; animation: heroRain7 5.2s linear infinite 1s; }
-.hero-particle--8 { top: -10%; left: 5%; animation: heroRain8 6.8s linear infinite 4s; }
+.hero-particle--1 { top: -10%; left: 20%; animation: heroRain1 5s linear infinite; }
+.hero-particle--2 { top: -10%; left: 40%; width: 2px; height: 2px; animation: heroRain2 6s linear infinite 0.8s; }
+.hero-particle--3 { top: -10%; left: 60%; width: 4px; height: 4px; animation: heroRain3 7s linear infinite 1.5s; }
+.hero-particle--4 { top: -10%; left: 75%; animation: heroRain4 5.5s linear infinite 2.2s; }
+.hero-particle--5 { top: -10%; left: 88%; width: 2px; height: 2px; animation: heroRain5 6.5s linear infinite 0.5s; }
+.hero-particle--6 { top: -10%; left: 95%; width: 3px; height: 3px; animation: heroRain6 8s linear infinite 3s; }
 
 @keyframes heroRain1 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translate(-40px, 240px); opacity: 0; } }
 @keyframes heroRain2 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.8; } 90% { opacity: 0.8; } 100% { transform: translate(30px, 240px); opacity: 0; } }
@@ -175,8 +173,6 @@ function scrollToGoals() {
 @keyframes heroRain4 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.9; } 90% { opacity: 0.9; } 100% { transform: translate(50px, 240px); opacity: 0; } }
 @keyframes heroRain5 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.7; } 90% { opacity: 0.7; } 100% { transform: translate(-25px, 240px); opacity: 0; } }
 @keyframes heroRain6 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translate(70px, 240px); opacity: 0; } }
-@keyframes heroRain7 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.8; } 90% { opacity: 0.8; } 100% { transform: translate(-35px, 240px); opacity: 0; } }
-@keyframes heroRain8 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.6; } 90% { opacity: 0.6; } 100% { transform: translate(45px, 240px); opacity: 0; } }
 
 .hero-card__content {
   position: relative;
@@ -254,26 +250,41 @@ function scrollToGoals() {
   margin-bottom: 14px;
 }
 
-/* ✅ МОБИЛЬНЫЙ — копилка слева, текст справа */
+/* ✅ МОБИЛЬНЫЙ — копилка слева на границе, текст справа, БЕЗ анимации */
 @media (max-width: 700px) {
   .hero-card {
-    padding: 18px 16px 18px 180px;
+    padding: 18px 16px 18px 120px;
     min-height: 180px;
     border-radius: 20px;
     justify-content: flex-end;
   }
-  .hero-card__bg { border-radius: 20px; }
+  .hero-card__bg {
+    border-radius: 20px;
+    /* ✅ Убираем анимацию градиента на мобиле */
+    animation: none !important;
+    background-size: 100% 100% !important;
+  }
+
+  /* ✅ Убираем отблеск и частицы на мобиле */
+  .hero-card__shine { animation: none !important; opacity: 0 !important; }
+  .hero-card__rain { display: none !important; }
+
   .hero-card__content {
     text-align: right !important;
     margin-left: auto !important;
   }
-  .hero-card__label {
-    justify-content: flex-end !important;
-  }
-  .hero-card__btn {
-    margin-left: auto !important;
-  }
+  .hero-card__label { justify-content: flex-end !important; }
+  .hero-card__btn { margin-left: auto !important; }
   .hero-card__value { font-size: 32px; }
   .hero-card__sub { font-size: 11.5px; }
+}
+
+/* ✅ prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .hero-card__bg,
+  .hero-card__shine,
+  .hero-particle {
+    animation: none !important;
+  }
 }
 </style>

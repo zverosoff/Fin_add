@@ -437,25 +437,40 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
   .card-title { font-size: 11px; letter-spacing: 0.06em; }
   .metrics-grid { grid-template-columns: 1fr; }
 
-  .tile-calc :deep(.mascot--right) {
-    right: auto !important;
-    left: -30px !important;
-  }
-  .tile-calc :deep(.tile__content) {
-    padding-right: 0 !important;
-    padding-left: 140px !important;
+  /* ✅ Убираем анимации фоновых частиц и отблеска — разгрузка */
+  .page-bg__rain { display: none !important; }
+  .page-bg__shine { animation: none !important; opacity: 0 !important; }
+  .page-bg {
+    animation: none !important;
+    background-size: 100% 100% !important;
   }
 
-  /* ✅ МОБ: звезда в верхнем правом углу, меньше */
+  /* ✅ ЦЕЛЬ растянута по блоку */
   .card-goals {
-    padding-right: 110px;
-    padding-top: 16px;
+    padding-right: 0;
+    padding-top: 100px;
   }
 
   .card-goals :deep(.goal-card),
-  .card-goals :deep(.goals-list > *) {
+  .card-goals :deep(.goals-list > *),
+  .card-goals :deep(.goals-list) {
     width: 100% !important;
     max-width: 100% !important;
+    box-sizing: border-box !important;
+  }
+
+  .card-goals :deep(.goal-card) {
+    padding-left: 16px !important;
+    padding-right: 16px !important;
+  }
+}
+/* ✅ prefers-reduced-motion — отключаем ВСЁ */
+@media (prefers-reduced-motion: reduce) {
+  .page-bg,
+  .page-bg__shine,
+  .page-particle,
+  .card-goals {
+    animation: none !important;
   }
 }
 </style>
