@@ -51,7 +51,6 @@ const hasMascot = computed(() => !!props.mascot);
     :class="[`tile--mascot-${mascotPos}`]"
     :style="{ '--tile-glow': glow }"
   >
-    <!-- Фон отдельным слоем, чтобы персонаж мог выйти за границы -->
     <div class="tile__bg" :style="{ background: gradient }" aria-hidden="true">
       <div class="tile__shine"></div>
     </div>
@@ -83,9 +82,8 @@ const hasMascot = computed(() => !!props.mascot);
   position: relative;
   border-radius: 18px;
   padding: 16px;
-  min-height: 120px;
+  min-height: 140px;
   color: #ffffff;
-  /* ✅ overflow: visible — персонаж выходит за границы */
   overflow: visible;
   isolation: isolate;
   transition: transform 0.2s cubic-bezier(.34,1.56,.64,1);
@@ -122,11 +120,10 @@ const hasMascot = computed(() => !!props.mascot);
   gap: 4px;
 }
 
-/* Отступы контента под персонажа */
-.tile--mascot-left .tile__content   { padding-left: 95px; }
-.tile--mascot-right .tile__content  { padding-right: 95px; }
+.tile--mascot-left .tile__content   { padding-left: 120px; }
+.tile--mascot-right .tile__content  { padding-right: 120px; }
 .tile--mascot-floating .tile__content,
-.tile--mascot-corner .tile__content { padding-right: 65px; }
+.tile--mascot-corner .tile__content { padding-right: 80px; }
 
 .tile__label {
   display: flex;
@@ -164,19 +161,14 @@ const hasMascot = computed(() => !!props.mascot);
 }
 
 @media (max-width: 700px) {
-  .tile { padding: 13px; border-radius: 14px; min-height: 100px; }
+  .tile { padding: 13px; border-radius: 14px; min-height: 120px; }
   .tile__bg { border-radius: 14px; }
   .tile__value { font-size: 20px; }
   .tile__label { font-size: 10px; }
   .tile__sub { font-size: 10px; }
-  .tile--mascot-left .tile__content   { padding-left: 70px; }
-  .tile--mascot-right .tile__content  { padding-right: 70px; }
+  .tile--mascot-left .tile__content   { padding-left: 95px; }
+  .tile--mascot-right .tile__content  { padding-right: 95px; }
   .tile--mascot-floating .tile__content,
-  .tile--mascot-corner .tile__content { padding-right: 50px; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .tile { transition: none; }
-  .tile:hover { transform: none; }
+  .tile--mascot-corner .tile__content { padding-right: 60px; }
 }
 </style>
