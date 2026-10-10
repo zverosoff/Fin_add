@@ -10,6 +10,13 @@ const accounts = useAccountsStore();
 const goalsStore = useGoalsStore();
 const auth = useAuthStore();
 
+// ✅ PNG-иконки
+const ICON_CASH    = '/img/icons/nav/cash.png';
+const ICON_PLUS    = '/img/icons/ui/plus.png';
+const ICON_MINUS   = '/img/icons/ui/minus.png';
+const ICON_BALANCE = '/img/icons/ui/balance.png';
+const ICON_GOAL    = '/img/icons/nav/goal.png';
+
 const LS_KEY = 'financeProCashCollapsed_v1';
 const collapsed = ref(false);
 
@@ -134,7 +141,7 @@ const fallingBills = [
         @keydown.space.prevent="toggle"
       >
         <div class="cn-header-left">
-          <span class="cn-header-icon">💵</span>
+          <img :src="ICON_CASH" class="cn-header-icon-img" alt="Наличные" />
           <div class="cn-header-titles">
             <span class="cn-header-title">НАЛИЧНЫЕ</span>
             <span class="cn-header-sub">БИЛЕТ БАНКА · РУБЛЬ</span>
@@ -163,22 +170,28 @@ const fallingBills = [
 
           <div class="cn-actions">
             <button class="cn-act cn-act-primary" type="button" @click="openModal('', 'add')">
-              <span class="cn-act-icon">＋</span>
+              <img :src="ICON_PLUS" class="cn-act-icon-img" alt="Добавить" />
               <span>Добавить</span>
             </button>
             <button class="cn-act" type="button" @click="openModal('', 'withdraw')">
-              <span class="cn-act-icon">−</span>
+              <img :src="ICON_MINUS" class="cn-act-icon-img" alt="Убрать" />
               <span>Убрать</span>
             </button>
             <button class="cn-act" type="button" @click="openModal('', 'set')">
-              <span class="cn-act-icon">⚖️</span>
+              <img :src="ICON_BALANCE" class="cn-act-icon-img" alt="Сверка" />
               <span>Сверка</span>
             </button>
           </div>
 
           <div v-if="goalsStore.primaryGoal" class="cn-goal" :class="{ done: isDone }">
             <div class="cn-goal-head">
-              <span class="cn-goal-emoji">{{ goalsStore.primaryGoal.emoji || '🎯' }}</span>
+              <img
+                v-if="!goalsStore.primaryGoal.emoji || goalsStore.primaryGoal.emoji === '🎯'"
+                :src="ICON_GOAL"
+                class="cn-goal-icon-img"
+                alt="Цель"
+              />
+              <span v-else class="cn-goal-emoji">{{ goalsStore.primaryGoal.emoji }}</span>
               <span class="cn-goal-name">{{ goalsStore.primaryGoal.name }}</span>
               <span class="cn-goal-badge" :class="{ done: isDone }">
                 {{ isDone ? '✅' : '⭐' }}
@@ -364,11 +377,17 @@ const fallingBills = [
   flex: 0 1 auto;
 }
 
-.cn-header-icon {
-  font-size: 22px;
-  line-height: 1;
-  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.3));
+/* ✅ PNG-иконка наличных — фикс 32×32 */
+.cn-header-icon-img {
+  display: block;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  max-width: 32px;
+  max-height: 32px;
+  object-fit: contain;
   flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35)) brightness(1.05);
 }
 
 .cn-header-titles {
@@ -509,6 +528,7 @@ const fallingBills = [
   margin-top: 4px;
 }
 
+/* ✅ Кнопки с PNG-иконками */
 .cn-act {
   display: inline-flex;
   align-items: center;
@@ -527,6 +547,7 @@ const fallingBills = [
   white-space: nowrap;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  overflow: hidden;
 
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.35) inset,
@@ -542,6 +563,10 @@ const fallingBills = [
       0 1px 0 rgba(255, 255, 255, 0.4) inset,
       0 -1px 0 rgba(0, 0, 0, 0.12) inset,
       0 6px 14px -4px rgba(0, 0, 0, 0.35);
+
+    .cn-act-icon-img {
+      transform: scale(1.1) rotate(-4deg);
+    }
   }
   &:active {
     transform: translateY(0) scale(0.97);
@@ -573,7 +598,19 @@ const fallingBills = [
   }
 }
 
-.cn-act-icon { font-size: 13px; line-height: 1; }
+/* ✅ PNG-иконки внутри кнопок — фикс 18×18 */
+.cn-act-icon-img {
+  display: block;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  max-height: 18px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
+  transition: transform 0.2s cubic-bezier(.34,1.56,.64,1);
+}
 
 .cn-goal {
   padding: 12px 14px;
@@ -606,6 +643,19 @@ const fallingBills = [
 .cn-goal-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
 .cn-goal-emoji { font-size: 16px; line-height: 1; flex-shrink: 0; }
 
+/* ✅ PNG-иконка цели — фикс 20×20 */
+.cn-goal-icon-img {
+  display: block;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  max-width: 20px;
+  max-height: 20px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.3));
+}
+
 .cn-goal-name {
   flex: 1;
   font-size: 13px;
@@ -623,6 +673,9 @@ const fallingBills = [
   justify-content: center;
   width: 26px;
   height: 26px;
+  min-width: 26px;
+  max-width: 26px;
+  max-height: 26px;
   border-radius: 50%;
   background: linear-gradient(180deg, #fcd34d, #f59e0b);
   font-size: 12px;
@@ -696,7 +749,7 @@ const fallingBills = [
   white-space: nowrap;
 }
 
-/* Тёмная тема — купюра становится неоновой */
+/* Тёмная тема */
 :global(:root[data-app-theme="dark"]) {
   .cash-note {
     background:
@@ -711,7 +764,7 @@ const fallingBills = [
       0 28px 56px -16px rgba(34, 197, 94, 0.25),
       0 0 0 1px rgba(74, 222, 128, 0.15);
   }
-  
+
   .cash-note:hover {
     box-shadow:
       0 1px 0 rgba(74, 222, 128, 0.35) inset,
@@ -721,7 +774,7 @@ const fallingBills = [
       0 40px 72px -16px rgba(34, 197, 94, 0.35),
       0 0 0 1px rgba(74, 222, 128, 0.25);
   }
-  
+
   .cn-bill { color: rgba(74, 222, 128, 0.4); }
   .cn-watermark { color: rgba(74, 222, 128, 0.08); }
   .cn-owner-value { text-shadow: 0 0 8px rgba(74, 222, 128, 0.5); }
@@ -734,9 +787,16 @@ const fallingBills = [
   .cn-header { gap: 8px; padding: 2px 0; }
   .cn-header-left { gap: 8px; }
 
+  .cn-header-icon-img {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    max-width: 28px;
+    max-height: 28px;
+  }
+
   .cn-header-title { font-size: 13.5px; letter-spacing: 0.06em; }
   .cn-header-sub { font-size: 8px; letter-spacing: 0.12em; }
-  .cn-header-icon { font-size: 18px; }
 
   .cn-header-value { font-size: 20px; }
   .cn-header-label { font-size: 8.5px; letter-spacing: 0.08em; }
@@ -749,12 +809,26 @@ const fallingBills = [
 
   .cn-actions { gap: 5px; }
   .cn-act { padding: 8px 6px; font-size: 10.5px; gap: 4px; border-radius: 10px; }
-  .cn-act-icon { font-size: 12px; }
+
+  .cn-act-icon-img {
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    max-width: 16px;
+    max-height: 16px;
+  }
 
   .cn-watermark { font-size: 110px; bottom: -24px; right: -8px; }
   .cn-bill { width: 36px; height: 22px; }
 
   .cn-goal { padding: 10px 12px; gap: 6px; border-radius: 12px; }
+  .cn-goal-icon-img {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    max-width: 18px;
+    max-height: 18px;
+  }
   .cn-goal-emoji { font-size: 14px; }
   .cn-goal-name { font-size: 12px; }
   .cn-goal-badge { width: 22px; height: 22px; font-size: 11px; }
@@ -768,7 +842,13 @@ const fallingBills = [
   .cn-header-sub { display: none; }
   .cn-header-value { font-size: 18px; }
   .cn-header-label { font-size: 8px; }
-  .cn-header-icon { font-size: 16px; }
+  .cn-header-icon-img {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    max-width: 24px;
+    max-height: 24px;
+  }
   .cn-header-left { gap: 6px; }
 }
 
