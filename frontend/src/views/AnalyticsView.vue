@@ -10,6 +10,7 @@ import { fmt } from '@/composables/useFormat';
 import PeriodSelector from '@/components/analytics/PeriodSelector.vue';
 import MetricCard from '@/components/analytics/MetricCard.vue';
 import ComparisonCard from '@/components/analytics/ComparisonCard.vue';
+import CategoryBreakdown from '@/components/analytics/CategoryBreakdown.vue';
 import GoalsList from '@/components/goals/GoalsList.vue';
 import GoalModal from '@/components/goals/GoalModal.vue';
 import ContributeModal from '@/components/goals/ContributeModal.vue';
@@ -159,6 +160,9 @@ function openEditContrib({ goal, user }) {
           <ComparisonCard />
         </section>
 
+        <!-- ✅ НОВЫЙ БЛОК: Расходы по категориям за месяц -->
+        <CategoryBreakdown />
+
         <section class="card">
           <div class="card-head">
             <h2 class="card-title">🎯 Цели накоплений и желаемые покупки</h2>
@@ -196,7 +200,6 @@ function openEditContrib({ goal, user }) {
   min-height: 100vh;
   padding: 20px 20px 20px;
   position: relative;
-  /* ✅ Фон на body, здесь прозрачно */
 }
 
 .analytics-grid {
