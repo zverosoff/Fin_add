@@ -16,25 +16,27 @@ const monthName = computed(() => metrics.value.monthName || '');
 
 <template>
   <section class="hero-card">
-    <div class="hero-card__glow" aria-hidden="true"></div>
-    <div class="hero-card__pattern" aria-hidden="true"></div>
-
-    <!-- ✅ Частицы-дождь -->
-    <div class="hero-card__rain" aria-hidden="true">
-      <span class="hero-particle hero-particle--1"></span>
-      <span class="hero-particle hero-particle--2"></span>
-      <span class="hero-particle hero-particle--3"></span>
-      <span class="hero-particle hero-particle--4"></span>
-      <span class="hero-particle hero-particle--5"></span>
-      <span class="hero-particle hero-particle--6"></span>
-      <span class="hero-particle hero-particle--7"></span>
-      <span class="hero-particle hero-particle--8"></span>
+    <!-- ✅ Фон отдельным слоем, чтобы персонаж мог выйти за границы -->
+    <div class="hero-card__bg" aria-hidden="true">
+      <div class="hero-card__glow"></div>
+      <div class="hero-card__pattern"></div>
+      <div class="hero-card__rain">
+        <span class="hero-particle hero-particle--1"></span>
+        <span class="hero-particle hero-particle--2"></span>
+        <span class="hero-particle hero-particle--3"></span>
+        <span class="hero-particle hero-particle--4"></span>
+        <span class="hero-particle hero-particle--5"></span>
+        <span class="hero-particle hero-particle--6"></span>
+        <span class="hero-particle hero-particle--7"></span>
+        <span class="hero-particle hero-particle--8"></span>
+      </div>
     </div>
 
+    <!-- ✅ Копилка выходит за блок сверху и снизу -->
     <MascotImage
       name="piggy"
       position="hero-left"
-      :size="240"
+      :size="260"
       fallback="🐷"
       alt="Копилка"
     />
@@ -54,15 +56,27 @@ const monthName = computed(() => metrics.value.monthName || '');
 </template>
 
 <style scoped lang="scss">
+/* ✅ overflow: visible — копилка выходит за границы */
 .hero-card {
   position: relative;
   border-radius: 24px;
-  overflow: hidden;
-  padding: 22px 24px 22px 260px;
-  min-height: 200px;
+  overflow: visible;
+  padding: 22px 24px 22px 280px;
+  min-height: 220px;
   isolation: isolate;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+}
 
-  /* ✅ АНИМАЦИЯ ГРАДИЕНТА */
+/* ✅ Фон отдельным слоем, чтобы border-radius работал без overflow: hidden */
+.hero-card__bg {
+  position: absolute;
+  inset: 0;
+  border-radius: 24px;
+  overflow: hidden;
+  z-index: 0;
+
   background:
     radial-gradient(circle at 80% 0%, rgba(236, 72, 153, 0.35), transparent 55%),
     radial-gradient(circle at 0% 100%, rgba(99, 102, 241, 0.45), transparent 50%),
@@ -75,10 +89,6 @@ const monthName = computed(() => metrics.value.monthName || '');
     0 1px 0 rgba(255, 255, 255, 0.15) inset,
     0 24px 48px -12px rgba(139, 92, 246, 0.5),
     0 0 80px -20px rgba(139, 92, 246, 0.4);
-
-  color: #ffffff;
-  display: flex;
-  align-items: center;
 }
 
 @keyframes heroGradientShift {
@@ -91,7 +101,6 @@ const monthName = computed(() => metrics.value.monthName || '');
   inset: -40%;
   background: radial-gradient(circle at 70% 50%, rgba(250, 204, 21, 0.15), transparent 60%);
   pointer-events: none;
-  z-index: 0;
   mix-blend-mode: screen;
 }
 
@@ -103,15 +112,13 @@ const monthName = computed(() => metrics.value.monthName || '');
     radial-gradient(circle at 60% 20%, rgba(255, 255, 255, 0.05) 1px, transparent 1px);
   background-size: 24px 24px, 32px 32px;
   pointer-events: none;
-  z-index: 0;
 }
 
-/* ✅ ЧАСТИЦЫ-ДОЖДЬ */
+/* ✅ Частицы-дождь */
 .hero-card__rain {
   position: absolute;
   inset: 0;
   pointer-events: none;
-  z-index: 1;
   overflow: hidden;
 }
 
@@ -132,65 +139,18 @@ const monthName = computed(() => metrics.value.monthName || '');
 .hero-particle--7 { top: -10%; left: 95%; width: 2px; height: 2px; animation: heroRain7 5.2s linear infinite 1s; }
 .hero-particle--8 { top: -10%; left: 5%; animation: heroRain8 6.8s linear infinite 4s; }
 
-@keyframes heroRain1 {
-  0%   { transform: translate(0, 0); opacity: 0; }
-  10%  { opacity: 1; }
-  90%  { opacity: 1; }
-  100% { transform: translate(-40px, 220px); opacity: 0; }
-}
-
-@keyframes heroRain2 {
-  0%   { transform: translate(0, 0); opacity: 0; }
-  10%  { opacity: 0.8; }
-  90%  { opacity: 0.8; }
-  100% { transform: translate(30px, 220px); opacity: 0; }
-}
-
-@keyframes heroRain3 {
-  0%   { transform: translate(0, 0); opacity: 0; }
-  10%  { opacity: 1; }
-  90%  { opacity: 1; }
-  100% { transform: translate(-60px, 220px); opacity: 0; }
-}
-
-@keyframes heroRain4 {
-  0%   { transform: translate(0, 0); opacity: 0; }
-  10%  { opacity: 0.9; }
-  90%  { opacity: 0.9; }
-  100% { transform: translate(50px, 220px); opacity: 0; }
-}
-
-@keyframes heroRain5 {
-  0%   { transform: translate(0, 0); opacity: 0; }
-  10%  { opacity: 0.7; }
-  90%  { opacity: 0.7; }
-  100% { transform: translate(-25px, 220px); opacity: 0; }
-}
-
-@keyframes heroRain6 {
-  0%   { transform: translate(0, 0); opacity: 0; }
-  10%  { opacity: 1; }
-  90%  { opacity: 1; }
-  100% { transform: translate(70px, 220px); opacity: 0; }
-}
-
-@keyframes heroRain7 {
-  0%   { transform: translate(0, 0); opacity: 0; }
-  10%  { opacity: 0.8; }
-  90%  { opacity: 0.8; }
-  100% { transform: translate(-35px, 220px); opacity: 0; }
-}
-
-@keyframes heroRain8 {
-  0%   { transform: translate(0, 0); opacity: 0; }
-  10% { opacity: 0.6; }
-  90% { opacity: 0.6; }
-  100% { transform: translate(45px, 220px); opacity: 0; }
-}
+@keyframes heroRain1 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translate(-40px, 240px); opacity: 0; } }
+@keyframes heroRain2 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.8; } 90% { opacity: 0.8; } 100% { transform: translate(30px, 240px); opacity: 0; } }
+@keyframes heroRain3 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translate(-60px, 240px); opacity: 0; } }
+@keyframes heroRain4 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.9; } 90% { opacity: 0.9; } 100% { transform: translate(50px, 240px); opacity: 0; } }
+@keyframes heroRain5 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.7; } 90% { opacity: 0.7; } 100% { transform: translate(-25px, 240px); opacity: 0; } }
+@keyframes heroRain6 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translate(70px, 240px); opacity: 0; } }
+@keyframes heroRain7 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.8; } 90% { opacity: 0.8; } 100% { transform: translate(-35px, 240px); opacity: 0; } }
+@keyframes heroRain8 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.6; } 90% { opacity: 0.6; } 100% { transform: translate(45px, 240px); opacity: 0; } }
 
 .hero-card__content {
   position: relative;
-  z-index: 3;
+  z-index: 4;
   flex: 1;
   min-width: 0;
 }
@@ -214,14 +174,17 @@ const monthName = computed(() => metrics.value.monthName || '');
   letter-spacing: 0.08em;
 }
 
+/* ✅ ЖИРНАЯ КРУПНАЯ СУММА */
 .hero-card__value {
   font-family: var(--mono);
-  font-size: 42px;
-  font-weight: 300;
+  font-size: 48px;
+  font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.05;
   color: #facc15;
-  text-shadow: 0 0 24px rgba(250, 204, 21, 0.5);
+  text-shadow:
+    0 0 24px rgba(250, 204, 21, 0.5),
+    0 2px 6px rgba(0, 0, 0, 0.3);
   margin-bottom: 6px;
 }
 
@@ -260,17 +223,13 @@ const monthName = computed(() => metrics.value.monthName || '');
 
 @media (max-width: 700px) {
   .hero-card {
-    padding: 18px 16px 18px 180px;
-    min-height: 170px;
+    padding: 18px 16px 18px 190px;
+    min-height: 180px;
     border-radius: 20px;
   }
-  .hero-card__value { font-size: 30px; }
+  .hero-card__bg { border-radius: 20px; }
+  .hero-card__value { font-size: 32px; }
   .hero-card__sub { font-size: 11.5px; }
   .hero-card__btn { padding: 8px 14px; font-size: 11.5px; }
-}
-
-@media (max-width: 380px) {
-  .hero-card { padding-left: 160px; }
-  .hero-card__value { font-size: 24px; }
 }
 </style>
