@@ -167,6 +167,14 @@ function onError() { failed.value = true; loaded.value = false; }
     top: -20px;
     bottom: -20px;
     height: auto;
+    align-items: center;
+  }
+  .mascot--hero-right {
+    right: -25px;
+    top: -20px;
+    bottom: -20px;
+    height: auto;
+    align-items: center;
   }
 
   .mascot--goals-corner {
