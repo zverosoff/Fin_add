@@ -6,7 +6,12 @@ import { notifySaved, notifyError } from '@/composables/useDataStatus';
 import { fmt } from '@/composables/useFormat';
 
 const toast = useToast();
-
+// ✅ PNG-иконки
+const ICON_INCOME  = '/img/icons/categories/income.png';
+const ICON_EXPENSE = '/img/icons/categories/expense.png';
+const ICON_MONEY   = '/img/icons/nav/money-bag.png';
+const ICON_BELL    = '/img/icons/ui/bell.png';
+const ICON_LOCK    = '/img/icons/ui/lock.png';
 const accountStart = ref(0);
 const rate = ref(0);
 const incomes = ref([]);
@@ -494,6 +499,44 @@ const byUser = computed(() => {
   min-width: 0;
 }
 
+
+.upcoming-icon-img {
+  display: block;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  max-width: 22px;
+  max-height: 22px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+  animation: bellPulse 2s ease-in-out infinite;
+}
+
+.dt-col-icon-img {
+  display: block;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  max-height: 18px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+}
+
+.dt-lock-img {
+  display: block;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+  opacity: 0.7;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+}
 /* ============================================================
    КАРТА-ШАПКА
    ============================================================ */

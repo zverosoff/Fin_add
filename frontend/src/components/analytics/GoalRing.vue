@@ -1,4 +1,3 @@
-<!-- frontend/src/components/analytics/GoalRing.vue -->
 <script setup>
 import { computed } from 'vue';
 import MascotImage from './MascotImage.vue';
@@ -12,9 +11,13 @@ const props = defineProps({
   goalEmoji: { type: String, default: '🎯' },
 });
 
+// ✅ PNG-иконка цели
+const ICON_GOAL = '/img/icons/nav/goal.png';
+
 const clampedPercent = computed(() => Math.max(0, Math.min(100, props.percent)));
 const remaining = computed(() => Math.max(0, props.target - props.saved));
 const isDone = computed(() => clampedPercent.value >= 100);
+const useIcon = computed(() => !props.goalEmoji || props.goalEmoji === '🎯');
 
 const RADIUS = 52;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
@@ -38,7 +41,13 @@ const dashOffset = computed(() =>
 
     <div class="goal-ring__content">
       <div class="goal-ring__title">
-        <span>{{ goalEmoji }}</span>
+        <img
+          v-if="useIcon"
+          :src="ICON_GOAL"
+          class="goal-ring__title-icon"
+          alt="Цель"
+        />
+        <span v-else class="goal-ring__title-emoji">{{ goalEmoji }}</span>
         <span>{{ goalName }}</span>
       </div>
 
@@ -103,7 +112,6 @@ const dashOffset = computed(() =>
   padding: 16px;
   min-height: 120px;
   color: #ffffff;
-  /* ✅ overflow: visible — звезда выходит за границы */
   overflow: visible;
   isolation: isolate;
 }
@@ -151,6 +159,21 @@ const dashOffset = computed(() =>
   opacity: 0.9;
   margin-bottom: 6px;
 }
+
+/* ✅ PNG-иконка цели — фикс 16×16 */
+.goal-ring__title-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
+}
+
+.goal-ring__title-emoji { font-size: 14px; line-height: 1; }
 
 .goal-ring__visual {
   position: relative;
@@ -236,6 +259,13 @@ const dashOffset = computed(() =>
   .goal-ring__visual { width: 96px; height: 96px; }
   .goal-ring__percent-value { font-size: 20px; }
   .goal-ring__content { padding-right: 50px; }
+  .goal-ring__title-icon {
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
+    max-width: 14px;
+    max-height: 14px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

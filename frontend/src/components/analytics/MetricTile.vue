@@ -1,4 +1,3 @@
-<!-- frontend/src/components/analytics/MetricTile.vue -->
 <script setup>
 import { computed } from 'vue';
 import MascotImage from './MascotImage.vue';
@@ -52,13 +51,10 @@ const hasMascot = computed(() => !!props.mascot);
     :style="{ '--tile-glow': glow }"
   >
     <div class="tile__bg" :style="{ background: gradient }" aria-hidden="true">
-      <!-- ✅ 1. Диагональные полосы 35° -->
       <div class="tile__stripes"></div>
-      <!-- ✅ 3. Верхний глянец -->
       <div class="tile__gloss"></div>
     </div>
 
-    <!-- ✅ 4. Пунктирная рамка -->
     <div class="tile__frame" aria-hidden="true"></div>
 
     <MascotImage
@@ -112,7 +108,6 @@ const hasMascot = computed(() => !!props.mascot);
     0 4px 10px -4px rgba(0, 0, 0, 0.25);
 }
 
-/* ✅ 1. ДИАГОНАЛЬНЫЕ ПОЛОСЫ 35° */
 .tile__stripes {
   position: absolute;
   inset: 0;
@@ -127,8 +122,6 @@ const hasMascot = computed(() => !!props.mascot);
   opacity: 0.85;
 }
 
-
-/* ✅ 3. ВЕРХНИЙ ГЛЯНЕЦ */
 .tile__gloss {
   position: absolute;
   inset: 0;
@@ -141,7 +134,6 @@ const hasMascot = computed(() => !!props.mascot);
   mix-blend-mode: overlay;
 }
 
-/* ✅ 4. ПУНКТИРНАЯ РАМКА */
 .tile__frame {
   position: absolute;
   inset: 6px;

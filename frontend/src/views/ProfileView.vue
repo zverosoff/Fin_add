@@ -4,13 +4,20 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useAccountsStore } from '@/stores/accounts';
 import { useToast } from '@/composables/useToast';
-import { fmt, categoryIcon } from '@/composables/useFormat';
+import { fmt, categoryIcon, AVATAR_MAN, AVATAR_WOMAN } from '@/composables/useFormat';
 import ThemeToggle from '@/components/ui/ThemeToggle.vue';
 
 const auth = useAuthStore();
 const accounts = useAccountsStore();
 const router = useRouter();
 const toast = useToast();
+
+// ✅ PNG-иконки для ProfileView
+const ICON_USER      = '/img/icons/ui/user.png';
+const ICON_CALENDAR  = '/img/icons/ui/calendar.png';
+const ICON_LOGOUT    = '/img/icons/ui/logout.png';
+const ICON_FIRE      = '/img/icons/nav/fire.png';  // если есть
+const ICON_TROPHY    = '/img/icons/nav/trophy.png'; // если есть
 
 const me = computed(() => auth.user || 'Сергей');
 
@@ -368,7 +375,7 @@ onUnmounted(() => {
         <div class="hero-photo" :class="{ uploading }" @click="openFilePicker">
           <img v-if="avatarPreview" :src="avatarPreview" alt="avatar" />
           <div v-else class="hero-photo-placeholder">
-            <span>🧑</span>
+            <img :src="ICON_USER" class="hero-placeholder-icon" alt="Профиль" />
           </div>
 
           <div class="hero-photo-vignette"></div>
@@ -457,7 +464,7 @@ onUnmounted(() => {
             <span class="hm-text">С нами с {{ createdAtText }}</span>
           </div>
           <div v-if="extraStats.streak > 0" class="hero-meta-row streak">
-            <span class="hm-icon">🔥</span>
+            <img src="/img/icons/nav/fire.png" class="hm-icon-img" alt="Серия" />
             <span class="hm-text">
               <strong>{{ extraStats.streak }}</strong>
               {{ extraStats.streak === 1 ? 'день' : (extraStats.streak < 5 ? 'дня' : 'дней') }} подряд
@@ -476,7 +483,10 @@ onUnmounted(() => {
           </span>
         </div>
 
-        <h2 class="card-title">📊 СТАТИСТИКА ЗА МЕСЯЦ</h2>
+        <h2 class="card-title">
+  <img src="/img/icons/ui/chart.png" class="card-title-icon" alt="" />
+  СТАТИСТИКА ЗА МЕСЯЦ
+</h2>
 
         <div class="stats-grid">
           <div class="stat">
@@ -525,7 +535,10 @@ onUnmounted(() => {
       </div>
 
       <div v-if="topCategories.length > 0" class="profile-card">
-        <h2 class="card-title">🏆 ТОП-3 КАТЕГОРИИ РАСХОДОВ</h2>
+        <h2 class="card-title">
+  <img src="/img/icons/nav/trophy.png" class="card-title-icon" alt="" />
+  ТОП-3 КАТЕГОРИИ РАСХОДОВ
+</h2>
         <div class="top-cats">
           <div
             v-for="(cat, i) in topCategories"
@@ -554,7 +567,7 @@ onUnmounted(() => {
 
       <div class="profile-card">
         <button class="logout-btn" type="button" @click="handleLogout">
-          <span class="logout-icon">🚪</span>
+          <img :src="ICON_LOGOUT" class="logout-icon-img" alt="Выйти" />
           <span>Выйти из аккаунта</span>
         </button>
       </div>
@@ -1526,6 +1539,55 @@ onUnmounted(() => {
   color: #94a3b8;
   font-weight: 700;
   margin-top: 2px;
+}
+
+.hero-placeholder-icon {
+  display: block;
+  width: 140px;
+  height: 140px;
+  min-width: 140px;
+  max-width: 140px;
+  max-height: 140px;
+  object-fit: contain;
+  opacity: 0.6;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.3));
+}
+
+.hm-icon-img {
+  display: block;
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  max-width: 14px;
+  max-height: 14px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+}
+
+.card-title-icon {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  max-width: 14px;
+  max-height: 14px;
+  object-fit: contain;
+  vertical-align: middle;
+  margin-right: 4px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+}
+
+.logout-icon-img {
+  display: block;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  max-height: 18px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
 }
 
 :global(:root[data-app-theme="dark"]) .tc-amount-pct { color: #8b8ba0; }
