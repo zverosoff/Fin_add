@@ -6,6 +6,7 @@ import { useAccountsStore } from '@/stores/accounts';
 import { useToast } from '@/composables/useToast';
 import { fmt, categoryIcon, AVATAR_MAN, AVATAR_WOMAN } from '@/composables/useFormat';
 import ThemeToggle from '@/components/ui/ThemeToggle.vue';
+import IconOrEmoji from '@/components/ui/IconOrEmoji.vue';
 
 const auth = useAuthStore();
 const accounts = useAccountsStore();
@@ -13,12 +14,39 @@ const router = useRouter();
 const toast = useToast();
 
 // ✅ PNG-иконки
-const ICON_USER   = '/img/icons/ui/user.png';
-const ICON_LOGOUT = '/img/icons/ui/logout.png';
+const ICON_USER     = '/img/icons/ui/user.png';
+const ICON_LOGOUT   = '/img/icons/ui/logout.png';
 const ICON_CALENDAR = '/img/icons/ui/calendar.png';
-const ICON_CHART  = '/img/icons/categories/income.png';   // 📈 стрелка вверх
-const ICON_TROPHY = '/img/icons/ui/star-filled.png';      // ⭐ звезда
-const ICON_FIRE   = '/img/icons/nav/goal.png'; 
+const ICON_CHART    = '/img/icons/categories/income.png';
+const ICON_TROPHY   = '/img/icons/ui/star-filled.png';
+const ICON_FIRE     = '/img/icons/nav/goal.png';
+
+// ✅ Эмодзи-фолбэк для категорий
+const CATEGORY_EMOJI = {
+  'Продукты': '🛒', 'Кафе и рестораны': '☕', 'Еда': '🍔',
+  'Такси': '🚕', 'Бензин': '⛽', 'Общественный транспорт': '🚌',
+  'Транспорт': '🚗', 'Аренда': '🔑', 'Ипотека': '🏦',
+  'Жильё': '🏠', 'Коммунальные': '💡', 'Интернет и связь': '📶',
+  'Развлечения': '🎬', 'Подписки': '📺', 'Покупки': '🛍️',
+  'Одежда и обувь': '👕', 'Техника': '📱', 'Аптека': '💉',
+  'Здоровье': '💊', 'Спорт': '🏋️', 'Красота': '💄',
+  'Образование': '📚', 'Дети': '👶', 'Домашние животные': '🐾',
+  'Путешествия': '✈️', 'Кредиты': '💳', 'Страхование': '🛡️',
+  'Налоги': '📋', 'Ремонт': '🔧', 'Автомобиль': '🚙',
+  'Гараж': '🏚️', 'Сад и огород': '🌱', 'Подарки': '🎁',
+  'Благотворительность': '❤️',
+  'Зарплата': '💼', 'Аванс': '💰', 'Премия': '🏆',
+  'Фриланс': '💻', 'Бизнес': '📊', 'Инвестиции': '📈',
+  'Дивиденды': '💹', 'Проценты по вкладу': '🏦',
+  'Кэшбэк': '💸', 'Возврат': '↩️', 'Перевод от': '👤',
+  'Перевод между счетами': '🔁', 'Перевод между пользователями': '👥',
+  'Внутренний перевод': '🔄',
+  'Прочее': '📦',
+};
+
+function categoryEmoji(category) {
+  return CATEGORY_EMOJI[category] || '📦';
+}
 
 const me = computed(() => auth.user || 'Сергей');
 
@@ -547,15 +575,15 @@ onUnmounted(() => {
             class="top-cat"
           >
             <div class="tc-rank" :class="'rank-' + (i + 1)">{{ i + 1 }}</div>
-<div class="tc-icon">
-  <IconOrEmoji
-    :src="categoryIcon(cat.category)"
-    :emoji="categoryEmoji(cat.category)"
-    :size="24"
-    :alt="cat.category"
-    class-name="tc-icon-img"
-  />
-</div>
+            <div class="tc-icon">
+              <IconOrEmoji
+                :src="categoryIcon(cat.category)"
+                :emoji="categoryEmoji(cat.category)"
+                :size="24"
+                :alt="cat.category"
+                class-name="tc-icon-img"
+              />
+            </div>
             <div class="tc-info">
               <div class="tc-name">{{ cat.category }}</div>
               <div class="tc-bar">
@@ -676,7 +704,6 @@ onUnmounted(() => {
   background: linear-gradient(135deg, #a5b4fc, #818cf8);
 }
 
-/* ✅ PNG-иконка профиля в placeholder — фикс 140×140 */
 .hero-placeholder-icon {
   display: block;
   width: 140px;
@@ -1006,7 +1033,6 @@ onUnmounted(() => {
 
 .hm-icon { font-size: 14px; }
 
-/* ✅ PNG-иконка огня — фикс 14×14 */
 .hm-icon-img {
   display: block;
   width: 14px;
@@ -1064,7 +1090,6 @@ onUnmounted(() => {
 
 :global(:root[data-app-theme="dark"]) .card-title { color: #8b8ba0; }
 
-/* ✅ PNG-иконка в заголовке карточки — фикс 14×14 */
 .card-title-icon {
   display: inline-block;
   width: 14px;
@@ -1340,7 +1365,6 @@ onUnmounted(() => {
   flex-shrink: 0;
 }
 
-/* ✅ PNG-иконка категории — фикс 24×24 */
 .tc-icon-img {
   display: block;
   width: 24px;
@@ -1419,7 +1443,6 @@ onUnmounted(() => {
   transition: all 0.2s cubic-bezier(.34,1.56,.64,1);
 }
 
-/* ✅ PNG-иконка выхода — фикс 18×18 */
 .logout-icon-img {
   display: block;
   width: 18px;
@@ -1470,20 +1493,20 @@ onUnmounted(() => {
 
   .stat-value { font-size: 15px; }
 
+  .tc-icon {
+    width: 30px;
+    height: 30px;
+  }
+  .tc-icon-img {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    max-width: 20px;
+    max-height: 20px;
+  }
+
   .top-cat { grid-template-columns: 22px 30px 1fr auto; gap: 8px; padding: 10px 12px; }
   .tc-rank { width: 22px; height: 22px; font-size: 11px; }
-  .tc-icon {
-  width: 30px;
-  height: 30px;
-}
-
-.tc-icon-img {
-  width: 20px;
-  height: 20px;
-  min-width: 20px;
-  max-width: 20px;
-  max-height: 20px;
-}
   .tc-name { font-size: 12px; }
   .tc-amount-value { font-size: 12px; }
 }
