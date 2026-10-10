@@ -10,7 +10,6 @@ import { fmt } from '@/composables/useFormat';
 
 import AnalyticsHero from '@/components/analytics/AnalyticsHero.vue';
 import MetricTile from '@/components/analytics/MetricTile.vue';
-import MascotImage from '@/components/analytics/MascotImage.vue';
 
 import MonthNav from '@/components/analytics/MonthNav.vue';
 import CategoryBreakdown from '@/components/analytics/CategoryBreakdown.vue';
@@ -84,33 +83,13 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
 
 <template>
   <div class="analytics-page">
-    <!-- ✅ Фон как у hero-копилки -->
-    <div class="page-bg" aria-hidden="true">
-      <div class="page-bg__glow"></div>
-      <div class="page-bg__pattern"></div>
-      <div class="page-bg__shine"></div>
-      <div class="page-bg__rain">
-        <span class="page-particle page-particle--1"></span>
-        <span class="page-particle page-particle--2"></span>
-        <span class="page-particle page-particle--3"></span>
-        <span class="page-particle page-particle--4"></span>
-        <span class="page-particle page-particle--5"></span>
-        <span class="page-particle page-particle--6"></span>
-        <span class="page-particle page-particle--7"></span>
-        <span class="page-particle page-particle--8"></span>
-        <span class="page-particle page-particle--9"></span>
-        <span class="page-particle page-particle--10"></span>
-        <span class="page-particle page-particle--11"></span>
-        <span class="page-particle page-particle--12"></span>
-      </div>
-    </div>
-
     <div class="analytics-grid">
       <!-- ЛЕВАЯ КОЛОНКА -->
       <div class="an-col an-col-left">
         <AnalyticsHero />
 
         <div class="metrics-grid">
+          <!-- ✅ Свободно: персонаж слева, текст справа -->
           <MetricTile
             label="Свободно"
             :value="metrics.realFree"
@@ -120,9 +99,10 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
             mascot="wallet"
             mascot-pos="left"
             emoji="💰"
-            :mascot-size="150"
+            :mascot-size="120"
           />
 
+          <!-- ✅ Подушка: персонаж справа, текст слева -->
           <MetricTile
             label="Подушка"
             :value="Number(metrics.runway || 0).toFixed(1)"
@@ -132,9 +112,10 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
             mascot="shield"
             mascot-pos="right"
             emoji="⏳"
-            :mascot-size="150"
+            :mascot-size="120"
           />
 
+          <!-- ✅ Расход/день: ПК — справа; МОБ — влево (класс tile-calc) -->
           <MetricTile
             label="Расход/день"
             :value="metrics.dailyAvg"
@@ -144,7 +125,7 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
             mascot="calculator"
             mascot-pos="right"
             emoji="🔥"
-            :mascot-size="150"
+            :mascot-size="120"
             class="tile-calc"
           />
         </div>
@@ -156,20 +137,11 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
         </section>
       </div>
 
-      <!-- ✅ ПРАВАЯ КОЛОНКА — ПОМОЩНИК + ЦЕЛИ -->
+      <!-- ПРАВАЯ КОЛОНКА — ПОМОЩНИК + ЦЕЛИ -->
       <div class="an-col an-col-right">
         <FinancialAssistant />
 
-        <!-- ✅ ЦЕЛИ: звезда в верхнем правом углу, красиво -->
         <section class="card card-dark card-goals">
-          <MascotImage
-            name="star"
-            position="goals-corner"
-            :size="140"
-            fallback="🎯"
-            alt="Цели"
-          />
-
           <div class="card-goals__content">
             <div class="card-head">
               <h2 class="card-title">🎯 Цели</h2>
@@ -199,6 +171,7 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
 </template>
 
 <style scoped lang="scss">
+/* ✅ ХАРДКОД ТЁМНОГО ФОНА */
 .analytics-page {
   position: relative;
   min-height: 100vh;
@@ -255,11 +228,11 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
   color: #ffffff !important;
 }
 
+/* ✅ ЦЕЛИ — overflow hidden, звезда в углу не увеличивает высоту */
 .card-goals {
   position: relative;
   overflow: hidden;
   padding: 20px 22px;
-  border-radius: 18px;
 }
 
 .card-goals__content {
@@ -303,6 +276,7 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
   &:hover { transform: translateY(-1px); }
 }
 
+/* ✅ Перебиваем светлые стили GoalCard */
 .card-goals :deep(.goal-card),
 .card-goals :deep(.goals-list),
 .card-goals :deep(.goal-item) {

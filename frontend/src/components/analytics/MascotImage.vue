@@ -17,18 +17,18 @@ const failed = ref(false);
 const src = computed(() => `/img/mascots/${props.name}.png`);
 
 const defaultSizes = {
-  left: 110,
-  right: 110,
-  'hero-left': 150,
-  'hero-right': 150,
+  left: 120,
+  right: 120,
+  'hero-left': 200,
+  'hero-right': 200,
   background: 280,
   floating: 100,
   corner: 130,
   static: 180,
-  'goals-corner': 100,
+  'goals-corner': 90,
 };
 
-const px = computed(() => props.size || defaultSizes[props.position] || 110);
+const px = computed(() => props.size || defaultSizes[props.position] || 120);
 
 const shouldFlip = computed(() => {
   if (props.flip) return true;
@@ -67,7 +67,6 @@ function onError() { failed.value = true; loaded.value = false; }
 .mascot {
   position: absolute;
   pointer-events: none;
-  /* ✅ z-index 2 — ВНУТРИ блока, ПОД контентом (контент z-index 4) */
   z-index: 2;
   width: var(--mascot-size);
   height: var(--mascot-size);
@@ -98,31 +97,35 @@ function onError() { failed.value = true; loaded.value = false; }
   user-select: none;
 }
 
-/* ✅ LEFT — у левого края, по центру вертикали, выходит за верх/низ */
+/* ✅ LEFT — край еле выходит за рамку блока (на -15px) */
 .mascot--left {
-  left: 0;
+  left: -15px;
   top: 50%;
   transform: translateY(-50%);
 }
 
-/* ✅ RIGHT — у правого края */
+/* ✅ RIGHT — край еле выходит за рамку (на -15px) */
 .mascot--right {
-  right: 0;
+  right: -15px;
   top: 50%;
   transform: translateY(-50%);
 }
 
-/* ✅ HERO — у левого края */
+/* ✅ HERO — копилка больше, выходит за рамки сверху/снизу/слева */
 .mascot--hero-left {
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
+  left: -30px;
+  top: -25px;
+  bottom: -25px;
+  height: auto;
+  align-items: center;
 }
 
 .mascot--hero-right {
-  right: 0;
-  top: 50%;
-  transform: translateY(-50%);
+  right: -30px;
+  top: -25px;
+  bottom: -25px;
+  height: auto;
+  align-items: center;
 }
 
 .mascot--background { right: -40px; bottom: -30px; opacity: 0.35; z-index: 0; }
@@ -140,7 +143,6 @@ function onError() { failed.value = true; loaded.value = false; }
   left: auto; right: auto; top: auto; bottom: auto;
 }
 
-/* ✅ Звезда целей — внутри блока, в углу, НЕ выходит */
 .mascot--goals-corner {
   right: 8px;
   top: 8px;
@@ -148,10 +150,24 @@ function onError() { failed.value = true; loaded.value = false; }
   height: 90px !important;
 }
 
+/* ✅ МОБИЛЬНЫЙ — калькулятор переезжает влево (см. AnalyticsView) */
 @media (max-width: 700px) {
-  .mascot--left { left: 0; top: 50%; transform: translateY(-50%); }
-  .mascot--right { right: 0; top: 50%; transform: translateY(-50%); }
-  .mascot--hero-left { left: 0; top: 50%; transform: translateY(-50%); }
+  .mascot--left {
+    left: -15px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .mascot--right {
+    right: -15px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+  .mascot--hero-left {
+    left: -25px;
+    top: -20px;
+    bottom: -20px;
+    height: auto;
+  }
 
   .mascot--goals-corner {
     right: 6px;

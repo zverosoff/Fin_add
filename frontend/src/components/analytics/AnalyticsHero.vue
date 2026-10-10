@@ -26,10 +26,11 @@ function scrollToGoals() {
       <div class="hero-card__pattern"></div>
     </div>
 
+    <!-- ✅ Копилка крупнее — 200px, выходит за рамки -->
     <MascotImage
       name="piggy"
       position="hero-left"
-      :size="150"
+      :size="200"
       fallback="🐷"
       alt="Копилка"
     />
@@ -55,9 +56,9 @@ function scrollToGoals() {
   position: relative;
   border-radius: 24px;
   overflow: visible;
-  /* ✅ padding-left 170px = 150 персонаж + 20 запас */
-  padding: 20px 24px 20px 170px;
-  min-height: 170px;
+  /* ✅ padding-left 190px — под копилку 200px */
+  padding: 22px 24px 22px 190px;
+  min-height: 180px;
   isolation: isolate;
   color: #ffffff;
   display: flex;
@@ -143,7 +144,7 @@ function scrollToGoals() {
 
 .hero-card__value {
   font-family: var(--mono);
-  font-size: 42px;
+  font-size: 44px;
   font-weight: 800;
   letter-spacing: -0.03em;
   line-height: 1.05;
@@ -185,8 +186,8 @@ function scrollToGoals() {
 
 @media (max-width: 700px) {
   .hero-card {
-    padding: 16px 16px 16px 130px;
-    min-height: 150px;
+    padding: 18px 16px 18px 160px;
+    min-height: 170px;
     border-radius: 20px;
   }
   .hero-card__bg {
@@ -194,8 +195,8 @@ function scrollToGoals() {
     animation: none !important;
     background-size: 100% 100% !important;
   }
-  .hero-card__value { font-size: 28px; }
-  .hero-card__sub { font-size: 11px; }
+  .hero-card__value { font-size: 30px; }
+  .hero-card__sub { font-size: 11.5px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
