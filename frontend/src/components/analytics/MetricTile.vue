@@ -17,12 +17,12 @@ const props = defineProps({
 });
 
 const gradients = {
-  emerald: 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
-  amber:   'linear-gradient(135deg, #d97706 0%, #f59e0b 100%)',
-  rose:    'linear-gradient(135deg, #e11d48 0%, #f43f5e 100%)',
-  violet:  'linear-gradient(135deg, #7c3aed 0%, #a855f7 100%)',
-  cyan:    'linear-gradient(135deg, #0891b2 0%, #06b6d4 100%)',
-  indigo:  'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)',
+  emerald: 'linear-gradient(135deg, #059669 0%, #10b981 50%, #34d399 100%)',
+  amber:   'linear-gradient(135deg, #d97706 0%, #f59e0b 50%, #fbbf24 100%)',
+  rose:    'linear-gradient(135deg, #e11d48 0%, #f43f5e 50%, #fb7185 100%)',
+  violet:  'linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #c084fc 100%)',
+  cyan:    'linear-gradient(135deg, #0891b2 0%, #06b6d4 50%, #22d3ee 100%)',
+  indigo:  'linear-gradient(135deg, #4f46e5 0%, #6366f1 50%, #818cf8 100%)',
 };
 
 const glowColors = {
@@ -54,15 +54,18 @@ const hasMascot = computed(() => !!props.mascot);
     <div class="tile__bg" :style="{ background: gradient }" aria-hidden="true">
       <div class="tile__shine"></div>
 
-      <!-- ✅ Больше фоновых элементов -->
+      <!-- ✅ БОЛЬШЕ ФОНОВЫХ ЭЛЕМЕНТОВ -->
       <span class="tile__orb tile__orb--1"></span>
       <span class="tile__orb tile__orb--2"></span>
       <span class="tile__orb tile__orb--3"></span>
-      <span class="tile__dot tile__dot--1"></span>
-      <span class="tile__dot tile__dot--2"></span>
-      <span class="tile__dot tile__dot--3"></span>
-      <span class="tile__dot tile__dot--4"></span>
-      <span class="tile__dot tile__dot--5"></span>
+
+      <!-- ✅ ЧАСТИЦЫ-ДОЖДЬ в разные стороны -->
+      <span class="tile__particle tile__particle--1"></span>
+      <span class="tile__particle tile__particle--2"></span>
+      <span class="tile__particle tile__particle--3"></span>
+      <span class="tile__particle tile__particle--4"></span>
+      <span class="tile__particle tile__particle--5"></span>
+      <span class="tile__particle tile__particle--6"></span>
     </div>
 
     <MascotImage
@@ -108,11 +111,20 @@ const hasMascot = computed(() => !!props.mascot);
   overflow: hidden;
   z-index: 0;
 
+  /* ✅ АНИМАЦИЯ ГРАДИЕНТА */
+  background-size: 200% 200% !important;
+  animation: tileGradientShift 8s ease-in-out infinite;
+
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.1) inset,
     0 1px 0 rgba(255, 255, 255, 0.18) inset,
     0 12px 28px -10px var(--tile-glow),
     0 4px 10px -4px rgba(0, 0, 0, 0.25);
+}
+
+@keyframes tileGradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
 }
 
 .tile__shine {
@@ -123,7 +135,7 @@ const hasMascot = computed(() => !!props.mascot);
   z-index: 1;
 }
 
-/* ✅ Анимированные orb-ы и точки */
+/* ✅ ORB-ы */
 .tile__orb {
   position: absolute;
   border-radius: 50%;
@@ -133,53 +145,122 @@ const hasMascot = computed(() => !!props.mascot);
 }
 
 .tile__orb--1 {
-  width: 80px; height: 80px;
-  background: rgba(255, 255, 255, 0.35);
+  width: 90px; height: 90px;
+  background: rgba(255, 255, 255, 0.4);
   top: -30px; right: -20px;
   animation: tileOrbFloat1 8s ease-in-out infinite;
 }
 
 .tile__orb--2 {
-  width: 60px; height: 60px;
-  background: rgba(255, 255, 255, 0.18);
-  bottom: -20px; left: 30%;
+  width: 70px; height: 70px;
+  background: rgba(255, 255, 255, 0.2);
+  bottom: -25px; left: 30%;
   animation: tileOrbFloat2 10s ease-in-out infinite;
 }
 
 .tile__orb--3 {
-  width: 40px; height: 40px;
-  background: rgba(255, 255, 255, 0.12);
-  top: 30%; left: 8%;
+  width: 50px; height: 50px;
+  background: rgba(255, 255, 255, 0.15);
+  top: 40%; left: 5%;
   animation: tileOrbFloat1 12s ease-in-out infinite reverse;
 }
 
 @keyframes tileOrbFloat1 {
   0%, 100% { transform: translate(0, 0) scale(1); }
-  50%      { transform: translate(-10px, 15px) scale(1.15); }
+  50%      { transform: translate(-15px, 20px) scale(1.15); }
 }
 
 @keyframes tileOrbFloat2 {
   0%, 100% { transform: translate(0, 0) scale(1); }
-  50%      { transform: translate(15px, -10px) scale(1.1); }
+  50%      { transform: translate(20px, -15px) scale(1.1); }
 }
 
-.tile__dot {
+/* ✅ ЧАСТИЦЫ-ДОЖДЬ — движутся в разные стороны */
+.tile__particle {
   position: absolute;
+  width: 3px;
+  height: 3px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.7);
+  background: rgba(255, 255, 255, 0.85);
   pointer-events: none;
   z-index: 0;
 }
 
-.tile__dot--1 { width: 3px; height: 3px; top: 22%; right: 12%; animation: tileDotPulse 3s ease-in-out infinite; }
-.tile__dot--2 { width: 2px; height: 2px; top: 65%; right: 22%; opacity: 0.5; animation: tileDotPulse 4s ease-in-out infinite 0.5s; }
-.tile__dot--3 { width: 4px; height: 4px; bottom: 30%; left: 55%; opacity: 0.4; animation: tileDotPulse 3.5s ease-in-out infinite 1s; }
-.tile__dot--4 { width: 2px; height: 2px; top: 45%; left: 25%; opacity: 0.6; animation: tileDotPulse 4.5s ease-in-out infinite 0.3s; }
-.tile__dot--5 { width: 3px; height: 3px; bottom: 15%; right: 35%; opacity: 0.5; animation: tileDotPulse 3.2s ease-in-out infinite 1.5s; }
+.tile__particle--1 {
+  top: -10%; left: 15%;
+  animation: tileRain1 4s linear infinite;
+}
 
-@keyframes tileDotPulse {
-  0%, 100% { opacity: 0.3; transform: scale(1); }
-  50%      { opacity: 0.9; transform: scale(1.5); }
+.tile__particle--2 {
+  top: -10%; left: 35%;
+  width: 2px; height: 2px;
+  animation: tileRain2 5s linear infinite 1s;
+}
+
+.tile__particle--3 {
+  top: -10%; left: 55%;
+  width: 4px; height: 4px;
+  animation: tileRain3 6s linear infinite 0.5s;
+}
+
+.tile__particle--4 {
+  top: -10%; left: 75%;
+  width: 2px; height: 2px;
+  animation: tileRain4 4.5s linear infinite 2s;
+}
+
+.tile__particle--5 {
+  top: -10%; left: 90%;
+  animation: tileRain5 5.5s linear infinite 1.5s;
+}
+
+.tile__particle--6 {
+  top: -10%; left: 25%;
+  width: 3px; height: 3px;
+  animation: tileRain6 7s linear infinite 3s;
+}
+
+/* Дождь в разные стороны */
+@keyframes tileRain1 {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translate(-30px, 160px); opacity: 0; }
+}
+
+@keyframes tileRain2 {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  10%  { opacity: 0.8; }
+  90%  { opacity: 0.8; }
+  100% { transform: translate(20px, 160px); opacity: 0; }
+}
+
+@keyframes tileRain3 {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translate(-45px, 160px); opacity: 0; }
+}
+
+@keyframes tileRain4 {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  10%  { opacity: 0.7; }
+  90%  { opacity: 0.7; }
+  100% { transform: translate(35px, 160px); opacity: 0; }
+}
+
+@keyframes tileRain5 {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  10%  { opacity: 1; }
+  90%  { opacity: 1; }
+  100% { transform: translate(-20px, 160px); opacity: 0; }
+}
+
+@keyframes tileRain6 {
+  0%   { transform: translate(0, 0); opacity: 0; }
+  10%  { opacity: 0.9; }
+  90%  { opacity: 0.9; }
+  100% { transform: translate(50px, 160px); opacity: 0; }
 }
 
 .tile__content {
@@ -190,10 +271,10 @@ const hasMascot = computed(() => !!props.mascot);
   gap: 4px;
 }
 
-.tile--mascot-left .tile__content   { padding-left: 120px; }
-.tile--mascot-right .tile__content  { padding-right: 120px; }
+.tile--mascot-left .tile__content   { padding-left: 130px; }
+.tile--mascot-right .tile__content  { padding-right: 130px; }
 .tile--mascot-floating .tile__content,
-.tile--mascot-corner .tile__content { padding-right: 80px; }
+.tile--mascot-corner .tile__content { padding-right: 90px; }
 
 .tile__label {
   display: flex;
@@ -203,7 +284,7 @@ const hasMascot = computed(() => !!props.mascot);
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  opacity: 0.9;
+  opacity: 0.95;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
@@ -226,19 +307,19 @@ const hasMascot = computed(() => !!props.mascot);
 
 .tile__sub {
   font-size: 11px;
-  opacity: 0.85;
+  opacity: 0.9;
   font-weight: 600;
 }
 
 @media (max-width: 700px) {
-  .tile { padding: 14px; border-radius: 14px; min-height: 120px; }
+  .tile { padding: 14px; border-radius: 14px; min-height: 130px; }
   .tile__bg { border-radius: 14px; }
   .tile__value { font-size: 20px; }
   .tile__label { font-size: 10px; }
   .tile__sub { font-size: 10px; }
-  .tile--mascot-left .tile__content   { padding-left: 95px; }
-  .tile--mascot-right .tile__content  { padding-right: 95px; }
+  .tile--mascot-left .tile__content   { padding-left: 100px; }
+  .tile--mascot-right .tile__content  { padding-right: 100px; }
   .tile--mascot-floating .tile__content,
-  .tile--mascot-corner .tile__content { padding-right: 60px; }
+  .tile--mascot-corner .tile__content { padding-right: 70px; }
 }
 </style>
