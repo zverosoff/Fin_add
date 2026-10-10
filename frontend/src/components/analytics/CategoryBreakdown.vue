@@ -5,12 +5,12 @@ import { fmt } from '@/composables/useFormat';
 import { useCategoriesStore } from '@/stores/categories';
 import { useAccountsStore } from '@/stores/accounts';
 import { useTransactionsStore } from '@/stores/transactions';
+import MascotImage from './MascotImage.vue';
 
 const categories = useCategoriesStore();
 const accounts = useAccountsStore();
 const txStore = useTransactionsStore();
 
-// ✅ Флаг инициализации — чтобы «Ничего» не перезаполнялось
 const selected = ref(new Set());
 const initialized = ref(false);
 
@@ -65,7 +65,6 @@ const items = computed(() => {
   });
 });
 
-// ✅ Инициализация ОДИН раз
 watch(items, (newItems) => {
   if (!initialized.value && newItems.length > 0) {
     selected.value = new Set(newItems.map(i => i.category));
@@ -73,7 +72,6 @@ watch(items, (newItems) => {
   }
 }, { immediate: true });
 
-// ✅ Сброс при смене месяца
 watch(() => txStore.currentMonth, () => {
   initialized.value = false;
   selected.value = new Set();
@@ -91,17 +89,16 @@ function selectAll() {
   initialized.value = true;
 }
 
-// ✅ «Ничего» — не даём watch перезаполнить
 function clearAll() {
   selected.value = new Set();
   initialized.value = true;
 }
 
-const selectedTotal = computed(() => {
-  return items.value
+const selectedTotal = computed(() =>
+  items.value
     .filter(i => selected.value.has(i.category))
-    .reduce((s, i) => s + i.amount, 0);
-});
+    .reduce((s, i) => s + i.amount, 0)
+);
 
 const allTotal = computed(() =>
   items.value.reduce((s, i) => s + i.amount, 0)
@@ -119,21 +116,7 @@ const monthLabel = computed(() => {
 
 <template>
   <section class="cat-breakdown">
-    <!-- ✅ Абстрактные фоновые элементы -->
-    <div class="cat-bg" aria-hidden="true">
-      <span class="cat-bg__orb cat-bg__orb--1"></span>
-      <span class="cat-bg__orb cat-bg__orb--2"></span>
-      <span class="cat-bg__orb cat-bg__orb--3"></span>
-      <span class="cat-bg__orb cat-bg__orb--4"></span>
-      <span class="cat-bg__dot cat-bg__dot--1"></span>
-      <span class="cat-bg__dot cat-bg__dot--2"></span>
-      <span class="cat-bg__dot cat-bg__dot--3"></span>
-      <span class="cat-bg__dot cat-bg__dot--4"></span>
-      <span class="cat-bg__dot cat-bg__dot--5"></span>
-      <span class="cat-bg__dot cat-bg__dot--6"></span>
-    </div>
-
-    <!-- ✅ Анимированный отблеск -->
+    <!-- ✅ Отблеск -->
     <div class="cat-glare" aria-hidden="true"></div>
 
     <div class="cat-head">
@@ -155,7 +138,6 @@ const monthLabel = computed(() => {
       </div>
     </div>
 
-    <!-- ✅ ПУСТОЕ СОСТОЯНИЕ — sad-coin -->
     <div v-if="!hasItems" class="cat-empty">
       <div class="cat-empty__mascot">
         <img
@@ -227,90 +209,10 @@ const monthLabel = computed(() => {
   isolation: isolate;
   min-height: 200px;
   border-radius: 14px;
+  /* ✅ overflow: hidden — ничего не выходит за пределы */
   overflow: hidden;
 }
 
-/* ✅ Абстрактные фоновые элементы */
-.cat-bg {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  pointer-events: none;
-  z-index: 0;
-  border-radius: 14px;
-}
-
-.cat-bg__orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(40px);
-}
-
-.cat-bg__orb--1 {
-  width: 160px; height: 160px;
-  background: #a855f7;
-  top: -50px; right: -40px;
-  opacity: 0.28;
-  animation: catOrbFloat1 12s ease-in-out infinite;
-}
-
-.cat-bg__orb--2 {
-  width: 140px; height: 140px;
-  background: #ec4899;
-  bottom: -60px; left: 15%;
-  opacity: 0.22;
-  animation: catOrbFloat2 15s ease-in-out infinite;
-}
-
-.cat-bg__orb--3 {
-  width: 110px; height: 110px;
-  background: #6366f1;
-  top: 35%; left: -40px;
-  opacity: 0.22;
-  animation: catOrbFloat3 18s ease-in-out infinite;
-}
-
-.cat-bg__orb--4 {
-  width: 90px; height: 90px;
-  background: #06b6d4;
-  bottom: 10%; right: 8%;
-  opacity: 0.18;
-  animation: catOrbFloat1 14s ease-in-out infinite reverse;
-}
-
-@keyframes catOrbFloat1 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50%      { transform: translate(-15px, 20px) scale(1.1); }
-}
-@keyframes catOrbFloat2 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50%      { transform: translate(20px, -15px) scale(1.08); }
-}
-@keyframes catOrbFloat3 {
-  0%, 100% { transform: translate(0, 0) scale(1); }
-  50%      { transform: translate(25px, 10px) scale(1.12); }
-}
-
-.cat-bg__dot {
-  position: absolute;
-  border-radius: 50%;
-  background: #ffffff;
-  pointer-events: none;
-}
-
-.cat-bg__dot--1 { width: 4px; height: 4px; top: 20%; right: 15%; opacity: 0.4; animation: catDotPulse 3s ease-in-out infinite; }
-.cat-bg__dot--2 { width: 3px; height: 3px; top: 60%; right: 25%; opacity: 0.3; animation: catDotPulse 4s ease-in-out infinite 0.5s; }
-.cat-bg__dot--3 { width: 4px; height: 4px; bottom: 25%; left: 45%; opacity: 0.35; animation: catDotPulse 3.5s ease-in-out infinite 1s; }
-.cat-bg__dot--4 { width: 3px; height: 3px; top: 40%; left: 12%; opacity: 0.28; animation: catDotPulse 4.5s ease-in-out infinite 0.3s; }
-.cat-bg__dot--5 { width: 5px; height: 5px; bottom: 15%; right: 40%; opacity: 0.3; animation: catDotPulse 3.2s ease-in-out infinite 1.5s; }
-.cat-bg__dot--6 { width: 3px; height: 3px; top: 75%; left: 25%; opacity: 0.25; animation: catDotPulse 4.2s ease-in-out infinite 0.8s; }
-
-@keyframes catDotPulse {
-  0%, 100% { opacity: 0.25; transform: scale(1); }
-  50%      { opacity: 0.7; transform: scale(1.4); }
-}
-
-/* ✅ Анимированный отблеск */
 .cat-glare {
   position: absolute;
   top: -50%;
@@ -320,13 +222,13 @@ const monthLabel = computed(() => {
   background: linear-gradient(
     90deg,
     transparent 0%,
-    rgba(255, 255, 255, 0.12) 45%,
-    rgba(255, 255, 255, 0.25) 50%,
-    rgba(255, 255, 255, 0.12) 55%,
+    rgba(255, 255, 255, 0.08) 45%,
+    rgba(255, 255, 255, 0.18) 50%,
+    rgba(255, 255, 255, 0.08) 55%,
     transparent 100%
   );
   transform: rotate(25deg);
-  animation: catGlareSweep 7s ease-in-out infinite;
+  animation: catGlareSweep 8s ease-in-out infinite;
   pointer-events: none;
   z-index: 1;
 }
@@ -337,7 +239,6 @@ const monthLabel = computed(() => {
   100%    { left: 200%; opacity: 0; }
 }
 
-/* Заголовок */
 .cat-head {
   position: relative;
   z-index: 2;
@@ -396,7 +297,6 @@ const monthLabel = computed(() => {
   &:active { transform: scale(0.96); }
 }
 
-/* ✅ Пустое состояние */
 .cat-empty {
   position: relative;
   z-index: 2;
@@ -411,8 +311,8 @@ const monthLabel = computed(() => {
 }
 
 .cat-empty__mascot {
-  width: 160px;
-  height: 160px;
+  width: 140px;
+  height: 140px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -429,7 +329,6 @@ const monthLabel = computed(() => {
 .cat-empty__title {
   font-size: 15px;
   font-weight: 800;
-  letter-spacing: 0.02em;
   color: rgba(255, 255, 255, 0.9);
 }
 
@@ -439,7 +338,6 @@ const monthLabel = computed(() => {
   font-weight: 600;
 }
 
-/* Список */
 .cat-breakdown__list {
   position: relative;
   z-index: 2;
@@ -638,6 +536,6 @@ const monthLabel = computed(() => {
   .cat-check { width: 20px; height: 20px; }
   .cat-total { padding: 10px 12px; }
   .cat-total__sum { font-size: 18px; }
-  .cat-empty__mascot { width: 130px; height: 130px; }
+  .cat-empty__mascot { width: 110px; height: 110px; }
 }
 </style>
