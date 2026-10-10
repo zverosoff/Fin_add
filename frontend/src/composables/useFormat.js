@@ -120,52 +120,118 @@ export function categoryIcon(category) {
 }
 
 /* ============================================================
+   ✅ ЭМОДЗИ-ФОЛБЭК ДЛЯ КАТЕГОРИЙ
+   Используется компонентом <IconOrEmoji>
+   ============================================================ */
+
+export const CATEGORY_EMOJI = {
+  // Расходы
+  'Продукты': '🛒',
+  'Кафе и рестораны': '☕',
+  'Еда': '🍔',
+  'Такси': '🚕',
+  'Бензин': '⛽',
+  'Общественный транспорт': '🚌',
+  'Транспорт': '🚗',
+  'Аренда': '🔑',
+  'Ипотека': '🏦',
+  'Жильё': '🏠',
+  'Коммунальные': '💡',
+  'Интернет и связь': '📶',
+  'Развлечения': '🎬',
+  'Подписки': '📺',
+  'Покупки': '🛍️',
+  'Одежда и обувь': '👕',
+  'Техника': '📱',
+  'Аптека': '💉',
+  'Здоровье': '💊',
+  'Спорт': '🏋️',
+  'Красота': '💄',
+  'Образование': '📚',
+  'Дети': '👶',
+  'Домашние животные': '🐾',
+  'Путешествия': '✈️',
+  'Кредиты': '💳',
+  'Страхование': '🛡️',
+  'Налоги': '📋',
+  'Ремонт': '🔧',
+  'Автомобиль': '🚙',
+  'Гараж': '🏚️',
+  'Сад и огород': '🌱',
+  'Подарки': '🎁',
+  'Благотворительность': '❤️',
+
+  // Доходы
+  'Зарплата': '💼',
+  'Аванс': '💰',
+  'Премия': '🏆',
+  'Фриланс': '💻',
+  'Бизнес': '📊',
+  'Инвестиции': '📈',
+  'Дивиденды': '💹',
+  'Проценты по вкладу': '🏦',
+  'Кэшбэк': '💸',
+  'Возврат': '↩️',
+  'Перевод от': '👤',
+  'Перевод между счетами': '🔁',
+  'Перевод между пользователями': '👥',
+  'Внутренний перевод': '🔄',
+
+  // Прочее
+  'Прочее': '📦',
+};
+
+/**
+ * ✅ Эмодзи для категории (фолбэк для PNG)
+ * @param {string} category
+ * @returns {string}
+ */
+export function categoryEmoji(category) {
+  return CATEGORY_EMOJI[category] || '📦';
+}
+
+/* ============================================================
    ✅ АВАТАРЫ ПОЛЬЗОВАТЕЛЕЙ — PNG
-   Файлы лежат в /img/icons/mascots/
    ============================================================ */
 
 export const AVATAR_MAN   = '/img/icons/mascots/avatar-man.png';
 export const AVATAR_WOMAN = '/img/icons/mascots/avatar-woman.png';
 
-/**
- * ✅ Аватар пользователя (PNG)
- */
 export function userAvatarPath(user) {
   if (user === 'Сергей') return AVATAR_MAN;
   if (user === 'Саша') return AVATAR_WOMAN;
   return AVATAR_MAN;
 }
 
-/**
- * @deprecated — используйте userAvatarPath
- */
+/** @deprecated — используйте userAvatarPath */
 export function userEmoji(user) {
   return user === 'Сергей' ? '👨' : user === 'Саша' ? '👩' : '👤';
 }
 
 /* ============================================================
-   ✅ БАНКИ — пути на /img/icons/banks/
+   ✅ БАНКИ
    ============================================================ */
 
-/** ✅ Иконка счёта/банка (для банк-монеты) */
-export function bankIconPath(id) {
-  if (!id) return '/img/icons/banks/default.png';
-  if (id === 'cash' || id.startsWith('cash_')) return '/img/icons/nav/cash.png';
-  if (id.startsWith('sber'))  return '/img/icons/banks/sber.png';
-  if (id.startsWith('tbank')) return '/img/icons/banks/tbank.png';
+export function bankLogo(id) {
+  if (!id) return null;
+  if (id === 'cash' || id.startsWith('cash_')) return null;
+  if (id.startsWith('sber'))  return '/img/sber.png';
+  if (id.startsWith('tbank')) return '/img/tbank.png';
   return '/img/icons/banks/default.png';
 }
 
-/** ✅ Логотип банка (алиас) */
-export function bankLogo(id) {
-  return bankIconPath(id);
-}
-
-/** ✅ Название банка */
 export function bankLabel(id) {
   if (!id) return '';
   if (id === 'cash' || id.startsWith('cash_')) return 'Наличные';
   if (id.startsWith('sber'))  return 'СберБанк';
   if (id.startsWith('tbank')) return 'Т-Банк';
   return 'Счёт';
+}
+
+export function bankIconPath(id) {
+  if (!id) return '/img/icons/banks/default.png';
+  if (id === 'cash' || id.startsWith('cash_')) return '/img/icons/nav/cash.png';
+  if (id.startsWith('sber'))  return '/img/sber.png';
+  if (id.startsWith('tbank')) return '/img/tbank.png';
+  return '/img/icons/banks/default.png';
 }

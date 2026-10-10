@@ -6,13 +6,14 @@ import { useAuthStore } from '@/stores/auth';
 import {
   fmt,
   categoryIcon,
+  categoryEmoji,
   bankIconPath,
   bankLabel,
   AVATAR_MAN,
   AVATAR_WOMAN,
 } from '@/composables/useFormat';
+import IconOrEmoji from '@/components/ui/IconOrEmoji.vue';
 
-// ✅ Пути к иконкам через :src — Vite не пытается резолвить как модуль
 const ICON_EDIT   = '/img/icons/ui/edit.png';
 const ICON_DELETE = '/img/icons/ui/delete.png';
 
@@ -32,6 +33,7 @@ const amountSign = computed(() => (props.tx.type === 'income' ? '+' : '−'));
 const amountClass = computed(() => (props.tx.type === 'income' ? 'income' : 'expense'));
 
 const categoryIconPath = computed(() => categoryIcon(props.tx.category));
+const categoryEmojiChar = computed(() => categoryEmoji(props.tx.category));
 
 const userClass = computed(() => (props.tx.user === 'Сергей' ? 'sergey' : 'sasha'));
 const displayUserName = computed(() => auth.nameFor(props.tx.user));
@@ -257,16 +259,16 @@ const progress = computed(() =>
         <div class="tx-name">{{ tx.name || 'Без названия' }}</div>
         <div class="tx-meta">
           <span class="who" @click.stop="onFilter('user', tx.user)">{{ displayUserName }}</span>
-<span class="cat" @click.stop="onFilter('category', tx.category)">
-  <IconOrEmoji
-    :src="categoryIconPath"
-    :emoji="categoryEmoji(tx.category)"
-    :size="14"
-    :alt="tx.category"
-    class-name="tx-cat-icon"
-  />
-  {{ tx.category || 'Прочее' }}
-</span>
+          <span class="cat" @click.stop="onFilter('category', tx.category)">
+            <IconOrEmoji
+              :src="categoryIconPath"
+              :emoji="categoryEmojiChar"
+              :size="14"
+              :alt="tx.category"
+              class-name="tx-cat-icon"
+            />
+            {{ tx.category || 'Прочее' }}
+          </span>
         </div>
       </div>
 
@@ -320,6 +322,8 @@ const progress = computed(() =>
     </div>
   </div>
 </template>
+
+<!-- Стили — оставь без изменений из прошлой версии -->
 
 <style scoped lang="scss">
 /* ============================================================
