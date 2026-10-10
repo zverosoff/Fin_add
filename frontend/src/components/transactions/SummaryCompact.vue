@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useTransactionsStore } from '@/stores/transactions';
 import { useAuthStore } from '@/stores/auth';
-import { fmt } from '@/composables/useFormat';
+import { fmt, AVATAR_MAN, AVATAR_WOMAN } from '@/composables/useFormat';
 
 const tx = useTransactionsStore();
 const auth = useAuthStore();
@@ -10,8 +10,20 @@ const auth = useAuthStore();
 const LS_KEY = 'financeProUsersCollapsed_v1';
 const collapsed = ref(true);
 
+// ✅ PNG-иконки
+const ICON_INCOME  = '/img/icons/categories/income.png';
+const ICON_EXPENSE = '/img/icons/categories/expense.png';
+const ICON_BALANCE = '/img/icons/nav/money-bag.png';
+const ICON_USERS   = '/img/icons/ui/users.png';
+
 function displayUser(technicalUser) {
   return auth.nameFor(technicalUser);
+}
+
+function userAvatar(user) {
+  if (user === 'Сергей') return AVATAR_MAN;
+  if (user === 'Саша') return AVATAR_WOMAN;
+  return AVATAR_MAN;
 }
 
 onMounted(() => {
@@ -41,26 +53,26 @@ const balanceClass = computed(() => {
   <div class="summary-compact" :class="{ collapsed }">
     <div class="sc-top">
       <div class="sc-item">
-        <span class="sc-icon">📈</span>
+        <img :src="ICON_INCOME" class="sc-icon-img" alt="Доходы" />
         <span class="sc-value income">{{ fmt(income) }} ₽</span>
         <span class="sc-label">доходы</span>
       </div>
       <div class="sc-divider"></div>
       <div class="sc-item">
-        <span class="sc-icon">📉</span>
+        <img :src="ICON_EXPENSE" class="sc-icon-img" alt="Расходы" />
         <span class="sc-value expense">{{ fmt(expense) }} ₽</span>
         <span class="sc-label">расходы</span>
       </div>
       <div class="sc-divider"></div>
       <div class="sc-item">
-        <span class="sc-icon">💰</span>
+        <img :src="ICON_BALANCE" class="sc-icon-img" alt="Баланс" />
         <span class="sc-value" :class="balanceClass">{{ fmt(balance) }} ₽</span>
         <span class="sc-label">баланс</span>
       </div>
     </div>
 
     <div class="sc-users-header" @click="toggle">
-      <span class="sc-users-icon">👥</span>
+      <img :src="ICON_USERS" class="sc-users-icon-img" alt="Пользователи" />
       <span class="sc-users-title">По пользователям</span>
       <button class="sc-toggle" type="button">
         <svg viewBox="0 0 24 24" class="chev" :class="{ open: !collapsed }">
@@ -76,7 +88,7 @@ const balanceClass = computed(() => {
         class="sc-user-row"
         :class="user === 'Сергей' ? 'sergey' : 'sasha'"
       >
-        <span class="sc-user-avatar">{{ user === 'Сергей' ? '👨' : '👩' }}</span>
+        <img :src="userAvatar(user)" class="sc-user-avatar-img" :alt="user" />
         <span class="sc-user-name">{{ displayUser(user) }}</span>
         <span class="sc-user-details">
           <span class="sc-user-inc">+{{ fmt(data.income) }} ₽</span>
@@ -93,14 +105,13 @@ const balanceClass = computed(() => {
 
 <style scoped lang="scss">
 /* ============================================================
-   КОНТЕЙНЕР — в СВЕТЛОЙ теме светлый, в ТЁМНОЙ — тёмный
+   КОНТЕЙНЕР
    ============================================================ */
 .summary-compact {
   position: relative;
   padding: 14px 16px;
   border-radius: 16px;
 
-  /* Светлая тема */
   background:
     radial-gradient(circle at 100% 0%, rgba(34, 197, 94, 0.06), transparent 50%),
     linear-gradient(180deg, #ffffff 0%, #fafbff 100%);
@@ -132,7 +143,6 @@ const balanceClass = computed(() => {
   &.collapsed { padding: 14px 16px 12px; }
 }
 
-/* ✅ ТЁМНАЯ ТЕМА */
 :global(:root[data-app-theme="dark"]) .summary-compact {
   background:
     radial-gradient(circle at 100% 0%, rgba(139, 92, 246, 0.08), transparent 50%),
@@ -159,8 +169,27 @@ const balanceClass = computed(() => {
   gap: 10px;
 }
 
-.sc-item { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.sc-icon { font-size: 13px; opacity: 0.85; }
+.sc-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  align-items: flex-start;
+}
+
+/* ✅ PNG-иконки в шапке — фикс 20×20 */
+.sc-icon-img {
+  display: block;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  max-width: 20px;
+  max-height: 20px;
+  object-fit: contain;
+  margin-bottom: 2px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+}
 
 .sc-value {
   font-family: var(--mono);
@@ -214,7 +243,18 @@ const balanceClass = computed(() => {
   border-top-color: rgba(139, 92, 246, 0.2);
 }
 
-.sc-users-icon { font-size: 14px; flex-shrink: 0; }
+/* ✅ PNG-иконка группы — фикс 18×18 */
+.sc-users-icon-img {
+  display: block;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  max-height: 18px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+}
 
 .sc-users-title {
   font-size: 11px;
@@ -229,6 +269,9 @@ const balanceClass = computed(() => {
 .sc-toggle {
   width: 26px;
   height: 26px;
+  min-width: 26px;
+  max-width: 26px;
+  max-height: 26px;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--panel-2);
@@ -319,7 +362,25 @@ const balanceClass = computed(() => {
     0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
-.sc-user-avatar { font-size: 14px; }
+/* ✅ PNG-аватар — фикс 22×22 */
+.sc-user-avatar-img {
+  display: block;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  max-width: 22px;
+  max-height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1.5px solid rgba(99, 102, 241, 0.35);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  background: #fff;
+}
+
+.sc-user-row.sasha .sc-user-avatar-img {
+  border-color: rgba(236, 72, 153, 0.4);
+}
 
 .sc-user-name {
   font-weight: 800;
@@ -372,7 +433,6 @@ const balanceClass = computed(() => {
   }
 }
 
-/* ✅ Тёмная тема — свечения и цвета */
 :global(:root[data-app-theme="dark"]) {
   .sc-value.income,
   .sc-value.positive {
@@ -413,19 +473,50 @@ const balanceClass = computed(() => {
 @media (max-width: 700px) {
   .summary-compact { padding: 12px 14px; border-radius: 14px; }
   .sc-top { gap: 6px; }
-  .sc-icon { font-size: 12px; }
+
+  .sc-icon-img {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    max-width: 18px;
+    max-height: 18px;
+  }
+
   .sc-value { font-size: 14px; }
   .sc-label { font-size: 8.5px; letter-spacing: 0.05em; }
   .sc-divider { height: 28px; }
 
   .sc-users-header { margin-top: 10px; padding-top: 10px; gap: 6px; }
-  .sc-users-icon { font-size: 12px; }
+
+  .sc-users-icon-img {
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    max-width: 16px;
+    max-height: 16px;
+  }
+
   .sc-users-title { font-size: 10px; }
-  .sc-toggle { width: 24px; height: 24px; }
+
+  .sc-toggle {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    max-width: 24px;
+    max-height: 24px;
+  }
   .sc-toggle .chev { width: 11px; height: 11px; }
 
   .sc-user-row { padding: 6px 8px; margin: 0 -2px; gap: 6px; }
-  .sc-user-avatar { font-size: 13px; }
+
+  .sc-user-avatar-img {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    max-width: 20px;
+    max-height: 20px;
+  }
+
   .sc-user-name { font-size: 11px; min-width: 44px; }
   .sc-user-details { gap: 6px; }
   .sc-user-inc, .sc-user-exp { font-size: 10px; }
