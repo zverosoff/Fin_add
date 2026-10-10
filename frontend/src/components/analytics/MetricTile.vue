@@ -54,8 +54,6 @@ const hasMascot = computed(() => !!props.mascot);
     <div class="tile__bg" :style="{ background: gradient }" aria-hidden="true">
       <!-- ✅ 1. Диагональные полосы 35° -->
       <div class="tile__stripes"></div>
-      <!-- ✅ 2. Мелкая косая клетка 45° -->
-      <div class="tile__pattern"></div>
       <!-- ✅ 3. Верхний глянец -->
       <div class="tile__gloss"></div>
     </div>
@@ -129,17 +127,6 @@ const hasMascot = computed(() => !!props.mascot);
   opacity: 0.85;
 }
 
-/* ✅ 2. МЕЛКАЯ КОСАЯ КЛЕТКА 45° */
-.tile__pattern {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image: repeating-linear-gradient(
-    45deg,
-    rgba(255, 255, 255, 0.035) 0 2px,
-    transparent 2px 8px
-  );
-}
 
 /* ✅ 3. ВЕРХНИЙ ГЛЯНЕЦ */
 .tile__gloss {

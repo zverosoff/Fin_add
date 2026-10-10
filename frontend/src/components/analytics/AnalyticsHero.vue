@@ -26,9 +26,7 @@ function scrollToGoals() {
 
       <!-- ✅ 1. Диагональные полосы 35° -->
       <div class="hero-card__stripes"></div>
-      <!-- ✅ 2. Мелкая косая клетка 45° -->
-      <div class="hero-card__pattern"></div>
-      <!-- ✅ 3. Верхний глянец -->
+       <!-- ✅ 3. Верхний глянец -->
       <div class="hero-card__gloss"></div>
     </div>
 
@@ -114,17 +112,6 @@ function scrollToGoals() {
   opacity: 0.85;
 }
 
-/* ✅ 2. МЕЛКАЯ КОСАЯ КЛЕТКА 45° */
-.hero-card__pattern {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  background-image: repeating-linear-gradient(
-    45deg,
-    rgba(255, 255, 255, 0.035) 0 2px,
-    transparent 2px 8px
-  );
-}
 
 /* ✅ 3. ВЕРХНИЙ ГЛЯНЕЦ */
 .hero-card__gloss {
