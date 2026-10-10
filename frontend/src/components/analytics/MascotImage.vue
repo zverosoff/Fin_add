@@ -24,6 +24,7 @@ const defaultSizes = {
   background: 280,
   floating: 90,
   corner: 110,
+  static: 180,
 };
 
 const px = computed(() => props.size || defaultSizes[props.position] || 130);
@@ -95,7 +96,15 @@ function onError() { failed.value = true; loaded.value = false; }
   user-select: none;
 }
 
-/* Позиции — без анимаций */
+/* ✅ STATIC — для встраивания в grid (не absolute) */
+.mascot--static {
+  position: relative;
+  left: auto;
+  right: auto;
+  top: auto;
+  bottom: auto;
+}
+
 .mascot--left     { left: -18px;  bottom: -12px; }
 .mascot--right    { right: -18px; bottom: -12px; }
 .mascot--hero-left  { left: -24px;  bottom: -18px; }
