@@ -3,6 +3,7 @@ import { computed, ref, watch } from 'vue';
 import { fmt, categoryIcon } from '@/composables/useFormat';
 import { useCategoriesStore } from '@/stores/categories';
 import { useAccountsStore } from '@/stores/accounts';
+import IconOrEmoji from '@/components/ui/IconOrEmoji.vue';
 import { useTransactionsStore } from '@/stores/transactions';
 
 const categories = useCategoriesStore();
@@ -92,6 +93,32 @@ function clearAll() {
   initialized.value = true;
 }
 
+const CATEGORY_EMOJI = {
+  'Продукты': '🛒', 'Кафе и рестораны': '☕', 'Еда': '🍔',
+  'Такси': '🚕', 'Бензин': '⛽', 'Общественный транспорт': '🚌',
+  'Транспорт': '🚗', 'Аренда': '🔑', 'Ипотека': '🏦',
+  'Жильё': '🏠', 'Коммунальные': '💡', 'Интернет и связь': '📶',
+  'Развлечения': '🎬', 'Подписки': '📺', 'Покупки': '🛍️',
+  'Одежда и обувь': '👕', 'Техника': '📱', 'Аптека': '💉',
+  'Здоровье': '💊', 'Спорт': '🏋️', 'Красота': '💄',
+  'Образование': '📚', 'Дети': '👶', 'Домашние животные': '🐾',
+  'Путешествия': '✈️', 'Кредиты': '💳', 'Страхование': '🛡️',
+  'Налоги': '📋', 'Ремонт': '🔧', 'Автомобиль': '🚙',
+  'Гараж': '🏚️', 'Сад и огород': '🌱', 'Подарки': '🎁',
+  'Благотворительность': '❤️',
+  'Зарплата': '💼', 'Аванс': '💰', 'Премия': '🏆',
+  'Фриланс': '💻', 'Бизнес': '📊', 'Инвестиции': '📈',
+  'Дивиденды': '💹', 'Проценты по вкладу': '🏦',
+  'Кэшбэк': '💸', 'Возврат': '↩️', 'Перевод от': '👤',
+  'Перевод между счетами': '🔁', 'Перевод между пользователями': '👥',
+  'Внутренний перевод': '🔄',
+  'Прочее': '📦',
+};
+
+function categoryEmoji(category) {
+  return CATEGORY_EMOJI[category] || '📦';
+}
+
 const selectedTotal = computed(() =>
   items.value
     .filter(i => selected.value.has(i.category))
@@ -167,9 +194,15 @@ const monthLabel = computed(() => {
           </svg>
         </div>
 
-        <div class="cat-row__icon">
-          <img :src="item.iconPath" class="cat-row__icon-img" :alt="item.category" />
-        </div>
+<div class="cat-row__icon">
+  <IconOrEmoji
+    :src="item.iconPath"
+    :emoji="categoryEmoji(item.category)"
+    :size="24"
+    :alt="item.category"
+    class-name="cat-row__icon-img"
+  />
+</div>
 
         <div class="cat-row__main">
           <div class="cat-row__top">

@@ -547,11 +547,13 @@ onUnmounted(() => {
             class="top-cat"
           >
             <div class="tc-rank" :class="'rank-' + (i + 1)">{{ i + 1 }}</div>
-            <div class="tc-icon">
-  <img
+<div class="tc-icon">
+  <IconOrEmoji
     :src="categoryIcon(cat.category)"
-    class="tc-icon-img"
+    :emoji="categoryEmoji(cat.category)"
+    :size="24"
     :alt="cat.category"
+    class-name="tc-icon-img"
   />
 </div>
             <div class="tc-info">

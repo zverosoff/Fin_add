@@ -257,16 +257,16 @@ const progress = computed(() =>
         <div class="tx-name">{{ tx.name || 'Без названия' }}</div>
         <div class="tx-meta">
           <span class="who" @click.stop="onFilter('user', tx.user)">{{ displayUserName }}</span>
-          <span class="cat" @click.stop="onFilter('category', tx.category)">
-            <img
-              :src="categoryIconPath"
-              class="tx-cat-icon"
-              alt=""
-              loading="lazy"
-              decoding="async"
-            />
-            {{ tx.category || 'Прочее' }}
-          </span>
+<span class="cat" @click.stop="onFilter('category', tx.category)">
+  <IconOrEmoji
+    :src="categoryIconPath"
+    :emoji="categoryEmoji(tx.category)"
+    :size="14"
+    :alt="tx.category"
+    class-name="tx-cat-icon"
+  />
+  {{ tx.category || 'Прочее' }}
+</span>
         </div>
       </div>
 

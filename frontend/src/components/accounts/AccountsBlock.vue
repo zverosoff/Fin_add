@@ -53,7 +53,12 @@ function bankLogo(id) {
 
 function isMe(owner) { return owner === userName.value; }
 
-const myAvatar = computed(() => ownerAvatar(userName.value));
+const myAvatar = computed(() => {
+  // Если пользователь загрузил свой аватар — используем его
+  if (auth.avatar) return auth.avatar;
+  // Иначе — стандартный PNG по имени
+  return ownerAvatar(userName.value);
+});
 
 onMounted(async () => {
   try {
@@ -79,25 +84,19 @@ watch(expandedOwners, (val) => {
       :class="{ 'has-avatar': !!myAvatar }"
     >
       <div class="dc-bg" aria-hidden="true">
-        <div class="dc-bg-photo">
-          <template v-if="myAvatar">
-            <div
-              class="dc-photo-kenburns"
-              :style="{ backgroundImage: `url(${myAvatar})` }"
-            ></div>
-            <div
-              class="dc-photo-glitch"
-              :style="{ backgroundImage: `url(${myAvatar})` }"
-            ></div>
-          </template>
-          <div v-else class="dc-bg-placeholder">
-            <img :src="myAvatar" class="dc-bg-avatar-img" alt="avatar" />
-          </div>
-
-          <div class="dc-bg-stripes"></div>
-          <div class="dc-bg-photo-shade"></div>
-          <div class="dc-bg-scanlines"></div>
-        </div>
+<div class="dc-bg-photo">
+  <div
+    class="dc-photo-kenburns"
+    :style="{ backgroundImage: `url(${myAvatar})` }"
+  ></div>
+  <div
+    class="dc-photo-glitch"
+    :style="{ backgroundImage: `url(${myAvatar})` }"
+  ></div>
+  <div class="dc-bg-stripes"></div>
+  <div class="dc-bg-photo-shade"></div>
+  <div class="dc-bg-scanlines"></div>
+</div>
 
         <div class="dc-bg-chroma dc-bg-chroma-cyan"></div>
         <div class="dc-bg-chroma dc-bg-chroma-magenta"></div>
