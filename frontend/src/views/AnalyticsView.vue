@@ -179,10 +179,12 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
 .analytics-page {
   position: relative;
   min-height: 100vh;
-  padding: 20px 40px 100px;
-  color: #ffffff;
+  /* ✅ Убираем большой padding-bottom — заменяем на меньший */
+  padding: 20px 40px 40px;
+  color: #ffffff !important;
   background: linear-gradient(135deg, #1a0f3a 0%, #2d1b5e 50%, #4c1d95 100%);
   background-attachment: fixed;
+  box-sizing: border-box;
 }
 
 .analytics-grid {
@@ -300,7 +302,9 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
 }
 
 @media (max-width: 700px) {
-  .analytics-page { padding: 16px 16px 120px; }
+  .analytics-page {
+  padding: 16px 16px 40px;
+}
   .analytics-grid { gap: 12px; }
   .an-col { gap: 12px; }
   .card { padding: 16px 18px; border-radius: 14px; }
