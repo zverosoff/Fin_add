@@ -26,6 +26,8 @@ const dashOffset = computed(() =>
 
 <template>
   <div class="goal-ring" :class="{ 'is-done': isDone }">
+    <div class="goal-ring__bg" aria-hidden="true"></div>
+
     <MascotImage
       name="star"
       position="floating"
@@ -47,13 +49,6 @@ const dashOffset = computed(() =>
               <stop offset="0%" stop-color="#a855f7" />
               <stop offset="100%" stop-color="#ec4899" />
             </linearGradient>
-            <filter id="ringGlow">
-              <feGaussianBlur stdDeviation="3" result="blur" />
-              <feMerge>
-                <feMergeNode in="blur" />
-                <feMergeNode in="SourceGraphic" />
-              </feMerge>
-            </filter>
           </defs>
 
           <circle
@@ -72,7 +67,6 @@ const dashOffset = computed(() =>
             :stroke-dasharray="CIRCUMFERENCE"
             :stroke-dashoffset="dashOffset"
             transform="rotate(-90 60 60)"
-            filter="url(#ringGlow)"
             class="goal-ring__progress"
           />
         </svg>
@@ -106,11 +100,20 @@ const dashOffset = computed(() =>
 .goal-ring {
   position: relative;
   border-radius: 18px;
-  padding: 16px 16px 16px 16px;
-  overflow: hidden;
-  isolation: isolate;
+  padding: 16px;
+  min-height: 120px;
   color: #ffffff;
-  min-height: 100px;
+  /* ✅ overflow: visible — звезда выходит за границы */
+  overflow: visible;
+  isolation: isolate;
+}
+
+.goal-ring__bg {
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  z-index: 0;
 
   background:
     radial-gradient(circle at 100% 100%, rgba(236, 72, 153, 0.25), transparent 60%),
@@ -120,6 +123,15 @@ const dashOffset = computed(() =>
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.08) inset,
     0 12px 32px -10px rgba(139, 92, 246, 0.4);
+}
+
+.goal-ring.is-done .goal-ring__bg {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(74, 222, 128, 0.25), transparent 60%),
+    linear-gradient(135deg, #064e3b 0%, #065f46 100%);
+  box-shadow:
+    0 0 0 1px rgba(74, 222, 128, 0.25) inset,
+    0 12px 32px -10px rgba(74, 222, 128, 0.5);
 }
 
 .goal-ring__content {
@@ -151,10 +163,6 @@ const dashOffset = computed(() =>
   width: 100%;
   height: 100%;
   display: block;
-}
-
-.goal-ring__progress {
-  transition: stroke-dashoffset 1s cubic-bezier(.4,0,.2,1);
 }
 
 .goal-ring__percent {
@@ -223,15 +231,6 @@ const dashOffset = computed(() =>
   &:active { transform: scale(0.97); }
 }
 
-.goal-ring.is-done {
-  background:
-    radial-gradient(circle at 50% 50%, rgba(74, 222, 128, 0.25), transparent 60%),
-    linear-gradient(135deg, #064e3b 0%, #065f46 100%);
-  box-shadow:
-    0 0 0 1px rgba(74, 222, 128, 0.25) inset,
-    0 12px 32px -10px rgba(74, 222, 128, 0.5);
-}
-
 @media (max-width: 700px) {
   .goal-ring { padding: 14px; }
   .goal-ring__visual { width: 96px; height: 96px; }
@@ -240,7 +239,6 @@ const dashOffset = computed(() =>
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .goal-ring__progress { transition: none; }
   .goal-ring__btn { transition: none; }
 }
 </style>

@@ -3,17 +3,11 @@
 import { ref, computed } from 'vue';
 
 const props = defineProps({
-  /** Имя файла без пути: 'finn-hero', 'piggy', 'shield' */
   name: { type: String, required: true },
-  /** Позиция: 'left' | 'right' | 'hero-left' | 'hero-right' | 'background' | 'floating' | 'corner' */
   position: { type: String, default: 'left' },
-  /** Размер на экране в px (по умолчанию зависит от позиции) */
   size: { type: Number, default: 0 },
-  /** Эмодзи-fallback, если PNG не загрузится */
   fallback: { type: String, default: '🪙' },
-  /** Alt-текст */
   alt: { type: String, default: '' },
-  /** Принудительно отзеркалить */
   flip: { type: Boolean, default: false },
 });
 
@@ -77,8 +71,6 @@ function onError() { failed.value = true; loaded.value = false; }
   display: flex;
   align-items: center;
   justify-content: center;
-  will-change: transform;
-  transform: translateZ(0);
 }
 
 .mascot__img {
@@ -104,69 +96,13 @@ function onError() { failed.value = true; loaded.value = false; }
 }
 
 /* ============================================================
-   ПОЗИЦИИ
+   ПОЗИЦИИ — без анимации, статично
    ============================================================ */
-.mascot--left {
-  left: -20px;
-  bottom: -10px;
-  animation: mascotFloat 4s ease-in-out infinite;
-}
-
-.mascot--right {
-  right: -20px;
-  bottom: -10px;
-  animation: mascotFloat 4s ease-in-out infinite;
-}
-
-.mascot--hero-left {
-  left: -30px;
-  bottom: -20px;
-  animation: mascotFloat 5s ease-in-out infinite;
-}
-
-.mascot--hero-right {
-  right: -30px;
-  bottom: -20px;
-  animation: mascotFloat 5s ease-in-out infinite;
-}
-
-.mascot--background {
-  right: -40px;
-  bottom: -30px;
-  opacity: 0.35;
-  z-index: 0;
-  animation: mascotFloat 6s ease-in-out infinite;
-  filter: blur(0.5px);
-}
-
-.mascot--floating {
-  right: 12px;
-  top: 12px;
-  animation: mascotFloatSmall 3s ease-in-out infinite;
-}
-
-.mascot--corner {
-  right: -10px;
-  top: -10px;
-  animation: mascotPeek 5s ease-in-out infinite;
-}
-
-@keyframes mascotFloat {
-  0%, 100% { transform: translateY(0) rotate(-2deg); }
-  50%      { transform: translateY(-6px) rotate(2deg); }
-}
-
-@keyframes mascotFloatSmall {
-  0%, 100% { transform: translateY(0) rotate(0deg); }
-  50%      { transform: translateY(-4px) rotate(-3deg); }
-}
-
-@keyframes mascotPeek {
-  0%, 100% { transform: translate(0, 0) rotate(0deg); }
-  50%      { transform: translate(-4px, 4px) rotate(-4deg); }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .mascot { animation: none !important; }
-}
+.mascot--left     { left: -18px;  bottom: -12px; }
+.mascot--right    { right: -18px; bottom: -12px; }
+.mascot--hero-left  { left: -24px;  bottom: -18px; }
+.mascot--hero-right { right: -24px; bottom: -18px; }
+.mascot--background { right: -40px; bottom: -30px; opacity: 0.35; z-index: 0; }
+.mascot--floating { right: 8px;   top: 8px; }
+.mascot--corner   { right: -12px; top: -12px; }
 </style>

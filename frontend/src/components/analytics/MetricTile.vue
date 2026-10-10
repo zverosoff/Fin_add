@@ -9,15 +9,10 @@ const props = defineProps({
   value: { type: [Number, String], required: true },
   unit: { type: String, default: '₽' },
   sub: { type: String, default: '' },
-  /** 'emerald' | 'amber' | 'rose' | 'violet' | 'cyan' | 'indigo' */
   color: { type: String, default: 'violet' },
-  /** Имя маскота без пути (например 'wallet') */
   mascot: { type: String, default: '' },
-  /** 'left' | 'right' | 'floating' | 'corner' */
   mascotPos: { type: String, default: 'floating' },
-  /** Эмодзи для заголовка и fallback */
   emoji: { type: String, default: '📊' },
-  /** Размер маскота */
   mascotSize: { type: Number, default: 0 },
 });
 
@@ -53,13 +48,13 @@ const hasMascot = computed(() => !!props.mascot);
 <template>
   <div
     class="tile"
-    :class="[`tile--${color}`, hasMascot ? `tile--mascot-${mascotPos}` : '']"
-    :style="{
-      '--tile-bg': gradient,
-      '--tile-glow': glow,
-    }"
+    :class="[`tile--mascot-${mascotPos}`]"
+    :style="{ '--tile-glow': glow }"
   >
-    <div class="tile__shine" aria-hidden="true"></div>
+    <!-- Фон отдельным слоем, чтобы персонаж мог выйти за границы -->
+    <div class="tile__bg" :style="{ background: gradient }" aria-hidden="true">
+      <div class="tile__shine"></div>
+    </div>
 
     <MascotImage
       v-if="hasMascot"
@@ -88,31 +83,28 @@ const hasMascot = computed(() => !!props.mascot);
   position: relative;
   border-radius: 18px;
   padding: 16px;
-  overflow: hidden;
-  isolation: isolate;
-  min-height: 100px;
+  min-height: 120px;
   color: #ffffff;
+  /* ✅ overflow: visible — персонаж выходит за границы */
+  overflow: visible;
+  isolation: isolate;
+  transition: transform 0.2s cubic-bezier(.34,1.56,.64,1);
 
-  background:
-    radial-gradient(circle at 100% 0%, rgba(255, 255, 255, 0.15), transparent 55%),
-    var(--tile-bg);
+  &:hover { transform: translateY(-3px); }
+}
+
+.tile__bg {
+  position: absolute;
+  inset: 0;
+  border-radius: 18px;
+  overflow: hidden;
+  z-index: 0;
 
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.1) inset,
     0 1px 0 rgba(255, 255, 255, 0.18) inset,
     0 12px 28px -10px var(--tile-glow),
     0 4px 10px -4px rgba(0, 0, 0, 0.25);
-
-  transition: transform 0.2s cubic-bezier(.34,1.56,.64,1), box-shadow 0.25s;
-
-  &:hover {
-    transform: translateY(-3px);
-    box-shadow:
-      0 0 0 1px rgba(255, 255, 255, 0.15) inset,
-      0 1px 0 rgba(255, 255, 255, 0.2) inset,
-      0 20px 40px -10px var(--tile-glow),
-      0 8px 16px -4px rgba(0, 0, 0, 0.3);
-  }
 }
 
 .tile__shine {
@@ -120,7 +112,6 @@ const hasMascot = computed(() => !!props.mascot);
   inset: 0;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, transparent 40%);
   pointer-events: none;
-  z-index: 1;
 }
 
 .tile__content {
@@ -132,10 +123,10 @@ const hasMascot = computed(() => !!props.mascot);
 }
 
 /* Отступы контента под персонажа */
-.tile--mascot-left .tile__content   { padding-left: 90px; }
-.tile--mascot-right .tile__content  { padding-right: 90px; }
+.tile--mascot-left .tile__content   { padding-left: 95px; }
+.tile--mascot-right .tile__content  { padding-right: 95px; }
 .tile--mascot-floating .tile__content,
-.tile--mascot-corner .tile__content { padding-right: 60px; }
+.tile--mascot-corner .tile__content { padding-right: 65px; }
 
 .tile__label {
   display: flex;
@@ -173,12 +164,15 @@ const hasMascot = computed(() => !!props.mascot);
 }
 
 @media (max-width: 700px) {
-  .tile { padding: 13px; border-radius: 14px; min-height: 90px; }
+  .tile { padding: 13px; border-radius: 14px; min-height: 100px; }
+  .tile__bg { border-radius: 14px; }
   .tile__value { font-size: 20px; }
   .tile__label { font-size: 10px; }
   .tile__sub { font-size: 10px; }
   .tile--mascot-left .tile__content   { padding-left: 70px; }
   .tile--mascot-right .tile__content  { padding-right: 70px; }
+  .tile--mascot-floating .tile__content,
+  .tile--mascot-corner .tile__content { padding-right: 50px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

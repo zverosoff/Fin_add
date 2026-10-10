@@ -9,18 +9,17 @@ const analytics = useAnalyticsStore();
 
 const PERCENT = 10;
 
-// Демо-fallback, если стор не заполнен
-const DEMO_INCOME = 169465;
-const DEMO_SAVINGS = 16947;
-
+// ✅ Только реальные данные из стора, без демо-подмены
 const heroValue = computed(() => {
   const v = analytics.savingsRecommended;
-  return (v && v > 0) ? v : DEMO_SAVINGS;
+  return (typeof v === 'number' && v > 0) ? v : 0;
 });
 
 const heroIncome = computed(() => {
-  const v = analytics.monthIncome ?? analytics.currentMonthSummary?.income;
-  return (v && v > 0) ? v : DEMO_INCOME;
+  const v = analytics.monthIncome
+    ?? analytics.currentMonthSummary?.income
+    ?? 0;
+  return v;
 });
 </script>
 
@@ -29,7 +28,6 @@ const heroIncome = computed(() => {
     <div class="hero-card__glow" aria-hidden="true"></div>
     <div class="hero-card__pattern" aria-hidden="true"></div>
 
-    <!-- Персонаж СЛЕВА, выглядывает за край -->
     <MascotImage
       name="piggy"
       position="hero-left"
