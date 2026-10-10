@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+
+  <title>Финансы PRO+</title>
+
+  <!-- ✅ PWA -->
+  <meta name="theme-color" content="#eef2f8" />
+  <meta name="color-scheme" content="light" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-title" content="Финансы PRO+" />
+
+  <link rel="icon" type="image/png" href="/img/favicon.png" />
+  <link rel="apple-touch-icon" href="/img/favicon.png" />
+  <link rel="mask-icon" href="/favicon.svg" color="#0284c7" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
+  <script type="module" crossorigin src="/assets/index-BMIDqz5-.js"></script>
+  <link rel="modulepreload" crossorigin href="/assets/client-Cz_Ut9nW.js">
+  <link rel="modulepreload" crossorigin href="/assets/_plugin-vue_export-helper-ByuO5g9_.js">
+  <link rel="stylesheet" crossorigin href="/assets/index-FHSGZrTi.css">
+<link rel="manifest" href="/manifest.webmanifest"><script id="vite-plugin-pwa:register-sw" src="/registerSW.js"></script></head>
+<body>
+  <div id="app"></div>
+
+  <!-- Tesseract.js — OCR для чеков -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+
+  <!-- PDF.js — парсер выписок -->
+  <script src="https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.min.js"></script>
+  <script>
+    if (window.pdfjsLib) {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/build/pdf.worker.min.js';
+    }
+  </script>
+
+  <!-- ✅ Блокируем double-tap zoom на iOS (Safari игнорирует user-scalable=no) -->
+  <script>
+    (function () {
+      // Запрет pinch-zoom
+      document.addEventListener('gesturestart', function (e) {
+        e.preventDefault();
+      }, { passive: false });
+
+      // Запрет double-tap zoom
+      let lastTouchEnd = 0;
+      document.addEventListener('touchend', function (e) {
+        const now = Date.now();
+        if (now - lastTouchEnd <= 300) {
+          e.preventDefault();
+        }
+        lastTouchEnd = now;
+      }, { passive: false });
+    })();
+  </script>
+
+</body>
+</html>
