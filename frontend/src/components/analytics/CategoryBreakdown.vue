@@ -220,22 +220,6 @@ const monthLabel = computed(() => {
   overflow: hidden;
 }
 
-/* ✅ 1. ДИАГОНАЛЬНЫЕ ПОЛОСЫ 35° */
-.cat-breakdown::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 0;
-  background: repeating-linear-gradient(
-    -35deg,
-    rgba(255, 255, 255, 0) 0px,
-    rgba(255, 255, 255, 0) 12px,
-    rgba(255, 255, 255, 0.06) 12px,
-    rgba(255, 255, 255, 0.06) 14px
-  );
-  opacity: 0.85;
-}
 
 /* ✅ 2. МЕЛКАЯ КОСАЯ КЛЕТКА 45° */
 .cat-breakdown::after {
