@@ -53,6 +53,13 @@ const hasMascot = computed(() => !!props.mascot);
   >
     <div class="tile__bg" :style="{ background: gradient }" aria-hidden="true">
       <div class="tile__shine"></div>
+
+      <!-- ✅ Абстрактные фоновые элементы -->
+      <span class="tile__orb tile__orb--1"></span>
+      <span class="tile__orb tile__orb--2"></span>
+      <span class="tile__dot tile__dot--1"></span>
+      <span class="tile__dot tile__dot--2"></span>
+      <span class="tile__dot tile__dot--3"></span>
     </div>
 
     <MascotImage
@@ -110,7 +117,47 @@ const hasMascot = computed(() => !!props.mascot);
   inset: 0;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.15) 0%, transparent 40%);
   pointer-events: none;
+  z-index: 1;
 }
+
+/* ✅ Абстрактные orb-ы и точки */
+.tile__orb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(24px);
+  z-index: 0;
+}
+
+.tile__orb--1 {
+  width: 80px;
+  height: 80px;
+  background: rgba(255, 255, 255, 0.35);
+  top: -30px;
+  right: -20px;
+}
+
+.tile__orb--2 {
+  width: 60px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.18);
+  bottom: -20px;
+  left: 30%;
+}
+
+.tile__dot {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.7);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.tile__dot--1 { top: 22%; right: 12%; opacity: 0.9; }
+.tile__dot--2 { top: 65%; right: 22%; opacity: 0.5; width: 2px; height: 2px; }
+.tile__dot--3 { bottom: 30%; left: 55%; opacity: 0.4; width: 4px; height: 4px; }
 
 .tile__content {
   position: relative;
