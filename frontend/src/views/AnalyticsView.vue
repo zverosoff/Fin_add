@@ -175,12 +175,10 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
 </template>
 
 <style scoped lang="scss">
-/* ✅ ТОЛЬКО локальный фон — не трогает body */
 .analytics-page {
   position: relative;
-  min-height: 100vh;
-  /* ✅ Убираем большой padding-bottom — заменяем на меньший */
-  padding: 20px 40px 40px;
+  min-height: calc(100vh + 100px);
+  padding: calc(20px + env(safe-area-inset-top, 0)) 40px 40px;
   color: #ffffff !important;
   background: linear-gradient(135deg, #1a0f3a 0%, #2d1b5e 50%, #4c1d95 100%);
   background-attachment: fixed;
@@ -227,8 +225,8 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
 }
 
 .card-dark {
-  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
-  color: #ffffff;
+  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%) !important;
+  color: #ffffff !important;
 }
 
 .card-goals {
@@ -278,24 +276,35 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
   &:hover { transform: translateY(-1px); }
 }
 
+/* ✅ Перебиваем светлые стили GoalCard — тёмная тема */
 .card-goals :deep(.goal-card),
 .card-goals :deep(.goals-list),
 .card-goals :deep(.goal-item) {
-  background: rgba(255, 255, 255, 0.05);
-  color: #ffffff;
-  border-color: rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ✅ Белый текст в названии цели */
+.card-goals :deep(.goal-card__name),
+.card-goals :deep(.goal-name),
+.card-goals :deep(.goal-card__title),
+.card-goals :deep(.goal-card h3),
+.card-goals :deep(.goal-card h4),
+.card-goals :deep(.goal-card strong) {
+  color: #ffffff !important;
 }
 
 .card-goals :deep(.goal-card__empty),
 .card-goals :deep(.goal-empty),
 .card-goals :deep([class*="empty"]),
 .card-goals :deep([class*="hint"]) {
-  color: #1e1b4b;
-  font-weight: 700;
+  color: #1e1b4b !important;
+  font-weight: 700 !important;
 }
 
 @media (max-width: 1100px) {
-  .analytics-page { padding: 20px 24px 100px; }
+  .analytics-page { padding: calc(20px + env(safe-area-inset-top, 0)) 24px 40px; }
   .analytics-grid { grid-template-columns: 1fr; max-width: 900px; }
   .an-col-right { position: static; }
   .metrics-grid { grid-template-columns: 1fr 1fr; gap: 14px; }
@@ -303,8 +312,8 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
 
 @media (max-width: 700px) {
   .analytics-page {
-  padding: 16px 16px 40px;
-}
+    padding: calc(16px + env(safe-area-inset-top, 0)) 16px 40px;
+  }
   .analytics-grid { gap: 12px; }
   .an-col { gap: 12px; }
   .card { padding: 16px 18px; border-radius: 14px; }
