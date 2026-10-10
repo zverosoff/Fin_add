@@ -148,7 +148,7 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
           <MascotImage
             name="star"
             position="goals-corner"
-            :size="90"
+            :size="200"
             fallback="🎯"
             alt="Цели"
           />
