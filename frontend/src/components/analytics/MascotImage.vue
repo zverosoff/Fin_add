@@ -17,17 +17,18 @@ const failed = ref(false);
 const src = computed(() => `/img/mascots/${props.name}.png`);
 
 const defaultSizes = {
-  left: 130,
-  right: 130,
-  'hero-left': 220,
-  'hero-right': 220,
+  left: 150,
+  right: 150,
+  'hero-left': 240,
+  'hero-right': 240,
   background: 280,
-  floating: 90,
-  corner: 110,
+  floating: 100,
+  corner: 130,
   static: 180,
+  'goals-right-center': 240,
 };
 
-const px = computed(() => props.size || defaultSizes[props.position] || 130);
+const px = computed(() => props.size || defaultSizes[props.position] || 150);
 
 const shouldFlip = computed(() => {
   if (props.flip) return true;
@@ -66,7 +67,7 @@ function onError() { failed.value = true; loaded.value = false; }
 .mascot {
   position: absolute;
   pointer-events: none;
-  z-index: 2;
+  z-index: 3;
   width: var(--mascot-size);
   height: var(--mascot-size);
   display: flex;
@@ -96,13 +97,27 @@ function onError() { failed.value = true; loaded.value = false; }
   user-select: none;
 }
 
-/* ✅ STATIC — для встраивания в grid (не absolute) */
 .mascot--static {
   position: relative;
-  left: auto;
-  right: auto;
-  top: auto;
-  bottom: auto;
+  left: auto; right: auto; top: auto; bottom: auto;
+}
+
+/* ✅ Звезда справа по центру, выступает за блок на 3/4 */
+.mascot--goals-right-center {
+  right: -60%;             /* выступает на 60% ширины за правый край */
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+/* На мобилке — сдвигаем меньше, чтобы не вылезала за экран */
+@media (max-width: 700px) {
+  .mascot--goals-right-center {
+    right: -30px;
+    top: -20px;
+    transform: none;
+    width: 130px !important;
+    height: 130px !important;
+  }
 }
 
 .mascot--left     { left: -18px;  bottom: -12px; }

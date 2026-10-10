@@ -4,7 +4,6 @@ import { onMounted, computed, ref } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
 import { useAnalyticsStore } from '@/stores/analytics';
 import { useGoalsStore } from '@/stores/goals';
-import { useCategoriesStore } from '@/stores/categories';
 import { useToast } from '@/composables/useToast';
 import { notifySaved, notifyError } from '@/composables/useDataStatus';
 import { fmt } from '@/composables/useFormat';
@@ -24,7 +23,6 @@ import FinancialAssistant from '@/components/analytics/FinancialAssistant.vue';
 const accounts = useAccountsStore();
 const analytics = useAnalyticsStore();
 const goalsStore = useGoalsStore();
-const categories = useCategoriesStore();
 const toast = useToast();
 
 const goalModalOpen = ref(false);
@@ -131,7 +129,7 @@ function openEditContrib({ goal, user }) {
             mascot="wallet"
             mascot-pos="left"
             emoji="💰"
-            :mascot-size="130"
+            :mascot-size="150"
           />
 
           <MetricTile
@@ -143,7 +141,7 @@ function openEditContrib({ goal, user }) {
             mascot="shield"
             mascot-pos="right"
             emoji="⏳"
-            :mascot-size="130"
+            :mascot-size="150"
           />
 
           <MetricTile
@@ -153,9 +151,9 @@ function openEditContrib({ goal, user }) {
             :sub="dailyAvgHint"
             color="rose"
             mascot="calculator"
-            mascot-pos="corner"
+            mascot-pos="right"
             emoji="🔥"
-            :mascot-size="110"
+            :mascot-size="130"
           />
         </div>
 
@@ -165,18 +163,15 @@ function openEditContrib({ goal, user }) {
           <CategoryBreakdown />
         </section>
 
-        <!-- ✅ ЦЕЛИ: звезда СЛЕВА по центру, больше -->
+        <!-- ✅ ЦЕЛИ: звезда справа по центру, выступает за блок -->
         <section class="card card-dark card-goals">
-          <div class="card-goals__mascot">
-            <MascotImage
-              name="star"
-              position="static"
-              :size="180"
-              fallback="🎯"
-              alt="Цели"
-            />
-            <div class="card-goals__frame" aria-hidden="true"></div>
-          </div>
+          <MascotImage
+            name="star"
+            position="goals-right-center"
+            :size="240"
+            fallback="🎯"
+            alt="Цели"
+          />
 
           <div class="card-goals__content">
             <div class="card-head">
@@ -211,12 +206,24 @@ function openEditContrib({ goal, user }) {
 </template>
 
 <style scoped lang="scss">
-/* ✅ ХАРДКОД ТЁМНОГО ФОНА — не зависит от темы */
+/* ✅ ХАРДКОД ТЁМНОГО ФОНА */
 .analytics-page {
+  position: relative;
   min-height: 100vh;
   padding: 20px 20px 100px;
   background: linear-gradient(180deg, #0f0a1e 0%, #1a1035 100%) !important;
   color: #ffffff !important;
+  z-index: 0;
+}
+
+/* ✅ Перебиваем белый фон body */
+.analytics-page::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background: linear-gradient(180deg, #0f0a1e 0%, #1a1035 100%);
+  pointer-events: none;
 }
 
 .analytics-grid {
@@ -249,57 +256,40 @@ function openEditContrib({ goal, user }) {
 .card {
   padding: 16px 18px;
   border-radius: 18px;
-  /* ✅ ХАРДКОД — не зависит от светлой темы */
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.08) inset,
     0 12px 32px -10px rgba(139, 92, 246, 0.35);
 }
 
 .card-dark {
-  /* ✅ ЖЁСТКИЙ тёмный фон, не через var */
   background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%) !important;
   color: #ffffff !important;
 }
 
-/* ✅ Блок целей — звезда слева по центру */
+/* ✅ Блок целей — звезда справа по центру, выступает за блок */
 .card-goals {
   position: relative;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: 20px;
-  align-items: center;
   overflow: visible;
-}
-
-.card-goals__mascot {
-  position: relative;
-  width: 180px;
-  height: 180px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-}
-
-/* ✅ Внутренняя рамка-контур ПОД звездой */
-.card-goals__frame {
-  position: absolute;
-  inset: 10px;
-  border: 2px dashed rgba(168, 85, 247, 0.4);
-  border-radius: 50%;
-  pointer-events: none;
-  animation: goalsFramePulse 3s ease-in-out infinite;
-}
-
-@keyframes goalsFramePulse {
-  0%, 100% { opacity: 0.5; transform: scale(1); }
-  50%      { opacity: 0.9; transform: scale(1.05); }
+  padding-right: 100px; /* отступ справа под звезду */
 }
 
 .card-goals__content {
   position: relative;
   z-index: 2;
   min-width: 0;
+}
+
+/* ✅ Перебиваем светлые стили GoalCard */
+.card-goals :deep(.goal-card),
+.card-goals :deep(.goals-list),
+.card-goals :deep(.goal-item) {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.card-goals :deep(.goal-card *) {
+  color: inherit;
 }
 
 .card-head {
@@ -345,13 +335,11 @@ function openEditContrib({ goal, user }) {
   .metrics-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
 }
 
-/* ✅ МОБИЛЬНЫЙ — звезда в углу, как было */
+/* ✅ МОБИЛЬНЫЙ — звезда в углу */
 @media (max-width: 700px) {
   .analytics-page {
     padding: 16px 16px 120px;
-    /* ✅ Тёмный фон на всю высоту */
     background: linear-gradient(180deg, #0f0a1e 0%, #1a1035 100%) !important;
-    min-height: 100vh;
   }
   .analytics-grid { gap: 12px; }
   .an-col { gap: 12px; }
@@ -359,24 +347,8 @@ function openEditContrib({ goal, user }) {
   .card-title { font-size: 11px; letter-spacing: 0.06em; }
   .metrics-grid { grid-template-columns: 1fr; }
 
-  /* ✅ Мобильная версия целей — звезда справа в углу, как раньше */
   .card-goals {
-    grid-template-columns: 1fr;
-    gap: 0;
-    padding-right: 140px;
-  }
-
-  .card-goals__mascot {
-    position: absolute;
-    top: -20px;
-    right: -20px;
-    width: 130px;
-    height: 130px;
-    z-index: 3;
-  }
-
-  .card-goals__frame {
-    inset: 8px;
+    padding-right: 130px;
   }
 }
 </style>
