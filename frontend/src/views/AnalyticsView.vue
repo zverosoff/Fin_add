@@ -4,6 +4,7 @@ import { onMounted, computed, ref } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
 import { useAnalyticsStore } from '@/stores/analytics';
 import { useGoalsStore } from '@/stores/goals';
+import { useCategoriesStore } from '@/stores/categories';
 import { useToast } from '@/composables/useToast';
 import { notifySaved, notifyError } from '@/composables/useDataStatus';
 import { fmt } from '@/composables/useFormat';
@@ -11,20 +12,21 @@ import { fmt } from '@/composables/useFormat';
 // ✅ Новые визуальные компоненты
 import AnalyticsHero from '@/components/analytics/AnalyticsHero.vue';
 import MetricTile from '@/components/analytics/MetricTile.vue';
-import ComparisonCard from '@/components/analytics/ComparisonCard.vue';
+import MascotImage from '@/components/analytics/MascotImage.vue';
 
-// ✅ Рабочий функционал — как был
+// ✅ Рабочий функционал
 import MonthNav from '@/components/analytics/MonthNav.vue';
+import CategoryBreakdown from '@/components/analytics/CategoryBreakdown.vue';
 import GoalsList from '@/components/goals/GoalsList.vue';
 import GoalModal from '@/components/goals/GoalModal.vue';
 import ContributeModal from '@/components/goals/ContributeModal.vue';
 import EditContribModal from '@/components/goals/EditContribModal.vue';
 import FinancialAssistant from '@/components/analytics/FinancialAssistant.vue';
-import FinanceQuotes from '@/components/analytics/FinanceQuotes.vue';
 
 const accounts = useAccountsStore();
 const analytics = useAnalyticsStore();
 const goalsStore = useGoalsStore();
+const categories = useCategoriesStore();
 const toast = useToast();
 
 const goalModalOpen = ref(false);
@@ -48,7 +50,7 @@ onMounted(async () => {
   }
 });
 
-// ✅ РЕАЛЬНЫЕ метрики из analytics store
+// ✅ РЕАЛЬНЫЕ метрики
 const metrics = computed(() => analytics.currentMonthMetrics);
 
 const runwayHint = computed(() => {
@@ -68,6 +70,32 @@ const realFreeHint = computed(() => {
 const dailyAvgHint = computed(() => {
   const m = metrics.value;
   return `при ${fmt(m.avgExpense)} ₽/мес`;
+});
+
+// ✅ РАСХОДЫ ПО КАТЕГОРИЯМ — считаем из periodTransactions
+const categoriesBreakdown = computed(() => {
+  const txs = analytics.periodTransactions || [];
+  const expenses = txs.filter(t => t.type === 'expense' && !t.fromReconcile);
+
+  const totalExpense = expenses.reduce((s, t) => s + (Number(t.amount) || 0), 0);
+  if (totalExpense === 0) return [];
+
+  const map = new Map();
+  for (const t of expenses) {
+    const cat = t.category || 'Прочее';
+    map.set(cat, (map.get(cat) || 0) + (Number(t.amount) || 0));
+  }
+
+  const sorted = Array.from(map.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 8); // топ-8
+
+  return sorted.map(([category, amount]) => ({
+    category,
+    amount,
+    percent: (amount / totalExpense) * 100,
+    emoji: categories.icon(category) || '💳',
+  }));
 });
 
 function openAddGoal() {
@@ -166,14 +194,25 @@ function openEditContrib({ goal, user }) {
         <!-- Навигация по месяцам -->
         <MonthNav />
 
-        <!-- Сравнение -->
+        <!-- ✅ РАСХОДЫ ПО КАТЕГОРИЯМ — вернули -->
         <section class="card card-dark">
-          <h2 class="card-title">🔀 Сравнение с прошлым периодом</h2>
-          <ComparisonCard />
+          <CategoryBreakdown
+            :items="categoriesBreakdown"
+            :total="metrics.monthExpense || 0"
+          />
         </section>
 
-        <!-- ЦЕЛИ -->
-        <section class="card card-dark">
+        <!-- ✅ ЦЕЛИ — с персонажем -->
+        <section class="card card-dark card-goals">
+          <!-- Персонаж — звезда, парит справа в углу -->
+          <MascotImage
+            name="star"
+            position="corner"
+            :size="110"
+            fallback="🎯"
+            alt="Цели"
+          />
+
           <div class="card-head">
             <h2 class="card-title">🎯 Цели накоплений и желаемые покупки</h2>
             <button class="btn-add-goal" @click="openAddGoal">+ Добавить</button>
@@ -189,10 +228,9 @@ function openEditContrib({ goal, user }) {
         </section>
       </div>
 
-      <!-- ПРАВАЯ КОЛОНКА -->
+      <!-- ПРАВАЯ КОЛОНКА — только помощник -->
       <div class="an-col an-col-right">
         <FinancialAssistant />
-        <FinanceQuotes />
       </div>
     </div>
 
@@ -207,7 +245,6 @@ function openEditContrib({ goal, user }) {
 </template>
 
 <style scoped lang="scss">
-/* ✅ Тёмный фон + отступы от краёв */
 .analytics-page {
   min-height: 100vh;
   padding: 20px 20px 100px;
@@ -255,6 +292,12 @@ function openEditContrib({ goal, user }) {
   color: #ffffff;
 }
 
+/* ✅ Блок целей — с персонажем, overflow visible */
+.card-goals {
+  position: relative;
+  overflow: visible;
+}
+
 .card-head {
   display: flex;
   align-items: center;
@@ -262,6 +305,7 @@ function openEditContrib({ goal, user }) {
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 12px;
+  padding-right: 80px; /* отступ справа под звезду */
 }
 
 .card-title {
@@ -305,5 +349,6 @@ function openEditContrib({ goal, user }) {
   .card { padding: 12px 14px; border-radius: 14px; }
   .card-title { font-size: 11px; letter-spacing: 0.06em; }
   .metrics-grid { grid-template-columns: 1fr; }
+  .card-head { padding-right: 70px; }
 }
 </style>
