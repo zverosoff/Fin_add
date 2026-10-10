@@ -19,18 +19,22 @@ const src = computed(() => `/img/mascots/${props.name}.png`);
 const defaultSizes = {
   left: 150,
   right: 150,
-  'hero-left': 240,
-  'hero-right': 240,
+  'hero-left': 260,
+  'hero-right': 260,
   background: 280,
   floating: 100,
   corner: 130,
   static: 180,
-  'goals-right-center': 220,
-  'goals-star-mobile': 200,
   'goals-corner': 140,
 };
 
 const px = computed(() => props.size || defaultSizes[props.position] || 150);
+
+/**
+ * ✅ Смещение = половина размера
+ * Персонаж стоит на границе: половина внутри, половина снаружи.
+ */
+const offset = computed(() => Math.round(px.value / 2));
 
 const shouldFlip = computed(() => {
   if (props.flip) return true;
@@ -47,6 +51,7 @@ function onError() { failed.value = true; loaded.value = false; }
     :class="[`mascot--${position}`, { 'is-loaded': loaded, 'is-failed': failed }]"
     :style="{
       '--mascot-size': px + 'px',
+      '--mascot-offset': offset + 'px',
       '--mascot-flip': shouldFlip ? -1 : 1,
     }"
     aria-hidden="true"
@@ -99,88 +104,68 @@ function onError() { failed.value = true; loaded.value = false; }
   user-select: none;
 }
 
-.mascot--static {
-  position: relative;
-  left: auto; right: auto; top: auto; bottom: auto;
-}
-
-/* ✅ Звезда в верхнем правом углу (ПК + МОБ) */
-.mascot--goals-corner {
-  right: -20px;
-  top: -20px;
-}
-
-.mascot--goals-right-center {
-  right: -50px;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
-.mascot--goals-star-mobile {
-  right: -50px;
-  top: 50%;
-  transform: translateY(-50%);
-}
-
+/* ✅ LEFT/RIGHT — половина в блоке, половина снаружи */
 .mascot--left {
-  left: -30px;
-  top: -30px;
-  bottom: -30px;
-  height: auto;
-  align-items: center;
-}
-.mascot--right {
-  right: -30px;
-  top: -30px;
-  bottom: -30px;
-  height: auto;
-  align-items: center;
+  left: calc(var(--mascot-offset) * -1);
+  top: 50%;
+  transform: translateY(-50%);
 }
 
-.mascot--hero-left {
-  left: -30px;
-  top: -20px;
-  bottom: -20px;
-  height: auto;
-  align-items: center;
+.mascot--right {
+  right: calc(var(--mascot-offset) * -1);
+  top: 50%;
+  transform: translateY(-50%);
 }
+
+/* ✅ HERO — копилка слева, на половину */
+.mascot--hero-left {
+  left: calc(var(--mascot-offset) * -1);
+  top: 50%;
+  transform: translateY(-50%);
+}
+
 .mascot--hero-right {
-  right: -30px;
-  top: -20px;
-  bottom: -20px;
-  height: auto;
-  align-items: center;
+  right: calc(var(--mascot-offset) * -1);
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .mascot--background { right: -40px; bottom: -30px; opacity: 0.35; z-index: 0; }
 .mascot--floating { right: 8px;   top: 8px; }
 .mascot--corner   { right: -20px; top: -20px; }
+.mascot--static   { position: relative; left: auto; right: auto; top: auto; bottom: auto; }
 
-/* ✅ МОБИЛЬНЫЙ — звезда в верхнем правом углу, меньше */
+/* ✅ Звезда целей */
+.mascot--goals-corner {
+  right: -20px;
+  top: -20px;
+}
+
+/* ✅ МОБИЛЬНЫЙ — меньше размеры, копилка/калькулятор слева */
 @media (max-width: 700px) {
-  .mascot--goals-corner,
-  .mascot--goals-right-center,
-  .mascot--goals-star-mobile {
+  .mascot--left {
+    left: -60px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .mascot--right {
+    right: -60px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .mascot--hero-left {
+    left: -100px;
+    top: 50%;
+    transform: translateY(-50%);
+  }
+
+  .mascot--goals-corner {
     right: -15px;
     top: -15px;
-    transform: none;
     width: 100px !important;
     height: 100px !important;
-  }
-
-  .mascot--left {
-    left: -20px !important;
-    right: auto !important;
-    top: -20px;
-    bottom: -20px;
-    height: auto;
-  }
-  .mascot--right {
-    right: -20px !important;
-    left: auto !important;
-    top: -20px;
-    bottom: -20px;
-    height: auto;
   }
 }
 </style>
