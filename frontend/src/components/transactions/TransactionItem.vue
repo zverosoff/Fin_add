@@ -5,6 +5,12 @@ import { useFiltersStore } from '@/stores/filters';
 import { useAuthStore } from '@/stores/auth';
 import { fmt, categoryIcon, bankIconPath, bankLabel } from '@/composables/useFormat';
 
+// ✅ Пути к иконкам — вынесены, чтобы Vite не пытался их резолвить как модули
+const ICON_EDIT   = '/img/icons/ui/edit.png';
+const ICON_DELETE = '/img/icons/ui/delete.png';
+const AVATAR_MAN  = '/img/mascots/avatar-man.png';
+const AVATAR_WOMAN = '/img/mascots/avatar-woman.png';
+
 const props = defineProps({
   tx: { type: Object, required: true },
   isNew: { type: Boolean, default: false },
@@ -20,24 +26,20 @@ const accountName = computed(() => accounts.getAccountName(props.tx.accountId));
 const amountSign = computed(() => (props.tx.type === 'income' ? '+' : '−'));
 const amountClass = computed(() => (props.tx.type === 'income' ? 'income' : 'expense'));
 
-// ✅ PNG-иконка категории
 const categoryIconPath = computed(() => categoryIcon(props.tx.category));
 
 const userClass = computed(() => (props.tx.user === 'Сергей' ? 'sergey' : 'sasha'));
 const displayUserName = computed(() => auth.nameFor(props.tx.user));
 
-// ✅ Аватар пользователя — PNG
 const userAvatar = computed(() => {
-  if (props.tx.user === 'Сергей') return '/img/mascots/avatar-man.png';
-  if (props.tx.user === 'Саша') return '/img/mascots/avatar-woman.png';
-  return '/img/mascots/avatar-man.png';
+  if (props.tx.user === 'Сергей') return AVATAR_MAN;
+  if (props.tx.user === 'Саша') return AVATAR_WOMAN;
+  return AVATAR_MAN;
 });
 
-// ✅ Иконка банка/счёта
 const bankIcon = computed(() => bankIconPath(props.tx.accountId));
 const bankLabelText = computed(() => bankLabel(props.tx.accountId));
 
-// Определяем тип счёта для CSS-класса
 const bankType = computed(() => {
   const id = props.tx.accountId;
   if (!id) return 'default';
@@ -216,7 +218,7 @@ const progress = computed(() =>
         @click.stop="onEdit"
         aria-label="Редактировать"
       >
-        <img src="/img/icons/ui/edit.png" class="tab-icon-img" alt="Редактировать" />
+        <img :src="ICON_EDIT" class="tab-icon-img" alt="Редактировать" />
       </button>
       <button
         class="tx-action-btn tx-action-delete"
@@ -224,7 +226,7 @@ const progress = computed(() =>
         @click.stop="onDelete"
         aria-label="Удалить"
       >
-        <img src="/img/icons/ui/delete.png" class="tab-icon-img" alt="Удалить" />
+        <img :src="ICON_DELETE" class="tab-icon-img" alt="Удалить" />
       </button>
     </div>
 
@@ -281,7 +283,7 @@ const progress = computed(() =>
               title="Редактировать"
               aria-label="Редактировать"
             >
-              <img src="/img/icons/ui/edit.png" class="tib-icon-img" alt="Редактировать" />
+              <img :src="ICON_EDIT" class="tib-icon-img" alt="Редактировать" />
             </button>
             <button
               class="tx-inline-btn tx-inline-delete"
@@ -290,7 +292,7 @@ const progress = computed(() =>
               title="Удалить"
               aria-label="Удалить"
             >
-              <img src="/img/icons/ui/delete.png" class="tib-icon-img" alt="Удалить" />
+              <img :src="ICON_DELETE" class="tib-icon-img" alt="Удалить" />
             </button>
           </div>
 
@@ -313,6 +315,8 @@ const progress = computed(() =>
     </div>
   </div>
 </template>
+
+<!-- Стили без изменений — оставь как было в прошлой версии -->
 
 <style scoped lang="scss">
 /* ============================================================
