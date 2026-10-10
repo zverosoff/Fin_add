@@ -6,7 +6,7 @@ import './styles/global.scss';
 import '@/composables/useAppTheme.js';
 import { subscribeToPush, initPushHandlers } from '@/composables/usePushNotifications';
 
-// ✅ Финальная защита: ставим data-app-theme до mount
+// ✅ Устанавливаем ТОЛЬКО data-app-theme, БЕЗ inline background
 try {
   const stored = localStorage.getItem('finance-app-theme-v1') || 'auto';
   let theme = stored;
@@ -14,7 +14,7 @@ try {
     theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   }
   document.documentElement.setAttribute('data-app-theme', theme);
-  document.documentElement.style.colorScheme = theme;
+  // Без style.background и style.colorScheme — всё через CSS
 } catch (e) {}
 
 const app = createApp(App);

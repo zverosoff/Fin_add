@@ -3,19 +3,16 @@ import { ref, computed } from 'vue';
 
 const STORAGE_KEY = 'finance-app-theme-v1';
 
-// 'light' | 'dark' | 'auto'
 export const appTheme = ref(
   localStorage.getItem(STORAGE_KEY) || 'auto'
 );
 
-// Системное значение
 const systemDark = ref(
   typeof window !== 'undefined'
     ? window.matchMedia('(prefers-color-scheme: dark)').matches
     : false
 );
 
-// Слушаем системные изменения
 if (typeof window !== 'undefined') {
   const mq = window.matchMedia('(prefers-color-scheme: dark)');
   mq.addEventListener?.('change', (e) => {
@@ -33,8 +30,13 @@ export const isDark = computed(() => resolvedTheme.value === 'dark');
 
 export function applyTheme() {
   const resolved = resolvedTheme.value;
-  document.documentElement.dataset.appTheme = resolved;
+
+  document.documentElement.setAttribute('data-app-theme', resolved);
   document.documentElement.style.colorScheme = resolved;
+
+  // ✅ Убираем inline-фон, если он был установлен ранее
+  document.documentElement.style.removeProperty('background');
+  document.body.style.removeProperty('background');
 
   const meta = document.querySelector('meta[name="theme-color"]');
   if (meta) {
@@ -52,7 +54,7 @@ export function setAppTheme(value) {
   applyTheme();
 }
 
-// Инициализация
+// ✅ Инициализация при загрузке модуля
 if (typeof window !== 'undefined') {
   applyTheme();
 }

@@ -10,7 +10,7 @@
   <meta name="color-scheme" content="light dark" />
   <meta name="mobile-web-app-capable" content="yes" />
   <meta name="apple-mobile-web-app-capable" content="yes" />
-  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Финансы PRO+" />
 
   <link rel="icon" type="image/png" href="/img/favicon.png" />
@@ -21,53 +21,36 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700&display=swap" rel="stylesheet" />
 
-  <!-- ✅ КРИТИЧНО: применяем тему ДО парсинга body -->
-<script>
-  (function () {
-    try {
-      var stored = localStorage.getItem('finance-app-theme-v1') || 'auto';
-      var isDark = false;
-      if (stored === 'dark') isDark = true;
-      else if (stored === 'auto') {
-        isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-      }
-      var theme = isDark ? 'dark' : 'light';
-      document.documentElement.setAttribute('data-app-theme', theme);
-      document.documentElement.style.colorScheme = theme;
-
-      var meta = document.querySelector('meta[name="theme-color"]');
-      if (meta) meta.setAttribute('content', isDark ? '#0a0612' : '#eef2f8');
-
-      // ✅ Фон на html + body, чтобы первый рендер был правильного цвета
-      var bgColor = isDark ? '#0a0612' : '#eef2f8';
-      document.documentElement.style.background = bgColor;
-
-      // ✅ Через requestAnimationFrame — после появления body
-      var applyBodyBg = function () {
-        if (document.body) {
-          document.body.style.background = bgColor;
+  <!-- ✅ Устанавливаем ТОЛЬКО data-app-theme, БЕЗ inline background -->
+  <script>
+    (function () {
+      try {
+        var stored = localStorage.getItem('finance-app-theme-v1') || 'auto';
+        var isDark = false;
+        if (stored === 'dark') isDark = true;
+        else if (stored === 'auto') {
+          isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
         }
-      };
-      if (document.body) {
-        applyBodyBg();
-      } else {
-        document.addEventListener('DOMContentLoaded', applyBodyBg, { once: true });
+        var theme = isDark ? 'dark' : 'light';
+        document.documentElement.setAttribute('data-app-theme', theme);
+        document.documentElement.style.colorScheme = theme;
+
+        var meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.setAttribute('content', isDark ? '#0a0612' : '#eef2f8');
+      } catch (e) {
+        document.documentElement.setAttribute('data-app-theme', 'light');
       }
-    } catch (e) {
-      document.documentElement.setAttribute('data-app-theme', 'light');
-      document.documentElement.style.background = '#eef2f8';
-    }
-  })();
-</script>
+    })();
+  </script>
 
   <style>
-    /* Минимальный inline-стиль до загрузки основного CSS */
     html, body {
       margin: 0;
       height: 100%;
       min-height: 100%;
     }
-    /* ✅ НЕ ставим фоны body здесь — их даст основной CSS через градиент */
+    /* ✅ Фон только через CSS-атрибут, БЕЗ inline-стилей — 
+       чтобы можно было менять на лету */
     html[data-app-theme="dark"] { background: #0a0612; }
     html[data-app-theme="light"] { background: #eef2f8; }
 
