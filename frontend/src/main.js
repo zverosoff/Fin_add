@@ -3,6 +3,7 @@ import { createPinia } from 'pinia';
 import router from './router';
 import App from './App.vue';
 import './styles/global.scss';
+import '@/styles/analytics.scss';
 import '@/composables/useAppTheme.js';
 import { subscribeToPush, initPushHandlers } from '@/composables/usePushNotifications';
 
