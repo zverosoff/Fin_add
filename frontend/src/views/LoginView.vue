@@ -175,6 +175,17 @@ async function submit() {
   align-items: center;
   justify-content: center;
   padding: 20px;
+  /* ✅ Свой фон — перебивает html */
+  background: linear-gradient(135deg, #dbeafe 0%, #ede9fe 50%, #fce7f3 100%);
+  background-attachment: fixed;
+}
+
+:global(:root[data-app-theme="dark"]) .login-page {
+  background:
+    radial-gradient(circle at 20% 20%, rgba(139, 92, 246, 0.15), transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.1), transparent 50%),
+    linear-gradient(135deg, #0f0a1e 0%, #1a1035 50%, #2d1b5e 100%);
+  background-attachment: fixed;
 }
 
 .login-card {
