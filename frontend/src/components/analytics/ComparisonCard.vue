@@ -18,29 +18,20 @@ const items = computed(() => {
   const p = props.previous;
   return [
     {
-      key: 'expense',
-      label: 'Расходы',
-      emoji: '📉',
-      current: c.expense,
-      prev: p.expense,
+      key: 'expense', label: 'Расходы', emoji: '📉',
+      current: c.expense, prev: p.expense,
       diff: diffPercent(c.expense, p.expense),
-      invert: true, // для расходов рост = плохо
+      invert: true,
     },
     {
-      key: 'income',
-      label: 'Доходы',
-      emoji: '📈',
-      current: c.income,
-      prev: p.income,
+      key: 'income', label: 'Доходы', emoji: '📈',
+      current: c.income, prev: p.income,
       diff: diffPercent(c.income, p.income),
       invert: false,
     },
     {
-      key: 'balance',
-      label: 'Баланс',
-      emoji: '⚖️',
-      current: c.balance,
-      prev: p.balance,
+      key: 'balance', label: 'Баланс', emoji: '⚖️',
+      current: c.balance, prev: p.balance,
       diff: diffPercent(c.balance, p.balance),
       invert: false,
     },
@@ -49,8 +40,7 @@ const items = computed(() => {
 
 function isPositive(item) {
   if (item.diff === 0) return null;
-  const good = item.invert ? item.diff < 0 : item.diff > 0;
-  return good;
+  return item.invert ? item.diff < 0 : item.diff > 0;
 }
 </script>
 
@@ -188,9 +178,7 @@ function isPositive(item) {
   flex-wrap: wrap;
 }
 
-.cmp-tile__arrow {
-  font-size: 13px;
-}
+.cmp-tile__arrow { font-size: 13px; }
 
 .cmp-tile.is-good .cmp-tile__diff { color: #4ade80; }
 .cmp-tile.is-bad  .cmp-tile__diff { color: #f87171; }

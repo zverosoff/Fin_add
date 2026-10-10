@@ -105,12 +105,12 @@ const dashOffset = computed(() =>
 <style scoped lang="scss">
 .goal-ring {
   position: relative;
-  border-radius: 20px;
-  padding: 20px 20px 20px 90px;
+  border-radius: 18px;
+  padding: 16px 16px 16px 16px;
   overflow: hidden;
   isolation: isolate;
   color: #ffffff;
-  min-height: 200px;
+  min-height: 100px;
 
   background:
     radial-gradient(circle at 100% 100%, rgba(236, 72, 153, 0.25), transparent 60%),
@@ -125,24 +125,25 @@ const dashOffset = computed(() =>
 .goal-ring__content {
   position: relative;
   z-index: 3;
+  padding-right: 60px;
 }
 
 .goal-ring__title {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   opacity: 0.9;
-  margin-bottom: 10px;
+  margin-bottom: 6px;
 }
 
 .goal-ring__visual {
   position: relative;
-  width: 140px;
-  height: 140px;
+  width: 110px;
+  height: 110px;
   margin: 0 auto;
 }
 
@@ -167,37 +168,37 @@ const dashOffset = computed(() =>
 }
 
 .goal-ring__percent-value {
-  font-size: 28px;
+  font-size: 24px;
   font-weight: 300;
   letter-spacing: -0.02em;
 }
 
 .goal-ring__percent-sign {
-  font-size: 16px;
+  font-size: 14px;
   opacity: 0.7;
   margin-left: 2px;
 }
 
 .goal-ring__info {
   text-align: center;
-  margin-top: 10px;
+  margin-top: 8px;
   display: flex;
   flex-direction: column;
   gap: 2px;
 }
 
 .goal-ring__remaining {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 700;
 }
 
 .goal-ring__target {
-  font-size: 11px;
+  font-size: 10.5px;
   opacity: 0.65;
 }
 
 .goal-ring__done {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 800;
   color: #4ade80;
   text-shadow: 0 0 12px rgba(74, 222, 128, 0.5);
@@ -205,12 +206,12 @@ const dashOffset = computed(() =>
 
 .goal-ring__btn {
   display: block;
-  margin: 12px auto 0;
-  padding: 8px 20px;
+  margin: 10px auto 0;
+  padding: 7px 18px;
   border-radius: 999px;
   border: none;
   font-family: inherit;
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 800;
   color: #0a0612;
   background: linear-gradient(180deg, #fde047, #facc15);
@@ -232,9 +233,10 @@ const dashOffset = computed(() =>
 }
 
 @media (max-width: 700px) {
-  .goal-ring { padding: 16px 16px 16px 70px; }
-  .goal-ring__visual { width: 110px; height: 110px; }
-  .goal-ring__percent-value { font-size: 22px; }
+  .goal-ring { padding: 14px; }
+  .goal-ring__visual { width: 96px; height: 96px; }
+  .goal-ring__percent-value { font-size: 20px; }
+  .goal-ring__content { padding-right: 50px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

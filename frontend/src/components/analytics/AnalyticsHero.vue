@@ -7,9 +7,21 @@ import { useAnalyticsStore } from '@/stores/analytics';
 
 const analytics = useAnalyticsStore();
 
-const heroValue = computed(() => analytics.savingsRecommended || 0);
-const heroIncome = computed(() => analytics.monthIncome || 0);
-const percent = 10;
+const PERCENT = 10;
+
+// Демо-fallback, если стор не заполнен
+const DEMO_INCOME = 169465;
+const DEMO_SAVINGS = 16947;
+
+const heroValue = computed(() => {
+  const v = analytics.savingsRecommended;
+  return (v && v > 0) ? v : DEMO_SAVINGS;
+});
+
+const heroIncome = computed(() => {
+  const v = analytics.monthIncome ?? analytics.currentMonthSummary?.income;
+  return (v && v > 0) ? v : DEMO_INCOME;
+});
 </script>
 
 <template>
@@ -17,10 +29,10 @@ const percent = 10;
     <div class="hero-card__glow" aria-hidden="true"></div>
     <div class="hero-card__pattern" aria-hidden="true"></div>
 
-    <!-- Копилка держит монету — главный визуал -->
+    <!-- Персонаж СЛЕВА, выглядывает за край -->
     <MascotImage
       name="piggy"
-      position="hero"
+      position="hero-left"
       :size="180"
       fallback="🐷"
       alt="Копилка"
@@ -30,7 +42,7 @@ const percent = 10;
       <div class="hero-card__label">💰 МОЖНО ОТКЛАДЫВАТЬ</div>
       <div class="hero-card__value">{{ fmt(heroValue) }} ₽</div>
       <div class="hero-card__sub">
-        Рекомендовано {{ percent }}% от дохода {{ fmt(heroIncome) }} ₽
+        Рекомендовано {{ PERCENT }}% от дохода {{ fmt(heroIncome) }} ₽
       </div>
       <button class="hero-card__btn" type="button">
         Управлять →
@@ -44,8 +56,8 @@ const percent = 10;
   position: relative;
   border-radius: 24px;
   overflow: visible;
-  padding: 24px 24px 24px 200px;
-  min-height: 200px;
+  padding: 22px 24px 22px 200px;
+  min-height: 160px;
   isolation: isolate;
 
   background:
@@ -97,35 +109,35 @@ const percent = 10;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   opacity: 0.85;
-  margin-bottom: 10px;
+  margin-bottom: 8px;
 }
 
 .hero-card__value {
   font-family: var(--mono);
-  font-size: 44px;
+  font-size: 40px;
   font-weight: 300;
   letter-spacing: -0.03em;
   line-height: 1.05;
   color: #facc15;
   text-shadow: 0 0 24px rgba(250, 204, 21, 0.5);
-  margin-bottom: 8px;
+  margin-bottom: 6px;
 }
 
 .hero-card__sub {
-  font-size: 13px;
+  font-size: 12.5px;
   opacity: 0.8;
-  margin-bottom: 16px;
+  margin-bottom: 14px;
 }
 
 .hero-card__btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 10px 20px;
+  padding: 9px 18px;
   border-radius: 999px;
   border: none;
   font-family: inherit;
-  font-size: 13px;
+  font-size: 12.5px;
   font-weight: 800;
   color: #0a0612;
   background: linear-gradient(180deg, #fde047, #facc15);
@@ -146,18 +158,18 @@ const percent = 10;
 
 @media (max-width: 700px) {
   .hero-card {
-    padding: 20px 16px 20px 140px;
-    min-height: 160px;
+    padding: 18px 16px 18px 150px;
+    min-height: 140px;
     border-radius: 20px;
   }
-  .hero-card__value { font-size: 32px; }
-  .hero-card__sub { font-size: 12px; }
-  .hero-card__btn { padding: 8px 16px; font-size: 12px; }
+  .hero-card__value { font-size: 30px; }
+  .hero-card__sub { font-size: 11.5px; }
+  .hero-card__btn { padding: 8px 14px; font-size: 11.5px; }
 }
 
 @media (max-width: 380px) {
-  .hero-card { padding-left: 120px; }
-  .hero-card__value { font-size: 26px; }
+  .hero-card { padding-left: 130px; }
+  .hero-card__value { font-size: 24px; }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -13,14 +13,12 @@ const props = defineProps({
   color: { type: String, default: 'violet' },
   /** Имя маскота без пути (например 'wallet') */
   mascot: { type: String, default: '' },
-  /** Позиция маскота: 'left' | 'right' | 'floating' | 'corner' | 'background' */
+  /** 'left' | 'right' | 'floating' | 'corner' */
   mascotPos: { type: String, default: 'floating' },
-  /** Эмодзи если нет маскота или fallback */
+  /** Эмодзи для заголовка и fallback */
   emoji: { type: String, default: '📊' },
   /** Размер маскота */
   mascotSize: { type: Number, default: 0 },
-  /** Не показывать десятичные (для процентов) */
-  noDecimals: { type: Boolean, default: false },
 });
 
 const gradients = {
@@ -88,11 +86,11 @@ const hasMascot = computed(() => !!props.mascot);
 <style scoped lang="scss">
 .tile {
   position: relative;
-  border-radius: 20px;
-  padding: 18px;
+  border-radius: 18px;
+  padding: 16px;
   overflow: hidden;
   isolation: isolate;
-  min-height: 120px;
+  min-height: 100px;
   color: #ffffff;
 
   background:
@@ -130,11 +128,12 @@ const hasMascot = computed(() => !!props.mascot);
   z-index: 3;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
-.tile--mascot-left .tile__content   { padding-left: 100px; }
-.tile--mascot-right .tile__content  { padding-right: 100px; }
+/* Отступы контента под персонажа */
+.tile--mascot-left .tile__content   { padding-left: 90px; }
+.tile--mascot-right .tile__content  { padding-right: 90px; }
 .tile--mascot-floating .tile__content,
 .tile--mascot-corner .tile__content { padding-right: 60px; }
 
@@ -142,7 +141,7 @@ const hasMascot = computed(() => !!props.mascot);
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 11.5px;
+  font-size: 11px;
   font-weight: 800;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -150,14 +149,11 @@ const hasMascot = computed(() => !!props.mascot);
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
 }
 
-.tile__emoji {
-  font-size: 14px;
-  line-height: 1;
-}
+.tile__emoji { font-size: 13px; line-height: 1; }
 
 .tile__value {
   font-family: var(--mono);
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 300;
   letter-spacing: -0.02em;
   line-height: 1.1;
@@ -171,18 +167,18 @@ const hasMascot = computed(() => !!props.mascot);
 }
 
 .tile__sub {
-  font-size: 11.5px;
+  font-size: 11px;
   opacity: 0.85;
   font-weight: 600;
 }
 
 @media (max-width: 700px) {
-  .tile { padding: 14px; border-radius: 16px; min-height: 100px; }
-  .tile__value { font-size: 22px; }
-  .tile__label { font-size: 10.5px; }
-  .tile__sub { font-size: 10.5px; }
-  .tile--mascot-left .tile__content   { padding-left: 80px; }
-  .tile--mascot-right .tile__content  { padding-right: 80px; }
+  .tile { padding: 13px; border-radius: 14px; min-height: 90px; }
+  .tile__value { font-size: 20px; }
+  .tile__label { font-size: 10px; }
+  .tile__sub { font-size: 10px; }
+  .tile--mascot-left .tile__content   { padding-left: 70px; }
+  .tile--mascot-right .tile__content  { padding-right: 70px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
