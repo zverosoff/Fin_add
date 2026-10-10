@@ -83,7 +83,6 @@ const hasMascot = computed(() => !!props.mascot);
   border-radius: 18px;
   min-height: 140px;
   color: #ffffff;
-  /* ✅ visible — персонаж может выйти за верх/низ */
   overflow: visible;
   isolation: isolate;
   transition: transform 0.2s;
@@ -115,7 +114,7 @@ const hasMascot = computed(() => !!props.mascot);
   z-index: 1;
 }
 
-/* ✅ КОНТЕНТ — выше персонажа (z-index 4 > 2) */
+/* ✅ КОНТЕНТ — центр по ВЕРТИКАЛИ */
 .tile__content {
   position: relative;
   z-index: 4;
@@ -128,17 +127,20 @@ const hasMascot = computed(() => !!props.mascot);
   box-sizing: border-box;
 }
 
-/* ✅ Контент сдвинут ОТ персонажа */
+/* ✅ LEFT: текст СЛЕВА, персонаж слева */
 .tile--mascot-left .tile__content {
-  padding-left: 120px;
+  padding-left: 110px;
   text-align: left;
   align-items: flex-start;
 }
+
+/* ✅ RIGHT: текст СПРАВА, персонаж справа */
 .tile--mascot-right .tile__content {
-  padding-right: 120px;
+  padding-right: 110px;
   text-align: right;
   align-items: flex-end;
 }
+
 .tile--mascot-floating .tile__content,
 .tile--mascot-corner .tile__content {
   padding-right: 80px;
@@ -181,6 +183,9 @@ const hasMascot = computed(() => !!props.mascot);
   font-weight: 600;
 }
 
+/* ============================================================
+   ✅ МОБИЛЬНЫЙ — особые правила для КАЛЬКУЛЯТОРА
+   ============================================================ */
 @media (max-width: 700px) {
   .tile { padding: 14px 16px; border-radius: 14px; min-height: 120px; }
   .tile__bg { border-radius: 14px; }
@@ -189,7 +194,16 @@ const hasMascot = computed(() => !!props.mascot);
   .tile__sub { font-size: 10px; }
   .tile__content { min-height: 92px; }
 
-  .tile--mascot-left .tile__content { padding-left: 100px; }
+  /* Свободно (LEFT) — текст справа, персонаж слева */
+  .tile--mascot-left .tile__content {
+    padding-left: 100px;
+    padding-right: 0;
+    text-align: right;
+    align-items: flex-end;
+  }
+  .tile--mascot-left .tile__label { justify-content: flex-end; }
+
+  /* Подушка (RIGHT) — текст слева, персонаж справа */
   .tile--mascot-right .tile__content {
     padding-right: 100px;
     padding-left: 0;
@@ -197,5 +211,25 @@ const hasMascot = computed(() => !!props.mascot);
     align-items: flex-start;
   }
   .tile--mascot-right .tile__label { justify-content: flex-start; }
+}
+
+/* ✅ Калькулятор на мобиле — ПЕРЕЕЗЖАЕТ ВЛЕВО, текст справа */
+@media (max-width: 700px) {
+  .tile-calc {
+    /* Персонаж слева — перебиваем .mascot--right */
+    :deep(.mascot--right) {
+      left: -15px !important;
+      right: auto !important;
+    }
+  }
+
+  /* Контент справа */
+  .tile-calc .tile__content {
+    padding-left: 100px !important;
+    padding-right: 0 !important;
+    text-align: right !important;
+    align-items: flex-end !important;
+  }
+  .tile-calc .tile__label { justify-content: flex-end !important; }
 }
 </style>
