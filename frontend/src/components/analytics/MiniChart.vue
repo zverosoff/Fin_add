@@ -3,15 +3,10 @@
 import { computed } from 'vue';
 
 const props = defineProps({
-  /** Массив значений, например [3, 5, 8, 6, 9, 7, 10] */
   data: { type: Array, default: () => [] },
-  /** Ширина SVG */
   width: { type: Number, default: 200 },
-  /** Высота SVG */
   height: { type: Number, default: 40 },
-  /** Цвет столбцов */
   color: { type: String, default: 'rgba(255,255,255,0.85)' },
-  /** Цвет фона столбцов (трек) */
   trackColor: { type: String, default: 'rgba(255,255,255,0.12)' },
 });
 

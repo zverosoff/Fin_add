@@ -1,27 +1,23 @@
 <!-- frontend/src/components/analytics/PeriodSelector.vue -->
 <script setup>
 import { computed } from 'vue';
-import { useTransactionsStore } from '@/stores/transactions';
+import { useAnalyticsStore } from '@/stores/analytics';
 
-const txStore = useTransactionsStore();
+const analytics = useAnalyticsStore();
 
 const periods = [
-  { key: '1m',  label: '1 мес', months: 1 },
-  { key: '3m',  label: '3 мес', months: 3 },
-  { key: '6m',  label: '6 мес', months: 6 },
-  { key: '12m', label: '12 мес', months: 12 },
-  { key: 'all', label: 'Всё',   months: 0 },
+  { key: 1,   label: '1 мес',  months: 1 },
+  { key: 3,   label: '3 мес',  months: 3 },
+  { key: 6,   label: '6 мес',  months: 6 },
+  { key: 12,  label: '12 мес', months: 12 },
+  { key: 'all', label: 'Всё',  months: 'all' },
 ];
 
-// Активный период — по умолчанию 6 месяцев
-const active = computed(() => {
-  return txStore.periodKey || '6m';
-});
+// ✅ Активный период из стора (periodMonths)
+const active = computed(() => analytics.periodMonths);
 
 function select(key) {
-  if (txStore.setPeriodKey) {
-    txStore.setPeriodKey(key);
-  }
+  analytics.setPeriod(key);
 }
 </script>
 
@@ -29,7 +25,7 @@ function select(key) {
   <div class="period-selector">
     <button
       v-for="p in periods"
-      :key="p.key"
+      :key="String(p.key)"
       type="button"
       class="period-btn"
       :class="{ 'is-active': active === p.key }"

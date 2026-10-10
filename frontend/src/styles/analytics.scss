@@ -24,6 +24,16 @@
   --an-radius-lg: 24px;
 }
 
+/* ============================================================
+   ✅ ТЁМНЫЙ ФОН — принудительно, даже если основная тема светлая
+   ============================================================ */
+.analytics-page {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #0f0a1e 0%, #1a1035 100%);
+  color: var(--an-text);
+}
+
+/* Общий класс карточки */
 .analytics-card {
   position: relative;
   background: linear-gradient(135deg, var(--an-bg-card) 0%, var(--an-bg-card-2) 100%);
@@ -53,6 +63,7 @@
   mix-blend-mode: screen;
 }
 
+/* Жёлтая кнопка */
 .analytics-btn-yellow {
   display: inline-flex;
   align-items: center;
@@ -80,8 +91,6 @@
 
   &:active { transform: scale(0.97); }
 }
-
-.analytics { color: var(--an-text); }
 
 @media (prefers-reduced-motion: reduce) {
   .analytics-btn-yellow { transition: none; }
