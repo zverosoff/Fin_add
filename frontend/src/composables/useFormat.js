@@ -113,21 +113,27 @@ const CATEGORY_ICON_MAP = {
 
 /**
  * ✅ Путь к PNG-иконке категории
- * @param {string} category
- * @returns {string}
  */
 export function categoryIcon(category) {
   const name = CATEGORY_ICON_MAP[category] || 'other';
   return `/img/icons/categories/${name}.png`;
 }
 
+/* ============================================================
+   ✅ АВАТАРЫ ПОЛЬЗОВАТЕЛЕЙ — PNG
+   Файлы лежат в /img/icons/mascots/
+   ============================================================ */
+
+export const AVATAR_MAN   = '/img/icons/mascots/avatar-man.png';
+export const AVATAR_WOMAN = '/img/icons/mascots/avatar-woman.png';
+
 /**
  * ✅ Аватар пользователя (PNG)
  */
 export function userAvatarPath(user) {
-  if (user === 'Сергей') return '/img/mascots/avatar-man.png';
-  if (user === 'Саша') return '/img/mascots/avatar-woman.png';
-  return '/img/mascots/avatar-man.png';
+  if (user === 'Сергей') return AVATAR_MAN;
+  if (user === 'Саша') return AVATAR_WOMAN;
+  return AVATAR_MAN;
 }
 
 /**
@@ -141,16 +147,16 @@ export function userEmoji(user) {
    ✅ БАНКИ
    ============================================================ */
 
-/** Логотип банка */
+/** ✅ Логотип банка (для банк-монеты в TransactionItem) */
 export function bankLogo(id) {
   if (!id) return null;
-  if (id === 'cash' || id.startsWith('cash_')) return null; // обрабатывается отдельно
+  if (id === 'cash' || id.startsWith('cash_')) return null;
   if (id.startsWith('sber'))  return '/img/sber.png';
   if (id.startsWith('tbank')) return '/img/tbank.png';
-  return '/img/banks/default.png';
+  return '/img/icons/banks/default.png';
 }
 
-/** Название банка */
+/** ✅ Название банка */
 export function bankLabel(id) {
   if (!id) return '';
   if (id === 'cash' || id.startsWith('cash_')) return 'Наличные';
@@ -159,11 +165,11 @@ export function bankLabel(id) {
   return 'Счёт';
 }
 
-/** ✅ Универсальный хелпер для банк-монеты */
+/** ✅ Универсальный хелпер — путь к иконке счёта/банка */
 export function bankIconPath(id) {
-  if (!id) return '/img/banks/default.png';
+  if (!id) return '/img/icons/banks/default.png';
   if (id === 'cash' || id.startsWith('cash_')) return '/img/icons/nav/cash.png';
   if (id.startsWith('sber'))  return '/img/sber.png';
   if (id.startsWith('tbank')) return '/img/tbank.png';
-  return '/img/banks/default.png';
+  return '/img/icons/banks/default.png';
 }
