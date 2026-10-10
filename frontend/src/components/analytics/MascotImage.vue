@@ -144,10 +144,10 @@ function onError() { failed.value = true; loaded.value = false; }
 }
 
 .mascot--goals-corner {
-  right: 8px;
-  top: 8px;
-  width: 90px !important;
-  height: 90px !important;
+  right: -30px;
+  top: -30px;
+  width: 200px !important;
+  height: 200px !important;
 }
 
 /* ✅ МОБИЛЬНЫЙ — калькулятор переезжает влево (см. AnalyticsView) */
