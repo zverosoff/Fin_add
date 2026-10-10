@@ -95,12 +95,12 @@ function onError() { failed.value = true; loaded.value = false; }
   user-select: none;
 }
 
-/* Без анимаций — статичные позиции */
+/* Позиции — без анимаций */
 .mascot--left     { left: -18px;  bottom: -12px; }
 .mascot--right    { right: -18px; bottom: -12px; }
 .mascot--hero-left  { left: -24px;  bottom: -18px; }
 .mascot--hero-right { right: -24px; bottom: -18px; }
 .mascot--background { right: -40px; bottom: -30px; opacity: 0.35; z-index: 0; }
 .mascot--floating { right: 8px;   top: 8px; }
-.mascot--corner   { right: -12px; top: -12px; }
+.mascot--corner   { right: -20px; top: -20px; }
 </style>
