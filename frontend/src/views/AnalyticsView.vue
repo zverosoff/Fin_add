@@ -119,43 +119,45 @@ function openEditContrib({ goal, user }) {
       <div class="an-col an-col-left">
         <AnalyticsHero />
 
-        <div class="metrics-grid">
-          <MetricTile
-            label="Свободно"
-            :value="metrics.realFree"
-            unit="₽"
-            :sub="realFreeHint"
-            color="emerald"
-            mascot="wallet"
-            mascot-pos="left"
-            emoji="💰"
-            :mascot-size="150"
-          />
+<!-- Изменения в AnalyticsView.vue — только блок metrics-grid -->
+<div class="metrics-grid">
+  <MetricTile
+    label="Свободно"
+    :value="metrics.realFree"
+    unit="₽"
+    :sub="realFreeHint"
+    color="emerald"
+    mascot="wallet"
+    mascot-pos="left"
+    emoji="💰"
+    :mascot-size="150"
+  />
 
-          <MetricTile
-            label="Подушка"
-            :value="Number(metrics.runway || 0).toFixed(1)"
-            unit="мес"
-            :sub="runwayHint"
-            color="amber"
-            mascot="shield"
-            mascot-pos="right"
-            emoji="⏳"
-            :mascot-size="150"
-          />
+  <MetricTile
+    label="Подушка"
+    :value="Number(metrics.runway || 0).toFixed(1)"
+    unit="мес"
+    :sub="runwayHint"
+    color="amber"
+    mascot="shield"
+    mascot-pos="right"
+    emoji="⏳"
+    :mascot-size="150"
+  />
 
-          <MetricTile
-            label="Расход/день"
-            :value="metrics.dailyAvg"
-            unit="₽"
-            :sub="dailyAvgHint"
-            color="rose"
-            mascot="calculator"
-            mascot-pos="right"
-            emoji="🔥"
-            :mascot-size="130"
-          />
-        </div>
+  <!-- ✅ Калькулятор — справа, как щит и кошелёк -->
+  <MetricTile
+    label="Расход/день"
+    :value="metrics.dailyAvg"
+    unit="₽"
+    :sub="dailyAvgHint"
+    color="rose"
+    mascot="calculator"
+    mascot-pos="right"
+    emoji="🔥"
+    :mascot-size="150"
+  />
+</div>
 
         <MonthNav />
 

@@ -102,29 +102,62 @@ function onError() { failed.value = true; loaded.value = false; }
   left: auto; right: auto; top: auto; bottom: auto;
 }
 
-/* ✅ Звезда справа по центру, выступает за блок на 3/4 */
+/* ✅ Звезда справа — прижата к правому краю блока */
 .mascot--goals-right-center {
-  right: -60%;             /* выступает на 60% ширины за правый край */
+  right: -50px;                /* чуть выступает за правый край */
   top: 50%;
   transform: translateY(-50%);
 }
 
-/* На мобилке — сдвигаем меньше, чтобы не вылезала за экран */
+/* ✅ LEFT/RIGHT в плитках — выступают сверху и снизу */
+.mascot--left {
+  left: -30px;
+  top: -30px;
+  bottom: -30px;
+  height: auto;
+  align-items: center;
+}
+.mascot--right {
+  right: -30px;
+  top: -30px;
+  bottom: -30px;
+  height: auto;
+  align-items: center;
+}
+
+.mascot--hero-left {
+  left: -30px;
+  top: -20px;
+  bottom: -20px;
+  height: auto;
+  align-items: center;
+}
+.mascot--hero-right {
+  right: -30px;
+  top: -20px;
+  bottom: -20px;
+  height: auto;
+  align-items: center;
+}
+
+.mascot--background { right: -40px; bottom: -30px; opacity: 0.35; z-index: 0; }
+.mascot--floating { right: 8px;   top: 8px; }
+.mascot--corner   { right: -20px; top: -20px; }
+
+/* Мобилка — звезда справа в углу */
 @media (max-width: 700px) {
   .mascot--goals-right-center {
     right: -30px;
-    top: -20px;
+    top: -30px;
     transform: none;
     width: 130px !important;
     height: 130px !important;
   }
-}
 
-.mascot--left     { left: -18px;  bottom: -12px; }
-.mascot--right    { right: -18px; bottom: -12px; }
-.mascot--hero-left  { left: -24px;  bottom: -18px; }
-.mascot--hero-right { right: -24px; bottom: -18px; }
-.mascot--background { right: -40px; bottom: -30px; opacity: 0.35; z-index: 0; }
-.mascot--floating { right: 8px;   top: 8px; }
-.mascot--corner   { right: -20px; top: -20px; }
+  .mascot--left, .mascot--right {
+    left: auto; right: -20px;
+    top: -20px; bottom: -20px;
+    height: auto;
+  }
+}
 </style>

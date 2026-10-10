@@ -53,13 +53,9 @@ const hasMascot = computed(() => !!props.mascot);
   >
     <div class="tile__bg" :style="{ background: gradient }" aria-hidden="true">
       <div class="tile__shine"></div>
-
-      <!-- ✅ БОЛЬШЕ ФОНОВЫХ ЭЛЕМЕНТОВ -->
       <span class="tile__orb tile__orb--1"></span>
       <span class="tile__orb tile__orb--2"></span>
       <span class="tile__orb tile__orb--3"></span>
-
-      <!-- ✅ ЧАСТИЦЫ-ДОЖДЬ в разные стороны -->
       <span class="tile__particle tile__particle--1"></span>
       <span class="tile__particle tile__particle--2"></span>
       <span class="tile__particle tile__particle--3"></span>
@@ -95,7 +91,7 @@ const hasMascot = computed(() => !!props.mascot);
   position: relative;
   border-radius: 18px;
   padding: 16px;
-  min-height: 140px;
+  min-height: 160px;
   color: #ffffff;
   overflow: visible;
   isolation: isolate;
@@ -111,7 +107,6 @@ const hasMascot = computed(() => !!props.mascot);
   overflow: hidden;
   z-index: 0;
 
-  /* ✅ АНИМАЦИЯ ГРАДИЕНТА */
   background-size: 200% 200% !important;
   animation: tileGradientShift 8s ease-in-out infinite;
 
@@ -135,7 +130,6 @@ const hasMascot = computed(() => !!props.mascot);
   z-index: 1;
 }
 
-/* ✅ ORB-ы */
 .tile__orb {
   position: absolute;
   border-radius: 50%;
@@ -144,38 +138,19 @@ const hasMascot = computed(() => !!props.mascot);
   z-index: 0;
 }
 
-.tile__orb--1 {
-  width: 90px; height: 90px;
-  background: rgba(255, 255, 255, 0.4);
-  top: -30px; right: -20px;
-  animation: tileOrbFloat1 8s ease-in-out infinite;
-}
-
-.tile__orb--2 {
-  width: 70px; height: 70px;
-  background: rgba(255, 255, 255, 0.2);
-  bottom: -25px; left: 30%;
-  animation: tileOrbFloat2 10s ease-in-out infinite;
-}
-
-.tile__orb--3 {
-  width: 50px; height: 50px;
-  background: rgba(255, 255, 255, 0.15);
-  top: 40%; left: 5%;
-  animation: tileOrbFloat1 12s ease-in-out infinite reverse;
-}
+.tile__orb--1 { width: 90px; height: 90px; background: rgba(255, 255, 255, 0.4); top: -30px; right: -20px; animation: tileOrbFloat1 8s ease-in-out infinite; }
+.tile__orb--2 { width: 70px; height: 70px; background: rgba(255, 255, 255, 0.2); bottom: -25px; left: 30%; animation: tileOrbFloat2 10s ease-in-out infinite; }
+.tile__orb--3 { width: 50px; height: 50px; background: rgba(255, 255, 255, 0.15); top: 40%; left: 5%; animation: tileOrbFloat1 12s ease-in-out infinite reverse; }
 
 @keyframes tileOrbFloat1 {
   0%, 100% { transform: translate(0, 0) scale(1); }
   50%      { transform: translate(-15px, 20px) scale(1.15); }
 }
-
 @keyframes tileOrbFloat2 {
   0%, 100% { transform: translate(0, 0) scale(1); }
   50%      { transform: translate(20px, -15px) scale(1.1); }
 }
 
-/* ✅ ЧАСТИЦЫ-ДОЖДЬ — движутся в разные стороны */
 .tile__particle {
   position: absolute;
   width: 3px;
@@ -186,95 +161,33 @@ const hasMascot = computed(() => !!props.mascot);
   z-index: 0;
 }
 
-.tile__particle--1 {
-  top: -10%; left: 15%;
-  animation: tileRain1 4s linear infinite;
-}
+.tile__particle--1 { top: -10%; left: 15%; animation: tileRain1 4s linear infinite; }
+.tile__particle--2 { top: -10%; left: 35%; width: 2px; height: 2px; animation: tileRain2 5s linear infinite 1s; }
+.tile__particle--3 { top: -10%; left: 55%; width: 4px; height: 4px; animation: tileRain3 6s linear infinite 0.5s; }
+.tile__particle--4 { top: -10%; left: 75%; width: 2px; height: 2px; animation: tileRain4 4.5s linear infinite 2s; }
+.tile__particle--5 { top: -10%; left: 90%; animation: tileRain5 5.5s linear infinite 1.5s; }
+.tile__particle--6 { top: -10%; left: 25%; width: 3px; height: 3px; animation: tileRain6 7s linear infinite 3s; }
 
-.tile__particle--2 {
-  top: -10%; left: 35%;
-  width: 2px; height: 2px;
-  animation: tileRain2 5s linear infinite 1s;
-}
-
-.tile__particle--3 {
-  top: -10%; left: 55%;
-  width: 4px; height: 4px;
-  animation: tileRain3 6s linear infinite 0.5s;
-}
-
-.tile__particle--4 {
-  top: -10%; left: 75%;
-  width: 2px; height: 2px;
-  animation: tileRain4 4.5s linear infinite 2s;
-}
-
-.tile__particle--5 {
-  top: -10%; left: 90%;
-  animation: tileRain5 5.5s linear infinite 1.5s;
-}
-
-.tile__particle--6 {
-  top: -10%; left: 25%;
-  width: 3px; height: 3px;
-  animation: tileRain6 7s linear infinite 3s;
-}
-
-/* Дождь в разные стороны */
-@keyframes tileRain1 {
-  0%   { transform: translate(0, 0); opacity: 0; }
-  10%  { opacity: 1; }
-  90%  { opacity: 1; }
-  100% { transform: translate(-30px, 160px); opacity: 0; }
-}
-
-@keyframes tileRain2 {
-  0%   { transform: translate(0, 0); opacity: 0; }
-  10%  { opacity: 0.8; }
-  90%  { opacity: 0.8; }
-  100% { transform: translate(20px, 160px); opacity: 0; }
-}
-
-@keyframes tileRain3 {
-  0%   { transform: translate(0, 0); opacity: 0; }
-  10%  { opacity: 1; }
-  90%  { opacity: 1; }
-  100% { transform: translate(-45px, 160px); opacity: 0; }
-}
-
-@keyframes tileRain4 {
-  0%   { transform: translate(0, 0); opacity: 0; }
-  10%  { opacity: 0.7; }
-  90%  { opacity: 0.7; }
-  100% { transform: translate(35px, 160px); opacity: 0; }
-}
-
-@keyframes tileRain5 {
-  0%   { transform: translate(0, 0); opacity: 0; }
-  10%  { opacity: 1; }
-  90%  { opacity: 1; }
-  100% { transform: translate(-20px, 160px); opacity: 0; }
-}
-
-@keyframes tileRain6 {
-  0%   { transform: translate(0, 0); opacity: 0; }
-  10%  { opacity: 0.9; }
-  90%  { opacity: 0.9; }
-  100% { transform: translate(50px, 160px); opacity: 0; }
-}
+@keyframes tileRain1 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translate(-30px, 180px); opacity: 0; } }
+@keyframes tileRain2 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.8; } 90% { opacity: 0.8; } 100% { transform: translate(20px, 180px); opacity: 0; } }
+@keyframes tileRain3 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translate(-45px, 180px); opacity: 0; } }
+@keyframes tileRain4 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.7; } 90% { opacity: 0.7; } 100% { transform: translate(35px, 180px); opacity: 0; } }
+@keyframes tileRain5 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 1; } 90% { opacity: 1; } 100% { transform: translate(-20px, 180px); opacity: 0; } }
+@keyframes tileRain6 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.9; } 90% { opacity: 0.9; } 100% { transform: translate(50px, 180px); opacity: 0; } }
 
 .tile__content {
   position: relative;
-  z-index: 3;
+  z-index: 4;
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.tile--mascot-left .tile__content   { padding-left: 130px; }
-.tile--mascot-right .tile__content  { padding-right: 130px; }
+/* ✅ Отступы под персонажа */
+.tile--mascot-left .tile__content   { padding-left: 140px; }
+.tile--mascot-right .tile__content  { padding-right: 140px; }
 .tile--mascot-floating .tile__content,
-.tile--mascot-corner .tile__content { padding-right: 90px; }
+.tile--mascot-corner .tile__content { padding-right: 100px; }
 
 .tile__label {
   display: flex;
@@ -290,19 +203,20 @@ const hasMascot = computed(() => !!props.mascot);
 
 .tile__emoji { font-size: 13px; line-height: 1; }
 
+/* ✅ ЖИРНАЯ КРУПНАЯ СУММА */
 .tile__value {
   font-family: var(--mono);
-  font-size: 26px;
-  font-weight: 300;
+  font-size: 32px;
+  font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.1;
-  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 .tile__unit {
-  font-size: 0.7em;
-  font-weight: 500;
-  opacity: 0.85;
+  font-size: 0.65em;
+  font-weight: 700;
+  opacity: 0.9;
 }
 
 .tile__sub {
@@ -314,12 +228,12 @@ const hasMascot = computed(() => !!props.mascot);
 @media (max-width: 700px) {
   .tile { padding: 14px; border-radius: 14px; min-height: 130px; }
   .tile__bg { border-radius: 14px; }
-  .tile__value { font-size: 20px; }
+  .tile__value { font-size: 22px; }
   .tile__label { font-size: 10px; }
   .tile__sub { font-size: 10px; }
-  .tile--mascot-left .tile__content   { padding-left: 100px; }
-  .tile--mascot-right .tile__content  { padding-right: 100px; }
+  .tile--mascot-left .tile__content   { padding-left: 110px; }
+  .tile--mascot-right .tile__content  { padding-right: 110px; }
   .tile--mascot-floating .tile__content,
-  .tile--mascot-corner .tile__content { padding-right: 70px; }
+  .tile--mascot-corner .tile__content { padding-right: 80px; }
 }
 </style>
