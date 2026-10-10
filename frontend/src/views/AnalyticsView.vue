@@ -119,45 +119,46 @@ function openEditContrib({ goal, user }) {
       <div class="an-col an-col-left">
         <AnalyticsHero />
 
-<!-- Изменения в AnalyticsView.vue — только блок metrics-grid -->
-<div class="metrics-grid">
-  <MetricTile
-    label="Свободно"
-    :value="metrics.realFree"
-    unit="₽"
-    :sub="realFreeHint"
-    color="emerald"
-    mascot="wallet"
-    mascot-pos="left"
-    emoji="💰"
-    :mascot-size="150"
-  />
+        <div class="metrics-grid">
+          <!-- ✅ Кошелёк слева -->
+          <MetricTile
+            label="Свободно"
+            :value="metrics.realFree"
+            unit="₽"
+            :sub="realFreeHint"
+            color="emerald"
+            mascot="wallet"
+            mascot-pos="left"
+            emoji="💰"
+            :mascot-size="150"
+          />
 
-  <MetricTile
-    label="Подушка"
-    :value="Number(metrics.runway || 0).toFixed(1)"
-    unit="мес"
-    :sub="runwayHint"
-    color="amber"
-    mascot="shield"
-    mascot-pos="right"
-    emoji="⏳"
-    :mascot-size="150"
-  />
+          <!-- Подушка справа -->
+          <MetricTile
+            label="Подушка"
+            :value="Number(metrics.runway || 0).toFixed(1)"
+            unit="мес"
+            :sub="runwayHint"
+            color="amber"
+            mascot="shield"
+            mascot-pos="right"
+            emoji="⏳"
+            :mascot-size="150"
+          />
 
-  <!-- ✅ Калькулятор — справа, как щит и кошелёк -->
-  <MetricTile
-    label="Расход/день"
-    :value="metrics.dailyAvg"
-    unit="₽"
-    :sub="dailyAvgHint"
-    color="rose"
-    mascot="calculator"
-    mascot-pos="right"
-    emoji="🔥"
-    :mascot-size="150"
-  />
-</div>
+          <!-- ✅ Калькулятор слева -->
+          <MetricTile
+            label="Расход/день"
+            :value="metrics.dailyAvg"
+            unit="₽"
+            :sub="dailyAvgHint"
+            color="rose"
+            mascot="calculator"
+            mascot-pos="left"
+            emoji="🔥"
+            :mascot-size="150"
+          />
+        </div>
 
         <MonthNav />
 
@@ -165,12 +166,12 @@ function openEditContrib({ goal, user }) {
           <CategoryBreakdown />
         </section>
 
-        <!-- ✅ ЦЕЛИ: звезда справа по центру, выступает за блок -->
+        <!-- ✅ ЦЕЛИ: звезда справа по центру -->
         <section class="card card-dark card-goals">
           <MascotImage
             name="star"
             position="goals-right-center"
-            :size="240"
+            :size="220"
             fallback="🎯"
             alt="Цели"
           />
@@ -268,11 +269,11 @@ function openEditContrib({ goal, user }) {
   color: #ffffff !important;
 }
 
-/* ✅ Блок целей — звезда справа по центру, выступает за блок */
+/* ✅ Блок целей — звезда справа по центру */
 .card-goals {
   position: relative;
   overflow: visible;
-  padding-right: 100px; /* отступ справа под звезду */
+  padding-right: 100px;
 }
 
 .card-goals__content {
@@ -281,7 +282,7 @@ function openEditContrib({ goal, user }) {
   min-width: 0;
 }
 
-/* ✅ Перебиваем светлые стили GoalCard */
+/* ✅ Перебиваем светлые стили GoalCard — тёмная тема */
 .card-goals :deep(.goal-card),
 .card-goals :deep(.goals-list),
 .card-goals :deep(.goal-item) {
@@ -337,7 +338,7 @@ function openEditContrib({ goal, user }) {
   .metrics-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
 }
 
-/* ✅ МОБИЛЬНЫЙ — звезда в углу */
+/* ✅ МОБИЛЬНЫЙ — звезда в углу, цель растянута */
 @media (max-width: 700px) {
   .analytics-page {
     padding: 16px 16px 120px;
@@ -349,8 +350,17 @@ function openEditContrib({ goal, user }) {
   .card-title { font-size: 11px; letter-spacing: 0.06em; }
   .metrics-grid { grid-template-columns: 1fr; }
 
+  /* ✅ Цель растянута по блоку, звезда сверху */
   .card-goals {
-    padding-right: 130px;
+    padding-right: 0;
+    padding-top: 130px;
+  }
+
+  /* ✅ Растяжка цели по ширине */
+  .card-goals :deep(.goal-card),
+  .card-goals :deep(.goals-list > *) {
+    width: 100% !important;
+    max-width: 100% !important;
   }
 }
 </style>

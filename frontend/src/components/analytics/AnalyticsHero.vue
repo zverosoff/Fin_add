@@ -12,14 +12,21 @@ const metrics = computed(() => analytics.currentMonthMetrics || {});
 const heroValue = computed(() => metrics.value.monthSave || 0);
 const heroIncome = computed(() => metrics.value.monthIncome || 0);
 const monthName = computed(() => metrics.value.monthName || '');
+
+function scrollToGoals() {
+  const el = document.querySelector('.card-goals');
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
 </script>
 
 <template>
   <section class="hero-card">
-    <!-- ✅ Фон отдельным слоем, чтобы персонаж мог выйти за границы -->
     <div class="hero-card__bg" aria-hidden="true">
       <div class="hero-card__glow"></div>
       <div class="hero-card__pattern"></div>
+      <div class="hero-card__shine" aria-hidden="true"></div>
       <div class="hero-card__rain">
         <span class="hero-particle hero-particle--1"></span>
         <span class="hero-particle hero-particle--2"></span>
@@ -32,7 +39,6 @@ const monthName = computed(() => metrics.value.monthName || '');
       </div>
     </div>
 
-    <!-- ✅ Копилка выходит за блок сверху и снизу -->
     <MascotImage
       name="piggy"
       position="hero-left"
@@ -41,6 +47,7 @@ const monthName = computed(() => metrics.value.monthName || '');
       alt="Копилка"
     />
 
+    <!-- ✅ Контент прижат к правому краю -->
     <div class="hero-card__content">
       <div class="hero-card__label">
         💰 МОЖНО ОТКЛАДЫВАТЬ
@@ -50,26 +57,28 @@ const monthName = computed(() => metrics.value.monthName || '');
       <div class="hero-card__sub">
         Рекомендовано {{ PERCENT }}% от дохода {{ fmt(heroIncome) }} ₽
       </div>
-      <button class="hero-card__btn" type="button">Управлять →</button>
+      <button class="hero-card__btn" type="button" @click="scrollToGoals">
+        Управлять →
+      </button>
     </div>
   </section>
 </template>
 
 <style scoped lang="scss">
-/* ✅ overflow: visible — копилка выходит за границы */
 .hero-card {
   position: relative;
   border-radius: 24px;
   overflow: visible;
-  padding: 22px 24px 22px 280px;
+  /* ✅ Уменьшен padding-left — контент сдвинется вправо */
+  padding: 22px 24px 22px 160px;
   min-height: 220px;
   isolation: isolate;
   color: #ffffff;
   display: flex;
   align-items: center;
+  justify-content: flex-end; /* ✅ Контент справа */
 }
 
-/* ✅ Фон отдельным слоем, чтобы border-radius работал без overflow: hidden */
 .hero-card__bg {
   position: absolute;
   inset: 0;
@@ -96,6 +105,33 @@ const monthName = computed(() => metrics.value.monthName || '');
   50%      { background-position: 100% 50%; }
 }
 
+/* ✅ Анимированный отблеск */
+.hero-card__shine {
+  position: absolute;
+  top: -50%;
+  left: -100%;
+  width: 60%;
+  height: 200%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.15) 45%,
+    rgba(255, 255, 255, 0.35) 50%,
+    rgba(255, 255, 255, 0.15) 55%,
+    transparent 100%
+  );
+  transform: rotate(25deg);
+  animation: heroShineSweep 8s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes heroShineSweep {
+  0%, 60% { left: -100%; opacity: 0; }
+  65%     { opacity: 1; }
+  100%    { left: 200%; opacity: 0; }
+}
+
 .hero-card__glow {
   position: absolute;
   inset: -40%;
@@ -114,7 +150,6 @@ const monthName = computed(() => metrics.value.monthName || '');
   pointer-events: none;
 }
 
-/* ✅ Частицы-дождь */
 .hero-card__rain {
   position: absolute;
   inset: 0;
@@ -153,6 +188,8 @@ const monthName = computed(() => metrics.value.monthName || '');
   z-index: 4;
   flex: 1;
   min-width: 0;
+  margin-left: auto; /* ✅ Прижимает контент вправо */
+  text-align: left;
 }
 
 .hero-card__label {
@@ -174,7 +211,6 @@ const monthName = computed(() => metrics.value.monthName || '');
   letter-spacing: 0.08em;
 }
 
-/* ✅ ЖИРНАЯ КРУПНАЯ СУММА */
 .hero-card__value {
   font-family: var(--mono);
   font-size: 48px;
@@ -223,9 +259,10 @@ const monthName = computed(() => metrics.value.monthName || '');
 
 @media (max-width: 700px) {
   .hero-card {
-    padding: 18px 16px 18px 190px;
+    padding: 18px 16px 18px 180px;
     min-height: 180px;
     border-radius: 20px;
+    justify-content: flex-end;
   }
   .hero-card__bg { border-radius: 20px; }
   .hero-card__value { font-size: 32px; }

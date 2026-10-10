@@ -10,7 +10,7 @@ const categories = useCategoriesStore();
 const accounts = useAccountsStore();
 const txStore = useTransactionsStore();
 
-// ✅ Фикс: используем флаг, а не size === 0
+// ✅ Флаг инициализации — чтобы «Ничего» не перезаполнялось
 const selected = ref(new Set());
 const initialized = ref(false);
 
@@ -65,7 +65,7 @@ const items = computed(() => {
   });
 });
 
-// ✅ Фикс: заполняем ОДИН раз при первой загрузке
+// ✅ Инициализация ОДИН раз
 watch(items, (newItems) => {
   if (!initialized.value && newItems.length > 0) {
     selected.value = new Set(newItems.map(i => i.category));
@@ -73,7 +73,7 @@ watch(items, (newItems) => {
   }
 }, { immediate: true });
 
-// ✅ Фикс: при смене месяца — сброс и повторная инициализация
+// ✅ Сброс при смене месяца
 watch(() => txStore.currentMonth, () => {
   initialized.value = false;
   selected.value = new Set();
@@ -91,10 +91,10 @@ function selectAll() {
   initialized.value = true;
 }
 
-// ✅ Фикс: «Ничего» очищает Set, не перезаполняется
+// ✅ «Ничего» — не даём watch перезаполнить
 function clearAll() {
   selected.value = new Set();
-  initialized.value = true; // ← важно! не даём watch перезаполнить
+  initialized.value = true;
 }
 
 const selectedTotal = computed(() => {
@@ -119,7 +119,7 @@ const monthLabel = computed(() => {
 
 <template>
   <section class="cat-breakdown">
-    <!-- ✅ Абстрактные элементы (больше, с анимацией) -->
+    <!-- ✅ Абстрактные фоновые элементы -->
     <div class="cat-bg" aria-hidden="true">
       <span class="cat-bg__orb cat-bg__orb--1"></span>
       <span class="cat-bg__orb cat-bg__orb--2"></span>
@@ -132,6 +132,9 @@ const monthLabel = computed(() => {
       <span class="cat-bg__dot cat-bg__dot--5"></span>
       <span class="cat-bg__dot cat-bg__dot--6"></span>
     </div>
+
+    <!-- ✅ Анимированный отблеск -->
+    <div class="cat-glare" aria-hidden="true"></div>
 
     <div class="cat-head">
       <div class="cat-head__left">
@@ -152,7 +155,7 @@ const monthLabel = computed(() => {
       </div>
     </div>
 
-    <!-- ✅ ПУСТОЕ СОСТОЯНИЕ — с персонажем sad-coin -->
+    <!-- ✅ ПУСТОЕ СОСТОЯНИЕ — sad-coin -->
     <div v-if="!hasItems" class="cat-empty">
       <div class="cat-empty__mascot">
         <img
@@ -183,9 +186,7 @@ const monthLabel = computed(() => {
           </svg>
         </div>
 
-        <div class="cat-row__icon">
-          {{ item.emoji }}
-        </div>
+        <div class="cat-row__icon">{{ item.emoji }}</div>
 
         <div class="cat-row__main">
           <div class="cat-row__top">
@@ -225,9 +226,11 @@ const monthLabel = computed(() => {
   position: relative;
   isolation: isolate;
   min-height: 200px;
+  border-radius: 14px;
+  overflow: hidden;
 }
 
-/* ✅ Абстрактные фоновые элементы — больше и с анимацией */
+/* ✅ Абстрактные фоновые элементы */
 .cat-bg {
   position: absolute;
   inset: 0;
@@ -244,41 +247,33 @@ const monthLabel = computed(() => {
 }
 
 .cat-bg__orb--1 {
-  width: 160px;
-  height: 160px;
+  width: 160px; height: 160px;
   background: #a855f7;
-  top: -50px;
-  right: -40px;
+  top: -50px; right: -40px;
   opacity: 0.28;
   animation: catOrbFloat1 12s ease-in-out infinite;
 }
 
 .cat-bg__orb--2 {
-  width: 140px;
-  height: 140px;
+  width: 140px; height: 140px;
   background: #ec4899;
-  bottom: -60px;
-  left: 15%;
+  bottom: -60px; left: 15%;
   opacity: 0.22;
   animation: catOrbFloat2 15s ease-in-out infinite;
 }
 
 .cat-bg__orb--3 {
-  width: 110px;
-  height: 110px;
+  width: 110px; height: 110px;
   background: #6366f1;
-  top: 35%;
-  left: -40px;
+  top: 35%; left: -40px;
   opacity: 0.22;
   animation: catOrbFloat3 18s ease-in-out infinite;
 }
 
 .cat-bg__orb--4 {
-  width: 90px;
-  height: 90px;
+  width: 90px; height: 90px;
   background: #06b6d4;
-  bottom: 10%;
-  right: 8%;
+  bottom: 10%; right: 8%;
   opacity: 0.18;
   animation: catOrbFloat1 14s ease-in-out infinite reverse;
 }
@@ -287,12 +282,10 @@ const monthLabel = computed(() => {
   0%, 100% { transform: translate(0, 0) scale(1); }
   50%      { transform: translate(-15px, 20px) scale(1.1); }
 }
-
 @keyframes catOrbFloat2 {
   0%, 100% { transform: translate(0, 0) scale(1); }
   50%      { transform: translate(20px, -15px) scale(1.08); }
 }
-
 @keyframes catOrbFloat3 {
   0%, 100% { transform: translate(0, 0) scale(1); }
   50%      { transform: translate(25px, 10px) scale(1.12); }
@@ -315,6 +308,33 @@ const monthLabel = computed(() => {
 @keyframes catDotPulse {
   0%, 100% { opacity: 0.25; transform: scale(1); }
   50%      { opacity: 0.7; transform: scale(1.4); }
+}
+
+/* ✅ Анимированный отблеск */
+.cat-glare {
+  position: absolute;
+  top: -50%;
+  left: -100%;
+  width: 60%;
+  height: 200%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.12) 45%,
+    rgba(255, 255, 255, 0.25) 50%,
+    rgba(255, 255, 255, 0.12) 55%,
+    transparent 100%
+  );
+  transform: rotate(25deg);
+  animation: catGlareSweep 7s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes catGlareSweep {
+  0%, 60% { left: -100%; opacity: 0; }
+  65%     { opacity: 1; }
+  100%    { left: 200%; opacity: 0; }
 }
 
 /* Заголовок */
@@ -376,7 +396,7 @@ const monthLabel = computed(() => {
   &:active { transform: scale(0.96); }
 }
 
-/* ✅ Пустое состояние с персонажем */
+/* ✅ Пустое состояние */
 .cat-empty {
   position: relative;
   z-index: 2;
