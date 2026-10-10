@@ -165,28 +165,33 @@ function openEditContrib({ goal, user }) {
           <CategoryBreakdown />
         </section>
 
-        <!-- ✅ Блок целей — звезда крупнее, контент не перекрыт -->
+        <!-- ✅ ЦЕЛИ: звезда СЛЕВА по центру, больше -->
         <section class="card card-dark card-goals">
-          <MascotImage
-            name="star"
-            position="corner"
-            :size="160"
-            fallback="🎯"
-            alt="Цели"
-          />
-
-          <div class="card-head">
-            <h2 class="card-title">🎯 Цели накоплений и желаемые покупки</h2>
-            <button class="btn-add-goal" @click="openAddGoal">+ Добавить</button>
+          <div class="card-goals__mascot">
+            <MascotImage
+              name="star"
+              position="static"
+              :size="180"
+              fallback="🎯"
+              alt="Цели"
+            />
+            <div class="card-goals__frame" aria-hidden="true"></div>
           </div>
-          <GoalsList
-            @add="openAddGoal"
-            @edit="openEditGoal"
-            @delete="onDeleteGoal"
-            @contribute="openContribute"
-            @edit-contrib="openEditContrib"
-            @set-primary="onSetPrimary"
-          />
+
+          <div class="card-goals__content">
+            <div class="card-head">
+              <h2 class="card-title">🎯 Цели накоплений и желаемые покупки</h2>
+              <button class="btn-add-goal" @click="openAddGoal">+ Добавить</button>
+            </div>
+            <GoalsList
+              @add="openAddGoal"
+              @edit="openEditGoal"
+              @delete="onDeleteGoal"
+              @contribute="openContribute"
+              @edit-contrib="openEditContrib"
+              @set-primary="onSetPrimary"
+            />
+          </div>
         </section>
       </div>
 
@@ -206,11 +211,12 @@ function openEditContrib({ goal, user }) {
 </template>
 
 <style scoped lang="scss">
+/* ✅ ХАРДКОД ТЁМНОГО ФОНА — не зависит от темы */
 .analytics-page {
   min-height: 100vh;
   padding: 20px 20px 100px;
-  background: linear-gradient(180deg, #0f0a1e 0%, #1a1035 100%);
-  color: #ffffff;
+  background: linear-gradient(180deg, #0f0a1e 0%, #1a1035 100%) !important;
+  color: #ffffff !important;
 }
 
 .analytics-grid {
@@ -243,27 +249,57 @@ function openEditContrib({ goal, user }) {
 .card {
   padding: 16px 18px;
   border-radius: 18px;
+  /* ✅ ХАРДКОД — не зависит от светлой темы */
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.08) inset,
     0 12px 32px -10px rgba(139, 92, 246, 0.35);
 }
 
 .card-dark {
-  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
-  color: #ffffff;
+  /* ✅ ЖЁСТКИЙ тёмный фон, не через var */
+  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%) !important;
+  color: #ffffff !important;
 }
 
-/* ✅ Блок целей — с крупной звездой, контент не перекрыт */
+/* ✅ Блок целей — звезда слева по центру */
 .card-goals {
   position: relative;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 20px;
+  align-items: center;
   overflow: visible;
-  /* отступ справа под звезду */
-  padding-right: 160px;
 }
 
-/* ✅ Контент целей — прижат влево, не залезает под звезду */
-.card-goals :deep(.goals-list) {
-  padding-right: 0;
+.card-goals__mascot {
+  position: relative;
+  width: 180px;
+  height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+/* ✅ Внутренняя рамка-контур ПОД звездой */
+.card-goals__frame {
+  position: absolute;
+  inset: 10px;
+  border: 2px dashed rgba(168, 85, 247, 0.4);
+  border-radius: 50%;
+  pointer-events: none;
+  animation: goalsFramePulse 3s ease-in-out infinite;
+}
+
+@keyframes goalsFramePulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%      { opacity: 0.9; transform: scale(1.05); }
+}
+
+.card-goals__content {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
 }
 
 .card-head {
@@ -309,13 +345,38 @@ function openEditContrib({ goal, user }) {
   .metrics-grid { grid-template-columns: 1fr 1fr; gap: 10px; }
 }
 
+/* ✅ МОБИЛЬНЫЙ — звезда в углу, как было */
 @media (max-width: 700px) {
-  .analytics-page { padding: 12px 12px 100px; }
-  .analytics-grid { gap: 10px; }
-  .an-col { gap: 10px; }
-  .card { padding: 12px 14px; border-radius: 14px; }
+  .analytics-page {
+    padding: 16px 16px 120px;
+    /* ✅ Тёмный фон на всю высоту */
+    background: linear-gradient(180deg, #0f0a1e 0%, #1a1035 100%) !important;
+    min-height: 100vh;
+  }
+  .analytics-grid { gap: 12px; }
+  .an-col { gap: 12px; }
+  .card { padding: 14px 16px; border-radius: 14px; }
   .card-title { font-size: 11px; letter-spacing: 0.06em; }
   .metrics-grid { grid-template-columns: 1fr; }
-  .card-goals { padding-right: 130px; }
+
+  /* ✅ Мобильная версия целей — звезда справа в углу, как раньше */
+  .card-goals {
+    grid-template-columns: 1fr;
+    gap: 0;
+    padding-right: 140px;
+  }
+
+  .card-goals__mascot {
+    position: absolute;
+    top: -20px;
+    right: -20px;
+    width: 130px;
+    height: 130px;
+    z-index: 3;
+  }
+
+  .card-goals__frame {
+    inset: 8px;
+  }
 }
 </style>

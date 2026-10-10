@@ -54,12 +54,15 @@ const hasMascot = computed(() => !!props.mascot);
     <div class="tile__bg" :style="{ background: gradient }" aria-hidden="true">
       <div class="tile__shine"></div>
 
-      <!-- ✅ Абстрактные фоновые элементы -->
+      <!-- ✅ Больше фоновых элементов -->
       <span class="tile__orb tile__orb--1"></span>
       <span class="tile__orb tile__orb--2"></span>
+      <span class="tile__orb tile__orb--3"></span>
       <span class="tile__dot tile__dot--1"></span>
       <span class="tile__dot tile__dot--2"></span>
       <span class="tile__dot tile__dot--3"></span>
+      <span class="tile__dot tile__dot--4"></span>
+      <span class="tile__dot tile__dot--5"></span>
     </div>
 
     <MascotImage
@@ -120,44 +123,64 @@ const hasMascot = computed(() => !!props.mascot);
   z-index: 1;
 }
 
-/* ✅ Абстрактные orb-ы и точки */
+/* ✅ Анимированные orb-ы и точки */
 .tile__orb {
   position: absolute;
   border-radius: 50%;
   pointer-events: none;
-  filter: blur(24px);
+  filter: blur(20px);
   z-index: 0;
 }
 
 .tile__orb--1 {
-  width: 80px;
-  height: 80px;
+  width: 80px; height: 80px;
   background: rgba(255, 255, 255, 0.35);
-  top: -30px;
-  right: -20px;
+  top: -30px; right: -20px;
+  animation: tileOrbFloat1 8s ease-in-out infinite;
 }
 
 .tile__orb--2 {
-  width: 60px;
-  height: 60px;
+  width: 60px; height: 60px;
   background: rgba(255, 255, 255, 0.18);
-  bottom: -20px;
-  left: 30%;
+  bottom: -20px; left: 30%;
+  animation: tileOrbFloat2 10s ease-in-out infinite;
+}
+
+.tile__orb--3 {
+  width: 40px; height: 40px;
+  background: rgba(255, 255, 255, 0.12);
+  top: 30%; left: 8%;
+  animation: tileOrbFloat1 12s ease-in-out infinite reverse;
+}
+
+@keyframes tileOrbFloat1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(-10px, 15px) scale(1.15); }
+}
+
+@keyframes tileOrbFloat2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(15px, -10px) scale(1.1); }
 }
 
 .tile__dot {
   position: absolute;
-  width: 3px;
-  height: 3px;
   border-radius: 50%;
   background: rgba(255, 255, 255, 0.7);
   pointer-events: none;
   z-index: 0;
 }
 
-.tile__dot--1 { top: 22%; right: 12%; opacity: 0.9; }
-.tile__dot--2 { top: 65%; right: 22%; opacity: 0.5; width: 2px; height: 2px; }
-.tile__dot--3 { bottom: 30%; left: 55%; opacity: 0.4; width: 4px; height: 4px; }
+.tile__dot--1 { width: 3px; height: 3px; top: 22%; right: 12%; animation: tileDotPulse 3s ease-in-out infinite; }
+.tile__dot--2 { width: 2px; height: 2px; top: 65%; right: 22%; opacity: 0.5; animation: tileDotPulse 4s ease-in-out infinite 0.5s; }
+.tile__dot--3 { width: 4px; height: 4px; bottom: 30%; left: 55%; opacity: 0.4; animation: tileDotPulse 3.5s ease-in-out infinite 1s; }
+.tile__dot--4 { width: 2px; height: 2px; top: 45%; left: 25%; opacity: 0.6; animation: tileDotPulse 4.5s ease-in-out infinite 0.3s; }
+.tile__dot--5 { width: 3px; height: 3px; bottom: 15%; right: 35%; opacity: 0.5; animation: tileDotPulse 3.2s ease-in-out infinite 1.5s; }
+
+@keyframes tileDotPulse {
+  0%, 100% { opacity: 0.3; transform: scale(1); }
+  50%      { opacity: 0.9; transform: scale(1.5); }
+}
 
 .tile__content {
   position: relative;
@@ -208,7 +231,7 @@ const hasMascot = computed(() => !!props.mascot);
 }
 
 @media (max-width: 700px) {
-  .tile { padding: 13px; border-radius: 14px; min-height: 120px; }
+  .tile { padding: 14px; border-radius: 14px; min-height: 120px; }
   .tile__bg { border-radius: 14px; }
   .tile__value { font-size: 20px; }
   .tile__label { font-size: 10px; }

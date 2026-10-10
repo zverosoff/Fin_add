@@ -10,8 +10,9 @@ const categories = useCategoriesStore();
 const accounts = useAccountsStore();
 const txStore = useTransactionsStore();
 
-// ✅ Выбранные категории (по умолчанию — все)
+// ✅ Фикс: используем флаг, а не size === 0
 const selected = ref(new Set());
+const initialized = ref(false);
 
 const palette = [
   { grad: 'linear-gradient(135deg, #a855f7, #ec4899)', glow: 'rgba(168,85,247,0.5)' },
@@ -22,7 +23,6 @@ const palette = [
   { grad: 'linear-gradient(135deg, #8b5cf6, #6366f1)', glow: 'rgba(139,92,246,0.5)' },
 ];
 
-// ✅ Категории за ВЫБРАННЫЙ месяц (из txStore.currentMonth)
 const monthExpenses = computed(() => {
   const m = txStore.currentMonth;
   const start = new Date(m.getFullYear(), m.getMonth(), 1);
@@ -65,17 +65,18 @@ const items = computed(() => {
   });
 });
 
-// ✅ Инициализация: по умолчанию ВСЕ выбраны
+// ✅ Фикс: заполняем ОДИН раз при первой загрузке
 watch(items, (newItems) => {
-  if (selected.value.size === 0 && newItems.length > 0) {
+  if (!initialized.value && newItems.length > 0) {
     selected.value = new Set(newItems.map(i => i.category));
+    initialized.value = true;
   }
 }, { immediate: true });
 
-// ✅ Сброс выделения при смене месяца
+// ✅ Фикс: при смене месяца — сброс и повторная инициализация
 watch(() => txStore.currentMonth, () => {
+  initialized.value = false;
   selected.value = new Set();
-  // Следующий watch(items) заполнит заново
 });
 
 function toggleItem(category) {
@@ -87,13 +88,15 @@ function toggleItem(category) {
 
 function selectAll() {
   selected.value = new Set(items.value.map(i => i.category));
+  initialized.value = true;
 }
 
+// ✅ Фикс: «Ничего» очищает Set, не перезаполняется
 function clearAll() {
   selected.value = new Set();
+  initialized.value = true; // ← важно! не даём watch перезаполнить
 }
 
-// ✅ Сумма по выбранным
 const selectedTotal = computed(() => {
   return items.value
     .filter(i => selected.value.has(i.category))
@@ -106,7 +109,6 @@ const allTotal = computed(() =>
 
 const hasItems = computed(() => items.value.length > 0);
 
-// ✅ Название месяца для заголовка
 const monthLabel = computed(() => {
   const m = txStore.currentMonth;
   const months = ['Январь','Февраль','Март','Апрель','Май','Июнь',
@@ -117,17 +119,20 @@ const monthLabel = computed(() => {
 
 <template>
   <section class="cat-breakdown">
-    <!-- ✅ Абстрактные фоновые элементы -->
+    <!-- ✅ Абстрактные элементы (больше, с анимацией) -->
     <div class="cat-bg" aria-hidden="true">
       <span class="cat-bg__orb cat-bg__orb--1"></span>
       <span class="cat-bg__orb cat-bg__orb--2"></span>
       <span class="cat-bg__orb cat-bg__orb--3"></span>
+      <span class="cat-bg__orb cat-bg__orb--4"></span>
       <span class="cat-bg__dot cat-bg__dot--1"></span>
       <span class="cat-bg__dot cat-bg__dot--2"></span>
       <span class="cat-bg__dot cat-bg__dot--3"></span>
+      <span class="cat-bg__dot cat-bg__dot--4"></span>
+      <span class="cat-bg__dot cat-bg__dot--5"></span>
+      <span class="cat-bg__dot cat-bg__dot--6"></span>
     </div>
 
-    <!-- Заголовок + период + кнопки -->
     <div class="cat-head">
       <div class="cat-head__left">
         <span class="cat-head__icon">📊</span>
@@ -147,8 +152,18 @@ const monthLabel = computed(() => {
       </div>
     </div>
 
-    <div v-if="!hasItems" class="cat-breakdown__empty">
-      Нет расходов за этот месяц
+    <!-- ✅ ПУСТОЕ СОСТОЯНИЕ — с персонажем sad-coin -->
+    <div v-if="!hasItems" class="cat-empty">
+      <div class="cat-empty__mascot">
+        <img
+          src="/img/mascots/sad-coin.png"
+          alt="Грустная монета"
+          class="cat-empty__img"
+          loading="lazy"
+        />
+      </div>
+      <div class="cat-empty__title">Нет расходов за этот месяц</div>
+      <div class="cat-empty__sub">Выбери другой месяц или добавь операцию</div>
     </div>
 
     <ul v-else class="cat-breakdown__list">
@@ -162,7 +177,6 @@ const monthLabel = computed(() => {
       >
         <div class="cat-row__stripe" aria-hidden="true"></div>
 
-        <!-- ✅ ЧЕКБОКС -->
         <div class="cat-check" :class="{ 'is-checked': item._selected }">
           <svg v-if="item._selected" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" width="12" height="12">
             <polyline points="20 6 9 17 4 12" stroke-linecap="round" stroke-linejoin="round"/>
@@ -191,7 +205,6 @@ const monthLabel = computed(() => {
       </li>
     </ul>
 
-    <!-- ✅ ИТОГОВАЯ СУММА по выбранным -->
     <div v-if="hasItems" class="cat-total">
       <div class="cat-total__label">
         Выбрано {{ selected.size }} из {{ items.length }}
@@ -211,9 +224,10 @@ const monthLabel = computed(() => {
   color: #ffffff;
   position: relative;
   isolation: isolate;
+  min-height: 200px;
 }
 
-/* ✅ Абстрактные фоновые элементы */
+/* ✅ Абстрактные фоновые элементы — больше и с анимацией */
 .cat-bg {
   position: absolute;
   inset: 0;
@@ -227,47 +241,81 @@ const monthLabel = computed(() => {
   position: absolute;
   border-radius: 50%;
   filter: blur(40px);
-  opacity: 0.25;
 }
 
 .cat-bg__orb--1 {
-  width: 140px;
-  height: 140px;
+  width: 160px;
+  height: 160px;
   background: #a855f7;
-  top: -40px;
-  right: -30px;
+  top: -50px;
+  right: -40px;
+  opacity: 0.28;
+  animation: catOrbFloat1 12s ease-in-out infinite;
 }
 
 .cat-bg__orb--2 {
-  width: 120px;
-  height: 120px;
+  width: 140px;
+  height: 140px;
   background: #ec4899;
-  bottom: -50px;
-  left: 20%;
-  opacity: 0.18;
+  bottom: -60px;
+  left: 15%;
+  opacity: 0.22;
+  animation: catOrbFloat2 15s ease-in-out infinite;
 }
 
 .cat-bg__orb--3 {
-  width: 100px;
-  height: 100px;
+  width: 110px;
+  height: 110px;
   background: #6366f1;
-  top: 30%;
-  left: -30px;
-  opacity: 0.2;
+  top: 35%;
+  left: -40px;
+  opacity: 0.22;
+  animation: catOrbFloat3 18s ease-in-out infinite;
+}
+
+.cat-bg__orb--4 {
+  width: 90px;
+  height: 90px;
+  background: #06b6d4;
+  bottom: 10%;
+  right: 8%;
+  opacity: 0.18;
+  animation: catOrbFloat1 14s ease-in-out infinite reverse;
+}
+
+@keyframes catOrbFloat1 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(-15px, 20px) scale(1.1); }
+}
+
+@keyframes catOrbFloat2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(20px, -15px) scale(1.08); }
+}
+
+@keyframes catOrbFloat3 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50%      { transform: translate(25px, 10px) scale(1.12); }
 }
 
 .cat-bg__dot {
   position: absolute;
-  width: 4px;
-  height: 4px;
   border-radius: 50%;
   background: #ffffff;
-  opacity: 0.4;
+  pointer-events: none;
 }
 
-.cat-bg__dot--1 { top: 20%; right: 15%; }
-.cat-bg__dot--2 { top: 60%; right: 25%; opacity: 0.25; width: 3px; height: 3px; }
-.cat-bg__dot--3 { bottom: 25%; left: 45%; opacity: 0.3; }
+.cat-bg__dot--1 { width: 4px; height: 4px; top: 20%; right: 15%; opacity: 0.4; animation: catDotPulse 3s ease-in-out infinite; }
+.cat-bg__dot--2 { width: 3px; height: 3px; top: 60%; right: 25%; opacity: 0.3; animation: catDotPulse 4s ease-in-out infinite 0.5s; }
+.cat-bg__dot--3 { width: 4px; height: 4px; bottom: 25%; left: 45%; opacity: 0.35; animation: catDotPulse 3.5s ease-in-out infinite 1s; }
+.cat-bg__dot--4 { width: 3px; height: 3px; top: 40%; left: 12%; opacity: 0.28; animation: catDotPulse 4.5s ease-in-out infinite 0.3s; }
+.cat-bg__dot--5 { width: 5px; height: 5px; bottom: 15%; right: 40%; opacity: 0.3; animation: catDotPulse 3.2s ease-in-out infinite 1.5s; }
+.cat-bg__dot--6 { width: 3px; height: 3px; top: 75%; left: 25%; opacity: 0.25; animation: catDotPulse 4.2s ease-in-out infinite 0.8s; }
+
+@keyframes catDotPulse {
+  0%, 100% { opacity: 0.25; transform: scale(1); }
+  50%      { opacity: 0.7; transform: scale(1.4); }
+}
 
 /* Заголовок */
 .cat-head {
@@ -328,13 +376,47 @@ const monthLabel = computed(() => {
   &:active { transform: scale(0.96); }
 }
 
-.cat-breakdown__empty {
+/* ✅ Пустое состояние с персонажем */
+.cat-empty {
   position: relative;
   z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 20px 16px;
   text-align: center;
-  padding: 24px 0;
-  font-size: 13px;
+  min-height: 220px;
+}
+
+.cat-empty__mascot {
+  width: 160px;
+  height: 160px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cat-empty__img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.45));
+  opacity: 0.9;
+}
+
+.cat-empty__title {
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.cat-empty__sub {
+  font-size: 12px;
   opacity: 0.6;
+  font-weight: 600;
 }
 
 /* Список */
@@ -391,7 +473,6 @@ const monthLabel = computed(() => {
   box-shadow: 0 0 12px var(--cat-glow);
 }
 
-/* ✅ ЧЕКБОКС */
 .cat-check {
   width: 22px;
   height: 22px;
@@ -483,7 +564,6 @@ const monthLabel = computed(() => {
   text-align: right;
 }
 
-/* ✅ ИТОГ */
 .cat-total {
   position: relative;
   z-index: 2;
@@ -538,5 +618,6 @@ const monthLabel = computed(() => {
   .cat-check { width: 20px; height: 20px; }
   .cat-total { padding: 10px 12px; }
   .cat-total__sum { font-size: 18px; }
+  .cat-empty__mascot { width: 130px; height: 130px; }
 }
 </style>
