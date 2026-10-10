@@ -27,10 +27,8 @@ const toast = useToast();
 
 const goalModalOpen = ref(false);
 const goalToEdit = ref(null);
-
 const contributeModalOpen = ref(false);
 const contributeGoal = ref(null);
-
 const editContribModalOpen = ref(false);
 const editContribGoal = ref(null);
 const editContribUser = ref('');
@@ -67,60 +65,52 @@ const dailyAvgHint = computed(() => {
   return `при ${fmt(m.avgExpense)} ₽/мес`;
 });
 
-function openAddGoal() {
-  goalToEdit.value = null;
-  goalModalOpen.value = true;
-}
-
-function openEditGoal(goal) {
-  goalToEdit.value = goal;
-  goalModalOpen.value = true;
-}
-
+function openAddGoal() { goalToEdit.value = null; goalModalOpen.value = true; }
+function openEditGoal(goal) { goalToEdit.value = goal; goalModalOpen.value = true; }
 async function onDeleteGoal(goal) {
   if (!confirm(`Удалить цель «${goal.name}»?`)) return;
-  try {
-    await goalsStore.remove(goal.id);
-    toast.info('🗑 Цель удалена');
-  } catch (e) {
-    toast.error('Ошибка: ' + e.message);
-  }
+  try { await goalsStore.remove(goal.id); toast.info('🗑 Цель удалена'); }
+  catch (e) { toast.error('Ошибка: ' + e.message); }
 }
-
 async function onSetPrimary(goal) {
   try {
-    if (goal.primary) {
-      await goalsStore.clearPrimary();
-      toast.info('☆ Основная цель снята');
-    } else {
-      await goalsStore.setPrimary(goal.id);
-      toast.success(`⭐ «${goal.name}» — основная цель`);
-    }
-  } catch (e) {
-    toast.error('Ошибка: ' + e.message);
-  }
+    if (goal.primary) { await goalsStore.clearPrimary(); toast.info('☆ Основная цель снята'); }
+    else { await goalsStore.setPrimary(goal.id); toast.success(`⭐ «${goal.name}» — основная цель`); }
+  } catch (e) { toast.error('Ошибка: ' + e.message); }
 }
-
-function openContribute(goal) {
-  contributeGoal.value = goal;
-  contributeModalOpen.value = true;
-}
-
-function openEditContrib({ goal, user }) {
-  editContribGoal.value = goal;
-  editContribUser.value = user;
-  editContribModalOpen.value = true;
-}
+function openContribute(goal) { contributeGoal.value = goal; contributeModalOpen.value = true; }
+function openEditContrib({ goal, user }) { editContribGoal.value = goal; editContribUser.value = user; editContribModalOpen.value = true; }
 </script>
 
 <template>
   <div class="analytics-page">
+    <!-- ✅ Фон как у hero-копилки -->
+    <div class="page-bg" aria-hidden="true">
+      <div class="page-bg__glow"></div>
+      <div class="page-bg__pattern"></div>
+      <div class="page-bg__shine"></div>
+      <div class="page-bg__rain">
+        <span class="page-particle page-particle--1"></span>
+        <span class="page-particle page-particle--2"></span>
+        <span class="page-particle page-particle--3"></span>
+        <span class="page-particle page-particle--4"></span>
+        <span class="page-particle page-particle--5"></span>
+        <span class="page-particle page-particle--6"></span>
+        <span class="page-particle page-particle--7"></span>
+        <span class="page-particle page-particle--8"></span>
+        <span class="page-particle page-particle--9"></span>
+        <span class="page-particle page-particle--10"></span>
+        <span class="page-particle page-particle--11"></span>
+        <span class="page-particle page-particle--12"></span>
+      </div>
+    </div>
+
     <div class="analytics-grid">
+      <!-- ЛЕВАЯ КОЛОНКА -->
       <div class="an-col an-col-left">
         <AnalyticsHero />
 
         <div class="metrics-grid">
-          <!-- ✅ Кошелёк слева -->
           <MetricTile
             label="Свободно"
             :value="metrics.realFree"
@@ -133,7 +123,6 @@ function openEditContrib({ goal, user }) {
             :mascot-size="150"
           />
 
-          <!-- Подушка справа -->
           <MetricTile
             label="Подушка"
             :value="Number(metrics.runway || 0).toFixed(1)"
@@ -146,7 +135,6 @@ function openEditContrib({ goal, user }) {
             :mascot-size="150"
           />
 
-          <!-- ✅ ПК: калькулятор справа; МОБ: слева (см. CSS) -->
           <MetricTile
             label="Расход/день"
             :value="metrics.dailyAvg"
@@ -166,20 +154,25 @@ function openEditContrib({ goal, user }) {
         <section class="card card-dark">
           <CategoryBreakdown />
         </section>
+      </div>
 
-        <!-- ✅ ЦЕЛИ: звезда справа, сдвинута ниже и напротив «Добавить» -->
+      <!-- ✅ ПРАВАЯ КОЛОНКА — ПОМОЩНИК + ЦЕЛИ -->
+      <div class="an-col an-col-right">
+        <FinancialAssistant />
+
+        <!-- ✅ ЦЕЛИ: звезда в верхнем правом углу, красиво -->
         <section class="card card-dark card-goals">
           <MascotImage
             name="star"
-            position="goals-star-mobile"
-            :size="200"
+            position="goals-corner"
+            :size="140"
             fallback="🎯"
             alt="Цели"
           />
 
           <div class="card-goals__content">
             <div class="card-head">
-              <h2 class="card-title">🎯 Цели накоплений и желаемые покупки</h2>
+              <h2 class="card-title">🎯 Цели</h2>
               <button class="btn-add-goal" @click="openAddGoal">+ Добавить</button>
             </div>
             <GoalsList
@@ -192,10 +185,6 @@ function openEditContrib({ goal, user }) {
             />
           </div>
         </section>
-      </div>
-
-      <div class="an-col an-col-right">
-        <FinancialAssistant />
       </div>
     </div>
 
@@ -210,31 +199,127 @@ function openEditContrib({ goal, user }) {
 </template>
 
 <style scoped lang="scss">
+/* ✅ ХАРДКОД ТЁМНОГО ФОНА */
 .analytics-page {
   position: relative;
   min-height: 100vh;
   padding: 20px 20px 100px;
-  background: linear-gradient(180deg, #0f0a1e 0%, #1a1035 100%) !important;
   color: #ffffff !important;
   z-index: 0;
+  isolation: isolate;
 }
 
-.analytics-page::before {
-  content: '';
+/* ✅ ФОН СТРАНИЦЫ — КАК У HERO-КОПИЛКИ */
+.page-bg {
   position: fixed;
   inset: 0;
   z-index: -1;
-  background: linear-gradient(180deg, #0f0a1e 0%, #1a1035 100%);
   pointer-events: none;
+  overflow: hidden;
+
+  background:
+    radial-gradient(circle at 80% 0%, rgba(236, 72, 153, 0.25), transparent 55%),
+    radial-gradient(circle at 0% 100%, rgba(99, 102, 241, 0.35), transparent 50%),
+    linear-gradient(135deg, #1a0f3a 0%, #2d1b5e 35%, #4c1d95 70%, #6d28d9 100%);
+  background-size: 200% 200%;
+  animation: pageGradientShift 15s ease-in-out infinite;
 }
 
+@keyframes pageGradientShift {
+  0%, 100% { background-position: 0% 50%; }
+  50%      { background-position: 100% 50%; }
+}
+
+/* ✅ Отблеск как у hero */
+.page-bg__shine {
+  position: absolute;
+  top: -50%;
+  left: -100%;
+  width: 60%;
+  height: 200%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.04) 45%,
+    rgba(255, 255, 255, 0.1) 50%,
+    rgba(255, 255, 255, 0.04) 55%,
+    transparent 100%
+  );
+  transform: rotate(25deg);
+  animation: pageShineSweep 12s ease-in-out infinite;
+}
+
+@keyframes pageShineSweep {
+  0%, 60% { left: -100%; opacity: 0; }
+  65%     { opacity: 1; }
+  100%    { left: 200%; opacity: 0; }
+}
+
+.page-bg__glow {
+  position: absolute;
+  inset: -20%;
+  background: radial-gradient(circle at 70% 30%, rgba(250, 204, 21, 0.06), transparent 60%);
+  mix-blend-mode: screen;
+}
+
+.page-bg__pattern {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 20% 80%, rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+    radial-gradient(circle at 60% 20%, rgba(255, 255, 255, 0.025) 1px, transparent 1px);
+  background-size: 30px 30px, 40px 40px;
+}
+
+/* ✅ Частицы-дождь как у hero */
+.page-bg__rain {
+  position: absolute;
+  inset: 0;
+}
+
+.page-particle {
+  position: absolute;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+.page-particle--1 { top: -10%; left: 8%; animation: pageRain1 12s linear infinite; }
+.page-particle--2 { top: -10%; left: 18%; width: 2px; height: 2px; animation: pageRain2 14s linear infinite 2s; }
+.page-particle--3 { top: -10%; left: 28%; width: 4px; height: 4px; animation: pageRain3 16s linear infinite 4s; }
+.page-particle--4 { top: -10%; left: 38%; animation: pageRain4 13s linear infinite 1s; }
+.page-particle--5 { top: -10%; left: 48%; width: 2px; height: 2px; animation: pageRain5 15s linear infinite 3s; }
+.page-particle--6 { top: -10%; left: 58%; width: 3px; height: 3px; animation: pageRain6 18s linear infinite 5s; }
+.page-particle--7 { top: -10%; left: 68%; width: 2px; height: 2px; animation: pageRain7 11s linear infinite 2.5s; }
+.page-particle--8 { top: -10%; left: 78%; animation: pageRain8 14.5s linear infinite 6s; }
+.page-particle--9 { top: -10%; left: 88%; width: 4px; height: 4px; animation: pageRain9 13.5s linear infinite 1.5s; }
+.page-particle--10 { top: -10%; left: 95%; width: 2px; height: 2px; animation: pageRain10 16.5s linear infinite 7s; }
+.page-particle--11 { top: -10%; left: 12%; width: 3px; height: 3px; animation: pageRain11 17s linear infinite 3.5s; }
+.page-particle--12 { top: -10%; left: 52%; width: 2px; height: 2px; animation: pageRain12 15.5s linear infinite 8s; }
+
+@keyframes pageRain1 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.7; } 90% { opacity: 0.7; } 100% { transform: translate(-80px, 100vh); opacity: 0; } }
+@keyframes pageRain2 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.5; } 90% { opacity: 0.5; } 100% { transform: translate(60px, 100vh); opacity: 0; } }
+@keyframes pageRain3 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.8; } 90% { opacity: 0.8; } 100% { transform: translate(-120px, 100vh); opacity: 0; } }
+@keyframes pageRain4 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.6; } 90% { opacity: 0.6; } 100% { transform: translate(100px, 100vh); opacity: 0; } }
+@keyframes pageRain5 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.4; } 90% { opacity: 0.4; } 100% { transform: translate(-50px, 100vh); opacity: 0; } }
+@keyframes pageRain6 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.7; } 90% { opacity: 0.7; } 100% { transform: translate(140px, 100vh); opacity: 0; } }
+@keyframes pageRain7 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.5; } 90% { opacity: 0.5; } 100% { transform: translate(-70px, 100vh); opacity: 0; } }
+@keyframes pageRain8 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.6; } 90% { opacity: 0.6; } 100% { transform: translate(90px, 100vh); opacity: 0; } }
+@keyframes pageRain9 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.8; } 90% { opacity: 0.8; } 100% { transform: translate(-100px, 100vh); opacity: 0; } }
+@keyframes pageRain10 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.4; } 90% { opacity: 0.4; } 100% { transform: translate(70px, 100vh); opacity: 0; } }
+@keyframes pageRain11 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.6; } 90% { opacity: 0.6; } 100% { transform: translate(-60px, 100vh); opacity: 0; } }
+@keyframes pageRain12 { 0% { transform: translate(0, 0); opacity: 0; } 10% { opacity: 0.5; } 90% { opacity: 0.5; } 100% { transform: translate(110px, 100vh); opacity: 0; } }
+
 .analytics-grid {
+  position: relative;
   max-width: 1400px;
   margin: 0 auto;
   display: grid;
   grid-template-columns: 1fr 380px;
   gap: 20px;
   align-items: start;
+  z-index: 1;
 }
 
 .an-col {
@@ -255,8 +340,9 @@ function openEditContrib({ goal, user }) {
   gap: 12px;
 }
 
+/* ✅ УВЕЛИЧЕННЫЕ ОТСТУПЫ В КАРТОЧКАХ */
 .card {
-  padding: 16px 18px;
+  padding: 24px 26px;
   border-radius: 18px;
   box-shadow:
     0 0 0 1px rgba(255, 255, 255, 0.08) inset,
@@ -268,11 +354,12 @@ function openEditContrib({ goal, user }) {
   color: #ffffff !important;
 }
 
-/* ✅ ЦЕЛИ — звезда справа, контент не перекрыт */
+/* ✅ ЦЕЛИ — звезда в верхнем правом углу */
 .card-goals {
   position: relative;
   overflow: visible;
-  padding-right: 180px; /* отступ под звезду */
+  padding-right: 24px;
+  padding-top: 24px;
 }
 
 .card-goals__content {
@@ -281,7 +368,6 @@ function openEditContrib({ goal, user }) {
   min-width: 0;
 }
 
-/* ✅ Перебиваем светлые стили GoalCard */
 .card-goals :deep(.goal-card),
 .card-goals :deep(.goals-list),
 .card-goals :deep(.goal-item) {
@@ -290,12 +376,8 @@ function openEditContrib({ goal, user }) {
   border-color: rgba(255, 255, 255, 0.1) !important;
 }
 
-/* ✅ Текст «Ещё никто не поделился на мечту» — тёмный и читаемый */
 .card-goals :deep(.goal-card__empty),
 .card-goals :deep(.goal-empty),
-.card-goals :deep(.empty-hint),
-.card-goals :deep(.goal-hint),
-.card-goals :deep(.goal-card__hint),
 .card-goals :deep([class*="empty"]),
 .card-goals :deep([class*="hint"]) {
   color: #1e1b4b !important;
@@ -309,6 +391,7 @@ function openEditContrib({ goal, user }) {
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 12px;
+  padding-right: 80px;
 }
 
 .card-title {
@@ -319,8 +402,6 @@ function openEditContrib({ goal, user }) {
   font-weight: 700;
   margin: 0;
 }
-
-.card-head .card-title { margin-bottom: 0; }
 
 .btn-add-goal {
   padding: 6px 14px;
@@ -349,15 +430,13 @@ function openEditContrib({ goal, user }) {
 @media (max-width: 700px) {
   .analytics-page {
     padding: 16px 16px 120px;
-    background: linear-gradient(180deg, #0f0a1e 0%, #1a1035 100%) !important;
   }
   .analytics-grid { gap: 12px; }
   .an-col { gap: 12px; }
-  .card { padding: 14px 16px; border-radius: 14px; }
+  .card { padding: 16px 18px; border-radius: 14px; }
   .card-title { font-size: 11px; letter-spacing: 0.06em; }
   .metrics-grid { grid-template-columns: 1fr; }
 
-  /* ✅ МОБ: калькулятор — слева (перебиваем) */
   .tile-calc :deep(.mascot--right) {
     right: auto !important;
     left: -30px !important;
@@ -367,13 +446,12 @@ function openEditContrib({ goal, user }) {
     padding-left: 140px !important;
   }
 
-  /* ✅ ЦЕЛЬ: звезда снизу-справа, напротив «+ Добавить» */
+  /* ✅ МОБ: звезда в верхнем правом углу, меньше */
   .card-goals {
-    padding-right: 0;
-    padding-bottom: 130px; /* отступ снизу под звезду */
+    padding-right: 110px;
+    padding-top: 16px;
   }
 
-  /* ✅ Цель растянута */
   .card-goals :deep(.goal-card),
   .card-goals :deep(.goals-list > *) {
     width: 100% !important;

@@ -253,14 +253,25 @@ const hasMascot = computed(() => !!props.mascot);
 }
 
 @media (max-width: 700px) {
-  .tile { padding: 14px; border-radius: 14px; min-height: 130px; }
+  .tile { padding: 16px 18px; border-radius: 14px; min-height: 130px; }
   .tile__bg { border-radius: 14px; }
   .tile__value { font-size: 22px; }
   .tile__label { font-size: 10px; }
   .tile__sub { font-size: 10px; }
-  .tile--mascot-left .tile__content   { padding-left: 110px; }
-  .tile--mascot-right .tile__content  { padding-right: 110px; }
+
+  /* ✅ Текст по правому краю */
+  .tile__content {
+    text-align: right !important;
+    align-items: flex-end !important;
+  }
+  .tile__label {
+    justify-content: flex-end !important;
+  }
+
+  /* ✅ МОБ: калькулятор и кошелёк слева, текст справа от них */
+  .tile--mascot-left .tile__content   { padding-left: 100px; padding-right: 0; }
+  .tile--mascot-right .tile__content  { padding-right: 100px; padding-left: 0; }
   .tile--mascot-floating .tile__content,
-  .tile--mascot-corner .tile__content { padding-right: 80px; }
+  .tile--mascot-corner .tile__content { padding-right: 70px; }
 }
 </style>
