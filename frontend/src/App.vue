@@ -1,3 +1,4 @@
+<!-- frontend/src/App.vue -->
 <script setup>
 import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
@@ -185,16 +186,31 @@ onUnmounted(() => {
   </div>
 </template>
 
-<!-- ✅ БЕЗ scoped — стили глобальные и точно применятся -->
 <style>
 /* ============================================================
-   КОРНЕВЫЕ ОБЁРТКИ
+   ✅ ФОН ПО ТЕМЕ — убирает белую полосу внизу
    ============================================================ */
+:root {
+  --bg-page: #f4f6fb;
+}
+
+html[data-app-theme="dark"] {
+  --bg-page: #14091f;
+}
+
+body {
+  background: var(--bg-page, #f4f6fb);
+  min-height: 100vh;
+  /* ✅ Safe-area для статусбара */
+  padding-top: env(safe-area-inset-top, 0);
+}
+
 .app-root {
   position: relative;
   min-height: 100vh;
   width: 100%;
   background: transparent;
+  padding-top: env(safe-area-inset-top, 0);
 }
 
 .page-transition-wrap {
@@ -203,7 +219,7 @@ onUnmounted(() => {
   width: 100%;
   overflow-x: hidden;
   padding-bottom: calc(90px + env(safe-area-inset-bottom, 0));
-  background: transparent;
+  background: var(--bg-page, #f4f6fb);
   isolation: isolate;
 }
 
@@ -254,7 +270,6 @@ onUnmounted(() => {
 
 /* ============================================================
    ✅ ЖЁСТКИЕ ТЁМНЫЕ ФИКСЫ ДЛЯ PROFILE
-   Без scoped — компилируется в глобальный CSS, применяется всегда.
    ============================================================ */
 
 html[data-app-theme="dark"] .hero-photo-blur {
@@ -408,17 +423,5 @@ html[data-app-theme="dark"] .stat-extra-row.expense .se-label {
 html[data-app-theme="dark"] .stat-extra-row.expense .se-value {
   color: #f43f5e !important;
   text-shadow: 0 0 10px rgba(244, 63, 94, 0.5) !important;
-}
-:root {
-  --bg-page: #f4f6fb;
-}
-
-html[data-app-theme="dark"] {
-  --bg-page: #14091f;
-}
-
-/* ✅ .page-transition-wrap наследует фон темы */
-.page-transition-wrap {
-  background: var(--bg-page, transparent);
 }
 </style>

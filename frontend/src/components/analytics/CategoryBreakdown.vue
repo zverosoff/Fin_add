@@ -249,15 +249,6 @@ const monthLabel = computed(() => {
   mix-blend-mode: overlay;
 }
 
-/* ✅ 4. ПУНКТИРНАЯ РАМКА */
-.cat-frame {
-  position: absolute;
-  inset: 6px;
-  border-radius: 10px;
-  border: 1.5px dashed rgba(255, 255, 255, 0.15);
-  pointer-events: none;
-  z-index: 2;
-}
 
 /* Отблеск — уже был */
 .cat-glare {
