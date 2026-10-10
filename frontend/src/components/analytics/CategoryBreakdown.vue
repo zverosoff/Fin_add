@@ -1,479 +1,239 @@
+<!-- frontend/src/components/analytics/CategoryBreakdown.vue -->
 <script setup>
-import { ref, computed } from 'vue';
-import { useAccountsStore } from '@/stores/accounts';
-import { useCategoriesStore } from '@/stores/categories';
+import { computed } from 'vue';
 import { fmt } from '@/composables/useFormat';
 
-const accounts = useAccountsStore();
-const categoriesStore = useCategoriesStore();
-
-// Список отключённых категорий (по умолчанию — все включены)
-const disabled = ref(new Set());
-
-function isEnabled(cat) {
-  return !disabled.value.has(cat);
-}
-
-function toggle(cat) {
-  const next = new Set(disabled.value);
-  if (next.has(cat)) next.delete(cat);
-  else next.add(cat);
-  disabled.value = next;
-}
-
-function enableAll() {
-  disabled.value = new Set();
-}
-
-function disableAll(allCats) {
-  disabled.value = new Set(allCats.map(c => c.category));
-}
-
-function onlyTop5(allCats) {
-  const top5 = new Set(allCats.slice(0, 5).map(c => c.category));
-  disabled.value = new Set(
-    allCats.filter(c => !top5.has(c.category)).map(c => c.category)
-  );
-}
-
-// Текущий месяц
-const now = new Date();
-const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
-
-const monthName = computed(() => {
-  return ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-          'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'][now.getMonth()];
+const props = defineProps({
+  /** [{ category, amount, percent, color?, emoji? }] */
+  items: { type: Array, default: () => [] },
+  total: { type: Number, default: 0 },
 });
 
-// Группируем все расходы за месяц по категориям
-const allCategories = computed(() => {
-  const map = new Map();
+const palette = [
+  { grad: 'linear-gradient(135deg, #a855f7, #ec4899)', glow: 'rgba(168,85,247,0.5)' },
+  { grad: 'linear-gradient(135deg, #06b6d4, #3b82f6)', glow: 'rgba(6,182,212,0.5)' },
+  { grad: 'linear-gradient(135deg, #f59e0b, #facc15)', glow: 'rgba(245,158,11,0.5)' },
+  { grad: 'linear-gradient(135deg, #10b981, #22c55e)', glow: 'rgba(16,185,129,0.5)' },
+  { grad: 'linear-gradient(135deg, #f43f5e, #ef4444)', glow: 'rgba(244,63,94,0.5)' },
+  { grad: 'linear-gradient(135deg, #8b5cf6, #6366f1)', glow: 'rgba(139,92,246,0.5)' },
+];
 
-  for (const t of accounts.transactions || []) {
-    if (t.fixed) continue;
-    if (t.fromReconcile) continue;
-    if (t.type !== 'expense') continue;
-
-    const d = new Date(t.date);
-    if (isNaN(d.getTime())) continue;
-    if (d < monthStart || d > monthEnd) continue;
-
-    const cat = String(t.category || 'Прочее');
-    map.set(cat, (map.get(cat) || 0) + (Number(t.amount) || 0));
-  }
-
-  return [...map.entries()]
-    .map(([category, amount]) => ({ category, amount }))
-    .sort((a, b) => b.amount - a.amount);
-});
-
-// Итог ТОЛЬКО выбранных категорий
-const selectedTotal = computed(() => {
-  let sum = 0;
-  for (const c of allCategories.value) {
-    if (isEnabled(c.category)) sum += c.amount;
-  }
-  return sum;
-});
-
-// Обработанный список с процентами
 const enriched = computed(() => {
-  const total = selectedTotal.value || 1;
-  return allCategories.value.map(c => ({
-    ...c,
-    enabled: isEnabled(c.category),
-    pct: c.amount / total * 100,
-  }));
+  const maxPercent = Math.max(...props.items.map(i => i.percent || 0), 1);
+  return props.items.map((item, idx) => {
+    const p = palette[idx % palette.length];
+    return {
+      ...item,
+      _grad: item.color ? null : p.grad,
+      _glow: p.glow,
+      _barWidth: ((item.percent || 0) / maxPercent) * 100,
+    };
+  });
 });
-
-const enabledCount = computed(() =>
-  allCategories.value.filter(c => isEnabled(c.category)).length
-);
-
-const allSelected = computed(() =>
-  enabledCount.value === allCategories.value.length
-);
-
-const noneSelected = computed(() => enabledCount.value === 0);
 </script>
 
 <template>
-  <section class="category-breakdown">
-    <header class="cb-head">
-      <div class="cb-head-left">
-        <div class="cb-icon">📊</div>
-        <div class="cb-titles">
-          <div class="cb-title">Расходы по категориям</div>
-          <div class="cb-sub">{{ monthName }} · {{ enabledCount }} из {{ allCategories.length }}</div>
-        </div>
-      </div>
-
-      <div class="cb-total">
-        <div class="cb-total-value">{{ fmt(selectedTotal) }} ₽</div>
-        <div class="cb-total-label">выбрано</div>
-      </div>
-    </header>
-
-    <div v-if="allCategories.length === 0" class="cb-empty">
-      За этот месяц ещё нет расходов
+  <section class="cat-breakdown">
+    <div class="cat-breakdown__head">
+      <span class="cat-breakdown__icon">📊</span>
+      <span class="cat-breakdown__title">Расходы по категориям</span>
     </div>
 
-    <template v-else>
-      <div class="cb-controls">
-        <button
-          class="cb-btn"
-          :class="{ active: allSelected }"
-          type="button"
-          @click="enableAll"
-        >Все</button>
-        <button
-          class="cb-btn"
-          type="button"
-          @click="onlyTop5(allCategories)"
-        >Топ-5</button>
-        <button
-          class="cb-btn"
-          :class="{ active: noneSelected }"
-          type="button"
-          @click="disableAll(allCategories)"
-        >Ничего</button>
-      </div>
+    <div v-if="!items.length" class="cat-breakdown__empty">
+      Нет данных за этот период
+    </div>
 
-      <div class="cb-list">
-        <label
-          v-for="c in enriched"
-          :key="c.category"
-          class="cb-row"
-          :class="{ disabled: !c.enabled }"
-        >
-          <input
-            type="checkbox"
-            class="cb-check"
-            :checked="c.enabled"
-            @change="toggle(c.category)"
-          />
+    <ul v-else class="cat-breakdown__list">
+      <li
+        v-for="item in enriched"
+        :key="item.category"
+        class="cat-row"
+        :style="{ '--cat-grad': item._grad, '--cat-glow': item._glow }"
+      >
+        <div class="cat-row__stripe" aria-hidden="true"></div>
 
-          <span class="cb-cat-icon">{{ categoriesStore.icon(c.category) }}</span>
+        <div class="cat-row__icon">
+          {{ item.emoji || '💳' }}
+        </div>
 
-          <span class="cb-cat-name">{{ c.category }}</span>
-
-          <span class="cb-cat-amount">{{ fmt(c.amount) }} ₽</span>
-
-          <span class="cb-cat-pct">{{ c.enabled ? c.pct.toFixed(0) + '%' : '—' }}</span>
-
-          <span class="cb-bar-track">
-            <span
-              class="cb-bar-fill"
-              :class="{ disabled: !c.enabled }"
-              :style="{ width: (c.enabled ? c.pct : 0) + '%' }"
-            ></span>
-          </span>
-        </label>
-      </div>
-    </template>
+        <div class="cat-row__main">
+          <div class="cat-row__top">
+            <span class="cat-row__name">{{ item.category }}</span>
+            <span class="cat-row__amount">{{ fmt(item.amount) }} ₽</span>
+          </div>
+          <div class="cat-row__bar-wrap">
+            <div class="cat-row__bar">
+              <div
+                class="cat-row__bar-fill"
+                :style="{ width: item._barWidth + '%' }"
+              ></div>
+            </div>
+            <span class="cat-row__percent">{{ (item.percent || 0).toFixed(0) }}%</span>
+          </div>
+        </div>
+      </li>
+    </ul>
   </section>
 </template>
 
 <style scoped lang="scss">
-.category-breakdown {
-  padding: 16px 18px;
-  background: var(--grad-card);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: var(--shadow-md);
-  animation: cardEnter 0.55s cubic-bezier(.34,1.56,.64,1) both;
-  transition: background 0.3s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+.cat-breakdown {
+  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%);
+  border-radius: 20px;
+  padding: 20px;
+  color: #ffffff;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+    0 12px 32px -10px rgba(139, 92, 246, 0.35);
 }
 
-@keyframes cardEnter {
-  from { opacity: 0; transform: translateY(16px) scale(0.95); filter: blur(4px); }
-  to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
-}
-
-.cb-head {
+.cat-breakdown__head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 12px;
+  gap: 8px;
+  margin-bottom: 16px;
 }
 
-.cb-head-left {
+.cat-breakdown__icon { font-size: 18px; }
+
+.cat-breakdown__title {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.cat-breakdown__empty {
+  text-align: center;
+  padding: 24px 0;
+  font-size: 13px;
+  opacity: 0.6;
+}
+
+.cat-breakdown__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
   display: flex;
-  align-items: center;
+  flex-direction: column;
   gap: 10px;
-  min-width: 0;
 }
 
-.cb-icon {
+.cat-row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px 10px 16px;
+  border-radius: 14px;
+  overflow: hidden;
+
+  background: rgba(255, 255, 255, 0.04);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.05) inset;
+
+  transition: transform 0.15s, background 0.2s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateX(2px);
+  }
+}
+
+.cat-row__stripe {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--cat-grad);
+  box-shadow: 0 0 12px var(--cat-glow);
+}
+
+.cat-row__icon {
+  font-size: 22px;
+  line-height: 1;
   width: 36px;
   height: 36px;
-  border-radius: 10px;
-  background: var(--grad-primary);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 18px;
-  flex-shrink: 0;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.3) inset,
-    0 -2px 0 rgba(0, 0, 0, 0.2) inset,
-    0 6px 16px -6px rgba(139, 92, 246, 0.7);
-}
-
-.cb-titles { min-width: 0; }
-.cb-title {
-  font-size: 13px;
-  font-weight: 800;
-  color: var(--text);
-  letter-spacing: 0.02em;
-}
-.cb-sub {
-  font-size: 11px;
-  color: var(--muted);
-  font-weight: 500;
-  margin-top: 1px;
-}
-
-.cb-total {
-  text-align: right;
-  flex-shrink: 0;
-}
-.cb-total-value {
-  font-family: var(--mono);
-  font-size: 17px;
-  font-weight: 800;
-  color: var(--accent-2, #16a34a);
-  letter-spacing: -0.02em;
-  white-space: nowrap;
-  text-shadow: 0 0 10px rgba(34, 197, 94, 0.3);
-}
-.cb-total-label {
-  font-size: 9.5px;
-  font-weight: 700;
-  color: var(--muted);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  margin-top: 2px;
-}
-
-.cb-empty {
-  padding: 32px 16px;
-  text-align: center;
-  font-size: 12.5px;
-  color: var(--muted);
-  border: 1px dashed var(--border-strong);
-  border-radius: 12px;
-  background: var(--panel-2);
-}
-
-.cb-controls {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  margin-bottom: 12px;
-}
-
-.cb-btn {
-  padding: 5px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--panel-2);
-  color: var(--muted);
-  font-family: inherit;
-  font-size: 11px;
-  font-weight: 800;
-  cursor: pointer;
-  transition: all 0.15s cubic-bezier(.34,1.56,.64,1);
-  white-space: nowrap;
-
-  &:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-    transform: translateY(-1px);
-  }
-
-  &.active {
-    background: var(--grad-primary);
-    color: #fff;
-    border-color: transparent;
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.3) inset,
-      0 4px 10px -2px rgba(139, 92, 246, 0.5);
-  }
-}
-
-.cb-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.cb-row {
-  display: grid;
-  grid-template-columns: auto auto 1fr auto auto;
-  grid-template-areas:
-    "check icon name amount pct"
-    "check icon bar bar bar";
-  align-items: center;
-  gap: 4px 10px;
-  padding: 8px 10px;
   border-radius: 10px;
-  cursor: pointer;
-  user-select: none;
-  transition: background 0.15s ease, opacity 0.2s ease, transform 0.1s;
-
-  &:hover {
-    background: var(--panel-2);
-    transform: translateX(1px);
-  }
-
-  &.disabled {
-    opacity: 0.45;
-  }
-}
-
-.cb-check {
-  grid-area: check;
-  width: 18px;
-  height: 18px;
-  accent-color: #a855f7;
-  cursor: pointer;
+  background: var(--cat-grad);
+  box-shadow: 0 4px 12px -2px var(--cat-glow);
   flex-shrink: 0;
 }
 
-.cb-cat-icon {
-  grid-area: icon;
-  font-size: 18px;
-  line-height: 1;
-  text-align: center;
-}
-
-.cb-cat-name {
-  grid-area: name;
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.cat-row__main {
+  flex: 1;
   min-width: 0;
 }
 
-.cb-cat-amount {
-  grid-area: amount;
-  font-family: var(--mono);
-  font-size: 12.5px;
-  font-weight: 800;
-  color: var(--text);
-  white-space: nowrap;
-  text-align: right;
+.cat-row__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
 }
 
-.cb-cat-pct {
-  grid-area: pct;
+.cat-row__name {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cat-row__amount {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.cat-row__bar-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cat-row__bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.cat-row__bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--cat-grad);
+  box-shadow: 0 0 10px var(--cat-glow);
+  transition: width 0.6s cubic-bezier(.4,0,.2,1);
+}
+
+.cat-row__percent {
   font-family: var(--mono);
   font-size: 11px;
-  font-weight: 800;
-  color: var(--muted);
-  white-space: nowrap;
-  min-width: 34px;
+  font-weight: 700;
+  opacity: 0.75;
+  min-width: 32px;
   text-align: right;
-}
-
-.cb-bar-track {
-  grid-area: bar;
-  display: block;
-  height: 4px;
-  border-radius: 2px;
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  overflow: hidden;
-  margin-top: 2px;
-}
-
-.cb-bar-fill {
-  display: block;
-  height: 100%;
-  border-radius: 2px;
-  background: linear-gradient(90deg, #a855f7, #ec4899);
-  transition: width 0.4s cubic-bezier(.22,.61,.36,1);
-  box-shadow: 0 0 8px rgba(168, 85, 247, 0.5);
-
-  &.disabled {
-    background: transparent;
-    box-shadow: none;
-  }
-}
-
-/* Тёмная тема */
-:global(:root[data-app-theme="dark"]) {
-  .category-breakdown {
-    box-shadow:
-      0 2px 6px rgba(0, 0, 0, 0.35),
-      0 12px 28px -8px rgba(139, 92, 246, 0.25),
-      0 0 0 1px rgba(139, 92, 246, 0.08) inset;
-  }
-
-  .cb-total-value {
-    color: #4ade80;
-    text-shadow: 0 0 12px rgba(74, 222, 128, 0.5);
-  }
-
-  .cb-cat-name { color: #f4f4f6; }
-  .cb-cat-amount { color: #f4f4f6; }
-  .cb-cat-pct { color: #8b8ba0; }
-
-  .cb-bar-track {
-    background: rgba(0, 0, 0, 0.3);
-    border-color: rgba(139, 92, 246, 0.15);
-  }
-
-  .cb-bar-fill {
-    background: linear-gradient(90deg, #a855f7, #ec4899);
-    box-shadow: 0 0 10px rgba(168, 85, 247, 0.6);
-  }
 }
 
 @media (max-width: 700px) {
-  .category-breakdown { padding: 14px; border-radius: 14px; }
-  .cb-icon { width: 32px; height: 32px; font-size: 16px; }
-  .cb-title { font-size: 12px; }
-  .cb-sub { font-size: 10.5px; }
-  .cb-total-value { font-size: 15px; }
-
-  .cb-row {
-    grid-template-columns: auto auto 1fr auto;
-    grid-template-areas:
-      "check icon name pct"
-      "check icon amount amount"
-      "check icon bar bar";
-    gap: 3px 8px;
-    padding: 8px 10px;
-  }
-
-  .cb-cat-amount {
-    text-align: left;
-    font-size: 12px;
-  }
-  .cb-cat-pct {
-    font-size: 11px;
-    min-width: 30px;
-  }
-  .cb-cat-name { font-size: 12.5px; }
-
-  .cb-btn { font-size: 10.5px; padding: 4px 10px; }
+  .cat-breakdown { padding: 16px; border-radius: 16px; }
+  .cat-row { padding: 8px 10px 8px 14px; gap: 10px; }
+  .cat-row__icon { width: 32px; height: 32px; font-size: 18px; }
+  .cat-row__name { font-size: 12px; }
+  .cat-row__amount { font-size: 12px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .category-breakdown,
-  .cb-row,
-  .cb-bar-fill,
-  .cb-btn {
-    animation: none !important;
-    transition: none !important;
-  }
-  .cb-row:hover { transform: none !important; }
+  .cat-row { transition: none; }
+  .cat-row:hover { transform: none; }
+  .cat-row__bar-fill { transition: none; }
 }
 </style>

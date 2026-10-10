@@ -1,0 +1,101 @@
+/* frontend/src/styles/analytics.scss */
+
+/* ============================================================
+   Переменные аналитики
+   ============================================================ */
+:root {
+  --an-bg-deep: #0f0a1e;
+  --an-bg-mid: #1a1035;
+  --an-bg-card: #1e1b4b;
+  --an-bg-card-2: #312e81;
+
+  --an-accent-violet: #8b5cf6;
+  --an-accent-indigo: #6366f1;
+  --an-accent-pink: #ec4899;
+  --an-accent-yellow: #facc15;
+  --an-accent-emerald: #10b981;
+  --an-accent-amber: #f59e0b;
+  --an-accent-rose: #f43f5e;
+  --an-accent-cyan: #06b6d4;
+
+  --an-text: #ffffff;
+  --an-text-muted: rgba(255, 255, 255, 0.65);
+  --an-text-dim: rgba(255, 255, 255, 0.45);
+
+  --an-radius: 20px;
+  --an-radius-sm: 14px;
+  --an-radius-lg: 24px;
+}
+
+/* ============================================================
+   Общие утилиты для аналитики
+   ============================================================ */
+.analytics-card {
+  position: relative;
+  background: linear-gradient(135deg, var(--an-bg-card) 0%, var(--an-bg-card-2) 100%);
+  border-radius: var(--an-radius);
+  color: var(--an-text);
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+    0 12px 32px -10px rgba(139, 92, 246, 0.35);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.analytics-card__shine {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.08) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.analytics-card__glow {
+  position: absolute;
+  inset: -30%;
+  background: radial-gradient(circle at 70% 30%, rgba(168, 85, 247, 0.2), transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+  mix-blend-mode: screen;
+}
+
+/* Жёлтая кнопка — единый стиль */
+.analytics-btn-yellow {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border-radius: 999px;
+  border: none;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  color: #0a0612;
+  background: linear-gradient(180deg, #fde047, #facc15);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.5) inset,
+    0 8px 24px -6px rgba(250, 204, 21, 0.6);
+  cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.2s;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.5) inset,
+      0 12px 28px -6px rgba(250, 204, 21, 0.8);
+  }
+
+  &:active { transform: scale(0.97); }
+}
+
+/* ============================================================
+   Тёмная тема для страницы аналитики
+   ============================================================ */
+.analytics {
+  color: var(--an-text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .analytics-btn-yellow { transition: none; }
+  .analytics-btn-yellow:hover { transform: none; }
+}
