@@ -2,7 +2,7 @@
 import { computed, ref, onMounted, watch } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
 import { useAuthStore } from '@/stores/auth';
-import { fmt } from '@/composables/useFormat';
+import { fmt, AVATAR_MAN, AVATAR_WOMAN } from '@/composables/useFormat';
 
 const emit = defineEmits(['reconcile', 'user-menu']);
 const accounts = useAccountsStore();
@@ -18,8 +18,10 @@ function displayOwner(owner) {
   if (!owner) return '';
   return auth.nameFor(owner);
 }
+
+// ✅ PNG-аватар владельца
 function ownerAvatar(owner) {
-  return auth.avatarFor(owner);
+  return owner === 'Сергей' ? AVATAR_MAN : AVATAR_WOMAN;
 }
 
 const ownersSorted = computed(() => {
@@ -40,15 +42,18 @@ function toggleOwner(owner) {
 function ownerTotal(list) {
   return list.reduce((s, a) => s + (Number(a.value) || 0), 0);
 }
+
+// ✅ Путь к логотипу банка — /img/icons/banks/
 function bankLogo(id) {
   if (!id) return null;
   if (id.startsWith('sber')) return '/img/icons/banks/sber.png';
   if (id.startsWith('tbank')) return '/img/icons/banks/tbank.png';
   return null;
 }
+
 function isMe(owner) { return owner === userName.value; }
 
-const myAvatar = computed(() => auth.avatarFor(userName.value));
+const myAvatar = computed(() => ownerAvatar(userName.value));
 
 onMounted(async () => {
   try {
@@ -86,7 +91,7 @@ watch(expandedOwners, (val) => {
             ></div>
           </template>
           <div v-else class="dc-bg-placeholder">
-            <span class="dc-bg-emoji">{{ userName === 'Сергей' ? '👨' : '👩' }}</span>
+            <img :src="myAvatar" class="dc-bg-avatar-img" alt="avatar" />
           </div>
 
           <div class="dc-bg-stripes"></div>
@@ -132,12 +137,10 @@ watch(expandedOwners, (val) => {
             @click="toggleOwner(owner)"
           >
             <img
-              v-if="ownerAvatar(owner)"
               :src="ownerAvatar(owner)"
               alt="avatar"
               class="dc-owner-avatar-img"
             />
-            <span v-else class="dc-owner-emoji">{{ owner === 'Сергей' ? '👨' : '👩' }}</span>
             <span class="dc-owner-text">{{ displayOwner(owner) }}</span>
             <span v-if="isMe(owner)" class="dc-owner-you">вы</span>
             <svg class="dc-owner-chev" :class="{ open: isExpanded(owner) }" viewBox="0 0 24 24">
@@ -304,9 +307,17 @@ watch(expandedOwners, (val) => {
   justify-content: center;
   opacity: 0.82;
 }
-.dc-bg-emoji {
-  font-size: 88px;
-  line-height: 1;
+
+/* ✅ PNG-аватар в placeholder — фикс 88×88 */
+.dc-bg-avatar-img {
+  display: block;
+  width: 88px;
+  height: 88px;
+  min-width: 88px;
+  max-width: 88px;
+  max-height: 88px;
+  object-fit: cover;
+  border-radius: 50%;
   filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.35));
 }
 
@@ -415,7 +426,6 @@ watch(expandedOwners, (val) => {
   z-index: 10;
 }
 
-/* Тёмная тема — фиолетовый становится более глубоким */
 :global(:root[data-app-theme="dark"]) .dc-bg-solid {
   background:
     radial-gradient(circle at 85% 15%, rgba(168, 85, 247, 0.25), transparent 55%),
@@ -596,15 +606,21 @@ watch(expandedOwners, (val) => {
   }
 }
 
-.dc-owner-emoji { font-size: 13px; }
+/* ✅ PNG-аватар в чипе владельца — фикс 18×18 */
 .dc-owner-avatar-img {
+  display: block;
   width: 18px;
   height: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  max-height: 18px;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
+  background: #fff;
   border: 1px solid rgba(255, 255, 255, 0.5);
 }
+
 .dc-owner-text { line-height: 1; }
 .dc-owner-you {
   margin-left: 4px;
@@ -700,7 +716,6 @@ watch(expandedOwners, (val) => {
   box-shadow: 0 4px 10px -4px rgba(0, 0, 0, 0.35);
 }
 
-/* Тёмная тема — усиленный неон на карте */
 :global(:root[data-app-theme="dark"]) .debit-card {
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.15) inset,
@@ -734,7 +749,13 @@ watch(expandedOwners, (val) => {
   .dc-bg-photo { width: 52%; }
   .dc-bg-solid { width: 68%; }
   .dc-bg-ribbon { width: 68%; }
-  .dc-bg-emoji { font-size: 64px; }
+  .dc-bg-avatar-img {
+    width: 64px;
+    height: 64px;
+    min-width: 64px;
+    max-width: 64px;
+    max-height: 64px;
+  }
 
   .dc-issuer-name { font-size: 10.5px; letter-spacing: 0.12em; }
   .dc-issuer-sub { font-size: 8.5px; }
@@ -746,8 +767,13 @@ watch(expandedOwners, (val) => {
   .dc-accounts { gap: 5px; padding-top: 8px; margin-top: 4px; }
   .dc-owner-row { gap: 6px; }
   .dc-owner-name { font-size: 10.5px; padding: 3px 7px 3px 3px; }
-  .dc-owner-emoji { font-size: 12px; }
-  .dc-owner-avatar-img { width: 16px; height: 16px; }
+  .dc-owner-avatar-img {
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    max-width: 16px;
+    max-height: 16px;
+  }
   .dc-owner-chev { width: 12px; height: 12px; }
   .dc-chip { font-size: 11px; padding: 3px 9px 3px 3px; gap: 5px; }
   .dc-chip-logo,
@@ -758,7 +784,13 @@ watch(expandedOwners, (val) => {
 }
 
 @media (max-width: 380px) {
-  .dc-bg-emoji { font-size: 52px; }
+  .dc-bg-avatar-img {
+    width: 52px;
+    height: 52px;
+    min-width: 52px;
+    max-width: 52px;
+    max-height: 52px;
+  }
   .dc-balance-value { font-size: 28px; }
   .dc-issuer-name { font-size: 9.5px; }
   .dc-chips { gap: 4px; }
@@ -772,15 +804,9 @@ watch(expandedOwners, (val) => {
   .dc-bg-chroma-magenta {
     animation: none !important;
   }
-  .dc-photo-kenburns {
-    transform: translateZ(0) scale(1.05) !important;
-  }
-  .dc-photo-glitch {
-    opacity: 0 !important;
-  }
+  .dc-photo-kenburns { transform: translateZ(0) scale(1.05) !important; }
+  .dc-photo-glitch { opacity: 0 !important; }
   .dc-bg-chroma-cyan,
-  .dc-bg-chroma-magenta {
-    opacity: 0.6 !important;
-  }
+  .dc-bg-chroma-magenta { opacity: 0.6 !important; }
 }
 </style>

@@ -6,12 +6,14 @@ import { notifySaved, notifyError } from '@/composables/useDataStatus';
 import { fmt } from '@/composables/useFormat';
 
 const toast = useToast();
+
 // ✅ PNG-иконки
 const ICON_INCOME  = '/img/icons/categories/income.png';
 const ICON_EXPENSE = '/img/icons/categories/expense.png';
 const ICON_MONEY   = '/img/icons/nav/money-bag.png';
 const ICON_BELL    = '/img/icons/ui/bell.png';
 const ICON_LOCK    = '/img/icons/ui/lock.png';
+
 const accountStart = ref(0);
 const rate = ref(0);
 const incomes = ref([]);
@@ -214,12 +216,18 @@ const byUser = computed(() => {
 
       <div class="sc-bottom">
         <div class="sc-cell">
-          <div class="sc-cell-label">📈 Доходы</div>
+          <div class="sc-cell-label">
+            <img :src="ICON_INCOME" class="sc-cell-icon" alt="" />
+            Доходы
+          </div>
           <div class="sc-cell-value income">+{{ fmt(totalIncome) }} ₽</div>
         </div>
         <div class="sc-divider"></div>
         <div class="sc-cell">
-          <div class="sc-cell-label">📉 Расходы</div>
+          <div class="sc-cell-label">
+            <img :src="ICON_EXPENSE" class="sc-cell-icon" alt="" />
+            Расходы
+          </div>
           <div class="sc-cell-value expense">−{{ fmt(totalExpense) }} ₽</div>
         </div>
       </div>
@@ -228,7 +236,7 @@ const byUser = computed(() => {
     <!-- БЛИЖАЙШИЕ ПЛАТЕЖИ -->
     <div v-if="upcomingPayments.length > 0" class="upcoming-card">
       <div class="upcoming-head">
-        <span class="upcoming-icon">🔔</span>
+        <img :src="ICON_BELL" class="upcoming-icon-img" alt="Уведомления" />
         <span class="upcoming-title">Ближайшие платежи</span>
       </div>
       <div class="upcoming-list">
@@ -238,7 +246,11 @@ const byUser = computed(() => {
           class="upcoming-row"
           :class="p.type === 'income' ? 'income' : 'expense'"
         >
-          <span class="up-emoji">{{ p.type === 'income' ? '💰' : '💳' }}</span>
+          <img
+            :src="p.type === 'income' ? ICON_INCOME : ICON_EXPENSE"
+            class="up-icon-img"
+            alt=""
+          />
           <span class="up-name">{{ p.name }}</span>
           <span class="up-amount">
             {{ p.type === 'income' ? '+' : '−' }}{{ fmt(p.value) }} ₽
@@ -307,7 +319,7 @@ const byUser = computed(() => {
         <!-- Доходы -->
         <div class="dt-col">
           <div class="dt-col-head">
-            <span class="dt-col-icon income">📈</span>
+            <img :src="ICON_INCOME" class="dt-col-icon-img" alt="" />
             <span class="dt-col-title">Доходы</span>
           </div>
           <div class="dt-col-body">
@@ -351,7 +363,13 @@ const byUser = computed(() => {
                 type="button"
                 aria-label="Удалить"
               >✕</button>
-              <span v-else class="dt-lock" title="Автоматически из вклада">🔒</span>
+              <img
+                v-else
+                :src="ICON_LOCK"
+                class="dt-lock-img"
+                title="Автоматически из вклада"
+                alt=""
+              />
             </div>
             <div v-if="incomes.length === 0" class="dt-empty">
               Нет доходов — добавьте кнопкой «+ доход»
@@ -365,7 +383,7 @@ const byUser = computed(() => {
         <!-- Расходы -->
         <div class="dt-col">
           <div class="dt-col-head">
-            <span class="dt-col-icon expense">📉</span>
+            <img :src="ICON_EXPENSE" class="dt-col-icon-img" alt="" />
             <span class="dt-col-title">Расходы</span>
           </div>
           <div class="dt-col-body">
@@ -499,44 +517,6 @@ const byUser = computed(() => {
   min-width: 0;
 }
 
-
-.upcoming-icon-img {
-  display: block;
-  width: 22px;
-  height: 22px;
-  min-width: 22px;
-  max-width: 22px;
-  max-height: 22px;
-  object-fit: contain;
-  flex-shrink: 0;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
-  animation: bellPulse 2s ease-in-out infinite;
-}
-
-.dt-col-icon-img {
-  display: block;
-  width: 18px;
-  height: 18px;
-  min-width: 18px;
-  max-width: 18px;
-  max-height: 18px;
-  object-fit: contain;
-  flex-shrink: 0;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
-}
-
-.dt-lock-img {
-  display: block;
-  width: 16px;
-  height: 16px;
-  min-width: 16px;
-  max-width: 16px;
-  max-height: 16px;
-  object-fit: contain;
-  flex-shrink: 0;
-  opacity: 0.7;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
-}
 /* ============================================================
    КАРТА-ШАПКА
    ============================================================ */
@@ -632,11 +612,25 @@ const byUser = computed(() => {
 .sc-cell:last-child { text-align: right; }
 
 .sc-cell-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-size: 10.5px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   opacity: 0.75;
+}
+
+.sc-cell-icon {
+  display: block;
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  max-width: 14px;
+  max-height: 14px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.3)) brightness(1.15);
 }
 
 .sc-cell-value {
@@ -678,8 +672,17 @@ const byUser = computed(() => {
   margin-bottom: 10px;
 }
 
-.upcoming-icon {
-  font-size: 16px;
+/* ✅ PNG-иконка уведомлений — фикс 20×20 */
+.upcoming-icon-img {
+  display: block;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  max-width: 20px;
+  max-height: 20px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
   animation: bellPulse 2s ease-in-out infinite;
 }
 
@@ -720,7 +723,16 @@ const byUser = computed(() => {
   &.expense { border-left: 3px solid #ef4444; }
 }
 
-.up-emoji { font-size: 14px; }
+.up-icon-img {
+  display: block;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+}
 
 .up-name {
   font-size: 12.5px;
@@ -752,7 +764,6 @@ const byUser = computed(() => {
   &.today {
     background: linear-gradient(135deg, #ef4444, #dc2626);
     color: #fff;
-    box-shadow: 0 4px 12px -4px rgba(239, 68, 68, 0.6);
   }
   &.soon {
     background: linear-gradient(135deg, #f59e0b, #f97316);
@@ -945,7 +956,18 @@ const byUser = computed(() => {
   border: 1px solid var(--border);
 }
 
-.dt-col-icon { font-size: 14px; }
+.dt-col-icon-img {
+  display: block;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  max-height: 18px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+}
+
 .dt-col-title {
   font-size: 12px;
   font-weight: 800;
@@ -1023,23 +1045,14 @@ const byUser = computed(() => {
     border-color: #f59e0b;
     box-shadow: 0 0 0 3px rgba(245, 158, 11, 0.15);
   }
-
-  &::-webkit-outer-spin-button,
-  &::-webkit-inner-spin-button {
-    appearance: none;
-    -webkit-appearance: none;
-    margin: 0;
-  }
-  &[type="number"] {
-    appearance: textfield;
-    -moz-appearance: textfield;
-  }
 }
 
-.dt-del,
-.dt-lock {
+.dt-del {
   width: 24px;
   height: 24px;
+  min-width: 24px;
+  max-width: 24px;
+  max-height: 24px;
   border-radius: 6px;
   border: 1px solid var(--border);
   background: transparent;
@@ -1051,6 +1064,8 @@ const byUser = computed(() => {
   justify-content: center;
   flex-shrink: 0;
   transition: all 0.15s;
+  padding: 0;
+  overflow: hidden;
 
   &:hover {
     border-color: var(--danger);
@@ -1059,17 +1074,19 @@ const byUser = computed(() => {
   }
 }
 
-.dt-lock {
-  border: none;
-  font-size: 12px;
-  cursor: default;
-  background: transparent;
-
-  &:hover {
-    border: none;
-    color: var(--muted);
-    background: transparent;
-  }
+/* ✅ PNG-замок вместо эмодзи — фикс 18×18 */
+.dt-lock-img {
+  display: block;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  max-height: 18px;
+  object-fit: contain;
+  flex-shrink: 0;
+  opacity: 0.7;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+  justify-self: center;
 }
 
 .dt-empty {
@@ -1312,7 +1329,6 @@ const byUser = computed(() => {
   letter-spacing: -0.02em;
 }
 
-/* МОБИЛЬНЫЙ */
 @media (max-width: 700px) {
   .sc-top { padding: 16px 16px 12px; gap: 10px; }
   .sc-amount { font-size: 20px; }
@@ -1350,6 +1366,6 @@ const byUser = computed(() => {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .upcoming-icon { animation: none !important; }
+  .upcoming-icon-img { animation: none !important; }
 }
 </style>

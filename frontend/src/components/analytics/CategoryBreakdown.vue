@@ -120,7 +120,7 @@ const monthLabel = computed(() => {
 
     <div class="cat-head">
       <div class="cat-head__left">
-        <img src="/img/icons/ui/chart.png" class="cat-head__icon-img" alt="График" />
+        <img src="/img/icons/categories/expense.png" class="cat-head__icon-img" alt="График" />
         <div>
           <div class="cat-head__title">Расходы по категориям</div>
           <div class="cat-head__month">{{ monthLabel }}</div>

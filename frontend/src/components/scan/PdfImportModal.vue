@@ -18,6 +18,12 @@ const txStore = useTransactionsStore();
 const auth = useAuthStore();
 const toast = useToast();
 
+// ✅ PNG-иконки
+const ICON_PDF      = '/img/icons/ui/pdf.png';
+const ICON_CALENDAR = '/img/icons/ui/calendar.png';
+const ICON_INCOME   = '/img/icons/categories/income.png';
+const ICON_EXPENSE  = '/img/icons/categories/expense.png';
+
 const step = ref('upload');
 const file = ref(null);
 const fileName = ref('');
@@ -206,7 +212,6 @@ async function save() {
 
   let added = 0, failed = 0;
 
-  // ✅ Сохраняем importOrder = порядок в PDF
   for (const it of toSave) {
     const txData = {
       name: it.name,
@@ -249,9 +254,15 @@ function close() {
 <template>
   <Modal
     :model-value="modelValue"
-    title="📄 Импорт PDF-выписки"
     @update:model-value="emit('update:modelValue', $event)"
   >
+    <template #header>
+      <div class="modal-head-custom">
+        <img :src="ICON_PDF" class="mhc-icon" alt="PDF" />
+        <h3 class="mhc-title">Импорт PDF-выписки</h3>
+      </div>
+    </template>
+
     <!-- ШАГ 1. Загрузка -->
     <div v-if="step === 'upload'" class="step">
       <div class="field">
@@ -290,7 +301,7 @@ function close() {
           @change="onFileSelected"
         />
         <button class="upload-btn" type="button" @click="triggerFileInput">
-          <span class="upload-icon">📄</span>
+          <img :src="ICON_PDF" class="upload-icon-img" alt="" />
           <span class="upload-text">
             <span class="upload-title">Выбрать PDF</span>
             <span class="upload-sub">Выписка из СберБанк-Онлайн или Т-Банка</span>
@@ -315,7 +326,10 @@ function close() {
       </div>
 
       <div v-if="availableMonths.length > 1" class="months-bar">
-        <span class="label">📅 Месяцы:</span>
+        <span class="label">
+          <img :src="ICON_CALENDAR" class="label-icon" alt="" />
+          Месяцы:
+        </span>
         <button
           v-for="m in availableMonths"
           :key="m.key"
@@ -351,7 +365,11 @@ function close() {
             :class="it.type"
             @click="toggleType(it.index)"
           >
-            {{ it.type === 'income' ? '📈' : '📉' }}
+            <img
+              :src="it.type === 'income' ? ICON_INCOME : ICON_EXPENSE"
+              class="type-badge-img"
+              :alt="it.type"
+            />
           </div>
 
           <div class="amount" :class="it.type" @click="editAmount(it.index)">
@@ -382,6 +400,36 @@ function close() {
 </template>
 
 <style scoped lang="scss">
+/* ✅ Кастомный заголовок */
+.modal-head-custom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mhc-icon {
+  display: block;
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  max-width: 26px;
+  max-height: 26px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.mhc-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .step { display: flex; flex-direction: column; gap: 12px; }
 
 .field {
@@ -439,17 +487,16 @@ function close() {
   }
 }
 
-.upload-icon {
-  font-size: 32px;
+.upload-icon-img {
+  display: block;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  max-width: 36px;
+  max-height: 36px;
+  object-fit: contain;
   flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  background: rgba(139, 92, 246, 0.12);
-  border: 1px solid rgba(139, 92, 246, 0.25);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
 }
 
 .upload-text { display: flex; flex-direction: column; gap: 2px; }
@@ -533,11 +580,26 @@ function close() {
   border: 1px solid var(--border);
 
   .label {
+    display: inline-flex;
+    align-items: center;
     font-size: 11px;
     font-weight: 700;
     color: var(--muted);
     margin-right: 4px;
   }
+}
+
+.label-icon {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  max-width: 14px;
+  max-height: 14px;
+  object-fit: contain;
+  vertical-align: middle;
+  margin-right: 4px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
 }
 
 .month-chip {
@@ -628,11 +690,26 @@ function close() {
   padding: 4px 8px;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 13px;
-  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  min-height: 30px;
+  overflow: hidden;
 
   &.income { background: rgba(34, 197, 94, 0.15); }
   &.expense { background: rgba(244, 63, 94, 0.15); }
+}
+
+.type-badge-img {
+  display: block;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
 }
 
 .amount {
@@ -690,5 +767,16 @@ function close() {
       0 -2px 0 rgba(0, 0, 0, 0.15) inset,
       0 10px 24px -6px rgba(139, 92, 246, 0.9);
   }
+}
+
+@media (max-width: 700px) {
+  .mhc-icon {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    max-width: 22px;
+    max-height: 22px;
+  }
+  .mhc-title { font-size: 15px; }
 }
 </style>

@@ -23,6 +23,16 @@ const txStore = useTransactionsStore();
 const auth = useAuthStore();
 const toast = useToast();
 
+// ✅ PNG-иконки
+const ICON_CAMERA     = '/img/icons/ui/camera.png';
+const ICON_EDIT       = '/img/icons/ui/edit.png';
+const ICON_PDF        = '/img/icons/ui/pdf.png';
+const ICON_PHOTO      = '/img/icons/ui/photo.png';
+const ICON_IMAGE      = '/img/icons/ui/image.png';
+const ICON_CALENDAR   = '/img/icons/ui/calendar.png';
+const ICON_INCOME     = '/img/icons/categories/income.png';
+const ICON_EXPENSE    = '/img/icons/categories/expense.png';
+
 const step = ref('upload');
 const file = ref(null);
 const filePreview = ref('');
@@ -361,7 +371,6 @@ async function save() {
 
   let added = 0, failed = 0;
 
-  // ✅ Сохраняем importOrder = порядок в чеке
   for (const it of toSave) {
     const txData = {
       name: it.description,
@@ -410,7 +419,7 @@ function close() {
     <template #header>
       <div class="scan-header">
         <div class="sh-icon">
-          <span>📸</span>
+          <img :src="ICON_CAMERA" class="sh-icon-img" alt="Сканирование" />
         </div>
         <div class="sh-text">
           <div class="sh-title">Сканирование чека</div>
@@ -422,15 +431,15 @@ function close() {
     <!-- Переключатель режима -->
     <div class="mode-switch">
       <button type="button" class="mode active" disabled>
-        <span class="m-icon">📸</span>
+        <img :src="ICON_CAMERA" class="m-icon-img" alt="" />
         <span class="m-label">Чек</span>
       </button>
       <button type="button" class="mode" @click="switchToManual">
-        <span class="m-icon">✏️</span>
+        <img :src="ICON_EDIT" class="m-icon-img" alt="" />
         <span class="m-label">Вручную</span>
       </button>
       <button type="button" class="mode" @click="switchToPdf">
-        <span class="m-icon">📄</span>
+        <img :src="ICON_PDF" class="m-icon-img" alt="" />
         <span class="m-label">PDF</span>
       </button>
     </div>
@@ -479,7 +488,7 @@ function close() {
           @drop="onDrop"
         >
           <div class="dz-icon-wrap">
-            <div class="dz-icon">📷</div>
+            <img :src="ICON_PHOTO" class="dz-icon-img" alt="Фото" />
             <div class="dz-icon-pulse"></div>
           </div>
           <div class="dz-text">
@@ -491,7 +500,7 @@ function close() {
       </div>
 
       <div v-else class="replace-file-row">
-        <div class="rfp-icon">🖼️</div>
+        <img :src="ICON_IMAGE" class="rfp-icon-img" alt="" />
         <div class="rfp-info">
           <div class="rfp-title">Файл выбран</div>
           <div class="rfp-name">{{ file.name }}</div>
@@ -571,7 +580,10 @@ function close() {
     <div v-else-if="step === 'preview'" class="step">
       <div v-if="dateFilters.length > 0" class="dates-bar">
         <div class="dates-label">
-          <span>📅 Даты:</span>
+          <span class="dates-label-text">
+            <img :src="ICON_CALENDAR" class="dates-label-icon" alt="" />
+            Даты:
+          </span>
           <button
             type="button"
             class="dates-toggle-mini"
@@ -600,7 +612,8 @@ function close() {
             :class="{ active: showManualDate }"
             @click="showManualDate = !showManualDate"
           >
-            📅 Своя дата
+            <img :src="ICON_CALENDAR" class="date-chip-icon" alt="" />
+            Своя дата
           </button>
         </div>
 
@@ -640,7 +653,11 @@ function close() {
             @click="toggleType(it.index)"
             :title="it.type === 'income' ? 'Доход' : 'Расход'"
           >
-            {{ it.type === 'income' ? '📈' : '📉' }}
+            <img
+              :src="it.type === 'income' ? ICON_INCOME : ICON_EXPENSE"
+              class="item-type-img"
+              :alt="it.type"
+            />
           </button>
 
           <span class="item-amount" :class="it.type" @click="editAmount(it.index)">
@@ -706,6 +723,7 @@ function close() {
   justify-content: center;
   font-size: 22px;
   flex-shrink: 0;
+  overflow: hidden;
 
   background: var(--grad-primary);
   box-shadow:
@@ -713,6 +731,17 @@ function close() {
     0 -2px 0 rgba(0, 0, 0, 0.2) inset,
     0 4px 10px -2px rgba(139, 92, 246, 0.5),
     0 8px 20px -6px rgba(139, 92, 246, 0.35);
+}
+
+.sh-icon-img {
+  display: block;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  max-width: 24px;
+  max-height: 24px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.3)) brightness(1.15);
 }
 
 .sh-text { min-width: 0; }
@@ -784,7 +813,23 @@ function close() {
   &:disabled { cursor: default; }
 }
 
-.m-icon { font-size: 14px; line-height: 1; }
+.m-icon-img {
+  display: block;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+  transition: filter 0.2s;
+}
+
+.mode.active .m-icon-img {
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.6)) brightness(1.25);
+}
+
 .m-label { line-height: 1; }
 
 /* ============================================================
@@ -899,7 +944,16 @@ function close() {
   box-shadow: var(--shadow-sm);
 }
 
-.dz-icon { font-size: 26px; line-height: 1; }
+.dz-icon-img {
+  display: block;
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  max-width: 30px;
+  max-height: 30px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
 
 .dz-icon-pulse {
   position: absolute;
@@ -954,18 +1008,16 @@ function close() {
   border: 1px solid var(--border);
 }
 
-.rfp-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
+.rfp-icon-img {
+  display: block;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  max-width: 24px;
+  max-height: 24px;
+  object-fit: contain;
   flex-shrink: 0;
-
-  background: rgba(34, 197, 94, 0.15);
-  border: 1px solid rgba(34, 197, 94, 0.3);
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.15));
 }
 
 .rfp-info { flex: 1; min-width: 0; }
@@ -1303,6 +1355,24 @@ function close() {
   letter-spacing: 0.06em;
 }
 
+.dates-label-text {
+  display: inline-flex;
+  align-items: center;
+}
+
+.dates-label-icon {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  max-width: 14px;
+  max-height: 14px;
+  object-fit: contain;
+  vertical-align: middle;
+  margin-right: 4px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+}
+
 .dates-toggle-mini {
   padding: 4px 12px;
   border-radius: 999px;
@@ -1369,6 +1439,18 @@ function close() {
       box-shadow: 0 4px 10px -2px rgba(245, 158, 11, 0.4);
     }
   }
+}
+
+.date-chip-icon {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  max-width: 14px;
+  max-height: 14px;
+  object-fit: contain;
+  vertical-align: middle;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
 }
 
 .date-chip-count {
@@ -1513,16 +1595,19 @@ function close() {
 .item-type {
   width: 30px;
   height: 30px;
+  min-width: 30px;
+  max-width: 30px;
+  max-height: 30px;
   border-radius: 8px;
   border: 1px solid transparent;
   cursor: pointer;
-  font-size: 14px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   transition: all 0.15s cubic-bezier(.34,1.56,.64,1);
   padding: 0;
   font-family: inherit;
+  overflow: hidden;
 
   &.income {
     background: rgba(34, 197, 94, 0.15);
@@ -1535,6 +1620,17 @@ function close() {
 
   &:hover { transform: scale(1.1); }
   &:active { transform: scale(0.95); }
+}
+
+.item-type-img {
+  display: block;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
 }
 
 .item-amount {
@@ -1638,18 +1734,37 @@ function close() {
    ============================================================ */
 @media (max-width: 700px) {
   .scan-header { gap: 10px; }
-  .sh-icon { width: 36px; height: 36px; font-size: 18px; border-radius: 10px; }
+  .sh-icon { width: 36px; height: 36px; border-radius: 10px; }
+  .sh-icon-img {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    max-width: 22px;
+    max-height: 22px;
+  }
   .sh-title { font-size: 15px; }
   .sh-sub { font-size: 11px; }
 
   .mode { padding: 9px 8px; font-size: 11.5px; gap: 5px; border-radius: 9px; }
-  .m-icon { font-size: 13px; }
+  .m-icon-img {
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
+    max-width: 14px;
+    max-height: 14px;
+  }
 
   .fields-row { grid-template-columns: 1fr; gap: 12px; }
 
   .drop-zone { padding: 16px; gap: 12px; }
   .dz-icon-wrap { width: 48px; height: 48px; border-radius: 14px; }
-  .dz-icon { font-size: 22px; }
+  .dz-icon-img {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    max-width: 24px;
+    max-height: 24px;
+  }
   .dz-title { font-size: 14px; }
   .dz-sub { font-size: 11.5px; }
   .dz-hint { display: none; }
@@ -1661,7 +1776,14 @@ function close() {
   }
   .item-date { font-size: 10px; }
   .item-name { font-size: 12.5px; }
-  .item-type { width: 26px; height: 26px; font-size: 12px; }
+  .item-type { width: 26px; height: 26px; }
+  .item-type-img {
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
+    max-width: 14px;
+    max-height: 14px;
+  }
   .item-amount { font-size: 12.5px; padding: 4px 6px; }
 
   .preview-image-wrapper {
