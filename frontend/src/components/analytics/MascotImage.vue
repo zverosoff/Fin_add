@@ -180,8 +180,8 @@ function onError() { failed.value = true; loaded.value = false; }
   .mascot--goals-corner {
     right: 6px;
     top: 6px;
-    width: 200px !important;
-    height: 200px !important;
+    width: 70px !important;
+    height: 70px !important;
   }
 }
 </style>
