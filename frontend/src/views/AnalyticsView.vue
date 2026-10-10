@@ -1,6 +1,6 @@
 <!-- frontend/src/views/AnalyticsView.vue -->
 <script setup>
-import { onMounted, computed, ref } from 'vue';
+import { onMounted, onUnmounted, computed, ref } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
 import { useAnalyticsStore } from '@/stores/analytics';
 import { useGoalsStore } from '@/stores/goals';
@@ -33,7 +33,10 @@ const editContribModalOpen = ref(false);
 const editContribGoal = ref(null);
 const editContribUser = ref('');
 
+// ✅ КОСТЫЛЬ: помечаем body классом на время аналитики
 onMounted(async () => {
+  document.body.classList.add('analytics-active');
+
   try {
     if (!accounts.loaded) await accounts.load();
     notifySaved('готово');
@@ -42,6 +45,10 @@ onMounted(async () => {
     toast.error('Не удалось загрузить данные');
     console.error(e);
   }
+});
+
+onUnmounted(() => {
+  document.body.classList.remove('analytics-active');
 });
 
 const metrics = computed(() => analytics.currentMonthMetrics);

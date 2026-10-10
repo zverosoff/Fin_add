@@ -26,6 +26,33 @@ const { applyTheme } = useAppTheme();
 
 applyTheme();
 
+// ✅ Динамический theme-color для Android-статусбара
+function updateThemeColor() {
+  let meta = document.querySelector('meta[name="theme-color"]');
+  if (!meta) {
+    meta = document.createElement('meta');
+    meta.name = 'theme-color';
+    document.head.appendChild(meta);
+  }
+
+  if (document.body.classList.contains('analytics-active')) {
+    meta.setAttribute('content', '#1a0f3a');
+    return;
+  }
+
+  const isDark = document.documentElement.dataset.appTheme === 'dark';
+  meta.setAttribute('content', isDark ? '#14091f' : '#f4f6fb');
+}
+
+watch(() => route.name, () => {
+  // Следующий тик — чтобы body.analytics-active успел появиться/удалиться
+  setTimeout(updateThemeColor, 0);
+}, { immediate: true });
+watch(
+  () => document.documentElement.dataset.appTheme,
+  updateThemeColor
+);
+
 const booting = ref(false);
 const percent = ref(0);
 const stage = ref('Запуск…');
@@ -223,8 +250,31 @@ body {
   isolation: isolate;
 }
 
+/* ✅ КОСТЫЛЬ: на аналитике — фиолетовый фон, без padding-bottom */
+body.analytics-active .page-transition-wrap {
+  background: linear-gradient(135deg, #1a0f3a 0%, #2d1b5e 50%, #4c1d95 100%) !important;
+  background-attachment: fixed !important;
+  padding-bottom: 0 !important;
+}
+
+body.analytics-active {
+  background: linear-gradient(135deg, #1a0f3a 0%, #2d1b5e 50%, #4c1d95 100%) !important;
+  background-attachment: fixed !important;
+}
+
+/* ✅ КОСТЫЛЬ: переходы на аналитике — тоже фиолетовые */
+body.analytics-active .slide-left-enter-active,
+body.analytics-active .slide-right-enter-active,
+body.analytics-active .fade-page-enter-active,
+body.analytics-active .slide-left-leave-active,
+body.analytics-active .slide-right-leave-active,
+body.analytics-active .fade-page-leave-active {
+  background: linear-gradient(135deg, #1a0f3a 0%, #2d1b5e 50%, #4c1d95 100%) !important;
+}
+
 @media (max-width: 700px) {
   .page-transition-wrap { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0)); }
+  body.analytics-active .page-transition-wrap { padding-bottom: 80px !important; }
 }
 
 /* ============================================================
