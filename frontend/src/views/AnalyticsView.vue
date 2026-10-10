@@ -310,6 +310,54 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
   font-weight: 700 !important;
 }
 
+/* ✅ Бейджи владельца — непрозрачные, читаемые */
+.card-goals :deep(.goal-owner) {
+  background: #312e81 !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(139, 92, 246, 0.5) !important;
+  opacity: 1 !important;
+  font-weight: 800 !important;
+}
+
+.card-goals :deep(.goal-owner.sergey) {
+  background: #1e3a8a !important;
+  color: #ffffff !important;
+  border-color: rgba(59, 130, 246, 0.5) !important;
+}
+
+.card-goals :deep(.goal-owner.sasha) {
+  background: #831843 !important;
+  color: #ffffff !important;
+  border-color: rgba(236, 72, 153, 0.5) !important;
+}
+
+/* ✅ Бейдж «Основная» — тоже непрозрачный */
+.card-goals :deep(.goal-primary-badge) {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b) !important;
+  color: #78350f !important;
+  opacity: 1 !important;
+}
+
+/* ✅ Бейджи взносов (кто сколько внёс) — непрозрачные */
+.card-goals :deep(.goal-contrib) {
+  background: rgba(49, 46, 129, 0.95) !important;
+  border-color: rgba(139, 92, 246, 0.4) !important;
+  color: #ffffff !important;
+  opacity: 1 !important;
+}
+.card-goals :deep(.goal-contrib .name) {
+  color: rgba(255, 255, 255, 0.75) !important;
+}
+.card-goals :deep(.goal-contrib .amount) {
+  color: #ffffff !important;
+}
+.card-goals :deep(.goal-contrib.sergey) {
+  background: #1e3a8a !important;
+}
+.card-goals :deep(.goal-contrib.sasha) {
+  background: #831843 !important;
+}
+
 @media (max-width: 1100px) {
   .analytics-page { padding: calc(20px + env(safe-area-inset-top, 0)) 24px 40px; }
   .analytics-grid { grid-template-columns: 1fr; max-width: 900px; }
