@@ -547,7 +547,13 @@ onUnmounted(() => {
             class="top-cat"
           >
             <div class="tc-rank" :class="'rank-' + (i + 1)">{{ i + 1 }}</div>
-            <div class="tc-icon">{{ categoryIcon(cat.category) }}</div>
+            <div class="tc-icon">
+  <img
+    :src="categoryIcon(cat.category)"
+    class="tc-icon-img"
+    :alt="cat.category"
+  />
+</div>
             <div class="tc-info">
               <div class="tc-name">{{ cat.category }}</div>
               <div class="tc-bar">
@@ -1323,7 +1329,26 @@ onUnmounted(() => {
   &.rank-3 { background: linear-gradient(180deg, #f59e0b, #b45309); }
 }
 
-.tc-icon { font-size: 22px; text-align: center; }
+.tc-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+}
+
+/* ✅ PNG-иконка категории — фикс 24×24 */
+.tc-icon-img {
+  display: block;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  max-width: 24px;
+  max-height: 24px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.15));
+}
 
 .tc-info { min-width: 0; }
 .tc-name {
@@ -1445,7 +1470,18 @@ onUnmounted(() => {
 
   .top-cat { grid-template-columns: 22px 30px 1fr auto; gap: 8px; padding: 10px 12px; }
   .tc-rank { width: 22px; height: 22px; font-size: 11px; }
-  .tc-icon { font-size: 18px; }
+  .tc-icon {
+  width: 30px;
+  height: 30px;
+}
+
+.tc-icon-img {
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  max-width: 20px;
+  max-height: 20px;
+}
   .tc-name { font-size: 12px; }
   .tc-amount-value { font-size: 12px; }
 }
