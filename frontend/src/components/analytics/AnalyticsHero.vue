@@ -26,11 +26,10 @@ function scrollToGoals() {
       <div class="hero-card__pattern"></div>
     </div>
 
-    <!-- ✅ Копилка поверх блока -->
     <MascotImage
       name="piggy"
       position="hero-left"
-      :size="200"
+      :size="150"
       fallback="🐷"
       alt="Копилка"
     />
@@ -56,9 +55,9 @@ function scrollToGoals() {
   position: relative;
   border-radius: 24px;
   overflow: visible;
-  /* ✅ padding-left под контент (персонаж поверх, отступ 170px) */
+  /* ✅ padding-left 170px = 150 персонаж + 20 запас */
   padding: 20px 24px 20px 170px;
-  min-height: 180px;
+  min-height: 170px;
   isolation: isolate;
   color: #ffffff;
   display: flex;
@@ -186,8 +185,8 @@ function scrollToGoals() {
 
 @media (max-width: 700px) {
   .hero-card {
-    padding: 16px 16px 16px 140px;
-    min-height: 160px;
+    padding: 16px 16px 16px 130px;
+    min-height: 150px;
     border-radius: 20px;
   }
   .hero-card__bg {

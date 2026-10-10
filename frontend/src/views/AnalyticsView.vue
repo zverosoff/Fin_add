@@ -202,7 +202,7 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
 .analytics-page {
   position: relative;
   min-height: 100vh;
-  padding: 20px 40px 100px;   /* ← уменьшили запас */
+  padding: 20px 40px 100px;
   color: #ffffff !important;
   z-index: 0;
   isolation: isolate;
@@ -231,6 +231,9 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
 .an-col-right {
   position: sticky;
   top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .metrics-grid {
@@ -254,8 +257,9 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
 
 .card-goals {
   position: relative;
-  overflow: visible;
+  overflow: hidden;
   padding: 20px 22px;
+  border-radius: 18px;
 }
 
 .card-goals__content {
@@ -271,7 +275,7 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 12px;
-  padding-right: 110px;
+  padding-right: 100px;
 }
 
 .card-title {
@@ -331,7 +335,7 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
   .metrics-grid { grid-template-columns: 1fr; gap: 16px; }
 
   .card-goals { padding: 16px 18px; }
-  .card-head { padding-right: 90px; }
+  .card-head { padding-right: 80px; }
 
   .card-goals :deep(.goal-card),
   .card-goals :deep(.goals-list > *),
@@ -340,16 +344,12 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
     max-width: 100% !important;
     box-sizing: border-box !important;
   }
-
-  .card-goals :deep(.goal-card) {
-    padding-left: 12px !important;
-    padding-right: 12px !important;
-  }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .hero-card__bg,
-  .tile__bg {
+  .tile__bg,
+  .cat-glare {
     animation: none !important;
   }
 }

@@ -17,10 +17,10 @@ const failed = ref(false);
 const src = computed(() => `/img/mascots/${props.name}.png`);
 
 const defaultSizes = {
-  left: 130,
-  right: 130,
-  'hero-left': 200,
-  'hero-right': 200,
+  left: 110,
+  right: 110,
+  'hero-left': 150,
+  'hero-right': 150,
   background: 280,
   floating: 100,
   corner: 130,
@@ -28,7 +28,7 @@ const defaultSizes = {
   'goals-corner': 100,
 };
 
-const px = computed(() => props.size || defaultSizes[props.position] || 130);
+const px = computed(() => props.size || defaultSizes[props.position] || 110);
 
 const shouldFlip = computed(() => {
   if (props.flip) return true;
@@ -67,8 +67,8 @@ function onError() { failed.value = true; loaded.value = false; }
 .mascot {
   position: absolute;
   pointer-events: none;
-  /* ✅ ВЫШЕ блока — персонаж перекрывает */
-  z-index: 5;
+  /* ✅ z-index 2 — ВНУТРИ блока, ПОД контентом (контент z-index 4) */
+  z-index: 2;
   width: var(--mascot-size);
   height: var(--mascot-size);
   display: flex;
@@ -98,72 +98,66 @@ function onError() { failed.value = true; loaded.value = false; }
   user-select: none;
 }
 
-/* ✅ LEFT — персонаж поверх блока, выходит за границы сверху/снизу */
+/* ✅ LEFT — у левого края, по центру вертикали, выходит за верх/низ */
 .mascot--left {
-  left: 8px;
-  top: -20px;
-  bottom: -20px;
-  height: auto;
-  align-items: center;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
-/* ✅ RIGHT — то же */
+/* ✅ RIGHT — у правого края */
 .mascot--right {
-  right: 8px;
-  top: -20px;
-  bottom: -20px;
-  height: auto;
-  align-items: center;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
-/* ✅ HERO — копилка слева, выходит сверху/снизу */
+/* ✅ HERO — у левого края */
 .mascot--hero-left {
-  left: 10px;
-  top: -30px;
-  bottom: -30px;
-  height: auto;
-  align-items: center;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .mascot--hero-right {
-  right: 10px;
-  top: -30px;
-  bottom: -30px;
-  height: auto;
-  align-items: center;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
 }
 
 .mascot--background { right: -40px; bottom: -30px; opacity: 0.35; z-index: 0; }
+
 .mascot--floating {
   right: 8px;
   top: 50%;
   transform: translateY(-50%);
 }
-.mascot--corner { right: -10px; top: -10px; }
+
+.mascot--corner { right: 10px; top: 10px; }
 
 .mascot--static {
   position: relative;
   left: auto; right: auto; top: auto; bottom: auto;
 }
 
-/* ✅ Звезда целей — внутри блока, не увеличивает высоту */
+/* ✅ Звезда целей — внутри блока, в углу, НЕ выходит */
 .mascot--goals-corner {
-  right: 10px;
-  top: 10px;
-  width: 100px !important;
-  height: 100px !important;
+  right: 8px;
+  top: 8px;
+  width: 90px !important;
+  height: 90px !important;
 }
 
 @media (max-width: 700px) {
-  .mascot--left { left: 6px; top: -15px; bottom: -15px; height: auto; }
-  .mascot--right { right: 6px; top: -15px; bottom: -15px; height: auto; }
-  .mascot--hero-left { left: 8px; top: -20px; bottom: -20px; height: auto; }
+  .mascot--left { left: 0; top: 50%; transform: translateY(-50%); }
+  .mascot--right { right: 0; top: 50%; transform: translateY(-50%); }
+  .mascot--hero-left { left: 0; top: 50%; transform: translateY(-50%); }
 
   .mascot--goals-corner {
-    right: 8px;
-    top: 8px;
-    width: 80px !important;
-    height: 80px !important;
+    right: 6px;
+    top: 6px;
+    width: 70px !important;
+    height: 70px !important;
   }
 }
 </style>
