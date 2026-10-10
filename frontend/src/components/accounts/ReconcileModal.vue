@@ -19,6 +19,11 @@ const txStore = useTransactionsStore();
 const auth = useAuthStore();
 const toast = useToast();
 
+// ✅ PNG-иконки
+const ICON_BALANCE   = '/img/icons/ui/balance.png';
+const ICON_MONEY_BAG = '/img/icons/nav/money-bag.png';
+const ICON_SAVE      = '/img/icons/ui/save.png';
+
 const actualBalance = ref('');
 const error = ref('');
 const saving = ref(false);
@@ -106,9 +111,15 @@ function close() {
 <template>
   <Modal
     :model-value="modelValue"
-    :title="`⚖️ Сверка: ${account?.name || 'счёт'}`"
     @update:model-value="emit('update:modelValue', $event)"
   >
+    <template #header>
+      <div class="modal-head-custom">
+        <img :src="ICON_BALANCE" class="mhc-icon" alt="Сверка" />
+        <h3 class="mhc-title">Сверка: {{ account?.name || 'счёт' }}</h3>
+      </div>
+    </template>
+
     <div v-if="account" class="form">
       <div class="reconcile-info">
         <div class="row">
@@ -122,7 +133,10 @@ function close() {
       </div>
 
       <div class="field">
-        <label>💰 Фактический баланс (из банка), ₽</label>
+        <label>
+          <img :src="ICON_MONEY_BAG" class="label-icon" alt="" />
+          Фактический баланс (из банка), ₽
+        </label>
         <input
           v-model="actualBalance"
           type="number"
@@ -155,13 +169,43 @@ function close() {
     <template #footer>
       <button class="btn-cancel" @click="close">Отмена</button>
       <button class="btn-save" :disabled="saving || !hasDiff" @click="save">
-        {{ saving ? 'Сохранение…' : '💾 Создать корректировку' }}
+        <img v-if="!saving" :src="ICON_SAVE" class="btn-save-icon" alt="" />
+        <span>{{ saving ? 'Сохранение…' : 'Создать корректировку' }}</span>
       </button>
     </template>
   </Modal>
 </template>
 
 <style scoped lang="scss">
+.modal-head-custom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mhc-icon {
+  display: block;
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  max-width: 26px;
+  max-height: 26px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.mhc-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .form { display: flex; flex-direction: column; gap: 12px; }
 
 .reconcile-info {
@@ -195,6 +239,9 @@ function close() {
   gap: 5px;
 
   label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     font-size: 11px;
     font-weight: 700;
     color: var(--muted);
@@ -220,6 +267,19 @@ function close() {
       box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
     }
   }
+}
+
+/* ✅ PNG-иконка в label — фикс 14×14 */
+.label-icon {
+  display: block;
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  max-width: 14px;
+  max-height: 14px;
+  object-fit: contain;
+  flex-shrink: 0;
+  opacity: 0.85;
 }
 
 .preview { min-height: 0; }
@@ -285,6 +345,9 @@ function close() {
 }
 
 .btn-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: linear-gradient(135deg, #f59e0b, #f97316);
   color: #fff;
   box-shadow:
@@ -303,10 +366,32 @@ function close() {
   }
 }
 
+/* ✅ PNG-иконка в кнопке — фикс 16×16 */
+.btn-save-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.4)) brightness(1.15);
+}
+
 @media (max-width: 700px) {
   .field input { font-size: 16px; padding: 12px 14px; min-height: 46px; }
   .reconcile-info .row { font-size: 12.5px; }
   .preview-diff { font-size: 12.5px; }
   .preview-diff strong { font-size: 14px; }
+
+  .mhc-icon {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    max-width: 22px;
+    max-height: 22px;
+  }
+  .mhc-title { font-size: 15px; }
 }
 </style>
