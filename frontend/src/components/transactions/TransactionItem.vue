@@ -3,7 +3,7 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
 import { useFiltersStore } from '@/stores/filters';
 import { useAuthStore } from '@/stores/auth';
-import { fmt, categoryIcon, userEmoji, bankLogo } from '@/composables/useFormat';
+import { fmt, categoryIcon, bankIconPath, bankLabel } from '@/composables/useFormat';
 
 const props = defineProps({
   tx: { type: Object, required: true },
@@ -17,29 +17,34 @@ const filters = useFiltersStore();
 const auth = useAuthStore();
 
 const accountName = computed(() => accounts.getAccountName(props.tx.accountId));
-const bank = computed(() => accounts.getBank(props.tx.accountId));
-const bankLogoUrl = computed(() => bankLogo(props.tx.accountId));
 const amountSign = computed(() => (props.tx.type === 'income' ? '+' : '−'));
 const amountClass = computed(() => (props.tx.type === 'income' ? 'income' : 'expense'));
-const icon = computed(() => categoryIcon(props.tx.category));
+
+// ✅ PNG-иконка категории
+const categoryIconPath = computed(() => categoryIcon(props.tx.category));
+
 const userClass = computed(() => (props.tx.user === 'Сергей' ? 'sergey' : 'sasha'));
 const displayUserName = computed(() => auth.nameFor(props.tx.user));
-const userAvatar = computed(() => auth.avatarFor(props.tx.user));
 
-const bankStyle = computed(() => {
+// ✅ Аватар пользователя — PNG
+const userAvatar = computed(() => {
+  if (props.tx.user === 'Сергей') return '/img/mascots/avatar-man.png';
+  if (props.tx.user === 'Саша') return '/img/mascots/avatar-woman.png';
+  return '/img/mascots/avatar-man.png';
+});
+
+// ✅ Иконка банка/счёта
+const bankIcon = computed(() => bankIconPath(props.tx.accountId));
+const bankLabelText = computed(() => bankLabel(props.tx.accountId));
+
+// Определяем тип счёта для CSS-класса
+const bankType = computed(() => {
   const id = props.tx.accountId;
-  if (!id) return null;
-
-  if (id === 'cash' || id.startsWith('cash_')) {
-    return { type: 'cash', icon: '💵', label: 'Наличные', color: '#22c55e' };
-  }
-  if (id.startsWith('tbank')) {
-    return { type: 'tbank', logo: bankLogoUrl.value, label: 'Т-Банк', color: '#eab308' };
-  }
-  if (id.startsWith('sber')) {
-    return { type: 'sber', logo: bankLogoUrl.value, label: 'СберБанк', color: '#21a038' };
-  }
-  return { type: 'default', icon: '💳', label: accountName.value || 'Счёт', color: '#64748b' };
+  if (!id) return 'default';
+  if (id === 'cash' || id.startsWith('cash_')) return 'cash';
+  if (id.startsWith('sber')) return 'sber';
+  if (id.startsWith('tbank')) return 'tbank';
+  return 'default';
 });
 
 const appearing = ref(false);
@@ -211,7 +216,7 @@ const progress = computed(() =>
         @click.stop="onEdit"
         aria-label="Редактировать"
       >
-        <span class="tab-icon">✏️</span>
+        <img src="/img/icons/ui/edit.png" class="tab-icon-img" alt="Редактировать" />
       </button>
       <button
         class="tx-action-btn tx-action-delete"
@@ -219,7 +224,7 @@ const progress = computed(() =>
         @click.stop="onDelete"
         aria-label="Удалить"
       >
-        <span class="tab-icon">🗑</span>
+        <img src="/img/icons/ui/delete.png" class="tab-icon-img" alt="Удалить" />
       </button>
     </div>
 
@@ -233,13 +238,12 @@ const progress = computed(() =>
     >
       <div class="tx-avatar" :class="userClass">
         <img
-          v-if="userAvatar"
           :src="userAvatar"
           alt="avatar"
           class="tx-avatar-img"
           loading="lazy"
+          decoding="async"
         />
-        <span v-else class="tx-avatar-emoji">{{ userEmoji(tx.user) }}</span>
       </div>
 
       <div class="tx-main">
@@ -247,7 +251,14 @@ const progress = computed(() =>
         <div class="tx-meta">
           <span class="who" @click.stop="onFilter('user', tx.user)">{{ displayUserName }}</span>
           <span class="cat" @click.stop="onFilter('category', tx.category)">
-            {{ icon }} {{ tx.category || 'Прочее' }}
+            <img
+              :src="categoryIconPath"
+              class="tx-cat-icon"
+              alt=""
+              loading="lazy"
+              decoding="async"
+            />
+            {{ tx.category || 'Прочее' }}
           </span>
         </div>
       </div>
@@ -270,7 +281,7 @@ const progress = computed(() =>
               title="Редактировать"
               aria-label="Редактировать"
             >
-              <span class="tib-icon">✏️</span>
+              <img src="/img/icons/ui/edit.png" class="tib-icon-img" alt="Редактировать" />
             </button>
             <button
               class="tx-inline-btn tx-inline-delete"
@@ -279,26 +290,23 @@ const progress = computed(() =>
               title="Удалить"
               aria-label="Удалить"
             >
-              <span class="tib-icon">🗑</span>
+              <img src="/img/icons/ui/delete.png" class="tib-icon-img" alt="Удалить" />
             </button>
           </div>
 
           <div
-            v-if="bankStyle"
             class="tx-bank-coin"
-            :class="'coin-' + bankStyle.type"
-            :title="bankStyle.label"
+            :class="'coin-' + bankType"
+            :title="bankLabelText"
             @click.stop="tx.accountId && onFilter('account', tx.accountId)"
           >
             <img
-              v-if="bankStyle.logo"
-              :src="bankStyle.logo"
+              :src="bankIcon"
               class="tx-bank-coin-img"
-              :alt="bankStyle.label"
+              :alt="bankLabelText"
               loading="lazy"
-              @error="(e) => (e.target.style.display = 'none')"
+              decoding="async"
             />
-            <span v-else class="tx-bank-coin-emoji">{{ bankStyle.icon }}</span>
           </div>
         </div>
       </div>
@@ -373,8 +381,14 @@ const progress = computed(() =>
   transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), box-shadow 0.2s;
   flex-shrink: 0;
 
-  .tab-icon { font-size: 18px; line-height: 1; filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2)); }
   &:active { transform: scale(0.92); }
+}
+
+.tab-icon-img {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25)) brightness(1.05);
 }
 
 .tx-action-edit {
@@ -410,7 +424,7 @@ const progress = computed(() =>
 }
 
 /* ============================================================
-   КАРТОЧКА — тема применяется через переменные
+   КАРТОЧКА
    ============================================================ */
 .tx-card {
   position: relative;
@@ -472,8 +486,12 @@ const progress = computed(() =>
     0 4px 10px -2px rgba(236, 72, 153, 0.35);
 }
 
-.tx-avatar-img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.tx-avatar-emoji { font-size: 20px; line-height: 1; }
+.tx-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
 
 /* ============================================================
    ТЕКСТ
@@ -512,7 +530,10 @@ const progress = computed(() =>
 }
 
 .tx-meta .cat {
-  padding: 3px 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 3px 5px;
   border-radius: 999px;
   background: var(--panel-2);
   color: var(--accent);
@@ -530,7 +551,19 @@ const progress = computed(() =>
     border-color: transparent;
     transform: translateY(-1px);
     box-shadow: 0 4px 12px -2px rgba(139, 92, 246, 0.5);
+
+    .tx-cat-icon { filter: drop-shadow(0 0 6px rgba(255,255,255,0.5)); }
   }
+}
+
+/* ✅ PNG-иконка категории внутри бейджа */
+.tx-cat-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+  transition: filter 0.2s ease;
 }
 
 /* ============================================================
@@ -618,43 +651,42 @@ const progress = computed(() =>
   transition:
     transform 0.18s cubic-bezier(.34,1.56,.64,1),
     box-shadow 0.22s ease,
-    color 0.15s ease,
     background 0.15s ease,
     border-color 0.15s ease;
 
-  .tib-icon {
-    font-size: 15px;
-    line-height: 1;
-    display: inline-block;
-    transition: transform 0.2s cubic-bezier(.34,1.56,.64,1);
-  }
-
   &:active { transform: scale(0.94); }
+}
+
+.tib-icon-img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  display: block;
+  opacity: 0.8;
+  transition: opacity 0.15s ease, transform 0.2s cubic-bezier(.34,1.56,.64,1);
 }
 
 .tx-inline-edit:hover {
   background: rgba(139, 92, 246, 0.15);
   border-color: rgba(139, 92, 246, 0.5);
-  color: var(--neon-purple);
   transform: translateY(-2px);
   box-shadow:
     0 6px 14px -4px rgba(139, 92, 246, 0.4),
     0 0 0 1px rgba(139, 92, 246, 0.3);
-}
-.tx-inline-edit:hover .tib-icon {
-  transform: translateY(-1px) rotate(-6deg) scale(1.1);
+
+  .tib-icon-img { opacity: 1; transform: translateY(-1px) rotate(-6deg) scale(1.1); }
 }
 
 .tx-inline-delete:hover {
   background: rgba(244, 63, 94, 0.15);
   border-color: rgba(244, 63, 94, 0.5);
-  color: var(--danger);
   transform: translateY(-2px);
   box-shadow:
     0 6px 14px -4px rgba(244, 63, 94, 0.4),
     0 0 0 1px rgba(244, 63, 94, 0.3);
+
+  .tib-icon-img { opacity: 1; transform: scale(1.12); }
 }
-.tx-inline-delete:hover .tib-icon { transform: scale(1.12); }
 
 @media (min-width: 701px) {
   .tx-actions-inline { display: inline-flex; }
@@ -698,6 +730,7 @@ const progress = computed(() =>
   &.coin-tbank { border-color: rgba(234, 179, 8, 0.5); }
   &.coin-sber { border-color: rgba(33, 160, 56, 0.5); }
   &.coin-cash { border-color: rgba(34, 197, 94, 0.5); }
+  &.coin-default { border-color: rgba(139, 92, 246, 0.5); }
 }
 
 .tx-bank-coin-img {
@@ -707,10 +740,8 @@ const progress = computed(() =>
   display: block;
 }
 
-.tx-bank-coin-emoji { font-size: 16px; line-height: 1; }
-
 /* ============================================================
-   ТЁМНАЯ ТЕМА — доработки
+   ТЁМНАЯ ТЕМА
    ============================================================ */
 :global(:root[data-app-theme="dark"]) {
   .tx-bank-coin {
@@ -724,10 +755,7 @@ const progress = computed(() =>
 
   .tx-inline-btn {
     background: rgba(255, 255, 255, 0.05);
-    color: rgba(255, 255, 255, 0.75);
     border-color: rgba(139, 92, 246, 0.2);
-
-    &:hover { color: #ffffff; }
   }
 }
 
@@ -737,16 +765,15 @@ const progress = computed(() =>
 @media (max-width: 700px) {
   .tx-card { padding: 12px 14px; gap: 10px; border-radius: 14px; }
   .tx-avatar { flex: 0 0 38px; width: 38px; height: 38px; }
-  .tx-avatar-emoji { font-size: 18px; }
   .tx-name { font-size: 14px; }
   .tx-meta { font-size: 11px; gap: 5px; }
-  .tx-meta .cat { font-size: 10px; padding: 2px 8px; }
+  .tx-meta .cat { font-size: 10px; padding: 2px 8px 2px 4px; gap: 4px; }
+  .tx-cat-icon { width: 14px; height: 14px; }
   .tx-amount { font-size: 15px; }
   .tx-bank-coin { width: 26px; height: 26px; }
-  .tx-bank-coin-emoji { font-size: 13px; }
   .tx-actions-panel { width: 92px; }
   .tx-action-btn { width: 36px; height: 36px; }
-  .tx-action-btn .tab-icon { font-size: 16px; }
+  .tab-icon-img { width: 20px; height: 20px; }
 }
 
 @media (max-width: 380px) {
@@ -758,10 +785,11 @@ const progress = computed(() =>
   .tx-avatar,
   .tx-bank-coin,
   .tx-inline-btn,
-  .tx-amount { transition: none !important; }
+  .tx-amount,
+  .tib-icon-img { transition: none !important; }
   .tx-card:hover { transform: none; }
   .tx-inline-btn:hover { transform: none; }
-  .tx-inline-btn:hover .tib-icon { transform: none; }
+  .tx-inline-btn:hover .tib-icon-img { transform: none; }
   .tx-amount.flash-up,
   .tx-amount.flash-down,
   .tx-item.is-appearing,

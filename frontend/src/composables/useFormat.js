@@ -50,48 +50,120 @@ export function isToday(date) {
   return dayKey(date) === dayKey(new Date());
 }
 
-/** Иконки категорий */
-const CATEGORY_ICONS = {
-  'Еда': '🍔', 'Продукты': '🛒', 'Кафе и рестораны': '☕',
-  'Транспорт': '🚗', 'Такси': '🚕', 'Бензин': '⛽',
-  'Общественный транспорт': '🚌',
-  'Жильё': '🏠', 'Аренда': '🔑', 'Ипотека': '🏦',
-  'Коммунальные': '💡', 'Интернет и связь': '📶',
-  'Развлечения': '🎬', 'Подписки': '📺',
-  'Покупки': '🛍️', 'Одежда и обувь': '👕',
-  'Здоровье': '💊', 'Аптека': '💉', 'Спорт': '🏋️',
-  'Образование': '📚', 'Дети': '👶', 'Домашние животные': '🐾',
-  'Путешествия': '✈️', 'Красота': '💄',
-  'Подарки': '🎁', 'Благотворительность': '❤️',
-  'Кредиты': '💳', 'Страхование': '🛡️', 'Налоги': '📋',
-  'Техника': '📱', 'Ремонт': '🔧', 'Автомобиль': '🚙',
-  'Зарплата': '💼', 'Аванс': '💰', 'Премия': '🏆',
-  'Фриланс': '💻', 'Бизнес': '📊',
-  'Инвестиции': '📈', 'Дивиденды': '💹',
-  'Проценты по вкладу': '🏦', 'Кэшбэк': '💸', 'Возврат': '↩️',
-  'Перевод от': '👤', 'Перевод между счетами': '🔁',
-  'Перевод между пользователями': '👥',
-  'Прочее': '📦',
+/* ============================================================
+   ✅ ИКОНКИ КАТЕГОРИЙ — PNG
+   ============================================================ */
+
+const CATEGORY_ICON_MAP = {
+  // Расходы
+  'Продукты': 'groceries',
+  'Кафе и рестораны': 'cafe',
+  'Еда': 'food',
+  'Такси': 'taxi',
+  'Бензин': 'fuel',
+  'Общественный транспорт': 'transport',
+  'Транспорт': 'car',
+  'Аренда': 'rent',
+  'Ипотека': 'mortgage',
+  'Жильё': 'home',
+  'Коммунальные': 'utilities',
+  'Интернет и связь': 'internet',
+  'Развлечения': 'entertainment',
+  'Подписки': 'subscriptions',
+  'Покупки': 'shopping',
+  'Одежда и обувь': 'clothes',
+  'Техника': 'tech',
+  'Аптека': 'pharmacy',
+  'Здоровье': 'health',
+  'Спорт': 'sport',
+  'Красота': 'beauty',
+  'Образование': 'education',
+  'Дети': 'kids',
+  'Домашние животные': 'pets',
+  'Путешествия': 'travel',
+  'Кредиты': 'credit',
+  'Страхование': 'insurance',
+  'Налоги': 'taxes',
+  'Ремонт': 'repair',
+  'Автомобиль': 'car',
+  'Гараж': 'garage',
+  'Сад и огород': 'garden',
+  'Подарки': 'gifts',
+  'Благотворительность': 'charity',
+
+  // Доходы
+  'Зарплата': 'salary',
+  'Аванс': 'advance',
+  'Премия': 'bonus',
+  'Фриланс': 'freelance',
+  'Бизнес': 'business',
+  'Инвестиции': 'investments',
+  'Дивиденды': 'dividends',
+  'Проценты по вкладу': 'deposit',
+  'Кэшбэк': 'cashback',
+  'Возврат': 'refund',
+  'Перевод от': 'transfer-in',
+  'Перевод между счетами': 'transfer',
+  'Перевод между пользователями': 'transfer-user',
+  'Внутренний перевод': 'transfer-internal',
+
+  // Прочее
+  'Прочее': 'other',
 };
 
+/**
+ * ✅ Путь к PNG-иконке категории
+ * @param {string} category
+ * @returns {string}
+ */
 export function categoryIcon(category) {
-  return CATEGORY_ICONS[category] || '📦';
+  const name = CATEGORY_ICON_MAP[category] || 'other';
+  return `/img/icons/categories/${name}.png`;
 }
 
+/**
+ * ✅ Аватар пользователя (PNG)
+ */
+export function userAvatarPath(user) {
+  if (user === 'Сергей') return '/img/mascots/avatar-man.png';
+  if (user === 'Саша') return '/img/mascots/avatar-woman.png';
+  return '/img/mascots/avatar-man.png';
+}
+
+/**
+ * @deprecated — используйте userAvatarPath
+ */
 export function userEmoji(user) {
   return user === 'Сергей' ? '👨' : user === 'Саша' ? '👩' : '👤';
 }
 
+/* ============================================================
+   ✅ БАНКИ
+   ============================================================ */
+
+/** Логотип банка */
 export function bankLogo(id) {
   if (!id) return null;
+  if (id === 'cash' || id.startsWith('cash_')) return null; // обрабатывается отдельно
   if (id.startsWith('sber'))  return '/img/sber.png';
   if (id.startsWith('tbank')) return '/img/tbank.png';
-  return null;
+  return '/img/banks/default.png';
 }
 
+/** Название банка */
 export function bankLabel(id) {
   if (!id) return '';
+  if (id === 'cash' || id.startsWith('cash_')) return 'Наличные';
   if (id.startsWith('sber'))  return 'СберБанк';
   if (id.startsWith('tbank')) return 'Т-Банк';
-  return '';
+  return 'Счёт';
+}
+
+/** ✅ Универсальный хелпер для банк-монеты */
+export function bankIconPath(id) {
+  if (!id) return '/img/banks/default.png';
+  if (id === 'cash' || id.startsWith('cash_')) return '/img/icons/nav/cash.png';
+  if (id.startsWith('sber'))  return '/img/sber.png';
+  if (id.startsWith('tbank')) return '/img/tbank.png';
+  return '/img/banks/default.png';
 }
