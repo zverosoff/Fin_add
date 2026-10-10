@@ -409,4 +409,16 @@ html[data-app-theme="dark"] .stat-extra-row.expense .se-value {
   color: #f43f5e !important;
   text-shadow: 0 0 10px rgba(244, 63, 94, 0.5) !important;
 }
+:root {
+  --bg-page: #f4f6fb;
+}
+
+html[data-app-theme="dark"] {
+  --bg-page: #14091f;
+}
+
+/* ✅ .page-transition-wrap наследует фон темы */
+.page-transition-wrap {
+  background: var(--bg-page, transparent);
+}
 </style>
