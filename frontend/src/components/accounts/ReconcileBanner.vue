@@ -1,20 +1,27 @@
 <script setup>
 import { computed } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
-import { fmt } from '@/composables/useFormat';
+import { fmt, AVATAR_MAN, AVATAR_WOMAN } from '@/composables/useFormat';
 
 const emit = defineEmits(['reconcile']);
 
 const accounts = useAccountsStore();
 
+const ICON_WARNING = '/img/icons/ui/warning.png';
+const ICON_BALANCE = '/img/icons/ui/balance.png';
+
 const hasDiff = computed(() => accounts.hasAnyDiff);
 const users = computed(() => accounts.userDiffs);
+
+function userAvatar(userName) {
+  return userName === 'Сергей' ? AVATAR_MAN : AVATAR_WOMAN;
+}
 </script>
 
 <template>
   <div v-if="hasDiff" class="reconcile-banner">
     <div class="banner-head">
-      <span class="icon">⚠️</span>
+      <img :src="ICON_WARNING" class="banner-icon-img" alt="Внимание" />
       <span class="title">Расхождение баланса по пользователям</span>
     </div>
 
@@ -25,7 +32,7 @@ const users = computed(() => accounts.userDiffs);
         class="user-row"
         :class="u.hasDiff ? 'bad' : 'ok'"
       >
-        <span class="avatar">{{ u.userName === 'Сергей' ? '👨' : '👩' }}</span>
+        <img :src="userAvatar(u.userName)" class="row-avatar" :alt="u.userName" />
         <span class="name">{{ u.userName }}</span>
 
         <span v-if="!u.hasDiff" class="detail">✅ сходится</span>
@@ -46,16 +53,14 @@ const users = computed(() => accounts.userDiffs);
         class="reconcile-btn"
         @click="emit('reconcile', u)"
       >
-        ⚖️ Сверить {{ u.userName === 'Сергей' ? '👨 Сергей' : '👩 Саша' }}
+        <img :src="ICON_BALANCE" class="btn-icon-img" alt="" />
+        <span>Сверить {{ u.userName }}</span>
       </button>
     </div>
   </div>
 </template>
 
 <style scoped lang="scss">
-/* ============================================================
-   ✅ БАННЕР — объёмный, с многослойной тенью
-   ============================================================ */
 .reconcile-banner {
   display: flex;
   flex-direction: column;
@@ -95,10 +100,6 @@ const users = computed(() => accounts.userDiffs);
   align-items: center;
   gap: 10px;
 
-  .icon {
-    font-size: 20px;
-    animation: pulse 2s ease-in-out infinite;
-  }
   .title {
     font-size: 12.5px;
     font-weight: 800;
@@ -108,9 +109,23 @@ const users = computed(() => accounts.userDiffs);
   }
 }
 
-@keyframes pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50%      { transform: scale(1.15); opacity: 0.7; }
+/* ✅ PNG-иконка предупреждения — фикс 22×22 */
+.banner-icon-img {
+  display: block;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  max-width: 22px;
+  max-height: 22px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+  animation: pulseIcon 2s ease-in-out infinite;
+}
+
+@keyframes pulseIcon {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.12); }
 }
 
 .banner-body {
@@ -119,10 +134,9 @@ const users = computed(() => accounts.userDiffs);
   gap: 6px;
 }
 
-/* ✅ Строки — вложенные карточки */
 .user-row {
   display: grid;
-  grid-template-columns: auto 80px 1fr;
+  grid-template-columns: auto 1fr 1fr;
   gap: 10px;
   align-items: center;
   padding: 10px 14px;
@@ -144,12 +158,28 @@ const users = computed(() => accounts.userDiffs);
   }
 }
 
-.avatar { font-size: 16px; }
+/* ✅ PNG-аватар в строке — фикс 24×24 */
+.row-avatar {
+  display: block;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  max-width: 24px;
+  max-height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1.5px solid rgba(255, 255, 255, 0.7);
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+}
+
 .name {
   font-weight: 800;
   color: var(--text);
   text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
 }
+
 .detail {
   color: var(--muted);
   line-height: 1.4;
@@ -170,8 +200,10 @@ const users = computed(() => accounts.userDiffs);
   flex-wrap: wrap;
 }
 
-/* ✅ Кнопка «Сверить» — рельефная */
 .reconcile-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   padding: 10px 18px;
   border-radius: 12px;
   border: 1px solid rgba(245, 158, 11, 0.5);
@@ -183,6 +215,7 @@ const users = computed(() => accounts.userDiffs);
   font-weight: 800;
   cursor: pointer;
   white-space: nowrap;
+  overflow: hidden;
 
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.4) inset,
@@ -200,16 +233,28 @@ const users = computed(() => accounts.userDiffs);
       0 -2px 0 rgba(180, 83, 9, 0.3) inset,
       0 6px 14px rgba(245, 158, 11, 0.45),
       0 14px 32px -6px rgba(245, 158, 11, 0.6);
+
+    .btn-icon-img { transform: scale(1.1) rotate(-4deg); }
   }
   &:active {
     transform: translateY(0) scale(0.97);
-    box-shadow:
-      0 2px 6px rgba(245, 158, 11, 0.4) inset,
-      0 2px 4px rgba(180, 83, 9, 0.3);
   }
 }
 
-/* Мобильный */
+/* ✅ PNG-иконка весов в кнопке — фикс 18×18 */
+.btn-icon-img {
+  display: block;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  max-height: 18px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
+  transition: transform 0.2s cubic-bezier(.34,1.56,.64,1);
+}
+
 @media (max-width: 700px) {
   .reconcile-banner {
     padding: 14px 16px;
@@ -219,7 +264,13 @@ const users = computed(() => accounts.userDiffs);
 
   .banner-head {
     gap: 8px;
-    .icon { font-size: 18px; }
+    .banner-icon-img {
+      width: 20px;
+      height: 20px;
+      min-width: 20px;
+      max-width: 20px;
+      max-height: 20px;
+    }
     .title { font-size: 11px; letter-spacing: 0.03em; }
   }
 
@@ -230,7 +281,14 @@ const users = computed(() => accounts.userDiffs);
     font-size: 12px;
   }
 
-  .avatar { font-size: 15px; }
+  .row-avatar {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    max-width: 22px;
+    max-height: 22px;
+  }
+
   .name { grid-column: 2; font-size: 12px; }
   .detail {
     grid-column: 1 / 3;
@@ -254,7 +312,8 @@ const users = computed(() => accounts.userDiffs);
 @media (prefers-reduced-motion: reduce) {
   .reconcile-banner,
   .reconcile-btn,
-  .banner-head .icon {
+  .banner-icon-img,
+  .btn-icon-img {
     transition: none !important;
     transform: none !important;
     animation: none !important;

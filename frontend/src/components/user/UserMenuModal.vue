@@ -11,7 +11,17 @@ const emit = defineEmits(['update:modelValue', 'logout']);
 
 const auth = useAuthStore();
 
-const emoji = computed(() => props.owner === 'Сергей' ? '👨' : '👩');
+// ✅ PNG-иконки
+const ICON_USER     = '/img/icons/ui/user.png';
+const ICON_SWITCH   = '/img/icons/ui/switch.png';
+const ICON_KEY      = '/img/icons/ui/key.png';
+const ICON_LOGOUT   = '/img/icons/ui/logout.png';
+const AVATAR_MAN    = '/img/icons/mascots/avatar-man.png';
+const AVATAR_WOMAN  = '/img/icons/mascots/avatar-woman.png';
+
+const avatar = computed(() =>
+  props.owner === 'Сергей' ? AVATAR_MAN : AVATAR_WOMAN
+);
 const isCurrentUser = computed(() => auth.user === props.owner);
 
 function close() {
@@ -38,9 +48,16 @@ function handleSwitch() {
     title="👤 Пользователь"
     @update:model-value="emit('update:modelValue', $event)"
   >
+    <template #header>
+      <div class="modal-head-custom">
+        <img :src="ICON_USER" class="mhc-icon" alt="Пользователь" />
+        <h3 class="mhc-title">Пользователь</h3>
+      </div>
+    </template>
+
     <div class="user-menu">
       <div class="um-head">
-        <div class="um-avatar">{{ emoji }}</div>
+        <img :src="avatar" class="um-avatar-img" :alt="owner" />
         <div class="um-info">
           <div class="um-name">{{ owner }}</div>
           <div class="um-role">
@@ -56,25 +73,25 @@ function handleSwitch() {
           :disabled="isCurrentUser"
           @click="handleSwitch"
         >
-          <span class="um-icon">🔄</span>
+          <img :src="ICON_SWITCH" class="um-icon-img" alt="" />
           <span class="um-label">Переключиться на {{ owner }}</span>
           <span v-if="isCurrentUser" class="um-badge">текущий</span>
         </button>
 
         <button class="um-item" type="button" disabled>
-          <span class="um-icon">👤</span>
+          <img :src="ICON_USER" class="um-icon-img" alt="" />
           <span class="um-label">Профиль</span>
           <span class="um-badge">в разработке</span>
         </button>
 
         <button class="um-item" type="button" disabled>
-          <span class="um-icon">🔑</span>
+          <img :src="ICON_KEY" class="um-icon-img" alt="" />
           <span class="um-label">Сменить PIN</span>
           <span class="um-badge">в разработке</span>
         </button>
 
         <button class="um-item danger" type="button" @click="handleLogout">
-          <span class="um-icon">🚪</span>
+          <img :src="ICON_LOGOUT" class="um-icon-img" alt="" />
           <span class="um-label">Выйти из аккаунта</span>
         </button>
       </div>
@@ -87,6 +104,36 @@ function handleSwitch() {
 </template>
 
 <style scoped lang="scss">
+/* ✅ Кастомный заголовок */
+.modal-head-custom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mhc-icon {
+  display: block;
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  max-width: 26px;
+  max-height: 26px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.mhc-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .user-menu {
   display: flex;
   flex-direction: column;
@@ -103,10 +150,20 @@ function handleSwitch() {
   border: 1px solid rgba(56, 189, 248, 0.25);
 }
 
-.um-avatar {
-  font-size: 32px;
-  line-height: 1;
+/* ✅ PNG-аватар — фикс 44×44 */
+.um-avatar-img {
+  display: block;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  max-width: 44px;
+  max-height: 44px;
+  border-radius: 50%;
+  object-fit: cover;
   flex-shrink: 0;
+  border: 2px solid rgba(139, 92, 246, 0.4);
+  background: #fff;
+  box-shadow: 0 4px 10px -2px rgba(99, 102, 241, 0.35);
 }
 
 .um-info {
@@ -174,11 +231,26 @@ function handleSwitch() {
   }
 }
 
-.um-icon {
+/* ✅ PNG-иконка внутри пункта — фикс 20×20 */
+.um-icon-img {
+  display: block;
   width: 20px;
-  text-align: center;
-  font-size: 16px;
+  height: 20px;
+  min-width: 20px;
+  max-width: 20px;
+  max-height: 20px;
+  object-fit: contain;
   flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+  transition: filter 0.15s;
+}
+
+.um-item:not(:disabled):hover .um-icon-img {
+  filter: drop-shadow(0 0 6px rgba(56, 189, 248, 0.5)) brightness(1.15);
+}
+
+.um-item.danger:hover .um-icon-img {
+  filter: drop-shadow(0 0 6px rgba(239, 68, 68, 0.6)) brightness(1.15);
 }
 
 .um-label {
@@ -212,19 +284,42 @@ function handleSwitch() {
   &:hover { background: #e2e8f0; }
 }
 
-/* ============================================================
-   МОБИЛЬНЫЙ
-   ============================================================ */
 @media (max-width: 700px) {
   .um-head { padding: 12px 14px; }
-  .um-avatar { font-size: 26px; }
+
+  .um-avatar-img {
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    max-width: 38px;
+    max-height: 38px;
+  }
+
   .um-name { font-size: 15px; }
+
   .um-item {
     padding: 12px 12px;
     font-size: 13.5px;
     gap: 10px;
   }
-  .um-icon { font-size: 15px; width: 18px; }
+
+  .um-icon-img {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    max-width: 18px;
+    max-height: 18px;
+  }
+
   .um-badge { font-size: 9px; padding: 2px 6px; }
+
+  .mhc-icon {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    max-width: 22px;
+    max-height: 22px;
+  }
+  .mhc-title { font-size: 15px; }
 }
 </style>
