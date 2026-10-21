@@ -57,10 +57,22 @@ const booting = ref(false);
 const percent = ref(0);
 const stage = ref('Запуск…');
 const done = ref(false);
+
+// ✅ Управление модалками
 const manualOpen = ref(false);
 const pdfOpen = ref(false);
 
+// ✅ Функции переключения вкладок
+function openScan() { scanStore.open(); }
+function openManual() { manualOpen.value = true; }
+function openPdf() { pdfOpen.value = true; }
+
 const showBottomNav = computed(() => route.name !== 'login');
+const showChat = computed(() =>
+  route.name !== 'login' &&
+  route.name !== 'profile' &&
+  auth.isAuthenticated
+);
 
 const TAB_ORDER = ['finance', 'analytics', 'deposits', 'profile'];
 const transitionName = ref('fade-page');
@@ -78,19 +90,12 @@ watch(() => route.name, (newName, oldName) => {
   }
 });
 
-function switchToManual() { scanStore.close(); manualOpen.value = true; }
-function switchToPdf() { scanStore.close(); pdfOpen.value = true; }
-
 async function preloadPeerProfiles() {
   const owners = ['Сергей', 'Саша'];
   const me = auth.user;
   for (const owner of owners) {
     if (owner !== me) {
-      try {
-        await auth.loadPeerProfile(owner);
-      } catch (e) {
-        console.warn('[app] loadPeerProfile failed for', owner, e.message);
-      }
+      try { await auth.loadPeerProfile(owner); } catch (e) {}
     }
   }
 }
@@ -147,11 +152,7 @@ onMounted(async () => {
     connect();
     notifySaved('готово');
 
-    try {
-      await subscribeToPush();
-    } catch (e) {
-      console.warn('[app] push subscribe failed:', e.message);
-    }
+    try { await subscribeToPush(); } catch (e) {}
 
     percent.value = 100;
     stage.value = 'Готово!';
@@ -211,6 +212,38 @@ onUnmounted(() => {
 
     <ToastContainer />
   </div>
+
+  <BottomNav v-if="showBottomNav" />
+  <ChatWidget v-if="showChat" />
+
+  <!-- ✅ Модалки с передачей событий -->
+  <ScanModal
+    v-model="scanStore.isOpen"
+    @switch-to-manual="openManual"
+    @switch-to-pdf="openPdf"
+  />
+
+  <ManualModal
+    v-model="manualOpen"
+    @switch-to-scan="openScan"
+    @switch-to-pdf="openPdf"
+  />
+
+  <PdfImportModal
+    v-model="pdfOpen"
+    @switch-to-scan="openScan"
+    @switch-to-manual="openManual"
+  />
+
+  <WelcomeOverlay
+    :visible="booting"
+    :user-name="auth.user"
+    :percent="percent"
+    :stage="stage"
+    :done="done"
+  />
+
+  <ToastContainer />
 </template>
 
 <style>

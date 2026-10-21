@@ -11,18 +11,12 @@ import Modal from '@/components/ui/Modal.vue';
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
 });
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits(['update:modelValue', 'switch-to-scan', 'switch-to-manual']);
 
 const accounts = useAccountsStore();
 const txStore = useTransactionsStore();
 const auth = useAuthStore();
 const toast = useToast();
-
-// ✅ PNG-иконки
-const ICON_PDF      = '/img/icons/ui/pdf.png';
-const ICON_CALENDAR = '/img/icons/ui/calendar.png';
-const ICON_INCOME   = '/img/icons/categories/income.png';
-const ICON_EXPENSE  = '/img/icons/categories/expense.png';
 
 const step = ref('upload');
 const file = ref(null);
@@ -43,6 +37,15 @@ const saving = ref(false);
 const userAccounts = computed(() =>
   accounts.accounts.filter(a => (a.owner || 'Сергей') === user.value)
 );
+
+function switchToScan() {
+  emit('update:modelValue', false);
+  emit('switch-to-scan');
+}
+function switchToManual() {
+  emit('update:modelValue', false);
+  emit('switch-to-manual');
+}
 
 function reset() {
   step.value = 'upload';
@@ -98,12 +101,7 @@ async function parse() {
 
   try {
     const { bank, operations } = await parsePdfFile(file.value, bankHint.value);
-
-    console.log('[pdf] банк:', bank, 'операций:', operations.length);
-
-    if (!operations.length) {
-      throw new Error('Не удалось найти операции в выписке');
-    }
+    if (!operations.length) throw new Error('Не удалось найти операции в выписке');
 
     detectedBank.value = bank;
     items.value = operations;
@@ -115,17 +113,13 @@ async function parse() {
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
       if (!monthsMap.has(key)) {
         monthsMap.set(key, {
-          key,
-          year: d.getFullYear(),
-          month: d.getMonth(),
+          key, year: d.getFullYear(), month: d.getMonth(),
           label: ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'][d.getMonth()] + ' ' + d.getFullYear(),
-          count: 0,
-          active: true,
+          count: 0, active: true,
         });
       }
       monthsMap.get(key).count++;
     }
-
     availableMonths.value = Array.from(monthsMap.values()).sort((a, b) => {
       if (a.year !== b.year) return b.year - a.year;
       return b.month - a.month;
@@ -149,16 +143,12 @@ function toggleMonth(key) {
 }
 
 const visibleItems = computed(() => {
-  const activeKeys = new Set(
-    availableMonths.value.filter(m => m.active).map(m => m.key)
-  );
-  return items.value
-    .map((it, i) => ({ ...it, index: i }))
-    .filter(it => {
-      const d = new Date(it.date);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-      return activeKeys.has(key);
-    });
+  const activeKeys = new Set(availableMonths.value.filter(m => m.active).map(m => m.key));
+  return items.value.map((it, i) => ({ ...it, index: i })).filter(it => {
+    const d = new Date(it.date);
+    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    return activeKeys.has(key);
+  });
 });
 
 function toggleItem(i) {
@@ -209,40 +199,28 @@ async function save() {
 
   saving.value = true;
   error.value = '';
-
   let added = 0, failed = 0;
 
   for (const it of toSave) {
-    const txData = {
-      name: it.name,
-      amount: it.amount,
-      type: it.type,
-      category: it.category || 'Прочее',
-      date: it.date,
-      user: user.value,
-      accountId: accountId.value || null,
-      fromPdf: true,
-      internalTransfer: false,
-      importOrder: it._idx,
-    };
-
     try {
-      await txStore.save(txData);
+      await txStore.save({
+        name: it.name,
+        amount: it.amount,
+        type: it.type,
+        category: it.category || 'Прочее',
+        date: it.date,
+        user: user.value,
+        accountId: accountId.value || null,
+        fromPdf: true,
+        internalTransfer: false,
+      });
       added++;
-    } catch (e) {
-      failed++;
-      console.warn('[pdf] ошибка сохранения', e);
-    }
+    } catch (e) { failed++; }
   }
 
   saving.value = false;
-
-  if (failed > 0) {
-    toast.error(`Добавлено ${added}, ошибок: ${failed}`);
-  } else {
-    toast.success(`✅ Добавлено ${added} операций`);
-  }
-
+  if (failed > 0) toast.error(`Добавлено ${added}, ошибок: ${failed}`);
+  else toast.success(`✅ Добавлено ${added} операций`);
   emit('update:modelValue', false);
 }
 
@@ -256,12 +234,20 @@ function close() {
     :model-value="modelValue"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <template #header>
-      <div class="modal-head-custom">
-        <img :src="ICON_PDF" class="mhc-icon" alt="PDF" />
-        <h3 class="mhc-title">Импорт PDF-выписки</h3>
+    <!-- ✅ ЗАКРЕПЛЕННАЯ ПАНЕЛЬ ВКЛАДОК -->
+    <div class="sticky-tabs">
+      <div class="mode-switch">
+        <button type="button" class="mode" @click="switchToScan">
+          <span class="m-icon">📸</span> Скриншот
+        </button>
+        <button type="button" class="mode" @click="switchToManual">
+          <span class="m-icon">✏️</span> Вручную
+        </button>
+        <button type="button" class="mode active" disabled>
+          <span class="m-icon">📄</span> PDF
+        </button>
       </div>
-    </template>
+    </div>
 
     <!-- ШАГ 1. Загрузка -->
     <div v-if="step === 'upload'" class="step">
@@ -293,13 +279,7 @@ function close() {
 
       <div class="field">
         <label>📄 PDF-файл выписки</label>
-        <input
-          id="pdfFileInput"
-          type="file"
-          accept="application/pdf,.pdf"
-          hidden
-          @change="onFileSelected"
-        />
+        <input id="pdfFileInput" type="file" accept="application/pdf,.pdf" hidden @change="onFileSelected" />
         <button class="upload-btn" type="button" @click="triggerFileInput">
           <img :src="ICON_PDF" class="upload-icon-img" alt="" />
           <span class="upload-text">
@@ -337,8 +317,7 @@ function close() {
           :class="{ active: m.active }"
           @click="toggleMonth(m.key)"
         >
-          {{ m.label }}
-          <span class="cnt">{{ m.count }}</span>
+          {{ m.label }} <span class="cnt">{{ m.count }}</span>
         </button>
       </div>
 
@@ -349,29 +328,14 @@ function close() {
           class="item-row"
           :class="{ selected: selectedIndices.has(it.index) }"
         >
-          <input
-            type="checkbox"
-            :checked="selectedIndices.has(it.index)"
-            @change="toggleItem(it.index)"
-          />
-
+          <input type="checkbox" :checked="selectedIndices.has(it.index)" @change="toggleItem(it.index)" />
           <div class="item-desc">
             <span class="date">{{ formatDate(it.date) }}</span>
             <span class="name" @click="editDescription(it.index)">{{ it.name }}</span>
           </div>
-
-          <div
-            class="type-badge"
-            :class="it.type"
-            @click="toggleType(it.index)"
-          >
-            <img
-              :src="it.type === 'income' ? ICON_INCOME : ICON_EXPENSE"
-              class="type-badge-img"
-              :alt="it.type"
-            />
+          <div class="type-badge" :class="it.type" @click="toggleType(it.index)">
+            {{ it.type === 'income' ? '📈' : '📉' }}
           </div>
-
           <div class="amount" :class="it.type" @click="editAmount(it.index)">
             {{ it.type === 'income' ? '+' : '−' }} {{ fmt(it.amount) }} ₽
           </div>
@@ -400,383 +364,60 @@ function close() {
 </template>
 
 <style scoped lang="scss">
-/* ✅ Кастомный заголовок */
-.modal-head-custom {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  min-width: 0;
+/* ✅ Стили вкладок */
+.sticky-tabs {
+  position: sticky;
+  top: -16px;
+  z-index: 100;
+  background: #ffffff;
+  padding: 16px 0 12px;
+  margin: -16px 0 12px;
+  border-bottom: 1px solid #e2e8f0;
 }
+.mode-switch { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; padding: 4px; background: linear-gradient(180deg, #f1f5f9, #e2e8f0); border-radius: 14px; }
+.mode { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 12px; border: none; background: transparent; color: #64748b; font-family: inherit; font-size: 12.5px; font-weight: 800; border-radius: 10px; cursor: pointer; }
+.mode.active { background: linear-gradient(180deg, #818cf8, #6366f1); color: #fff; box-shadow: 0 1px 0 rgba(255,255,255,0.3) inset, 0 -2px 0 rgba(49,46,129,0.3) inset, 0 4px 10px -2px rgba(99,102,241,0.5); }
 
-.mhc-icon {
-  display: block;
-  width: 26px;
-  height: 26px;
-  min-width: 26px;
-  max-width: 26px;
-  max-height: 26px;
-  object-fit: contain;
-  flex-shrink: 0;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
-}
-
-.mhc-title {
-  margin: 0;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
+/* Остальное */
 .step { display: flex; flex-direction: column; gap: 12px; }
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-
-  label {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  input, select {
-    padding: 9px 12px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: var(--panel-2);
-    color: var(--text);
-    font-family: inherit;
-    font-size: 14px;
-    outline: none;
-    width: 100%;
-    transition: border-color 0.15s, box-shadow 0.15s, background 0.3s ease;
-
-    &:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
-    }
-    &::placeholder { color: var(--muted); opacity: 0.6; }
-  }
-}
-
-.upload-btn {
-  display: flex;
-  align-items: center;
-  gap: 14px;
-  width: 100%;
-  padding: 16px 18px;
-  border-radius: 14px;
-  border: 2px dashed rgba(139, 92, 246, 0.4);
-  background: rgba(139, 92, 246, 0.06);
-  color: var(--text);
-  font-family: inherit;
-  cursor: pointer;
-  text-align: left;
-  transition: all 0.2s;
-
-  &:hover {
-    border-color: var(--accent);
-    background: rgba(139, 92, 246, 0.12);
-    transform: translateY(-1px);
-  }
-}
-
-.upload-icon-img {
-  display: block;
-  width: 36px;
-  height: 36px;
-  min-width: 36px;
-  max-width: 36px;
-  max-height: 36px;
-  object-fit: contain;
-  flex-shrink: 0;
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
-}
-
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.field input, .field select { padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; background: #ffffff; color: var(--text); font-family: inherit; font-size: 14px; outline: none; width: 100%; }
+.field input:focus, .field select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15); }
+.upload-btn { display: flex; align-items: center; gap: 14px; width: 100%; padding: 16px 18px; border-radius: 14px; border: 2px dashed rgba(56, 189, 248, 0.4); background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(139, 92, 246, 0.06)); color: var(--text); font-family: inherit; cursor: pointer; text-align: left; transition: all 0.2s; }
+.upload-btn:hover { border-color: var(--accent); background: linear-gradient(135deg, rgba(56, 189, 248, 0.14), rgba(139, 92, 246, 0.1)); }
+.upload-icon { font-size: 32px; flex-shrink: 0; display: inline-flex; align-items: center; justify-content: center; width: 52px; height: 52px; border-radius: 14px; background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(139, 92, 246, 0.12)); border: 1px solid rgba(56, 189, 248, 0.25); }
 .upload-text { display: flex; flex-direction: column; gap: 2px; }
-
-.upload-title {
-  font-size: 15px;
-  font-weight: 700;
-  color: var(--text);
-}
-
-.upload-sub {
-  font-size: 11.5px;
-  color: var(--muted);
-}
-
-.file-name {
-  margin-top: 6px;
-  padding: 8px 12px;
-  border-radius: 10px;
-  background: rgba(34, 197, 94, 0.1);
-  border: 1px solid rgba(34, 197, 94, 0.3);
-  color: var(--accent-2, #16a34a);
-  font-size: 12px;
-  font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.loading {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 20px;
-  color: var(--muted);
-  font-size: 13px;
-}
-
-.spinner {
-  width: 20px;
-  height: 20px;
-  border: 3px solid rgba(139, 92, 246, 0.2);
-  border-top-color: var(--accent);
-  border-radius: 50%;
-  animation: spin 0.9s linear infinite;
-}
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
-
-.bank-badge {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: rgba(139, 92, 246, 0.08);
-  border: 1px solid rgba(139, 92, 246, 0.25);
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text);
-
-  .count {
-    color: var(--muted);
-    font-weight: 600;
-    font-size: 12px;
-  }
-}
-
-.months-bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  padding: 8px 10px;
-  border-radius: 10px;
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-
-  .label {
-    display: inline-flex;
-    align-items: center;
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--muted);
-    margin-right: 4px;
-  }
-}
-
-.label-icon {
-  display: inline-block;
-  width: 14px;
-  height: 14px;
-  min-width: 14px;
-  max-width: 14px;
-  max-height: 14px;
-  object-fit: contain;
-  vertical-align: middle;
-  margin-right: 4px;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
-}
-
-.month-chip {
-  padding: 4px 10px;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--panel-solid);
-  color: var(--muted);
-  font-family: inherit;
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.15s;
-  white-space: nowrap;
-
-  &:hover {
-    border-color: var(--accent);
-    color: var(--accent);
-  }
-
-  &.active {
-    background: var(--grad-primary);
-    color: #fff;
-    border-color: transparent;
-    box-shadow: 0 4px 10px -2px rgba(139, 92, 246, 0.5);
-  }
-
-  .cnt {
-    margin-left: 4px;
-    opacity: 0.8;
-    font-size: 10px;
-  }
-}
-
-.items-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 45vh;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.item-row {
-  display: grid;
-  grid-template-columns: auto 1fr auto auto;
-  gap: 8px;
-  align-items: center;
-  padding: 10px 12px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--panel-2);
-  transition: border-color 0.15s, background 0.3s ease;
-
-  &.selected {
-    border-color: rgba(139, 92, 246, 0.5);
-    background: rgba(139, 92, 246, 0.08);
-  }
-}
-
-.item-desc {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-
-  .date {
-    font-size: 10.5px;
-    color: var(--accent);
-    font-weight: 700;
-    text-transform: uppercase;
-  }
-
-  .name {
-    font-size: 13px;
-    font-weight: 600;
-    color: var(--text);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    cursor: pointer;
-
-    &:hover { color: var(--accent); }
-  }
-}
-
-.type-badge {
-  padding: 4px 8px;
-  border-radius: 6px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 30px;
-  min-height: 30px;
-  overflow: hidden;
-
-  &.income { background: rgba(34, 197, 94, 0.15); }
-  &.expense { background: rgba(244, 63, 94, 0.15); }
-}
-
-.type-badge-img {
-  display: block;
-  width: 16px;
-  height: 16px;
-  min-width: 16px;
-  max-width: 16px;
-  max-height: 16px;
-  object-fit: contain;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
-}
-
-.amount {
-  font-family: var(--mono);
-  font-size: 14px;
-  font-weight: 800;
-  cursor: pointer;
-  white-space: nowrap;
-
-  &.income { color: var(--accent-2, #16a34a); }
-  &.expense { color: var(--danger); }
-}
-
-.error-msg {
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: rgba(244, 63, 94, 0.1);
-  border: 1px solid rgba(244, 63, 94, 0.3);
-  color: var(--danger);
-  font-size: 12.5px;
-  font-weight: 600;
-}
-
-.btn-cancel, .btn-save {
-  padding: 10px 20px;
-  border-radius: 10px;
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-
-.btn-cancel {
-  background: var(--panel-2);
-  color: var(--text);
-  border-color: var(--border);
-  transition: all 0.15s;
-  &:hover { border-color: var(--border-strong); }
-}
-
-.btn-save {
-  background: var(--grad-primary);
-  color: #fff;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.3) inset,
-    0 -2px 0 rgba(0, 0, 0, 0.15) inset,
-    0 6px 18px -6px rgba(139, 92, 246, 0.7);
-
-  &:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
-  &:not(:disabled):hover {
-    transform: translateY(-1px);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.3) inset,
-      0 -2px 0 rgba(0, 0, 0, 0.15) inset,
-      0 10px 24px -6px rgba(139, 92, 246, 0.9);
-  }
-}
-
-@media (max-width: 700px) {
-  .mhc-icon {
-    width: 22px;
-    height: 22px;
-    min-width: 22px;
-    max-width: 22px;
-    max-height: 22px;
-  }
-  .mhc-title { font-size: 15px; }
-}
+.upload-title { font-size: 15px; font-weight: 700; }
+.upload-sub { font-size: 11.5px; color: var(--muted); }
+.file-name { margin-top: 6px; padding: 8px 12px; border-radius: 10px; background: rgba(34, 197, 94, 0.08); border: 1px solid rgba(34, 197, 94, 0.3); color: #22c55e; font-size: 12px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.loading { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 20px; color: var(--muted); font-size: 13px; }
+.spinner { width: 20px; height: 20px; border: 3px solid rgba(56, 189, 248, 0.2); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.9s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.bank-badge { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border-radius: 10px; background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(139, 92, 246, 0.06)); border: 1px solid rgba(56, 189, 248, 0.25); font-size: 13px; font-weight: 700; }
+.bank-badge .count { color: var(--muted); font-weight: 600; font-size: 12px; }
+.months-bar { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 8px 10px; border-radius: 10px; background: rgba(148, 163, 184, 0.06); }
+.months-bar .label { font-size: 11px; font-weight: 700; color: var(--muted); margin-right: 4px; }
+.month-chip { padding: 4px 10px; border-radius: 999px; border: 1px solid var(--border); background: #f8fafc; color: var(--muted); font-family: inherit; font-size: 11px; font-weight: 700; cursor: pointer; transition: all 0.15s; white-space: nowrap; }
+.month-chip:hover { border-color: var(--accent); color: var(--accent); }
+.month-chip.active { background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: #fff; border-color: transparent; }
+.month-chip .cnt { margin-left: 4px; opacity: 0.8; font-size: 10px; }
+.items-list { display: flex; flex-direction: column; gap: 8px; max-height: 45vh; overflow-y: auto; padding-right: 4px; }
+.item-row { display: grid; grid-template-columns: auto 1fr auto auto; gap: 8px; align-items: center; padding: 10px 12px; border-radius: 10px; border: 1px solid var(--border); background: #ffffff; transition: border-color 0.15s; }
+.item-row.selected { border-color: var(--accent); }
+.item-desc { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.item-desc .date { font-size: 10.5px; color: var(--accent); font-weight: 700; text-transform: uppercase; }
+.item-desc .name { font-size: 13px; font-weight: 600; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.item-desc .name:hover { color: var(--accent); }
+.type-badge { padding: 4px 8px; border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 700; }
+.type-badge.income { background: rgba(34, 197, 94, 0.15); }
+.type-badge.expense { background: rgba(239, 68, 68, 0.15); }
+.amount { font-family: var(--mono); font-size: 14px; font-weight: 800; cursor: pointer; white-space: nowrap; }
+.amount.income { color: #16a34a; }
+.amount.expense { color: #dc2626; }
+.error-msg { padding: 8px 12px; border-radius: 8px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: var(--danger); font-size: 12.5px; font-weight: 600; }
+.btn-cancel, .btn-save { padding: 10px 20px; border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; border: 1px solid transparent; }
+.btn-cancel { background: #f1f5f9; color: var(--text); border-color: var(--border); }
+.btn-save { background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: #fff; box-shadow: 0 10px 24px -10px rgba(59, 130, 246, 0.7); }
+.btn-save:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
 </style>

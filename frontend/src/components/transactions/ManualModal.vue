@@ -11,7 +11,7 @@ import Modal from '@/components/ui/Modal.vue';
 const props = defineProps({
   modelValue: { type: Boolean, default: false },
 });
-const emit = defineEmits(['update:modelValue']);
+const emit = defineEmits(['update:modelValue', 'switch-to-scan', 'switch-to-pdf']);
 
 const accounts = useAccountsStore();
 const tx = useTransactionsStore();
@@ -81,6 +81,15 @@ watch(() => props.modelValue, (val) => {
     form.value.accountId = accs.length ? accs[0].id : '';
   }
 });
+
+function switchToScan() {
+  emit('update:modelValue', false);
+  emit('switch-to-scan');
+}
+function switchToPdf() {
+  emit('update:modelValue', false);
+  emit('switch-to-pdf');
+}
 
 const CATEGORY_HINTS = [
   { re: /магнит|пятёрочк|пятерочк|перекресток|лента|ашан|дикси|продукт/i, cat: 'Продукты' },
@@ -163,6 +172,21 @@ function close() {
     title="➕ Новая операция"
     @update:model-value="emit('update:modelValue', $event)"
   >
+    <!-- ✅ ЗАКРЕПЛЕННАЯ ПАНЕЛЬ ВКЛАДОК -->
+    <div class="sticky-tabs">
+      <div class="mode-switch">
+        <button type="button" class="mode" @click="switchToScan">
+          <span class="m-icon">📸</span> Скриншот
+        </button>
+        <button type="button" class="mode active" disabled>
+          <span class="m-icon">✏️</span> Вручную
+        </button>
+        <button type="button" class="mode" @click="switchToPdf">
+          <span class="m-icon">📄</span> PDF
+        </button>
+      </div>
+    </div>
+
     <div class="form">
       <div class="field">
         <label>Тип</label>
@@ -245,130 +269,35 @@ function close() {
 </template>
 
 <style scoped lang="scss">
+/* ✅ Стили вкладок */
+.sticky-tabs {
+  position: sticky;
+  top: -16px;
+  z-index: 100;
+  background: #ffffff;
+  padding: 16px 0 12px;
+  margin: -16px 0 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.mode-switch { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; padding: 4px; background: linear-gradient(180deg, #f1f5f9, #e2e8f0); border-radius: 14px; }
+.mode { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 12px; border: none; background: transparent; color: #64748b; font-family: inherit; font-size: 12.5px; font-weight: 800; border-radius: 10px; cursor: pointer; }
+.mode.active { background: linear-gradient(180deg, #818cf8, #6366f1); color: #fff; box-shadow: 0 1px 0 rgba(255,255,255,0.3) inset, 0 -2px 0 rgba(49,46,129,0.3) inset, 0 4px 10px -2px rgba(99,102,241,0.5); }
+
+/* Форма */
 .form { display: flex; flex-direction: column; gap: 12px; }
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-
-  label {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  input, select {
-    padding: 9px 12px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: var(--panel-2);
-    color: var(--text);
-    font-family: inherit;
-    font-size: 14px;
-    outline: none;
-    width: 100%;
-    transition: border-color 0.15s, box-shadow 0.15s, background 0.3s ease;
-
-    &:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
-    }
-
-    &::placeholder { color: var(--muted); opacity: 0.6; }
-  }
-}
-
-.row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.type-switch {
-  display: inline-flex;
-  gap: 0;
-  padding: 3px;
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-
-  button {
-    flex: 1;
-    padding: 8px 14px;
-    border: none;
-    background: transparent;
-    color: var(--muted);
-    font-family: inherit;
-    font-size: 13px;
-    font-weight: 700;
-    border-radius: 7px;
-    cursor: pointer;
-    transition: all 0.18s;
-
-    &.active {
-      background: var(--grad-primary);
-      color: #fff;
-      box-shadow:
-        0 1px 0 rgba(255, 255, 255, 0.3) inset,
-        0 -2px 0 rgba(0, 0, 0, 0.15) inset,
-        0 4px 12px -4px rgba(139, 92, 246, 0.6);
-    }
-  }
-}
-
-.error-msg {
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: rgba(244, 63, 94, 0.1);
-  border: 1px solid rgba(244, 63, 94, 0.3);
-  color: var(--danger);
-  font-size: 12.5px;
-  font-weight: 600;
-}
-
-.btn-cancel, .btn-save {
-  padding: 10px 20px;
-  border-radius: 10px;
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-
-.btn-cancel {
-  background: var(--panel-2);
-  color: var(--text);
-  border-color: var(--border);
-  transition: all 0.15s;
-
-  &:hover { border-color: var(--border-strong); }
-}
-
-.btn-save {
-  background: var(--grad-primary);
-  color: #fff;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.3) inset,
-    0 -2px 0 rgba(0, 0, 0, 0.15) inset,
-    0 6px 18px -6px rgba(139, 92, 246, 0.7);
-  transition: all 0.15s;
-
-  &:disabled { opacity: 0.5; cursor: wait; }
-
-  &:not(:disabled):hover {
-    transform: translateY(-1px);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.3) inset,
-      0 -2px 0 rgba(0, 0, 0, 0.15) inset,
-      0 10px 24px -6px rgba(139, 92, 246, 0.9);
-  }
-}
-
-@media (max-width: 700px) {
-  .row { grid-template-columns: 1fr; gap: 10px; }
-}
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+.field input, .field select { padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; background: #ffffff; color: var(--text); font-family: inherit; font-size: 14px; outline: none; width: 100%; }
+.field input:focus, .field select:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15); }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.type-switch { display: inline-flex; gap: 0; padding: 3px; background: #f1f5f9; border-radius: 10px; }
+.type-switch button { flex: 1; padding: 8px 14px; border: none; background: transparent; color: var(--muted); font-family: inherit; font-size: 13px; font-weight: 700; border-radius: 7px; cursor: pointer; transition: all 0.18s; }
+.type-switch button.active { background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: #fff; box-shadow: 0 4px 12px -4px rgba(59, 130, 246, 0.6); }
+.error-msg { padding: 8px 12px; border-radius: 8px; background: rgba(239, 68, 68, 0.08); border: 1px solid rgba(239, 68, 68, 0.3); color: var(--danger); font-size: 12.5px; font-weight: 600; }
+.btn-cancel, .btn-save { padding: 10px 20px; border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; border: 1px solid transparent; }
+.btn-cancel { background: #f1f5f9; color: var(--text); border-color: var(--border); }
+.btn-cancel:hover { background: #e2e8f0; }
+.btn-save { background: linear-gradient(135deg, #3b82f6, #8b5cf6); color: #fff; box-shadow: 0 10px 24px -10px rgba(59, 130, 246, 0.7); }
+.btn-save:disabled { opacity: 0.5; cursor: wait; }
+@media (max-width: 700px) { .row { grid-template-columns: 1fr; gap: 10px; } }
 </style>
