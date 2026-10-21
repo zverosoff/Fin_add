@@ -107,38 +107,18 @@ onUnmounted(() => {
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div
-        v-if="modelValue"
-        class="modal-overlay"
-        @click.self="close"
-      >
-        <div
-          ref="boxEl"
-          class="modal-box"
-          @touchstart.passive="onTouchStart"
-          @touchmove.passive="onTouchMove"
-          @touchend="onTouchEnd"
-          @touchcancel="onTouchEnd"
-        >
-          <div class="modal-handle"></div>
-
-          <header class="modal-head">
-            <!-- ✅ Если передан кастомный slot header — рендерим его,
-                 иначе — стандартный h3 с title -->
-            <slot name="header">
-              <h3>{{ title }}</h3>
-            </slot>
-
-            <button class="modal-close" @click="close" aria-label="Закрыть">✕</button>
-          </header>
-
+      <div v-if="modelValue" class="modal-overlay" @click.self="close">
+        <div class="modal-window">
+          <div class="modal-header">
+            <h3>{{ title }}</h3>
+            <button class="close-btn" @click="close">✕</button>
+          </div>
           <div class="modal-body">
             <slot />
           </div>
-
-          <footer v-if="$slots.footer" class="modal-foot">
+          <div class="modal-footer" v-if="$slots.footer">
             <slot name="footer" />
-          </footer>
+          </div>
         </div>
       </div>
     </Transition>
