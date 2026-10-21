@@ -5,9 +5,7 @@ export function runMigrations() {
   console.log('[migrate] проверка схемы…');
 
   // ============================================================
-<<<<<<< HEAD
   // push_subscriptions — остаётся (нужен для напоминаний)
-=======
   // messages
   // ============================================================
   const hasMessages = db.prepare(`
@@ -103,7 +101,6 @@ export function runMigrations() {
 
   // ============================================================
   // push_subscriptions
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
   // ============================================================
   const hasPush = db.prepare(`
     SELECT name FROM sqlite_master
@@ -127,11 +124,8 @@ export function runMigrations() {
   }
 
   // ============================================================
-<<<<<<< HEAD
   // user_profiles — остаётся (профили для UI)
-=======
   // user_profiles
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
   // ============================================================
   const hasProfiles = db.prepare(`
     SELECT name FROM sqlite_master
@@ -151,10 +145,7 @@ export function runMigrations() {
     `);
     console.log('[migrate] ✅ таблица user_profiles создана');
   } else {
-<<<<<<< HEAD
-=======
     // ✅ Добавляем created_at, если колонки нет
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
     const cols = db.prepare(`PRAGMA table_info(user_profiles)`).all();
     const hasCreatedAt = cols.some(c => c.name === 'created_at');
     if (!hasCreatedAt) {
@@ -164,7 +155,6 @@ export function runMigrations() {
   }
 
   // ============================================================
-<<<<<<< HEAD
   // 🧹 Удаляем таблицы мессенджера, если они остались
   // ============================================================
   const legacyTables = ['messages', 'message_reactions', 'user_presence'];
@@ -177,7 +167,6 @@ export function runMigrations() {
       db.exec(`DROP TABLE IF EXISTS ${t}`);
     }
   }
-=======
   // Системный пользователь «Приложение»
   // ============================================================
   const now = new Date().toISOString();
@@ -186,7 +175,6 @@ export function runMigrations() {
     VALUES ('Приложение', @now, @now)
     ON CONFLICT(user) DO NOTHING
   `).run({ now });
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
 
   console.log('[migrate] ✅ все миграции применены');
 }

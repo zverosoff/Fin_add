@@ -1,28 +1,23 @@
 // backend/src/services/dailyReminder.js
 import cron from 'node-cron';
-<<<<<<< HEAD
 import { sendPushToUser } from './push.js';
 
 const USERS = ['Сергей', 'Саша'];
-=======
 import db from '../db/index.js';
 import { sendPushToUser } from './push.js';
 
 const USERS = ['Сергей', 'Саша'];
 const SYSTEM_USER = 'Приложение';
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
 
 // ✅ Время напоминания (по умолчанию 21:00 МСК)
 const REMINDER_TIME = process.env.REMINDER_TIME || '21:00';
 const REMINDER_TZ   = process.env.REMINDER_TZ   || 'Europe/Moscow';
 
 // ✅ Текст напоминания
-<<<<<<< HEAD
 const REMINDER_TITLE = 'Финансы PRO+';
 const REMINDER_TEXT  = '📝 Напоминание: не забудь внести расходы и доходы за сегодня.';
 
 async function sendDailyReminder() {
-=======
 const REMINDER_TEXT = '📝 Напоминание: не забудь внести расходы и доходы за сегодня.';
 
 const insertMsg = db.prepare(`
@@ -64,12 +59,10 @@ function rowToMessage(row) {
 }
 
 async function sendDailyReminder(io) {
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
   const now = new Date().toISOString();
   console.log(`[reminder] рассылка в ${now}`);
 
   for (const to of USERS) {
-<<<<<<< HEAD
     try {
       await sendPushToUser(to, {
         title: REMINDER_TITLE,
@@ -78,7 +71,6 @@ async function sendDailyReminder(io) {
         tag: 'daily-reminder',
       });
       console.log(`[reminder] ✓ push отправлен для ${to}`);
-=======
     const id = makeId();
     const msg = {
       id,
@@ -108,18 +100,14 @@ async function sendDailyReminder(io) {
       });
 
       console.log(`[reminder] ✓ отправлено для ${to}`);
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
     } catch (e) {
       console.warn(`[reminder] ✗ ошибка для ${to}:`, e.message);
     }
   }
 }
 
-<<<<<<< HEAD
 export function startDailyReminderCron() {
-=======
 export function startDailyReminderCron(io) {
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
   const [h, m] = String(REMINDER_TIME).split(':').map(n => parseInt(n, 10));
   const H = Number.isFinite(h) ? Math.min(23, Math.max(0, h)) : 21;
   const M = Number.isFinite(m) ? Math.min(59, Math.max(0, m)) : 0;
@@ -129,11 +117,8 @@ export function startDailyReminderCron(io) {
   console.log(`[reminder] cron: "${expr}" (${REMINDER_TZ})`);
 
   cron.schedule(expr, () => {
-<<<<<<< HEAD
     sendDailyReminder();
-=======
     sendDailyReminder(io);
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
   }, {
     timezone: REMINDER_TZ,
   });
