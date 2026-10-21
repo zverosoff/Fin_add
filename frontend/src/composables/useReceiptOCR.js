@@ -4,7 +4,7 @@ export function preprocessImage(file) {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
-      const scale = 2; // Увеличиваем для лучшего OCR
+      const scale = 2;
       const canvas = document.createElement('canvas');
       canvas.width = img.width * scale;
       canvas.height = img.height * scale;
@@ -16,26 +16,21 @@ export function preprocessImage(file) {
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
 
-      // 1. Вычисляем среднюю яркость картинки, чтобы понять, тёмная она или светлая
       let totalBrightness = 0;
       for (let i = 0; i < data.length; i += 4) {
         totalBrightness += (data[i] + data[i + 1] + data[i + 2]) / 3;
       }
       const avgBrightness = totalBrightness / (data.length / 4);
-
-      // Если картинка тёмная (средняя яркость < 128), её нужно инвертировать
       const isDarkTheme = avgBrightness < 128;
 
-      // 2. Жесткая бинаризация
       for (let i = 0; i < data.length; i += 4) {
         let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
         
         if (isDarkTheme) {
-          gray = 255 - gray; // Инвертируем цвета для тёмной темы
+          gray = 255 - gray; 
         }
 
-        // Делаем текст чёрным (0), а фон белым (255)
-        // Порог 180 отлично отделяет светло-серый текст Сбера от тёмного фона
+        // Жесткая бинаризация для текста
         const v = gray > 180 ? 0 : 255; 
         
         data[i] = data[i + 1] = data[i + 2] = v;
@@ -62,7 +57,7 @@ export async function recognizeText(file, onProgress) {
   });
 
   await worker.setParameters({
-    tessedit_pageseg_mode: '6', // Единый блок текста (список)
+    tessedit_pageseg_mode: '6',
   });
 
   const { data } = await worker.recognize(file);
@@ -87,35 +82,42 @@ export async function recognizeText(file, onProgress) {
   return { lines: textLines, width: data.imageWidth || 0, height: data.imageHeight || 0 };
 }
 
-export function parseBankScreenshot(textLines) {
-  if (!textLines || !textLines.length) return [];
+// ============================================================
+// ОБЩИЕ УТИЛИТЫ ДЛЯ ПАРСИНГА
+// ============================================================
+const MONTHS = {
+  'января': 0, 'февраля': 1, 'марта': 2, 'апреля': 3, 'мая': 4, 'июня': 5,
+  'июля': 6, 'августа': 7, 'сентября': 8, 'октября': 9, 'ноября': 10, 'декабря': 11
+};
 
-  const lines = [...textLines].sort((a, b) => {
-    if (!a.bbox || !b.bbox) return 0;
-    return a.bbox.y0 - b.bbox.y0;
-  });
+const CATEGORY_WORDS = [
+  'Супермаркеты', 'Фастфуд', 'Переводы', 'Заправки', 'Сервис', 
+  'Кафе и рестораны', 'Транспорт', 'Развлечения', 'Здоровье', 
+  'Аптеки', 'Одежда и обувь', 'Разное', 'Коммунальные', 
+  'Связь', 'Подписки', 'Выдача наличных', 'Пополнение', 'Здоровье'
+];
 
+function extractCategory(text) {
+  const low = text.toLowerCase();
+  for (const cat of CATEGORY_WORDS) {
+    if (low.includes(cat.toLowerCase())) return cat;
+  }
+  return 'Прочее';
+}
+
+// ============================================================
+// ПАРСЕР ДЛЯ Т-БАНКА
+// ============================================================
+function parseTbank(lines) {
   const operations = [];
-  
-  const MONTHS = {
-    'января': 0, 'февраля': 1, 'марта': 2, 'апреля': 3, 'мая': 4, 'июня': 5,
-    'июля': 6, 'августа': 7, 'сентября': 8, 'октября': 9, 'ноября': 10, 'декабря': 11
-  };
-
-  const AMOUNT_RE = /([+\-−])\s*([\d\s]+(?:[.,]\d{2})?)\s*[₽pPрР]?/;
-  const DATE_WORD_RE = /(Сегодня|Вчера|Позавчера)/i;
-  const DATE_NUM_RE = /(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:[,\s]+([а-я]{2}))?/i;
-
-  const CATEGORY_WORDS = [
-    'Супермаркеты', 'Фастфуд', 'Переводы', 'Заправки', 'Сервис', 
-    'Кафе и рестораны', 'Транспорт', 'Развлечения', 'Здоровье', 
-    'Аптеки', 'Одежда и обувь', 'Разное', 'Коммунальные', 
-    'Связь', 'Подписки', 'Выдача наличных', 'Пополнение'
-  ];
-
-  const parsedItems = []; 
+  const parsedItems = [];
   const now = new Date();
   let defaultYear = now.getFullYear();
+
+  const DATE_WORD_RE = /(Сегодня|Вчера|Позавчера)/i;
+  const DATE_NUM_RE = /(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:[,\s]+([а-я]{2}))?/i;
+  // В Т-банке сумма обычно в формате "- 1 227,51 ₽" или "+ 10 000 ₽"
+  const AMOUNT_RE = /([+\-−])\s*([\d\s]+(?:[.,]\d{2})?)\s*[₽pPрР]?/;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -123,9 +125,7 @@ export function parseBankScreenshot(textLines) {
     if (!text) continue;
     const y = line.bbox ? line.bbox.y0 : 0;
 
-    // --- Ищем дату ---
     let foundDate = null;
-
     if (DATE_WORD_RE.test(text)) {
       const word = text.match(DATE_WORD_RE)[0].toLowerCase();
       foundDate = new Date();
@@ -148,7 +148,6 @@ export function parseBankScreenshot(textLines) {
       continue;
     }
 
-    // --- Ищем операцию ---
     const amountMatch = text.match(AMOUNT_RE);
     if (!amountMatch) continue;
 
@@ -162,6 +161,7 @@ export function parseBankScreenshot(textLines) {
 
     let description = text.replace(amountMatch[0], '').trim();
     
+    // Пропускаем кэшбэк
     if (description.toLowerCase().includes('black') || description.toLowerCase().includes('+')) {
         continue;
     }
@@ -179,19 +179,7 @@ export function parseBankScreenshot(textLines) {
     description = description.replace(/[|•·\-\+−]/g, '').trim();
     if (!description) description = 'Операция';
 
-    let category = 'Прочее';
-    const linesToCheck = [description, lines[i+1]?.text || '', lines[i-1]?.text || ''];
-    for (const checkText of linesToCheck) {
-        const low = checkText.toLowerCase();
-        for (const cat of CATEGORY_WORDS) {
-            if (low.includes(cat.toLowerCase())) {
-                category = cat;
-                description = description.replace(new RegExp(cat, 'ig'), '').trim();
-                break;
-            }
-        }
-        if (category !== 'Прочее') break;
-    }
+    const category = extractCategory(description + ' ' + (lines[i+1]?.text || ''));
 
     let opBbox = line.bbox;
     if (lines[mainLineIndex] && lines[mainLineIndex].bbox && line.bbox) {
@@ -208,17 +196,118 @@ export function parseBankScreenshot(textLines) {
     parsedItems.push({
       type: 'op',
       y,
-      opData: {
-        name: description.slice(0, 80),
-        amount,
-        type,
-        category,
-        bbox: opBbox,
-      }
+      opData: { name: description.slice(0, 80), amount, type, category, bbox: opBbox }
     });
   }
+  return parsedItems;
+}
 
-  // Логика распределения дат (СНИЗУ ВВЕРХ)
+// ============================================================
+// ПАРСЕР ДЛЯ СБЕРА
+// ============================================================
+function parseSber(lines) {
+  const parsedItems = [];
+  const now = new Date();
+  let defaultYear = now.getFullYear();
+
+  const DATE_WORD_RE = /(Сегодня|Вчера|Позавчера)/i;
+  // Сбер: "19 октября, пн" или "19 октября"
+  const DATE_NUM_RE = /(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:[,\s]+([а-я]{2}))?/i;
+  // Сбер: сумма обычно просто цифры "279 ₽" или "1 663,55 ₽"
+  const AMOUNT_RE = /([+\-−]?)\s*([\d\s]+(?:[.,]\d{2})?)\s*[₽pPрР]?/;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const text = (line.text || '').trim();
+    if (!text) continue;
+    const y = line.bbox ? line.bbox.y0 : 0;
+
+    let foundDate = null;
+    if (DATE_WORD_RE.test(text)) {
+      const word = text.match(DATE_WORD_RE)[0].toLowerCase();
+      foundDate = new Date();
+      if (word === 'вчера') foundDate.setDate(foundDate.getDate() - 1);
+      else if (word === 'позавчера') foundDate.setDate(foundDate.getDate() - 2);
+    } else {
+      const dateMatch = text.match(DATE_NUM_RE);
+      if (dateMatch) {
+        const day = parseInt(dateMatch[1], 10);
+        const month = MONTHS[dateMatch[2].toLowerCase()];
+        let year = defaultYear;
+        if (month > now.getMonth()) year -= 1;
+        foundDate = new Date(year, month, day, 12, 0, 0);
+      }
+    }
+
+    if (foundDate) {
+      foundDate.setHours(12, 0, 0, 0);
+      parsedItems.push({ type: 'date', y, date: foundDate });
+      continue;
+    }
+
+    // В Сбере сумма может быть без знака минус
+    const amountMatch = text.match(AMOUNT_RE);
+    if (!amountMatch) continue;
+
+    const rawAmount = amountMatch[2].replace(/\s+/g, '').replace(',', '.');
+    let amount = parseFloat(rawAmount);
+    if (isNaN(amount) || amount <= 0) continue;
+
+    // Если в строке есть "+", значит доход. Иначе расход.
+    const type = text.includes('+') ? 'income' : 'expense';
+    amount = Math.round(amount);
+
+    let description = text.replace(amountMatch[0], '').trim();
+    
+    // В Сбере сумма часто идет просто как "279 ₽", поэтому описание может быть пустым
+    // Если пусто, берем строчку выше
+    if (!description || description.length < 3) {
+      if (i - 1 >= 0 && !DATE_WORD_RE.test(lines[i-1].text) && !DATE_NUM_RE.test(lines[i-1].text)) {
+        description = lines[i-1].text;
+      }
+    }
+
+    description = description.replace(/[|•·\-\+−]/g, '').trim();
+    if (!description) description = 'Операция';
+
+    // Категория в Сбере обычно написана под названием (следующая строка)
+    const nextLineText = lines[i+1]?.text || '';
+    let category = extractCategory(description + ' ' + nextLineText);
+    
+    // Если не нашли в словах, пробуем взять вторую строку (часто там "Оплата товаров и услуг")
+    if (category === 'Прочее' && nextLineText && !nextLineText.match(AMOUNT_RE)) {
+       description += ' (' + nextLineText + ')';
+    }
+
+    parsedItems.push({
+      type: 'op',
+      y,
+      opData: { name: description.slice(0, 80), amount, type, category, bbox: line.bbox }
+    });
+  }
+  return parsedItems;
+}
+
+// ============================================================
+// ГЛАВНАЯ ФУНКЦИЯ
+// ============================================================
+export function parseBankScreenshot(textLines, bankType = 'tbank') {
+  if (!textLines || !textLines.length) return [];
+
+  const lines = [...textLines].sort((a, b) => {
+    if (!a.bbox || !b.bbox) return 0;
+    return a.bbox.y0 - b.bbox.y0;
+  });
+
+  let parsedItems = [];
+  if (bankType === 'sber') {
+    parsedItems = parseSber(lines);
+  } else {
+    parsedItems = parseTbank(lines);
+  }
+
+  // Распределение дат (снизу вверх)
+  const operations = [];
   let currentDate = new Date();
   currentDate.setHours(12, 0, 0, 0);
   let currentOpsGroup = [];
@@ -226,34 +315,22 @@ export function parseBankScreenshot(textLines) {
 
   for (let i = parsedItems.length - 1; i >= 0; i--) {
     const item = parsedItems[i];
-
     if (item.type === 'op') {
       currentOpsGroup.push(item);
     } else if (item.type === 'date') {
       currentDate = item.date;
-      
       for (const op of currentOpsGroup) {
-        operations.push({
-          ...op.opData,
-          date: currentDate.toISOString(),
-          dateUncertain: isUncertainGroup,
-        });
+        operations.push({ ...op.opData, date: currentDate.toISOString(), dateUncertain: isUncertainGroup });
       }
-      
       currentOpsGroup = []; 
       isUncertainGroup = false; 
-      
       currentDate = new Date(currentDate);
       currentDate.setDate(currentDate.getDate() + 1);
     }
   }
 
   for (const op of currentOpsGroup) {
-    operations.push({
-      ...op.opData,
-      date: currentDate.toISOString(),
-      dateUncertain: true,
-    });
+    operations.push({ ...op.opData, date: currentDate.toISOString(), dateUncertain: true });
   }
 
   operations.reverse();

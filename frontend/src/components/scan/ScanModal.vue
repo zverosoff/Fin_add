@@ -33,6 +33,7 @@ const selectedIndices = ref(new Set());
 
 const user = ref(auth.user || 'Сергей');
 const accountId = ref('');
+const bankType = ref('tbank'); // 'tbank' | 'sber'
 const error = ref('');
 const saving = ref(false);
 
@@ -41,22 +42,25 @@ const userAccounts = computed(() =>
   accounts.accounts.filter(a => (a.owner || 'Сергей') === user.value)
 );
 
-// ✅ Состояние для выбора даты
+// ✅ Определяем банк по ID счёта
+watch(accountId, (newId) => {
+  if (newId.startsWith('sber')) bankType.value = 'sber';
+  else if (newId.startsWith('tbank')) bankType.value = 'tbank';
+}, { immediate: true });
+
+// Состояние для выбора даты
 const hasUncertainDates = computed(() => items.value.some(it => it.dateUncertain));
-const uncertainDateInput = ref(''); // Для ручного ввода
+const uncertainDateInput = ref('');
 const defaultNextDay = computed(() => {
-  // Берем дату первой определенной операции и прибавляем 1 день
   const knownOp = items.value.find(it => !it.dateUncertain);
   if (knownOp) {
     const d = new Date(knownOp.date);
     d.setDate(d.getDate() + 1);
     return d.toISOString().split('T')[0];
   }
-  // Если вообще нет дат — ставим сегодня
   return new Date().toISOString().split('T')[0];
 });
 
-// Инициализируем input при появлении неопределенных дат
 watch(hasUncertainDates, (val) => {
   if (val) uncertainDateInput.value = defaultNextDay.value;
 });
@@ -180,7 +184,8 @@ async function processFile(f) {
       statusText.value = `Сканирование: ${pct}%`;
     });
 
-    const parsed = parseBankScreenshot(result.lines);
+    // ✅ Передаем тип банка в парсер
+    const parsed = parseBankScreenshot(result.lines, bankType.value);
 
     if (!parsed.length) {
       error.value = 'Не удалось найти операции.';
@@ -221,7 +226,6 @@ async function save() {
     return; 
   }
 
-  // Проверяем, есть ли неопределенные даты
   if (toSave.some(it => it.dateUncertain)) {
     error.value = 'Укажите дату для операций без даты (желтая плашка выше)';
     return;
@@ -341,7 +345,6 @@ function close() {
         <canvas ref="canvasRef" class="preview-canvas"></canvas>
       </div>
 
-      <!-- ✅ Плашка для неопределенных дат -->
       <div v-if="hasUncertainDates" class="date-warning">
         <div class="dw-icon">⚠️</div>
         <div class="dw-content">
@@ -419,6 +422,7 @@ function close() {
 </template>
 
 <style scoped lang="scss">
+/* Стили идентичны предыдущей версии, они не менялись */
 .sticky-tabs {
   position: sticky;
   top: -16px;
@@ -433,7 +437,6 @@ function close() {
 .mode { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 12px; border: none; background: transparent; color: #64748b; font-family: inherit; font-size: 12.5px; font-weight: 800; border-radius: 10px; cursor: pointer; }
 .mode.active { background: linear-gradient(180deg, #818cf8, #6366f1); color: #fff; box-shadow: 0 1px 0 rgba(255, 255, 255, 0.3) inset, 0 -2px 0 rgba(49, 46, 129, 0.3) inset, 0 4px 10px -2px rgba(99, 102, 241, 0.5); }
 
-/* Плашка с датой */
 .date-warning {
   display: flex;
   gap: 12px;
@@ -479,7 +482,6 @@ function close() {
   cursor: pointer;
 }
 
-/* Остальное */
 .bank-selector { margin-bottom: 16px; }
 .bs-label { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
 .bs-options { display: flex; gap: 10px; }
