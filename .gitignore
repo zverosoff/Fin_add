@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ﻿D# Секреты
 .env
 .env.*
@@ -19,3 +20,12 @@ frontend/dist/
 # node_modules
 node_modules/
 frontend/node_modules/
+=======
+﻿node_modules/
+frontend/node_modules/
+frontend/dist/
+.npm/
+.env
+*.log
+data/
+>>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
