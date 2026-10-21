@@ -155,11 +155,8 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   padding: 16px;
-  transition: background 0.3s ease;
-}
-
-:global(:root[data-app-theme="dark"]) .modal-overlay {
-  background: rgba(0, 0, 0, 0.75);
+  /* ✅ Ускоряем исчезновение, чтобы не мешать кликам */
+  transition: opacity 0.2s ease;
 }
 
 .modal-box {
@@ -177,15 +174,6 @@ onUnmounted(() => {
   touch-action: pan-y;
   color: var(--text);
   transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
-}
-
-:global(:root[data-app-theme="dark"]) .modal-box {
-  background: #14091f;
-  border-color: rgba(139, 92, 246, 0.25);
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.6),
-    0 24px 60px -20px rgba(139, 92, 246, 0.45),
-    0 0 0 1px rgba(139, 92, 246, 0.15);
 }
 
 .modal-handle {
@@ -292,13 +280,19 @@ onUnmounted(() => {
   background: #14091f;
 }
 
+/* ✅ Быстрая и плавная анимация */
 .modal-enter-active,
-.modal-leave-active { transition: opacity 0.22s ease; }
+.modal-leave-active {
+  transition: opacity 0.2s ease;
+}
 .modal-enter-from,
-.modal-leave-to { opacity: 0; }
+.modal-leave-to {
+  opacity: 0;
+}
+
 .modal-enter-active .modal-box,
 .modal-leave-active .modal-box {
-  transition: transform 0.28s cubic-bezier(.34,1.56,.64,1), opacity 0.22s;
+  transition: transform 0.25s cubic-bezier(.34,1.56,.64,1), opacity 0.2s;
 }
 .modal-enter-from .modal-box,
 .modal-leave-to .modal-box {

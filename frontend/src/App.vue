@@ -13,8 +13,7 @@ import WelcomeOverlay from '@/components/ui/WelcomeOverlay.vue';
 import ToastContainer from '@/components/ui/ToastContainer.vue';
 import BottomNav from '@/components/ui/BottomNav.vue';
 import ScanModal from '@/components/scan/ScanModal.vue';
-import ManualModal from '@/components/transactions/ManualModal.vue';
-import PdfImportModal from '@/components/scan/PdfImportModal.vue';
+import ChatWidget from '@/components/chat/ChatWidget.vue';
 
 const auth = useAuthStore();
 const accounts = useAccountsStore();
@@ -57,21 +56,6 @@ const booting = ref(false);
 const percent = ref(0);
 const stage = ref('Запуск…');
 const done = ref(false);
-
-// Управление модалками
-const manualOpen = ref(false);
-const pdfOpen = ref(false);
-
-// ✅ Функции переключения с задержкой для предотвращения наложения
-function openScan() {
-  setTimeout(() => scanStore.open(), 100);
-}
-function openManual() {
-  setTimeout(() => { manualOpen.value = true; }, 100);
-}
-function openPdf() {
-  setTimeout(() => { pdfOpen.value = true; }, 100);
-}
 
 const showBottomNav = computed(() => route.name !== 'login');
 const showChat = computed(() =>
@@ -222,24 +206,8 @@ onUnmounted(() => {
   <BottomNav v-if="showBottomNav" />
   <ChatWidget v-if="showChat" />
 
-  <!-- ✅ Модалки с передачей событий -->
-  <ScanModal
-    v-model="scanStore.isOpen"
-    @switch-to-manual="openManual"
-    @switch-to-pdf="openPdf"
-  />
-
-  <ManualModal
-    v-model="manualOpen"
-    @switch-to-scan="openScan"
-    @switch-to-pdf="openPdf"
-  />
-
-  <PdfImportModal
-    v-model="pdfOpen"
-    @switch-to-scan="openScan"
-    @switch-to-manual="openManual"
-  />
+  <!-- ✅ Теперь у нас только одна модалка, которая умеет всё -->
+  <ScanModal v-model="scanStore.isOpen" />
 
   <WelcomeOverlay
     :visible="booting"
