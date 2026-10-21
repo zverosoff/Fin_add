@@ -89,7 +89,7 @@ const CATEGORY_WORDS = [
   'Супермаркеты', 'Фастфуд', 'Переводы', 'Заправки', 'Сервис', 
   'Кафе и рестораны', 'Транспорт', 'Развлечения', 'Здоровье', 
   'Аптеки', 'Одежда и обувь', 'Разное', 'Коммунальные', 
-  'Связь', 'Подписки', 'Выдача наличных', 'Пополнение', 'Здоровье'
+  'Связь', 'Подписки', 'Выдача наличных', 'Пополнение'
 ];
 
 function extractCategory(text) {
@@ -100,22 +100,17 @@ function extractCategory(text) {
   return 'Прочее';
 }
 
-// ✅ Проверка, является ли текст банковским скриншотом
 function isValidBankScreenshot(lines) {
   const fullText = lines.map(l => l.text).join(' ').toLowerCase();
-  
   const bankMarkers = ['₽', 'руб', 'оплата', 'перевод', 'баланс', 'карта', 'счёт', 'счет', 'сбер', 'т-банк', 'tbank', 'история', 'операции'];
   let foundMarkers = 0;
-  
   for (const marker of bankMarkers) {
     if (fullText.includes(marker)) foundMarkers++;
   }
-
   if (foundMarkers === 0) return false;
 
   let russianLettersCount = 0;
   let totalCharsCount = 0;
-  
   for (const line of lines) {
     const t = line.text || '';
     totalCharsCount += t.length;
@@ -125,11 +120,9 @@ function isValidBankScreenshot(lines) {
       }
     }
   }
-
   if (totalCharsCount > 0 && (russianLettersCount / totalCharsCount) < 0.3) {
     return false;
   }
-
   return true;
 }
 
@@ -222,12 +215,14 @@ function parseSber(lines) {
   const DATE_NUM_RE = /(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:[,\s]+([а-я]{2}))?/i;
   const SBER_AMOUNT_RE = /([+\-−]?)\s*(\d[\d\s]*(?:[.,]\d{2})?)\s*[₽pPрР]?\s*$/;
 
-  // ✅ Жесткий фильтр аналитики Сбера (всё, что выше списка операций)
-  const SBER_ANALYTICS_WORDS = [
-    'расходы в', 'переводы людям', 'зачисления', 'аналитика', 
-    'кредит', 'специальные условия', 'сберу', 'подать заявку', 
-    'подробнее об акции', 'накопления', 'кэшбэк', 'бонусы'
-  ];
+  let listStartY = 0;
+  for (const line of lines) {
+    const text = (line.text || '').trim();
+    if (DATE_WORD_RE.test(text) || DATE_NUM_RE.test(text)) {
+      listStartY = line.bbox ? line.bbox.y0 : 0;
+      break;
+    }
+  }
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -235,19 +230,8 @@ function parseSber(lines) {
     if (!text) continue;
     const y = line.bbox ? line.bbox.y0 : 0;
 
-    const lowerText = text.toLowerCase();
+    if (y < listStartY - 10) continue;
 
-    // Проверяем на аналитику
-    let isAnalytics = false;
-    for (const word of SBER_ANALYTICS_WORDS) {
-      if (lowerText.includes(word)) {
-        isAnalytics = true;
-        break;
-      }
-    }
-    if (isAnalytics) continue; // Пропускаем эту строку
-
-    // Проверяем дату
     let foundDate = null;
     if (DATE_WORD_RE.test(text)) {
       const word = text.match(DATE_WORD_RE)[0].toLowerCase();
@@ -271,7 +255,6 @@ function parseSber(lines) {
       continue;
     }
 
-    // Ищем сумму в конце строки
     const amountMatch = text.match(SBER_AMOUNT_RE);
     if (!amountMatch) continue;
 
@@ -369,8 +352,35 @@ export function parseBankScreenshot(textLines, bankType = 'tbank') {
 
   operations.reverse();
 
+  // ✅ ВТОРОЙ ПРОХОД: Анализ и сомнения
+  const validatedOperations = operations.map((op, index) => {
+    let isSuspicious = false;
+    let suspicionReason = '';
+
+    // 1. Сомневаемся, если название слишком короткое или странное
+    if (op.name.length < 3 || /^[^а-яА-ЯёЁa-zA-Z]+$/.test(op.name)) {
+      isSuspicious = true;
+      suspicionReason = 'Непонятное название';
+    }
+
+    // 2. Сомневаемся, если сумма подозрительно круглая и большая (часто это аналитика)
+    if (op.amount > 10000 && op.amount % 1000 === 0) {
+       isSuspicious = true;
+       suspicionReason = 'Похоже на аналитику';
+    }
+
+    // 3. Сомневаемся, если текст похож на рекламу или аналитику
+    const lowerName = op.name.toLowerCase();
+    if (lowerName.includes('расходы') || lowerName.includes('зачислен') || lowerName.includes('переводы людям') || lowerName.includes('аналитика')) {
+      isSuspicious = true;
+      suspicionReason = 'Похоже на общую информацию';
+    }
+
+    return { ...op, isSuspicious, suspicionReason };
+  });
+
   const seen = new Set();
-  return operations.filter(op => {
+  return validatedOperations.filter(op => {
     const key = `${op.name}|${op.amount}|${op.date.slice(0, 10)}`;
     if (seen.has(key)) return false;
     seen.add(key);
