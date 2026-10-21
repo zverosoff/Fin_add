@@ -1,11 +1,8 @@
 // frontend/src/composables/useReceiptOCR.js
 
-<<<<<<< HEAD
 /* ============================================================
    Предобработка изображения
    ============================================================ */
-=======
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
 export function preprocessImage(file) {
   return new Promise((resolve) => {
     const img = new Image();
@@ -15,19 +12,13 @@ export function preprocessImage(file) {
       canvas.width = img.width * scale;
       canvas.height = img.height * scale;
       const ctx = canvas.getContext('2d');
-<<<<<<< HEAD
 
       ctx.imageSmoothingEnabled = false;
-=======
-      
-      ctx.imageSmoothingEnabled = false; 
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
 
-<<<<<<< HEAD
       let sum = 0;
       for (let i = 0; i < data.length; i += 4) {
         sum += (data[i] + data[i + 1] + data[i + 2]) / 3;
@@ -49,20 +40,6 @@ export function preprocessImage(file) {
           const gray = (r + g + b) / 3;
           v = gray > 130 ? 255 : 0;
         }
-=======
-      let totalBrightness = 0;
-      for (let i = 0; i < data.length; i += 4) {
-        totalBrightness += (data[i] + data[i + 1] + data[i + 2]) / 3;
-      }
-      const avgBrightness = totalBrightness / (data.length / 4);
-      const isDarkTheme = avgBrightness < 128;
-
-      for (let i = 0; i < data.length; i += 4) {
-        let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        if (isDarkTheme) gray = 255 - gray; 
-        
-        const v = gray > 180 ? 0 : 255; 
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
         data[i] = data[i + 1] = data[i + 2] = v;
       }
 
@@ -74,12 +51,9 @@ export function preprocessImage(file) {
   });
 }
 
-<<<<<<< HEAD
 /* ============================================================
    OCR
    ============================================================ */
-=======
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
 export async function recognizeText(file, onProgress) {
   if (!window.Tesseract) throw new Error('Tesseract.js не загрузился');
 
@@ -92,13 +66,6 @@ export async function recognizeText(file, onProgress) {
     },
   });
 
-<<<<<<< HEAD
-=======
-  await worker.setParameters({
-    tessedit_pageseg_mode: '6',
-  });
-
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
   const { data } = await worker.recognize(file);
   await worker.terminate();
 
@@ -130,24 +97,14 @@ const MONTHS = {
 };
 
 const CATEGORY_WORDS = [
-<<<<<<< HEAD
   'Супермаркеты', 'Фастфуд', 'Переводы', 'Заправки', 'Сервис',
   'Кафе и рестораны', 'Транспорт', 'Развлечения', 'Здоровье',
   'Аптеки', 'Одежда и обувь', 'Разное', 'Коммунальные',
-=======
-  'Супермаркеты', 'Фастфуд', 'Переводы', 'Заправки', 'Сервис', 
-  'Кафе и рестораны', 'Транспорт', 'Развлечения', 'Здоровье', 
-  'Аптеки', 'Одежда и обувь', 'Разное', 'Коммунальные', 
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
   'Связь', 'Подписки', 'Выдача наличных', 'Пополнение'
 ];
 
 function extractCategory(text) {
-<<<<<<< HEAD
   const low = (text || '').toLowerCase();
-=======
-  const low = text.toLowerCase();
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
   for (const cat of CATEGORY_WORDS) {
     if (low.includes(cat.toLowerCase())) return cat;
   }
@@ -156,11 +113,6 @@ function extractCategory(text) {
 
 function detectBankType(lines) {
   const fullText = lines.map(l => l.text).join(' ').toLowerCase();
-<<<<<<< HEAD
-
-=======
-  
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
   let tbankScore = 0;
   let sberScore = 0;
 
@@ -205,7 +157,6 @@ function isValidBankScreenshot(lines) {
 }
 
 // ============================================================
-<<<<<<< HEAD
 // ОБЩИЕ РЕГУЛЯРКИ
 // ============================================================
 const DATE_WORD_RE = /(Сегодня|Вчера|Позавчера)/i;
@@ -307,24 +258,14 @@ function extractAmount(text) {
 }
 
 // ============================================================
-=======
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
 // ПАРСЕР ДЛЯ Т-БАНКА
 // ============================================================
 function parseTbank(lines) {
   const parsedItems = [];
   const now = new Date();
   let defaultYear = now.getFullYear();
-<<<<<<< HEAD
   let currentDate = new Date();
   currentDate.setHours(12, 0, 0, 0);
-=======
-
-  const DATE_WORD_RE = /(Сегодня|Вчера|Позавчера)/i;
-  const DATE_NUM_RE = /(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:[,\s]+([а-я]{2}))?/i;
-  // ✅ Сделали регулярку более лояльной (теперь понимает и без минуса, как в Сбере)
-  const AMOUNT_RE = /([+\-−]?)\s*([\d\s]+(?:[.,]\d{2})?)\s*[₽pPрР]?/;
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -332,7 +273,6 @@ function parseTbank(lines) {
     if (!text) continue;
     const y = line.bbox ? line.bbox.y0 : 0;
 
-<<<<<<< HEAD
     // ✅ Заголовок дня — обновляем текущую дату
     if (isDayHeader(text)) {
       const d = parseDateFromLine(text);
@@ -406,68 +346,6 @@ function parseTbank(lines) {
     });
   }
 
-=======
-    let foundDate = null;
-    if (DATE_WORD_RE.test(text)) {
-      const word = text.match(DATE_WORD_RE)[0].toLowerCase();
-      foundDate = new Date();
-      if (word === 'вчера') foundDate.setDate(foundDate.getDate() - 1);
-      else if (word === 'позавчера') foundDate.setDate(foundDate.getDate() - 2);
-    } else {
-      const dateMatch = text.match(DATE_NUM_RE);
-      if (dateMatch) {
-        const day = parseInt(dateMatch[1], 10);
-        const month = MONTHS[dateMatch[2].toLowerCase()];
-        let year = defaultYear;
-        if (month > now.getMonth()) year -= 1;
-        foundDate = new Date(year, month, day, 12, 0, 0);
-      }
-    }
-
-    if (foundDate) {
-      foundDate.setHours(12, 0, 0, 0);
-      parsedItems.push({ type: 'date', y, date: foundDate });
-      continue;
-    }
-
-    const amountMatch = text.match(AMOUNT_RE);
-    if (!amountMatch) continue;
-
-    const sign = amountMatch[1];
-    const rawAmount = amountMatch[2].replace(/\s+/g, '').replace(',', '.');
-    let amount = parseFloat(rawAmount);
-    if (isNaN(amount) || amount <= 0) continue;
-
-    // Если это Т-Банк и там нет знака, значит скорее всего это не Т-Банк, но мы все равно попробуем
-    if (amount < 1 && !text.includes('₽')) continue;
-
-    amount = Math.round(amount);
-    // В Т-Банке обычно есть минус, если его нет - ставим расход
-    const type = sign === '+' ? 'income' : 'expense';
-
-    let description = text.replace(amountMatch[0], '').trim();
-    if (description.toLowerCase().includes('black') || description.toLowerCase().includes('+')) continue;
-
-    let mainLineIndex = i;
-    if (!description || description.length < 2) {
-      if (i - 1 >= 0) { description = lines[i-1].text; mainLineIndex = i - 1; }
-      else if (i + 1 < lines.length) description = lines[i+1].text;
-    }
-
-    description = description.replace(/[|•·\-\+−]/g, '').trim();
-    if (!description) description = 'Операция';
-    const category = extractCategory(description + ' ' + (lines[i+1]?.text || ''));
-
-    let opBbox = line.bbox;
-    if (lines[mainLineIndex] && lines[mainLineIndex].bbox && line.bbox) {
-       const l1 = lines[mainLineIndex].bbox;
-       const l2 = line.bbox;
-       opBbox = { x0: Math.min(l1.x0, l2.x0), y0: Math.min(l1.y0, l2.y0), x1: Math.max(l1.x1, l2.x1), y1: Math.max(l1.y1, l2.y1) };
-    }
-
-    parsedItems.push({ type: 'op', y, opData: { name: description.slice(0, 80), amount, type, category, bbox: opBbox } });
-  }
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
   return parsedItems;
 }
 
@@ -478,7 +356,6 @@ function parseSber(lines) {
   const parsedItems = [];
   const now = new Date();
   let defaultYear = now.getFullYear();
-<<<<<<< HEAD
   let currentDate = new Date();
   currentDate.setHours(12, 0, 0, 0);
 
@@ -487,17 +364,6 @@ function parseSber(lines) {
   for (const line of lines) {
     const text = (line.text || '').trim();
     if (isDayHeader(text) || parseDateFromLine(text)) {
-=======
-
-  const DATE_WORD_RE = /(Сегодня|Вчера|Позавчера)/i;
-  const DATE_NUM_RE = /(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:[,\s]+([а-я]{2}))?/i;
-  const SBER_AMOUNT_RE = /([+\-−]?)\s*(\d[\d\s]*(?:[.,]\d{2})?)\s*[₽pPрР]?\s*$/;
-
-  let listStartY = 0;
-  for (const line of lines) {
-    const text = (line.text || '').trim();
-    if (DATE_WORD_RE.test(text) || DATE_NUM_RE.test(text)) {
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
       listStartY = line.bbox ? line.bbox.y0 : 0;
       break;
     }
@@ -511,7 +377,6 @@ function parseSber(lines) {
 
     if (y < listStartY - 10) continue;
 
-<<<<<<< HEAD
     // ✅ Заголовок дня
     if (isDayHeader(text)) {
       const d = parseDateFromLine(text);
@@ -551,69 +416,10 @@ function parseSber(lines) {
 
     const nextText = (lines[i + 1]?.text || '').trim();
     const category = extractCategory(description + ' ' + nextText);
-=======
-    let foundDate = null;
-    if (DATE_WORD_RE.test(text)) {
-      const word = text.match(DATE_WORD_RE)[0].toLowerCase();
-      foundDate = new Date();
-      if (word === 'вчера') foundDate.setDate(foundDate.getDate() - 1);
-      else if (word === 'позавчера') foundDate.setDate(foundDate.getDate() - 2);
-    } else {
-      const dateMatch = text.match(DATE_NUM_RE);
-      if (dateMatch) {
-        const day = parseInt(dateMatch[1], 10);
-        const month = MONTHS[dateMatch[2].toLowerCase()];
-        let year = defaultYear;
-        if (month > now.getMonth()) year -= 1;
-        foundDate = new Date(year, month, day, 12, 0, 0);
-      }
-    }
-
-    if (foundDate) {
-      foundDate.setHours(12, 0, 0, 0);
-      parsedItems.push({ type: 'date', y, date: foundDate });
-      continue;
-    }
-
-    const amountMatch = text.match(SBER_AMOUNT_RE);
-    if (!amountMatch) continue;
-
-    const sign = amountMatch[1];
-    const rawAmount = amountMatch[2].replace(/\s+/g, '').replace(',', '.');
-    let amount = parseFloat(rawAmount);
-    if (isNaN(amount) || amount <= 0) continue;
-
-    if (amount < 1 && !text.includes('₽')) continue;
-
-    const type = sign === '+' ? 'income' : 'expense';
-    amount = Math.round(amount);
-
-    let description = text.replace(amountMatch[0], '').trim();
-    description = description.replace(/[|•·\-\+−]/g, '').trim();
-
-    if (!description || description.length < 2 || /^\d+$/.test(description)) {
-       if (i - 1 >= 0 && !DATE_WORD_RE.test(lines[i-1].text) && !DATE_NUM_RE.test(lines[i-1].text)) {
-           description = lines[i-1].text;
-       }
-    }
-
-    if (description.length > 80 && description.includes('.')) continue;
-    if (!description) description = 'Операция';
-
-    let category = 'Прочее';
-    const nextLine = lines[i+1]?.text || '';
-    
-    if (nextLine.includes('Оплата') || nextLine.includes('товаров') || nextLine.includes('услуг')) {
-       category = extractCategory(nextLine);
-    } else {
-       category = extractCategory(description + ' ' + nextLine);
-    }
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
 
     parsedItems.push({
       type: 'op',
       y,
-<<<<<<< HEAD
       opData: {
         name: description.slice(0, 80),
         amount,
@@ -625,11 +431,6 @@ function parseSber(lines) {
     });
   }
 
-=======
-      opData: { name: description.slice(0, 80), amount, type, category, bbox: line.bbox }
-    });
-  }
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
   return parsedItems;
 }
 
@@ -639,10 +440,6 @@ function parseSber(lines) {
 export function parseBankScreenshot(textLines, currentBankType = 'tbank') {
   if (!textLines || !textLines.length) return { operations: [], suggestedBank: null };
 
-<<<<<<< HEAD
-=======
-  // ✅ Сначала определяем банк по маркерам
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
   const detectedBank = detectBankType(textLines);
   const suggestedBank = (detectedBank && detectedBank !== currentBankType) ? detectedBank : null;
 
@@ -656,20 +453,12 @@ export function parseBankScreenshot(textLines, currentBankType = 'tbank') {
   });
 
   let parsedItems = [];
-<<<<<<< HEAD
-=======
-  // Парсим тем банком, который выбран пользователем
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
   if (currentBankType === 'sber') {
     parsedItems = parseSber(lines);
   } else {
     parsedItems = parseTbank(lines);
   }
 
-<<<<<<< HEAD
-=======
-  // ✅ Если мы не нашли операции, но подозреваем, что это другой банк — предлагаем переключиться
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
   if (parsedItems.length === 0 && suggestedBank) {
     return { operations: [], suggestedBank };
   }
@@ -678,7 +467,6 @@ export function parseBankScreenshot(textLines, currentBankType = 'tbank') {
     throw new Error('Не удалось распознать операции. Убедитесь, что на скриншоте есть список операций с суммами.');
   }
 
-<<<<<<< HEAD
   // Из parsedItems у нас уже есть date для каждой операции — просто собираем
   const operations = parsedItems.map(item => ({
     ...item.opData,
@@ -711,59 +499,6 @@ export function parseBankScreenshot(textLines, currentBankType = 'tbank') {
     .filter(Boolean);
 
   // Дедупликация
-=======
-  const operations = [];
-  let currentDate = new Date();
-  currentDate.setHours(12, 0, 0, 0);
-  let currentOpsGroup = [];
-  let isUncertainGroup = false; 
-
-  for (let i = parsedItems.length - 1; i >= 0; i--) {
-    const item = parsedItems[i];
-    if (item.type === 'op') {
-      currentOpsGroup.push(item);
-    } else if (item.type === 'date') {
-      currentDate = item.date;
-      for (const op of currentOpsGroup) {
-        operations.push({ ...op.opData, date: currentDate.toISOString(), dateUncertain: isUncertainGroup });
-      }
-      currentOpsGroup = []; 
-      isUncertainGroup = false; 
-      currentDate = new Date(currentDate);
-      currentDate.setDate(currentDate.getDate() + 1);
-    }
-  }
-
-  for (const op of currentOpsGroup) {
-    operations.push({ ...op.opData, date: currentDate.toISOString(), dateUncertain: true });
-  }
-
-  operations.reverse();
-
-  const validatedOperations = operations.map((op) => {
-    let isSuspicious = false;
-    let suspicionReason = '';
-
-    if (op.name.length < 3 || /^[^а-яА-ЯёЁa-zA-Z]+$/.test(op.name)) {
-      isSuspicious = true;
-      suspicionReason = 'Непонятное название';
-    }
-
-    if (op.amount > 10000 && op.amount % 1000 === 0) {
-       isSuspicious = true;
-       suspicionReason = 'Похоже на аналитику';
-    }
-
-    const lowerName = op.name.toLowerCase();
-    if (lowerName.includes('расходы') || lowerName.includes('зачислен') || lowerName.includes('переводы людям') || lowerName.includes('аналитика')) {
-      isSuspicious = true;
-      suspicionReason = 'Похоже на общую информацию';
-    }
-
-    return { ...op, isSuspicious, suspicionReason };
-  });
-
->>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
   const seen = new Set();
   const finalOps = validatedOperations.filter(op => {
     const key = `${op.name}|${op.amount}|${op.date.slice(0, 10)}`;
