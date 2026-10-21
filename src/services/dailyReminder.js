@@ -1,7 +1,5 @@
 // backend/src/services/dailyReminder.js
 import cron from 'node-cron';
-import { sendPushToUser } from './push.js';
-
 const USERS = ['Сергей', 'Саша'];
 import db from '../db/index.js';
 import { sendPushToUser } from './push.js';
