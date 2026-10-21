@@ -14,7 +14,6 @@ const ICON_CLOSE = '/img/icons/ui/close.png';
         class="toast"
         :class="[t.type, { 'has-action': !!t.action }]"
       >
-        <!-- Иконка успеха/ошибки -->
         <div class="toast-icon" v-if="t.type === 'success'">✅</div>
         <div class="toast-icon" v-else-if="t.type === 'error'">❌</div>
         <div class="toast-icon" v-else>ℹ️</div>
@@ -34,14 +33,15 @@ const ICON_CLOSE = '/img/icons/ui/close.png';
           class="toast-close"
           @click="dismiss(t.id)"
           aria-label="Закрыть"
-        >✕</button>
+        >
+          ✕
+        </button>
       </div>
     </TransitionGroup>
   </div>
 </template>
 
 <style scoped lang="scss">
-/* ✅ Перенесено наверх (iOS-style) */
 .toast-container {
   position: fixed;
   top: calc(12px + env(safe-area-inset-top, 0));
@@ -52,7 +52,7 @@ const ICON_CLOSE = '/img/icons/ui/close.png';
   display: flex;
   flex-direction: column;
   gap: 8px;
-  z-index: 10000;
+  z-index: 100000;
   pointer-events: none;
   align-items: center;
   padding: 0 16px;
@@ -79,12 +79,15 @@ const ICON_CLOSE = '/img/icons/ui/close.png';
     0 2px 8px rgba(15, 23, 42, 0.08);
   pointer-events: auto;
   width: 100%;
-  
-  &.success { border-color: rgba(34, 197, 94, 0.3); }
-  &.error { border-color: rgba(239, 68, 68, 0.3); }
 }
 
-.toast-icon { font-size: 16px; flex-shrink: 0; }
+.toast.success { border-color: rgba(34, 197, 94, 0.3); }
+.toast.error { border-color: rgba(239, 68, 68, 0.3); }
+
+.toast-icon {
+  font-size: 16px;
+  flex-shrink: 0;
+}
 
 .toast-msg {
   flex: 1;
@@ -105,8 +108,11 @@ const ICON_CLOSE = '/img/icons/ui/close.png';
   cursor: pointer;
   transition: all 0.15s;
   white-space: nowrap;
+}
 
-  &:hover { background: #6366f1; color: #fff; }
+.toast-action:hover {
+  background: #6366f1;
+  color: #fff;
 }
 
 .toast-close {
@@ -122,19 +128,23 @@ const ICON_CLOSE = '/img/icons/ui/close.png';
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-
-  &:hover { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
 }
 
-/* ✅ Анимация сверху вниз, как в iOS */
+.toast-close:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #ef4444;
+}
+
 .toast-enter-active,
 .toast-leave-active {
   transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
+
 .toast-enter-from {
   opacity: 0;
   transform: translateY(-20px) scale(0.95);
 }
+
 .toast-leave-to {
   opacity: 0;
   transform: translateY(-20px) scale(0.95);
@@ -150,6 +160,10 @@ const ICON_CLOSE = '/img/icons/ui/close.png';
     font-size: 13px;
     width: 100%;
   }
-  .toast-msg { white-space: normal; word-break: break-word; line-height: 1.3; }
+  .toast-msg {
+    white-space: normal;
+    word-break: break-word;
+    line-height: 1.3;
+  }
 }
 </style>
