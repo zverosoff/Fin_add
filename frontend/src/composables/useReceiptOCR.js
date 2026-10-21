@@ -147,7 +147,7 @@ function isValidBankScreenshot(lines) {
 }
 
 // ============================================================
-// ПАРСЕР ДЛЯ Т-БАНКА (v6, ПОИСК ПО ВСЕМ ОПЕРАЦИЯМ)
+// ПАРСЕР ДЛЯ Т-БАНКА (v7, ФИНАЛ)
 // ============================================================
 function parseTbank(lines) {
   const parsedItems = [];
@@ -157,13 +157,13 @@ function parseTbank(lines) {
   const DATE_WORD_RE = /(Сегодня|Вчера|Позавчера)/i;
   const DATE_NUM_RE = /(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)/i;
   
-  // Ищем сумму: обязателен минус или плюс перед цифрами
+  // Суммы: ищем с минусом или плюсом, сохраняем копейки
   const AMOUNT_RE = /([+\-−])\s*(\d[\d\s]*[.,]?\d*)\s*(?:₽|p|P|р|Р)?/;
   
-  // Системный мусор
+  // Игнорируем заголовки и системный мусор
   const JUNK_RE = /^(траты|доходы|счета и карты|без переводов|операции|октябрь|сентябрь|баланс|всего|расходы|поступления)/i;
 
-  // 1. Находим все даты и их Y-координаты, чтобы потом присвоить их операциям
+  // 1. Находим все даты и их Y-координаты
   const dateAnchors = [];
   for (const line of lines) {
     const text = (line.text || '').trim();
@@ -190,7 +190,6 @@ function parseTbank(lines) {
     }
   }
 
-  // Сортируем даты сверху вниз
   dateAnchors.sort((a, b) => a.y - b.y);
 
   // 2. Ищем все операции
@@ -204,7 +203,13 @@ function parseTbank(lines) {
 
     if (JUNK_RE.test(text)) continue;
 
-    // Проверяем, есть ли на этой строке сумма
+    // ✅ ФИКС: Если в строке есть дата (14 октября) и сумма (-774) —
+    // это заголовок дня с итогом. Пропускаем, чтобы не создавать фейковую операцию.
+    if (DATE_NUM_RE.test(text) && /[+\-−]\s*\d/.test(text)) {
+        continue; 
+    }
+
+    // Ищем сумму
     const amountMatch = text.match(AMOUNT_RE);
     if (!amountMatch) continue;
 
@@ -217,7 +222,7 @@ function parseTbank(lines) {
     // Отсекаем кэшбэк (например, +10)
     if (amount < 50 && sign === '+') continue;
 
-    // Отсекаем итоговые суммы (Траты/Доходы), они обычно больше 50 000
+    // Отсекаем итоговые суммы
     if (amount > 50000) continue; 
 
     const type = sign === '+' ? 'income' : 'expense';
@@ -227,16 +232,13 @@ function parseTbank(lines) {
     let description = text.replace(amountMatch[0], '').trim();
     description = description.replace(/[|•·\-\+−₽]/g, '').trim();
     
-    // Если описание пустое или это просто цифры/Black, ищем на соседних строках
     if (!description || description.length < 2 || /^\d+$/.test(description) || description.toLowerCase() === 'black') {
-      // Ищем строку выше (обычно там название операции)
       if (i - 1 >= 0 && lines[i-1].bbox) {
           const prevText = lines[i-1].text.trim();
           const prevY = lines[i-1].bbox.y0;
           const prevX = lines[i-1].bbox.x0;
           
           if (!AMOUNT_RE.test(prevText) && !JUNK_RE.test(prevText) && !DATE_WORD_RE.test(prevText) && !DATE_NUM_RE.test(prevText)) {
-              // Проверяем, что это в той же колонке или чуть выше
               if (Math.abs(prevX - x) < 150 || Math.abs(prevY - y) < 60) {
                   description = prevText;
               }
@@ -246,8 +248,7 @@ function parseTbank(lines) {
 
     if (!description || description.length < 2) description = 'Операция';
 
-    // 4. Определяем дату для этой операции
-    // Ищем ближайшую дату ВЫШЕ этой операции
+    // 4. Определяем дату
     let opDate = null;
     let dateUncertain = true;
     
@@ -259,13 +260,11 @@ function parseTbank(lines) {
       }
     }
 
-    // Если дата не найдена (операция на самом верху списка)
     if (!opDate) {
-      opDate = new Date(); // по умолчанию сегодня
+      opDate = new Date();
       dateUncertain = true;
     }
 
-    // Категория
     let category = 'Прочее';
     const nextLine = lines[i+1]?.text || '';
     if (nextLine && !AMOUNT_RE.test(nextLine) && !JUNK_RE.test(nextLine)) {
@@ -274,7 +273,6 @@ function parseTbank(lines) {
         category = extractCategory(description);
     }
 
-    // Bbox для маски (выделяем и название, и сумму)
     let opBbox = line.bbox;
     if (lines[i-1] && lines[i-1].bbox && line.bbox && description === lines[i-1].text.trim()) {
        const l1 = lines[i-1].bbox;
@@ -429,7 +427,6 @@ export function parseBankScreenshot(textLines, currentBankType = 'tbank') {
 
   const operations = [];
   
-  // Для Т-Банка операции уже содержат дату внутри (мы нашли её через dateAnchors)
   if (currentBankType === 'tbank') {
     for (const item of parsedItems) {
       if (item.type === 'op') {
@@ -437,7 +434,6 @@ export function parseBankScreenshot(textLines, currentBankType = 'tbank') {
       }
     }
   } else {
-    // Для Сбера — старая логика группировки
     let currentDate = new Date();
     currentDate.setHours(12, 0, 0, 0);
     let currentOpsGroup = [];
