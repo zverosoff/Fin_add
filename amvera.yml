@@ -14,20 +14,7 @@ run:
   scriptName: src/index.js
   scriptArguments: null
   nodeArguments: null
-  command: npm run start
+  command: null
   containerPort: 80
   singleton: true
   zeroDowntime: false
-meta:
-  environment: node
-  toolchain:
-    name: npm
-    version: 20
-
-build:
-  additionalCommands: npm run build:all
-
-run:
-  scriptName: backend/src/index.js
-  persistenceMount: /data
-  containerPort: 80
