@@ -15,7 +15,6 @@ import BottomNav from '@/components/ui/BottomNav.vue';
 import ScanModal from '@/components/scan/ScanModal.vue';
 import ManualModal from '@/components/transactions/ManualModal.vue';
 import PdfImportModal from '@/components/scan/PdfImportModal.vue';
-import ChatWidget from '@/components/chat/ChatWidget.vue';
 
 const auth = useAuthStore();
 const accounts = useAccountsStore();
