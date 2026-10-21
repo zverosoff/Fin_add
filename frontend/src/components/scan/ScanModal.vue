@@ -39,7 +39,6 @@ const bankType = ref('tbank');
 const error = ref('');
 const saving = ref(false);
 
-// ✅ Состояние для подсказки смены банка
 const suggestBank = ref(null);
 const suggestBankModalOpen = ref(false);
 
@@ -215,8 +214,17 @@ async function processFile(f) {
     });
     addLog('Чтение завершено. Ищу операции…');
 
-    // ✅ Получаем результат парсинга и возможную подсказку банка
     const { operations, suggestedBank: suggested } = parseBankScreenshot(result.lines, bankType.value);
+
+    // ✅ Если нашли подозрение на другой банк, и операций нет — показываем модалку
+    if (suggested) {
+      suggestBank.value = suggested;
+      suggestBankModalOpen.value = true;
+      if (!operations.length) {
+        step.value = 'upload'; // Возвращаем на шаг загрузки, чтобы не пугать пустым списком
+        return;
+      }
+    }
 
     if (!operations.length) {
       error.value = 'Не удалось найти операции.';
@@ -231,12 +239,6 @@ async function processFile(f) {
       addLog(`Обнаружил ${suspicious} сомнительных операций.`);
     } else {
       addLog('Все операции выглядят надежно.');
-    }
-
-    // ✅ Если банк не совпадает — показываем подсказку
-    if (suggested) {
-      suggestBank.value = suggested;
-      suggestBankModalOpen.value = true;
     }
 
     items.value = operations;
@@ -262,11 +264,9 @@ async function switchBankAndRescan() {
   const newBank = suggestBank.value;
   bankType.value = newBank;
   
-  // Меняем счёт на соответствующий
   const targetAcc = userAccounts.value.find(a => a.id.startsWith(newBank));
   if (targetAcc) accountId.value = targetAcc.id;
 
-  // Перезапускаем распознавание с новым парсером
   await processFile(file.value);
 }
 
@@ -329,7 +329,6 @@ function close() { emit('update:modelValue', false); }
     title="📸 Сканирование"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <!-- Вкладки -->
     <div class="sticky-tabs">
       <div class="mode-switch">
         <button type="button" class="mode active" disabled>
@@ -344,7 +343,6 @@ function close() { emit('update:modelValue', false); }
       </div>
     </div>
 
-    <!-- ШАГ 1. Загрузка -->
     <div v-if="step === 'upload'" class="step">
       <div class="bank-selector">
         <div class="bs-label">Выберите счёт</div>
@@ -385,7 +383,6 @@ function close() { emit('update:modelValue', false); }
       <div v-if="error" class="error-msg">{{ error }}</div>
     </div>
 
-    <!-- ШАГ 2. Распознавание -->
     <div v-else-if="step === 'recognizing'" class="step">
       <div class="recognize">
         <div class="spinner"></div>
@@ -405,7 +402,6 @@ function close() { emit('update:modelValue', false); }
       </div>
     </div>
 
-    <!-- ШАГ 3. Предпросмотр -->
     <div v-else-if="step === 'preview'" class="step">
       <div v-if="filePreview" class="preview-wrapper">
         <canvas ref="canvasRef" class="preview-canvas"></canvas>
@@ -487,7 +483,6 @@ function close() { emit('update:modelValue', false); }
       </template>
     </template>
 
-    <!-- ✅ МОДАЛКА ПОДСКАЗКИ СМЕНЫ БАНКА -->
     <Modal
       :model-value="suggestBankModalOpen"
       title="🤔 Похоже, вы ошиблись"
@@ -506,7 +501,6 @@ function close() { emit('update:modelValue', false); }
 </template>
 
 <style scoped lang="scss">
-/* Все стили из предыдущего файла + новые для suggest */
 .suggest-content { padding: 4px 0; font-size: 14px; line-height: 1.5; color: #0f172a; }
 .suggest-content p { margin: 0 0 8px; }
 .suggest-content strong { color: #6366f1; }
@@ -523,7 +517,6 @@ function close() { emit('update:modelValue', false); }
 .thought-fade-enter-from { opacity: 0; transform: translateY(4px); }
 .thought-fade-leave-to { opacity: 0; transform: translateY(-4px); }
 
-/* ... остальные стили (bank-selector, field, recognize, preview и т.д.) ... */
 .date-warning { display: flex; gap: 12px; padding: 12px 14px; background: #fffbeb; border: 1px solid #fcd34d; border-radius: 12px; margin-bottom: 12px; }
 .dw-icon { font-size: 20px; }
 .dw-content { flex: 1; }

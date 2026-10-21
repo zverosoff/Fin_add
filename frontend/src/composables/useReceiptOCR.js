@@ -100,32 +100,26 @@ function extractCategory(text) {
   return 'Прочее';
 }
 
-// ✅ 1. Определение банка по тексту
 function detectBankType(lines) {
   const fullText = lines.map(l => l.text).join(' ').toLowerCase();
   
   let tbankScore = 0;
   let sberScore = 0;
 
-  // Маркеры Т-Банка
   if (fullText.includes('т-банк') || fullText.includes('tbank') || fullText.includes('тинькофф')) tbankScore += 2;
   if (fullText.includes('black') || fullText.includes('блек')) tbankScore += 1;
   if (fullText.includes('кэшбэк') && fullText.includes('руб')) tbankScore += 1;
-  if (fullText.includes('переводы') && fullText.includes('без переводов')) tbankScore += 1;
 
-  // Маркеры Сбера
   if (fullText.includes('сбер') || fullText.includes('sber')) sberScore += 2;
   if (fullText.includes('спасибо') || fullText.includes('бонусов')) sberScore += 1;
   if (fullText.includes('оплата товаров и услуг')) sberScore += 1;
   if (fullText.includes('переводы людям')) sberScore += 1;
-  if (fullText.includes('зачисления') || fullText.includes('расходы в')) sberScore += 1;
 
   if (tbankScore > sberScore) return 'tbank';
   if (sberScore > tbankScore) return 'sber';
-  return null; // Не смогли определить
+  return null;
 }
 
-// ✅ 2. Проверка на банковский скриншот
 function isValidBankScreenshot(lines) {
   const fullText = lines.map(l => l.text).join(' ').toLowerCase();
   const bankMarkers = ['₽', 'руб', 'оплата', 'перевод', 'баланс', 'карта', 'счёт', 'счет', 'сбер', 'т-банк', 'tbank', 'история', 'операции'];
@@ -162,7 +156,8 @@ function parseTbank(lines) {
 
   const DATE_WORD_RE = /(Сегодня|Вчера|Позавчера)/i;
   const DATE_NUM_RE = /(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:[,\s]+([а-я]{2}))?/i;
-  const AMOUNT_RE = /([+\-−])\s*([\d\s]+(?:[.,]\d{2})?)\s*[₽pPрР]?/;
+  // ✅ Сделали регулярку более лояльной (теперь понимает и без минуса, как в Сбере)
+  const AMOUNT_RE = /([+\-−]?)\s*([\d\s]+(?:[.,]\d{2})?)\s*[₽pPрР]?/;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -201,7 +196,11 @@ function parseTbank(lines) {
     let amount = parseFloat(rawAmount);
     if (isNaN(amount) || amount <= 0) continue;
 
+    // Если это Т-Банк и там нет знака, значит скорее всего это не Т-Банк, но мы все равно попробуем
+    if (amount < 1 && !text.includes('₽')) continue;
+
     amount = Math.round(amount);
+    // В Т-Банке обычно есть минус, если его нет - ставим расход
     const type = sign === '+' ? 'income' : 'expense';
 
     let description = text.replace(amountMatch[0], '').trim();
@@ -330,13 +329,13 @@ function parseSber(lines) {
 export function parseBankScreenshot(textLines, currentBankType = 'tbank') {
   if (!textLines || !textLines.length) return { operations: [], suggestedBank: null };
 
+  // ✅ Сначала определяем банк по маркерам
+  const detectedBank = detectBankType(textLines);
+  const suggestedBank = (detectedBank && detectedBank !== currentBankType) ? detectedBank : null;
+
   if (!isValidBankScreenshot(textLines)) {
     throw new Error('Этот скриншот не похож на выписку из банка. Попробуйте загрузить скриншот операций.');
   }
-
-  // ✅ Проверяем, совпадает ли выбранный банк с тем, что на скрине
-  const detectedBank = detectBankType(textLines);
-  const suggestedBank = (detectedBank && detectedBank !== currentBankType) ? detectedBank : null;
 
   const lines = [...textLines].sort((a, b) => {
     if (!a.bbox || !b.bbox) return 0;
@@ -344,11 +343,16 @@ export function parseBankScreenshot(textLines, currentBankType = 'tbank') {
   });
 
   let parsedItems = [];
-  // Парсим тем банком, который выбран пользователем, даже если мы думаем, что это ошибка
+  // Парсим тем банком, который выбран пользователем
   if (currentBankType === 'sber') {
     parsedItems = parseSber(lines);
   } else {
     parsedItems = parseTbank(lines);
+  }
+
+  // ✅ Если мы не нашли операции, но подозреваем, что это другой банк — предлагаем переключиться
+  if (parsedItems.length === 0 && suggestedBank) {
+    return { operations: [], suggestedBank };
   }
 
   if (parsedItems.length === 0) {
@@ -383,7 +387,6 @@ export function parseBankScreenshot(textLines, currentBankType = 'tbank') {
 
   operations.reverse();
 
-  // Второй проход (валидация)
   const validatedOperations = operations.map((op) => {
     let isSuspicious = false;
     let suspicionReason = '';
