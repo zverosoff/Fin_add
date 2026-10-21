@@ -147,7 +147,7 @@ function isValidBankScreenshot(lines) {
 }
 
 // ============================================================
-// ПАРСЕР ДЛЯ Т-БАНКА
+// ПАРСЕР ДЛЯ Т-БАНКА (v4, ИСПРАВЛЕННЫЙ)
 // ============================================================
 function parseTbank(lines) {
   const parsedItems = [];
@@ -155,16 +155,38 @@ function parseTbank(lines) {
   let defaultYear = now.getFullYear();
 
   const DATE_WORD_RE = /(Сегодня|Вчера|Позавчера)/i;
-  const DATE_NUM_RE = /(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:[,\s]+([а-я]{2}))?/i;
-  // ✅ Сделали регулярку более лояльной (теперь понимает и без минуса, как в Сбере)
-  const AMOUNT_RE = /([+\-−]?)\s*([\d\s]+(?:[.,]\d{2})?)\s*[₽pPрР]?/;
+  const DATE_NUM_RE = /(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)/i;
+  
+  // Суммы: ищем только явные операции (с минусом или плюсом, но не кэшбэк)
+  const AMOUNT_RE = /([+\-−])\s*(\d[\d\s]*[.,]?\d*)\s*(?:₽|p|P|р|Р)?/;
+  
+  // Игнорируем заголовки карточек
+  const JUNK_RE = /^(траты|доходы|счета и карты|без переводов|операции|октябрь|сентябрь|баланс|всего|расходы|поступления)/i;
+
+  // Находим Y первого заголовка даты (например, "16 октября")
+  let listStartY = 0;
+  for (const line of lines) {
+    const text = (line.text || '').trim();
+    if (DATE_WORD_RE.test(text) || DATE_NUM_RE.test(text)) {
+      listStartY = line.bbox ? line.bbox.y0 : 0;
+      break;
+    }
+  }
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const text = (line.text || '').trim();
     if (!text) continue;
+    
     const y = line.bbox ? line.bbox.y0 : 0;
+    const x = line.bbox ? line.bbox.x0 : 0;
 
+    // 1. Отсекаем всё, что выше первой даты (карточки "Траты/Доходы")
+    if (listStartY > 0 && y < listStartY - 20) continue;
+    
+    if (JUNK_RE.test(text)) continue;
+
+    // 2. Ищем дату
     let foundDate = null;
     if (DATE_WORD_RE.test(text)) {
       const word = text.match(DATE_WORD_RE)[0].toLowerCase();
@@ -188,42 +210,77 @@ function parseTbank(lines) {
       continue;
     }
 
+    // 3. Ищем сумму операции
     const amountMatch = text.match(AMOUNT_RE);
     if (!amountMatch) continue;
 
     const sign = amountMatch[1];
     const rawAmount = amountMatch[2].replace(/\s+/g, '').replace(',', '.');
     let amount = parseFloat(rawAmount);
+    
     if (isNaN(amount) || amount <= 0) continue;
 
-    // Если это Т-Банк и там нет знака, значит скорее всего это не Т-Банк, но мы все равно попробуем
-    if (amount < 1 && !text.includes('₽')) continue;
+    // Отсекаем кэшбэк (например, +10, +8), если это не крупная операция
+    if (amount < 50 && sign === '+') continue;
 
-    amount = Math.round(amount);
-    // В Т-Банке обычно есть минус, если его нет - ставим расход
+    // Жесткая отсечка: суммы > 50 000 — это итоги за месяц
+    if (amount > 50000) continue; 
+
     const type = sign === '+' ? 'income' : 'expense';
+    amount = Math.round(amount);
 
+    // 4. Очищаем описание от лишних символов
     let description = text.replace(amountMatch[0], '').trim();
-    if (description.toLowerCase().includes('black') || description.toLowerCase().includes('+')) continue;
-
-    let mainLineIndex = i;
-    if (!description || description.length < 2) {
-      if (i - 1 >= 0) { description = lines[i-1].text; mainLineIndex = i - 1; }
-      else if (i + 1 < lines.length) description = lines[i+1].text;
+    description = description.replace(/[|•·\-\+−₽]/g, '').trim();
+    
+    // Если описание — просто число, время или слово Black, ищем на соседних строках
+    if (!description || description.length < 2 || /^\d+$/.test(description) || /^\d{1,2}:\d{2}$/.test(description) || description.toLowerCase() === 'black') {
+      // Ищем строку выше с таким же X или чуть выше по Y
+      if (i - 1 >= 0 && lines[i-1].bbox) {
+          const prevText = lines[i-1].text.trim();
+          const prevY = lines[i-1].bbox.y0;
+          const prevX = lines[i-1].bbox.x0;
+          
+          if (!AMOUNT_RE.test(prevText) && !JUNK_RE.test(prevText) && !DATE_WORD_RE.test(prevText) && !DATE_NUM_RE.test(prevText)) {
+              // Если по X он близко (в той же колонке названий) или разница по Y небольшая
+              if (Math.abs(prevX - x) < 150 || Math.abs(prevY - y) < 50) {
+                  description = prevText;
+              }
+          }
+      }
     }
 
-    description = description.replace(/[|•·\-\+−]/g, '').trim();
-    if (!description) description = 'Операция';
-    const category = extractCategory(description + ' ' + (lines[i+1]?.text || ''));
+    if (!description || description.length < 2) description = 'Операция';
 
+    // Категория
+    let category = 'Прочее';
+    // Пробуем взять категорию из следующей строки (обычно это "Супермаркеты", "Фастфуд")
+    const nextLine = lines[i+1]?.text || '';
+    if (nextLine && !AMOUNT_RE.test(nextLine) && !JUNK_RE.test(nextLine)) {
+        category = extractCategory(nextLine) || extractCategory(description);
+    } else {
+        category = extractCategory(description);
+    }
+
+    // Bbox для маски (выделяем и название, и сумму)
     let opBbox = line.bbox;
-    if (lines[mainLineIndex] && lines[mainLineIndex].bbox && line.bbox) {
-       const l1 = lines[mainLineIndex].bbox;
+    if (lines[i-1] && lines[i-1].bbox && line.bbox && description === lines[i-1].text.trim()) {
+       const l1 = lines[i-1].bbox;
        const l2 = line.bbox;
        opBbox = { x0: Math.min(l1.x0, l2.x0), y0: Math.min(l1.y0, l2.y0), x1: Math.max(l1.x1, l2.x1), y1: Math.max(l1.y1, l2.y1) };
     }
 
-    parsedItems.push({ type: 'op', y, opData: { name: description.slice(0, 80), amount, type, category, bbox: opBbox } });
+    parsedItems.push({ 
+        type: 'op', 
+        y, 
+        opData: { 
+            name: description.slice(0, 80), 
+            amount, 
+            type, 
+            category, 
+            bbox: opBbox
+        } 
+    });
   }
   return parsedItems;
 }
@@ -329,7 +386,7 @@ function parseSber(lines) {
 export function parseBankScreenshot(textLines, currentBankType = 'tbank') {
   if (!textLines || !textLines.length) return { operations: [], suggestedBank: null };
 
-  // ✅ Сначала определяем банк по маркерам
+  // Сначала определяем банк по маркерам
   const detectedBank = detectBankType(textLines);
   const suggestedBank = (detectedBank && detectedBank !== currentBankType) ? detectedBank : null;
 
@@ -343,14 +400,12 @@ export function parseBankScreenshot(textLines, currentBankType = 'tbank') {
   });
 
   let parsedItems = [];
-  // Парсим тем банком, который выбран пользователем
   if (currentBankType === 'sber') {
     parsedItems = parseSber(lines);
   } else {
     parsedItems = parseTbank(lines);
   }
 
-  // ✅ Если мы не нашли операции, но подозреваем, что это другой банк — предлагаем переключиться
   if (parsedItems.length === 0 && suggestedBank) {
     return { operations: [], suggestedBank };
   }
@@ -396,15 +451,15 @@ export function parseBankScreenshot(textLines, currentBankType = 'tbank') {
       suspicionReason = 'Непонятное название';
     }
 
+    const lowerName = op.name.toLowerCase();
+    if (lowerName.includes('траты') || lowerName.includes('доходы') || lowerName.includes('баланс') || lowerName.includes('итого')) {
+      isSuspicious = true;
+      suspicionReason = 'Похоже на системную информацию';
+    }
+
     if (op.amount > 10000 && op.amount % 1000 === 0) {
        isSuspicious = true;
        suspicionReason = 'Похоже на аналитику';
-    }
-
-    const lowerName = op.name.toLowerCase();
-    if (lowerName.includes('расходы') || lowerName.includes('зачислен') || lowerName.includes('переводы людям') || lowerName.includes('аналитика')) {
-      isSuspicious = true;
-      suspicionReason = 'Похоже на общую информацию';
     }
 
     return { ...op, isSuspicious, suspicionReason };
