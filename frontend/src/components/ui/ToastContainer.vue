@@ -14,6 +14,11 @@ const ICON_CLOSE = '/img/icons/ui/close.png';
         class="toast"
         :class="[t.type, { 'has-action': !!t.action }]"
       >
+        <!-- Иконка успеха/ошибки -->
+        <div class="toast-icon" v-if="t.type === 'success'">✅</div>
+        <div class="toast-icon" v-else-if="t.type === 'error'">❌</div>
+        <div class="toast-icon" v-else>ℹ️</div>
+
         <span class="toast-msg">{{ t.message }}</span>
 
         <div class="toast-actions">
@@ -25,23 +30,21 @@ const ICON_CLOSE = '/img/icons/ui/close.png';
             {{ t.action.label }}
           </button>
 
-          <button
-            class="toast-close"
-            @click="dismiss(t.id)"
-            aria-label="Закрыть"
-          >
-            <img :src="ICON_CLOSE" class="toast-close-img" alt="Закрыть" />
-          </button>
-        </div>
+        <button
+          class="toast-close"
+          @click="dismiss(t.id)"
+          aria-label="Закрыть"
+        >✕</button>
       </div>
     </TransitionGroup>
   </div>
 </template>
 
 <style scoped lang="scss">
+/* ✅ Перенесено наверх (iOS-style) */
 .toast-container {
   position: fixed;
-  bottom: calc(90px + env(safe-area-inset-bottom, 0));
+  top: calc(12px + env(safe-area-inset-top, 0));
   left: 50%;
   transform: translateX(-50%);
   z-index: 9999;
@@ -49,250 +52,104 @@ const ICON_CLOSE = '/img/icons/ui/close.png';
   display: flex;
   flex-direction: column;
   gap: 8px;
-  align-items: stretch;
-
-  width: 100%;
-  max-width: 460px;
-  padding: 0 12px;
-  box-sizing: border-box;
+  z-index: 10000;
   pointer-events: none;
+  align-items: center;
+  padding: 0 16px;
+  box-sizing: border-box;
+  width: 100%;
+  max-width: 500px;
 }
 
 .toast {
   display: flex;
   align-items: center;
-  gap: 12px;
-
-  width: 100%;
-  box-sizing: border-box;
-
-  padding: 12px 14px 12px 18px;
-  border-radius: 14px;
-
-  background: var(--overlay-bg, #ffffff);
-  border: 1.5px solid var(--accent);
-  color: var(--text);
-
-  font-size: 13.5px;
-  font-weight: 600;
-  line-height: 1.35;
-
-  box-shadow: var(--shadow-lg);
-
+  gap: 10px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(20px) saturate(180%);
   -webkit-backdrop-filter: blur(20px) saturate(180%);
-
+  border: 1px solid rgba(0, 0, 0, 0.05);
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 600;
+  box-shadow: 
+    0 10px 40px -10px rgba(15, 23, 42, 0.25),
+    0 2px 8px rgba(15, 23, 42, 0.08);
   pointer-events: auto;
-
-  transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
-
-  &.success { border-color: var(--accent-2, #16a34a); }
-  &.error   { border-color: var(--danger, #dc2626); }
-
-  &.has-action {
-    padding-right: 12px;
-  }
+  width: 100%;
+  
+  &.success { border-color: rgba(34, 197, 94, 0.3); }
+  &.error { border-color: rgba(239, 68, 68, 0.3); }
 }
 
-:global(:root[data-app-theme="dark"]) .toast {
-  background: rgba(30, 16, 48, 0.95);
-  border-color: rgba(168, 85, 247, 0.6);
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.6),
-    0 16px 40px -12px rgba(139, 92, 246, 0.5),
-    0 0 0 1px rgba(168, 85, 247, 0.3);
-
-  &.success {
-    border-color: rgba(74, 222, 128, 0.7);
-    box-shadow:
-      0 4px 12px rgba(0, 0, 0, 0.6),
-      0 16px 40px -12px rgba(34, 197, 94, 0.4),
-      0 0 0 1px rgba(74, 222, 128, 0.3);
-  }
-  &.error {
-    border-color: rgba(244, 63, 94, 0.7);
-    box-shadow:
-      0 4px 12px rgba(0, 0, 0, 0.6),
-      0 16px 40px -12px rgba(244, 63, 94, 0.4),
-      0 0 0 1px rgba(244, 63, 94, 0.3);
-  }
-}
+.toast-icon { font-size: 16px; flex-shrink: 0; }
 
 .toast-msg {
   flex: 1;
-  min-width: 0;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-}
-
-.toast-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .toast-action {
-  padding: 7px 14px;
-  border-radius: 10px;
-  border: 1px solid var(--accent);
-  background: rgba(139, 92, 246, 0.1);
-  color: var(--accent);
-
+  padding: 6px 12px;
+  border-radius: 8px;
+  border: 1px solid #6366f1;
+  background: rgba(99, 102, 241, 0.1);
+  color: #6366f1;
   font-family: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 800;
   cursor: pointer;
+  transition: all 0.15s;
   white-space: nowrap;
 
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1) inset;
-
-  transition: all 0.15s cubic-bezier(.34,1.56,.64,1);
-
-  &:hover {
-    background: var(--accent);
-    color: #ffffff;
-    transform: translateY(-1px);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.3) inset,
-      0 4px 10px -2px rgba(139, 92, 246, 0.5);
-  }
-  &:active { transform: scale(0.96); }
+  &:hover { background: #6366f1; color: #fff; }
 }
 
-/* ✅ Кнопка закрытия — фикс 26×26 */
 .toast-close {
-  width: 26px;
-  height: 26px;
-  min-width: 26px;
-  max-width: 26px;
-  min-height: 26px;
-  max-height: 26px;
-
+  width: 24px;
+  height: 24px;
   border-radius: 50%;
   border: none;
-  background: rgba(148, 163, 184, 0.15);
-
+  background: rgba(0, 0, 0, 0.05);
+  color: #94a3b8;
+  font-size: 12px;
   cursor: pointer;
-  display: inline-flex;
+  display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
-  overflow: hidden;
   flex-shrink: 0;
 
-  transition: background 0.15s, transform 0.15s;
-
-  &:hover {
-    background: rgba(244, 63, 94, 0.15);
-  }
-  &:active { transform: scale(0.92); }
+  &:hover { background: rgba(239, 68, 68, 0.1); color: #ef4444; }
 }
 
-/* ✅ PNG-крестик — фикс 14×14 */
-.toast-close-img {
-  display: block;
-  width: 14px;
-  height: 14px;
-  min-width: 14px;
-  max-width: 14px;
-  max-height: 14px;
-  object-fit: contain;
-  opacity: 0.75;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
-  transition: opacity 0.15s, filter 0.15s;
-}
-
-.toast-close:hover .toast-close-img {
-  opacity: 1;
-  filter: drop-shadow(0 0 6px rgba(244, 63, 94, 0.6)) brightness(1.15);
-}
-
-/* Анимации */
-.toast-enter-active {
-  transition:
-    opacity 0.25s ease,
-    transform 0.35s cubic-bezier(.34,1.56,.64,1);
-}
+/* ✅ Анимация сверху вниз, как в iOS */
+.toast-enter-active,
 .toast-leave-active {
-  transition:
-    opacity 0.2s ease,
-    transform 0.25s ease;
+  transition: all 0.4s cubic-bezier(0.22, 1, 0.36, 1);
 }
 .toast-enter-from {
   opacity: 0;
-  transform: translateY(20px) scale(0.94);
+  transform: translateY(-20px) scale(0.95);
 }
 .toast-leave-to {
   opacity: 0;
-  transform: translateY(-10px) scale(0.94);
+  transform: translateY(-20px) scale(0.95);
 }
 
-/* ============================================================
-   МОБИЛЬНЫЙ
-   ============================================================ */
 @media (max-width: 700px) {
   .toast-container {
-    bottom: calc(84px + env(safe-area-inset-bottom, 0));
-    max-width: 100%;
-    padding: 0 10px;
-    gap: 6px;
+    top: calc(8px + env(safe-area-inset-top, 0));
+    padding: 0 12px;
   }
-
   .toast {
-    padding: 12px 12px 12px 16px;
+    padding: 12px 14px;
     font-size: 13px;
-    gap: 10px;
-    border-radius: 13px;
+    width: 100%;
   }
-
-  .toast-msg {
-    font-size: 13px;
-    line-height: 1.3;
-  }
-
-  .toast-action {
-    padding: 7px 12px;
-    font-size: 12px;
-  }
-
-  .toast-close {
-    width: 24px;
-    height: 24px;
-    min-width: 24px;
-    max-width: 24px;
-    min-height: 24px;
-    max-height: 24px;
-  }
-
-  .toast-close-img {
-    width: 12px;
-    height: 12px;
-    min-width: 12px;
-    max-width: 12px;
-    max-height: 12px;
-  }
-}
-
-@media (max-width: 380px) {
-  .toast {
-    font-size: 12.5px;
-    padding: 11px 10px 11px 14px;
-    gap: 8px;
-  }
-  .toast-action {
-    padding: 6px 10px;
-    font-size: 11.5px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .toast-enter-active,
-  .toast-leave-active,
-  .toast-action,
-  .toast-close {
-    transition: none !important;
-    transform: none !important;
-  }
+  .toast-msg { white-space: normal; word-break: break-word; line-height: 1.3; }
 }
 </style>
