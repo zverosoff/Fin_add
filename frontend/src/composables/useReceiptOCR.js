@@ -80,12 +80,9 @@ export async function recognizeText(file, onProgress) {
     }
   }
 
-  return { lines: textLines };
+  return { lines: textLines, width: data.imageWidth, height: data.imageHeight };
 }
 
-// ============================================================
-// ✅ Умный парсер для банковских скриншотов (Т-Банк, Сбер)
-// ============================================================
 export function parseBankScreenshot(textLines) {
   if (!textLines || !textLines.length) return [];
 
@@ -119,7 +116,7 @@ export function parseBankScreenshot(textLines) {
     const text = (line.text || '').trim();
     if (!text) continue;
 
-    // 1. Проверяем заголовки дат
+    // Даты
     if (DATE_WORD_RE.test(text)) {
       const word = text.match(DATE_WORD_RE)[0].toLowerCase();
       if (word === 'сегодня') currentDate = new Date();
@@ -140,7 +137,7 @@ export function parseBankScreenshot(textLines) {
       continue;
     }
 
-    // 2. Ищем сумму
+    // Сумма
     const amountMatch = text.match(AMOUNT_RE);
     if (!amountMatch) continue;
 
@@ -149,45 +146,54 @@ export function parseBankScreenshot(textLines) {
     let amount = parseFloat(rawAmount);
     if (isNaN(amount) || amount <= 0) continue;
 
-    amount = Math.round(amount); // Округление до целого
+    amount = Math.round(amount);
     const type = sign === '+' ? 'income' : 'expense';
 
-    // 3. Парсим название и категорию
+    // Название и категория
     let description = text.replace(amountMatch[0], '').trim();
-    let category = 'Прочее';
-
-    // Если описание короткое, берем следующую строку
+    
     if (!description || description.length < 2) {
       if (i + 1 < lines.length) {
         const nextText = (lines[i + 1].text || '').trim();
         if (!/\d/.test(nextText)) description = nextText;
       }
     }
-
-    description = description.replace(/[|•·\-\+−]/g, '').trim();
-
-    // Вытаскиваем категорию
-    for (const cat of CATEGORY_WORDS) {
-      if (description.toLowerCase().includes(cat.toLowerCase())) {
-        category = cat;
-        description = description.replace(new RegExp(cat, 'ig'), '').trim();
-        break;
-      }
+    
+    if (description.toLowerCase().includes('black') || description.toLowerCase().includes('+')) {
+        continue;
     }
 
+    description = description.replace(/[|•·\-\+−]/g, '').trim();
     if (!description || description.length < 2) description = 'Операция';
-    description = description.replace(/\s+/g, ' ').slice(0, 80);
 
+    let category = 'Прочее';
+    const linesToCheck = [description, lines[i+1]?.text || '', lines[i-1]?.text || ''];
+    
+    for (const checkText of linesToCheck) {
+        const low = checkText.toLowerCase();
+        for (const cat of CATEGORY_WORDS) {
+            if (low.includes(cat.toLowerCase())) {
+                category = cat;
+                description = description.replace(new RegExp(cat, 'ig'), '').trim();
+                break;
+            }
+        }
+        if (category !== 'Прочее') break;
+    }
+
+    if (!description) description = 'Операция';
+
+    // ✅ Сохраняем bbox (координаты), чтобы нарисовать окно на фото
     operations.push({
       date: currentDate.toISOString(),
-      name: description,
+      name: description.slice(0, 80),
       amount,
       type,
       category,
+      bbox: line.bbox, // <--- Вот тут передаем координаты
     });
   }
 
-  // Убираем дубликаты
   const seen = new Set();
   return operations.filter(op => {
     const key = `${op.name}|${op.amount}|${op.date.slice(0, 10)}`;

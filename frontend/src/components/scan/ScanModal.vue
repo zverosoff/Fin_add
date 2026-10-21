@@ -22,8 +22,9 @@ const txStore = useTransactionsStore();
 const auth = useAuthStore();
 const toast = useToast();
 
-const step = ref('upload'); // 'upload' | 'recognizing' | 'preview'
+const step = ref('upload');
 const file = ref(null);
+const filePreview = ref('');
 const progress = ref(0);
 const statusText = ref('');
 
@@ -34,6 +35,10 @@ const user = ref(auth.user || 'Сергей');
 const accountId = ref('');
 const error = ref('');
 const saving = ref(false);
+
+// Для маски на фото
+const imageMeta = ref({ width: 0, height: 0 });
+const highlightBoxes = ref([]);
 
 const userAccounts = computed(() =>
   accounts.accounts.filter(a => (a.owner || 'Сергей') === user.value)
@@ -52,10 +57,13 @@ function switchToPdf() {
 function reset() {
   step.value = 'upload';
   file.value = null;
+  filePreview.value = '';
   progress.value = 0;
   statusText.value = '';
   items.value = [];
   selectedIndices.value = new Set();
+  highlightBoxes.value = [];
+  imageMeta.value = { width: 0, height: 0 };
   user.value = auth.user || 'Сергей';
   accountId.value = userAccounts.value[0]?.id || '';
   error.value = '';
@@ -81,6 +89,7 @@ async function onFileSelected(e) {
 
 async function processFile(f) {
   file.value = f;
+  filePreview.value = URL.createObjectURL(f);
   error.value = '';
   step.value = 'recognizing';
   progress.value = 0;
@@ -90,22 +99,38 @@ async function processFile(f) {
     const processed = await preprocessImage(f);
     statusText.value = 'Загрузка модели OCR…';
     
+    // Передаем размеры картинки для точного расчета
     const result = await recognizeText(processed, (pct) => {
       progress.value = pct;
       statusText.value = `Сканирование: ${pct}%`;
     });
 
-    // Парсим скриншот
+    imageMeta.value = {
+      width: result.width || 1000,
+      height: result.height || 1000,
+    };
+
     const parsed = parseBankScreenshot(result.lines);
 
     if (!parsed.length) {
-      error.value = 'Не удалось найти операции. Убедитесь, что на скриншоте есть список операций с датами и суммами.';
+      error.value = 'Не удалось найти операции.';
       step.value = 'upload';
       return;
     }
 
     items.value = parsed;
     selectedIndices.value = new Set(parsed.map((_, i) => i));
+    
+    // Собираем координаты операций (делим на 2, т.к. preprocessImage увеличивает в 2 раза)
+    highlightBoxes.value = parsed
+      .filter(it => it.bbox)
+      .map(it => ({
+        left: (it.bbox.x0 / 2 / imageMeta.value.width) * 100,
+        top: (it.bbox.y0 / 2 / imageMeta.value.height) * 100,
+        width: ((it.bbox.x1 - it.bbox.x0) / 2 / imageMeta.value.width) * 100,
+        height: ((it.bbox.y1 - it.bbox.y0) / 2 / imageMeta.value.height) * 100,
+      }));
+
     step.value = 'preview';
   } catch (e) {
     console.error('[scan] ошибка OCR:', e);
@@ -254,6 +279,28 @@ function close() {
 
     <!-- ШАГ 3. Предпросмотр -->
     <div v-else-if="step === 'preview'" class="step">
+      
+      <!-- ✅ Визуальное превью с заштриховкой -->
+      <div v-if="filePreview" class="preview-wrapper">
+        <img :src="filePreview" class="preview-img" />
+        
+        <!-- Затеняем всё, кроме найденных операций -->
+        <div class="preview-overlay">
+          <!-- Затемненные зоны (между окнами) рисуются автоматически за счет разницы цвета фона -->
+          <div 
+            v-for="(box, i) in highlightBoxes" 
+            :key="i"
+            class="highlight-box"
+            :style="{
+              left: box.left + '%',
+              top: box.top + '%',
+              width: box.width + '%',
+              height: box.height + '%',
+            }"
+          ></div>
+        </div>
+      </div>
+
       <div class="preview-header">
         <div class="ph-title">Найдено операций: {{ items.length }}</div>
         <div class="ph-hint">Снимите галочки с лишнего</div>
@@ -315,7 +362,44 @@ function close() {
 <style scoped lang="scss">
 .step { display: flex; flex-direction: column; gap: 16px; }
 
-/* Переключатель режима */
+/* ✅ Красивое превью с окнами */
+.preview-wrapper {
+  position: relative;
+  width: 100%;
+  max-height: 300px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #0f172a;
+  display: flex;
+  justify-content: center;
+  border: 1px solid #e2e8f0;
+}
+
+.preview-img {
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.preview-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.7); /* Затенение всего фона */
+  backdrop-filter: blur(2px);
+}
+
+.highlight-box {
+  position: absolute;
+  background: transparent;
+  box-shadow: 0 0 0 100vmax rgba(15, 23, 42, 0.7); /* Оставляем только "окно" прозрачным */
+  border: 2px solid rgba(99, 102, 241, 0.8); /* Подсветка рамки */
+  border-radius: 4px;
+  transform: translateZ(0);
+  pointer-events: none;
+}
+
+/* ... остальные стили ... */
 .mode-switch {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -324,9 +408,7 @@ function close() {
   margin-bottom: 18px;
   background: linear-gradient(180deg, #f1f5f9, #e2e8f0);
   border-radius: 14px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08) inset, 0 1px 0 rgba(255, 255, 255, 0.9);
 }
-
 .mode {
   display: flex;
   align-items: center;
@@ -341,196 +423,47 @@ function close() {
   font-weight: 800;
   border-radius: 10px;
   cursor: pointer;
-  transition: all 0.25s cubic-bezier(.34,1.56,.64,1);
-  
-  &:not(:disabled):hover { color: #4f46e5; background: rgba(255, 255, 255, 0.5); }
-  &.active {
-    background: linear-gradient(180deg, #818cf8, #6366f1);
-    color: #ffffff;
-    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.3) inset, 0 -2px 0 rgba(49, 46, 129, 0.3) inset, 0 4px 10px -2px rgba(99, 102, 241, 0.5);
-    cursor: default;
-  }
-  &:disabled { cursor: default; }
 }
-
-/* Форма */
-.fields-row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-}
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  label {
-    font-size: 11px;
-    font-weight: 800;
-    color: #64748b;
-    text-transform: uppercase;
-    letter-spacing: 0.06em;
-  }
-  select {
-    width: 100%;
-    padding: 12px 14px;
-    border-radius: 12px;
-    border: 1.5px solid #e2e8f0;
-    background: #fff;
-    color: #0f172a;
-    font-size: 14px;
-    font-weight: 700;
-    outline: none;
-    &:focus { border-color: #6366f1; }
-  }
-}
-
-.upload-btn {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  width: 100%;
-  padding: 18px 20px;
-  border-radius: 16px;
-  border: 2px dashed rgba(99, 102, 241, 0.4);
-  background: linear-gradient(180deg, #eef2ff, #e0e7ff);
-  cursor: pointer;
-  transition: all 0.2s;
-  text-align: left;
-
-  &:hover { border-color: #6366f1; background: linear-gradient(180deg, #e0e7ff, #c7d2fe); }
-}
-
-.upload-icon { font-size: 26px; }
-.upload-title { font-size: 15px; font-weight: 800; color: #0f172a; display: block; }
-.upload-sub { font-size: 12px; color: #64748b; margin-top: 2px; display: block; }
-
-/* Распознавание */
-.recognize {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 18px;
-  padding: 40px 20px;
-  text-align: center;
-}
-.spinner {
-  width: 48px;
-  height: 48px;
-  border: 4px solid rgba(99, 102, 241, 0.2);
-  border-top-color: #6366f1;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  box-shadow: 0 0 20px rgba(99, 102, 241, 0.3);
-}
-@keyframes spin { to { transform: rotate(360deg); } }
-.status { font-size: 14px; font-weight: 700; color: #0f172a; }
-.progress {
-  width: 100%;
-  max-width: 320px;
-  height: 10px;
-  border-radius: 5px;
-  background: #e2e8f0;
-  overflow: hidden;
-}
-.progress-fill {
-  height: 100%;
+.mode.active {
   background: linear-gradient(180deg, #818cf8, #6366f1);
-  transition: width 0.3s;
+  color: #ffffff;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.3) inset, 0 -2px 0 rgba(49, 46, 129, 0.3) inset, 0 4px 10px -2px rgba(99, 102, 241, 0.5);
 }
-
-/* Предпросмотр */
-.preview-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-bottom: 8px;
-  border-bottom: 1px solid #e2e8f0;
-}
-.ph-title { font-size: 13px; font-weight: 800; color: #0f172a; }
+.fields-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.field { display: flex; flex-direction: column; gap: 6px; }
+.field label { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; }
+.field select { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1.5px solid #e2e8f0; background: #fff; font-weight: 700; }
+.upload-btn { display: flex; align-items: center; gap: 16px; width: 100%; padding: 18px 20px; border-radius: 16px; border: 2px dashed rgba(99, 102, 241, 0.4); background: linear-gradient(180deg, #eef2ff, #e0e7ff); cursor: pointer; text-align: left; }
+.upload-icon { font-size: 26px; }
+.upload-title { font-size: 15px; font-weight: 800; display: block; }
+.upload-sub { font-size: 12px; color: #64748b; }
+.recognize { display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 40px 20px; text-align: center; }
+.spinner { width: 48px; height: 48px; border: 4px solid rgba(99, 102, 241, 0.2); border-top-color: #6366f1; border-radius: 50%; animation: spin 1s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.status { font-size: 14px; font-weight: 700; }
+.progress { width: 100%; max-width: 320px; height: 10px; border-radius: 5px; background: #e2e8f0; overflow: hidden; }
+.progress-fill { height: 100%; background: linear-gradient(180deg, #818cf8, #6366f1); }
+.preview-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; }
+.ph-title { font-size: 13px; font-weight: 800; }
 .ph-hint { font-size: 11px; color: #94a3b8; }
-
-.items-list {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  max-height: 45vh;
-  overflow-y: auto;
-  padding-right: 4px;
-}
-
-.item-row {
-  display: grid;
-  grid-template-columns: auto 44px 1fr auto;
-  gap: 10px;
-  align-items: center;
-  padding: 12px 14px;
-  border-radius: 12px;
-  border: 1px solid #e2e8f0;
-  background: #fff;
-  transition: all 0.15s;
-
-  &.selected {
-    border-color: rgba(99, 102, 241, 0.5);
-    background: #f5f3ff;
-  }
-}
-
+.items-list { display: flex; flex-direction: column; gap: 6px; max-height: 45vh; overflow-y: auto; padding-right: 4px; }
+.item-row { display: grid; grid-template-columns: auto 44px 1fr auto; gap: 10px; align-items: center; padding: 12px 14px; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; }
+.item-row.selected { border-color: rgba(99, 102, 241, 0.5); background: #f5f3ff; }
 .item-check { width: 18px; height: 18px; accent-color: #6366f1; cursor: pointer; }
 .item-date { font-size: 11px; font-weight: 800; color: #94a3b8; }
 .item-desc { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.item-name { font-size: 13px; font-weight: 700; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.item-name { font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .item-cat { font-size: 11px; color: #64748b; }
-.item-amount {
-  font-family: var(--mono);
-  font-size: 13.5px;
-  font-weight: 800;
-  white-space: nowrap;
-  &.income { color: #16a34a; }
-  &.expense { color: #dc2626; }
-}
-
-/* Ошибка */
-.error-msg {
-  padding: 10px 14px;
-  border-radius: 10px;
-  background: #fef2f2;
-  border: 1px solid #fecaca;
-  color: #dc2626;
-  font-size: 12.5px;
-  font-weight: 700;
-}
-
-/* Кнопки */
-.btn-cancel, .btn-save {
-  padding: 12px 22px;
-  border-radius: 12px;
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 800;
-  cursor: pointer;
-  border: 1px solid transparent;
-  transition: all 0.18s;
-}
-.btn-cancel {
-  background: #f1f5f9;
-  color: #334155;
-  border-color: #e2e8f0;
-  &:hover { background: #e2e8f0; }
-}
-.btn-save {
-  background: linear-gradient(180deg, #818cf8, #6366f1);
-  color: #fff;
-  box-shadow: 0 4px 10px -2px rgba(99, 102, 241, 0.5);
-  &:disabled { opacity: 0.5; cursor: not-allowed; }
-  &:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 8px 20px -4px rgba(99, 102, 241, 0.6); }
-}
-
+.item-amount { font-family: var(--mono); font-size: 13.5px; font-weight: 800; white-space: nowrap; }
+.item-amount.income { color: #16a34a; }
+.item-amount.expense { color: #dc2626; }
+.error-msg { padding: 10px 14px; border-radius: 10px; background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; font-size: 12.5px; font-weight: 700; }
+.btn-cancel, .btn-save { padding: 12px 22px; border-radius: 12px; font-family: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }
+.btn-cancel { background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; }
+.btn-save { background: linear-gradient(180deg, #818cf8, #6366f1); color: #fff; border: none; }
+.btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
 @media (max-width: 700px) {
-  .fields-row { grid-template-columns: 1fr; gap: 12px; }
-  .item-row { grid-template-columns: auto 40px 1fr auto; gap: 8px; padding: 10px; }
-  .item-date { font-size: 10px; }
-  .item-name { font-size: 12.5px; }
-  .item-amount { font-size: 12.5px; }
+  .fields-row { grid-template-columns: 1fr; }
+  .item-row { grid-template-columns: auto 40px 1fr auto; padding: 10px; }
 }
 </style>
