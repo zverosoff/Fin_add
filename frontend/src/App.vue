@@ -1,0 +1,243 @@
+<script setup>
+import { ref, onMounted, onUnmounted, computed, watch } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import { useAuthStore } from '@/stores/auth';
+import { useAccountsStore } from '@/stores/accounts';
+import { useMessagesStore } from '@/stores/messages';
+import { useWebSocket } from '@/composables/useWebSocket';
+import { useScanStore } from '@/stores/scan';
+import { notifySaved } from '@/composables/useDataStatus';
+import { initPushHandlers, subscribeToPush } from '@/composables/usePushNotifications';
+import WelcomeOverlay from '@/components/ui/WelcomeOverlay.vue';
+import ToastContainer from '@/components/ui/ToastContainer.vue';
+import BottomNav from '@/components/ui/BottomNav.vue';
+import ScanModal from '@/components/scan/ScanModal.vue';
+import ManualModal from '@/components/transactions/ManualModal.vue';
+import PdfImportModal from '@/components/scan/PdfImportModal.vue';
+import ChatWidget from '@/components/chat/ChatWidget.vue';
+
+const auth = useAuthStore();
+const accounts = useAccountsStore();
+const messagesStore = useMessagesStore();
+const router = useRouter();
+const route = useRoute();
+const { connect } = useWebSocket();
+const scanStore = useScanStore();
+
+const booting = ref(false);
+const percent = ref(0);
+const stage = ref('Запуск…');
+const done = ref(false);
+const manualOpen = ref(false);
+const pdfOpen = ref(false);
+
+const showBottomNav = computed(() => route.name !== 'login');
+
+// ✅ Чат НЕ на /login и НЕ на /profile
+const showChat = computed(() =>
+  route.name !== 'login' &&
+  route.name !== 'profile' &&
+  auth.isAuthenticated
+);
+
+const TAB_ORDER = ['finance', 'analytics', 'deposits', 'profile'];
+const transitionName = ref('fade-page');
+
+const BASE_TITLE = 'Финансы PRO+';
+watch(() => messagesStore.totalUnread, (n) => {
+  document.title = n > 0 ? `(${n}) ${BASE_TITLE}` : BASE_TITLE;
+}, { immediate: true });
+
+watch(() => route.name, (newName, oldName) => {
+  const newIdx = TAB_ORDER.indexOf(newName);
+  const oldIdx = TAB_ORDER.indexOf(oldName);
+  if (newIdx >= 0 && oldIdx >= 0) {
+    transitionName.value = newIdx > oldIdx ? 'slide-left' : 'slide-right';
+  } else {
+    transitionName.value = 'fade-page';
+  }
+});
+
+function switchToManual() { scanStore.close(); manualOpen.value = true; }
+function switchToPdf() { scanStore.close(); pdfOpen.value = true; }
+
+// ✅ Загрузить профили ВСЕХ других пользователей (не только текущего)
+async function preloadPeerProfiles() {
+  const owners = ['Сергей', 'Саша'];
+  const me = auth.user;
+  for (const owner of owners) {
+    if (owner !== me) {
+      try {
+        await auth.loadPeerProfile(owner);
+      } catch (e) {
+        console.warn('[app] loadPeerProfile failed for', owner, e.message);
+      }
+    }
+  }
+}
+
+onMounted(async () => {
+  if (route.name !== 'login') document.body.classList.add('app-has-bottom-nav');
+  initPushHandlers();
+
+  const hasSessionHint = auth.isAuthenticated || !!auth.user;
+  if (!hasSessionHint) { router.push('/login'); return; }
+
+  booting.value = true;
+  done.value = false;
+  percent.value = 0;
+  stage.value = 'Приветствие…';
+
+  await new Promise(r => setTimeout(r, 200));
+
+  try {
+    stage.value = 'Проверка сессии…';
+    percent.value = 10;
+
+    const valid = await auth.checkSession();
+
+    if (valid === false) {
+      await auth.logout();
+      booting.value = false;
+      router.push('/login');
+      return;
+    }
+
+    if (valid === null) stage.value = 'Сервер недоступен, работаем офлайн…';
+
+    stage.value = 'Загрузка данных…';
+    percent.value = 30;
+
+    try {
+      await accounts.load((p, s) => {
+        percent.value = 30 + p * 0.6;
+        stage.value = s;
+      });
+    } catch (e) {
+      console.warn('[app] не удалось загрузить состояние:', e.message);
+      stage.value = 'Данные недоступны';
+    }
+
+    // ✅ Подтягиваем профили других пользователей сразу
+    stage.value = 'Загрузка профилей…';
+    percent.value = 85;
+    await preloadPeerProfiles();
+
+    stage.value = 'Подключение…';
+    percent.value = 95;
+
+    connect();
+    notifySaved('готово');
+
+    try {
+      await subscribeToPush();
+    } catch (e) {
+      console.warn('[app] push subscribe failed:', e.message);
+    }
+
+    percent.value = 100;
+    stage.value = 'Готово!';
+    done.value = true;
+
+    setTimeout(() => { booting.value = false; }, 400);
+  } catch (e) {
+    console.error('[app] bootstrap error:', e);
+    stage.value = 'Ошибка загрузки';
+    setTimeout(() => { booting.value = false; }, 800);
+  }
+});
+
+// ✅ Если пользователь разлогинился и зашёл под другим — перезагружаем профили
+watch(() => auth.user, async (newUser, oldUser) => {
+  if (newUser && newUser !== oldUser && auth.isAuthenticated) {
+    await preloadPeerProfiles();
+  }
+});
+
+watch(() => route.name, (name) => {
+  document.body.classList.toggle('app-has-bottom-nav', name !== 'login');
+});
+
+onUnmounted(() => {
+  document.body.classList.remove('app-has-bottom-nav');
+  document.body.dataset.chatOpen = 'false';
+});
+</script>
+
+<template>
+  <div class="page-transition-wrap">
+    <router-view v-slot="{ Component, route: r }">
+      <Transition :name="transitionName" mode="out-in">
+        <component :is="Component" :key="r.path" />
+      </Transition>
+    </router-view>
+  </div>
+
+  <BottomNav v-if="showBottomNav" />
+  <ChatWidget v-if="showChat" />
+
+  <ScanModal
+    v-model="scanStore.isOpen"
+    @switch-to-manual="switchToManual"
+    @switch-to-pdf="switchToPdf"
+  />
+
+  <ManualModal v-model="manualOpen" />
+  <PdfImportModal v-model="pdfOpen" />
+
+  <WelcomeOverlay
+    :visible="booting"
+    :user-name="auth.user"
+    :percent="percent"
+    :stage="stage"
+    :done="done"
+  />
+
+  <!-- ✅ Тосты рендерим в body, чтобы не зависеть от z-index модалок -->
+  <Teleport to="body">
+    <ToastContainer />
+  </Teleport>
+</template>
+
+<style>
+.page-transition-wrap {
+  position: relative;
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
+  padding-bottom: calc(90px + env(safe-area-inset-bottom, 0));
+}
+
+@media (max-width: 700px) {
+  .page-transition-wrap { padding-bottom: calc(80px + env(safe-area-inset-bottom, 0)); }
+}
+
+.slide-left-enter-active,
+.slide-right-enter-active {
+  transition: transform 0.28s cubic-bezier(.22,.61,.36,1), opacity 0.28s;
+}
+.slide-left-enter-from { transform: translateX(30px); opacity: 0; }
+.slide-right-enter-from { transform: translateX(-30px); opacity: 0; }
+
+.slide-left-leave-active,
+.slide-right-leave-active {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  width: 100%;
+  transition: transform 0.28s cubic-bezier(.22,.61,.36,1), opacity 0.28s;
+  pointer-events: none;
+}
+.slide-left-leave-to { transform: translateX(-30px); opacity: 0; }
+.slide-right-leave-to { transform: translateX(30px); opacity: 0; }
+
+.fade-page-enter-active,
+.fade-page-leave-active { transition: opacity 0.25s ease; }
+.fade-page-leave-active {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  width: 100%;
+  pointer-events: none;
+}
+.fade-page-enter-from,
+.fade-page-leave-to { opacity: 0; }
+</style>
