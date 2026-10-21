@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, nextTick } from 'vue';
+import { ref, computed, watch } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
 import { useTransactionsStore } from '@/stores/transactions';
 import { useAuthStore } from '@/stores/auth';
@@ -22,9 +22,8 @@ const txStore = useTransactionsStore();
 const auth = useAuthStore();
 const toast = useToast();
 
-const step = ref('upload');
+const step = ref('upload'); // 'upload' | 'recognizing' | 'preview'
 const file = ref(null);
-const filePreview = ref('');
 const progress = ref(0);
 const statusText = ref('');
 
@@ -35,8 +34,6 @@ const user = ref(auth.user || 'Сергей');
 const accountId = ref('');
 const error = ref('');
 const saving = ref(false);
-
-const canvasRef = ref(null);
 
 const userAccounts = computed(() =>
   accounts.accounts.filter(a => (a.owner || 'Сергей') === user.value)
@@ -55,7 +52,6 @@ function switchToPdf() {
 function reset() {
   step.value = 'upload';
   file.value = null;
-  filePreview.value = '';
   progress.value = 0;
   statusText.value = '';
   items.value = [];
@@ -77,57 +73,6 @@ watch(user, () => {
   }
 });
 
-async function drawMaskedImage() {
-  if (!canvasRef.value || !file.value) return;
-
-  const canvas = canvasRef.value;
-  const ctx = canvas.getContext('2d');
-  const img = new Image();
-
-  img.onload = () => {
-    // Задаем размеры холста такими же, как у оригинального изображения
-    canvas.width = img.width;
-    canvas.height = img.height;
-
-    // 1. Рисуем оригинальное фото
-    ctx.drawImage(img, 0, 0);
-
-    // 2. Заливаем полупрозрачным темным цветом
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-    // 3. Вырезаем "окна" для найденных операций
-    ctx.globalCompositeOperation = 'destination-out';
-
-    for (const item of items.value) {
-      if (!item.bbox) continue;
-
-      // Т.к. Tesseract сканировал увеличенное в 2 раза изображение, координаты делим на 2
-      const x = item.bbox.x0 / 2;
-      const y = item.bbox.y0 / 2;
-      const w = (item.bbox.x1 - item.bbox.x0) / 2;
-      const h = (item.bbox.y1 - item.bbox.y0) / 2;
-
-      // Чуть расширяем окно, чтобы было красиво
-      const padding = 8;
-
-      ctx.beginPath();
-      // Используем встроенный метод для скругления
-      if (ctx.roundRect) {
-        ctx.roundRect(x - padding, y - padding, w + padding * 2, h + padding * 2, 8);
-      } else {
-        ctx.rect(x - padding, y - padding, w + padding * 2, h + padding * 2);
-      }
-      ctx.fill();
-    }
-
-    // Сбрасываем режим обратно
-    ctx.globalCompositeOperation = 'source-over';
-  };
-
-  img.src = filePreview.value;
-}
-
 async function onFileSelected(e) {
   const f = e.target.files?.[0];
   if (!f) return;
@@ -136,7 +81,6 @@ async function onFileSelected(e) {
 
 async function processFile(f) {
   file.value = f;
-  filePreview.value = URL.createObjectURL(f);
   error.value = '';
   step.value = 'recognizing';
   progress.value = 0;
@@ -154,17 +98,15 @@ async function processFile(f) {
     const parsed = parseBankScreenshot(result.lines);
 
     if (!parsed.length) {
-      error.value = 'Не удалось найти операции.';
+      error.value = 'Не удалось найти операции. Убедитесь, что на скриншоте есть список операций.';
       step.value = 'upload';
       return;
     }
 
     items.value = parsed;
+    // По умолчанию все галочки стоят
     selectedIndices.value = new Set(parsed.map((_, i) => i));
     step.value = 'preview';
-    
-    await nextTick();
-    drawMaskedImage();
     
   } catch (e) {
     console.error('[scan] ошибка OCR:', e);
@@ -193,10 +135,15 @@ const selectedCount = computed(() => selectedIndices.value.size);
 
 async function save() {
   const toSave = items.value.filter((_, i) => selectedIndices.value.has(i));
-  if (!toSave.length) { error.value = 'Ничего не выбрано'; return; }
+
+  if (!toSave.length) {
+    error.value = 'Выберите хотя бы одну операцию';
+    return;
+  }
 
   saving.value = true;
   error.value = '';
+
   let added = 0, failed = 0;
 
   for (const it of toSave) {
@@ -212,17 +159,24 @@ async function save() {
       internalTransfer: false,
       importOrder: it._idx,
     };
+
     try {
       await txStore.save(txData);
       added++;
     } catch (e) {
       failed++;
+      console.warn('[scan] ошибка сохранения', e);
     }
   }
 
   saving.value = false;
-  if (failed > 0) toast.error(`Добавлено ${added}, ошибок: ${failed}`);
-  else toast.success(`✅ Добавлено ${added} операций`);
+
+  if (failed > 0) {
+    toast.error(`Добавлено ${added}, ошибок: ${failed}`);
+  } else {
+    toast.success(`✅ Добавлено ${added} операций`);
+  }
+
   emit('update:modelValue', false);
 }
 
@@ -303,11 +257,6 @@ function close() {
     <!-- ШАГ 3. Предпросмотр -->
     <div v-else-if="step === 'preview'" class="step">
       
-      <!-- ✅ Визуальное превью с маской -->
-      <div v-if="filePreview" class="preview-wrapper">
-        <canvas ref="canvasRef" class="preview-canvas"></canvas>
-      </div>
-
       <div class="preview-header">
         <div class="ph-title">Найдено операций: {{ items.length }}</div>
         <div class="ph-hint">Снимите галочки с лишнего</div>
@@ -319,24 +268,27 @@ function close() {
           :key="i"
           class="item-row"
           :class="{ selected: selectedIndices.has(i) }"
+          @click="toggleItem(i)"
         >
-          <input
-            type="checkbox"
-            class="item-check"
-            :checked="selectedIndices.has(i)"
-            @change="toggleItem(i)"
-          />
-
-          <span class="item-date">{{ formatDateShort(it.date) }}</span>
-
-          <div class="item-desc">
-            <div class="item-name">{{ it.name }}</div>
-            <div class="item-cat">{{ it.category }}</div>
+          <div class="item-checkbox">
+            <div class="checkbox-inner" :class="{ checked: selectedIndices.has(i) }">
+              <svg v-if="selectedIndices.has(i)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+            </div>
           </div>
 
-          <span class="item-amount" :class="it.type">
+          <div class="item-main">
+            <div class="item-top">
+              <span class="item-date">{{ formatDateShort(it.date) }}</span>
+              <span class="item-cat">{{ it.category }}</span>
+            </div>
+            <div class="item-name">{{ it.name }}</div>
+          </div>
+
+          <div class="item-amount" :class="it.type">
             {{ it.type === 'income' ? '+' : '−' }} {{ fmt(it.amount) }} ₽
-          </span>
+          </div>
         </div>
       </div>
 
@@ -369,27 +321,7 @@ function close() {
 <style scoped lang="scss">
 .step { display: flex; flex-direction: column; gap: 16px; }
 
-/* ✅ Стили для Canvas-превью */
-.preview-wrapper {
-  position: relative;
-  width: 100%;
-  max-height: 250px; /* Ограничиваем высоту, чтобы модалка не растягивалась */
-  overflow: hidden;
-  border-radius: 12px;
-  background: #0f172a;
-  display: flex;
-  justify-content: center;
-  border: 1px solid #e2e8f0;
-}
-
-.preview-canvas {
-  max-width: 100%;
-  max-height: 250px;
-  object-fit: contain;
-  display: block;
-  border-radius: 12px;
-}
-
+/* Переключатель режима */
 .mode-switch {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -414,6 +346,7 @@ function close() {
   font-weight: 800;
   border-radius: 10px;
   cursor: pointer;
+  transition: all 0.25s cubic-bezier(.34,1.56,.64,1);
 }
 
 .mode.active {
@@ -422,48 +355,165 @@ function close() {
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.3) inset, 0 -2px 0 rgba(49, 46, 129, 0.3) inset, 0 4px 10px -2px rgba(99, 102, 241, 0.5);
 }
 
+/* Форма */
 .fields-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .field { display: flex; flex-direction: column; gap: 6px; }
-.field label { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; }
-.field select { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1.5px solid #e2e8f0; background: #fff; font-weight: 700; }
+.field label { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; }
+.field select { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1.5px solid #e2e8f0; background: #fff; color: #0f172a; font-size: 14px; font-weight: 700; outline: none; }
+.field select:focus { border-color: #6366f1; }
 
-.upload-btn { display: flex; align-items: center; gap: 16px; width: 100%; padding: 18px 20px; border-radius: 16px; border: 2px dashed rgba(99, 102, 241, 0.4); background: linear-gradient(180deg, #eef2ff, #e0e7ff); cursor: pointer; text-align: left; }
+.upload-btn {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 18px 20px;
+  border-radius: 16px;
+  border: 2px dashed rgba(99, 102, 241, 0.4);
+  background: linear-gradient(180deg, #eef2ff, #e0e7ff);
+  cursor: pointer;
+  transition: all 0.2s;
+  text-align: left;
+}
+.upload-btn:hover { border-color: #6366f1; background: linear-gradient(180deg, #e0e7ff, #c7d2fe); }
 .upload-icon { font-size: 26px; }
-.upload-title { font-size: 15px; font-weight: 800; display: block; }
-.upload-sub { font-size: 12px; color: #64748b; }
+.upload-title { font-size: 15px; font-weight: 800; color: #0f172a; display: block; }
+.upload-sub { font-size: 12px; color: #64748b; margin-top: 2px; display: block; }
 
+/* Распознавание */
 .recognize { display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 40px 20px; text-align: center; }
-.spinner { width: 48px; height: 48px; border: 4px solid rgba(99, 102, 241, 0.2); border-top-color: #6366f1; border-radius: 50%; animation: spin 1s linear infinite; }
+.spinner { width: 48px; height: 48px; border: 4px solid rgba(99, 102, 241, 0.2); border-top-color: #6366f1; border-radius: 50%; animation: spin 1s linear infinite; box-shadow: 0 0 20px rgba(99, 102, 241, 0.3); }
 @keyframes spin { to { transform: rotate(360deg); } }
-.status { font-size: 14px; font-weight: 700; }
+.status { font-size: 14px; font-weight: 700; color: #0f172a; }
 .progress { width: 100%; max-width: 320px; height: 10px; border-radius: 5px; background: #e2e8f0; overflow: hidden; }
-.progress-fill { height: 100%; background: linear-gradient(180deg, #818cf8, #6366f1); }
+.progress-fill { height: 100%; background: linear-gradient(180deg, #818cf8, #6366f1); transition: width 0.3s; }
 
+/* Предпросмотр */
 .preview-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; }
-.ph-title { font-size: 13px; font-weight: 800; }
+.ph-title { font-size: 13px; font-weight: 800; color: #0f172a; }
 .ph-hint { font-size: 11px; color: #94a3b8; }
 
-.items-list { display: flex; flex-direction: column; gap: 6px; max-height: 45vh; overflow-y: auto; padding-right: 4px; }
-.item-row { display: grid; grid-template-columns: auto 44px 1fr auto; gap: 10px; align-items: center; padding: 12px 14px; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; }
-.item-row.selected { border-color: rgba(99, 102, 241, 0.5); background: #f5f3ff; }
-.item-check { width: 18px; height: 18px; accent-color: #6366f1; cursor: pointer; }
-.item-date { font-size: 11px; font-weight: 800; color: #94a3b8; }
-.item-desc { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.item-name { font-size: 13px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.item-cat { font-size: 11px; color: #64748b; }
-.item-amount { font-family: var(--mono); font-size: 13.5px; font-weight: 800; white-space: nowrap; }
+.items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 50vh;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+/* ✅ Красивые карточки операций */
+.item-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  border: 1.5px solid #e2e8f0;
+  background: #fff;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(.34,1.56,.64,1);
+}
+
+.item-row:hover { border-color: #cbd5e1; }
+.item-row.selected {
+  border-color: #6366f1;
+  background: #f5f3ff;
+  box-shadow: 0 4px 12px -4px rgba(99, 102, 241, 0.15);
+}
+
+/* Кастомный чекбокс */
+.item-checkbox {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+}
+.checkbox-inner {
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+  border: 2px solid #cbd5e1;
+  background: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.checkbox-inner.checked {
+  background: #6366f1;
+  border-color: #6366f1;
+}
+.checkbox-inner svg {
+  width: 14px;
+  height: 14px;
+  color: #fff;
+}
+
+/* Основная инфа */
+.item-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.item-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.item-date {
+  font-size: 11px;
+  font-weight: 800;
+  color: #94a3b8;
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.item-cat {
+  font-size: 11px;
+  font-weight: 700;
+  color: #6366f1;
+}
+
+.item-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Сумма */
+.item-amount {
+  font-family: var(--mono);
+  font-size: 15px;
+  font-weight: 800;
+  white-space: nowrap;
+  text-align: right;
+}
 .item-amount.income { color: #16a34a; }
 .item-amount.expense { color: #dc2626; }
 
+/* Ошибки */
 .error-msg { padding: 10px 14px; border-radius: 10px; background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; font-size: 12.5px; font-weight: 700; }
 
-.btn-cancel, .btn-save { padding: 12px 22px; border-radius: 12px; font-family: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }
-.btn-cancel { background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; }
-.btn-save { background: linear-gradient(180deg, #818cf8, #6366f1); color: #fff; border: none; }
+/* Кнопки */
+.btn-cancel, .btn-save { padding: 12px 22px; border-radius: 12px; font-family: inherit; font-size: 14px; font-weight: 800; cursor: pointer; border: 1px solid transparent; transition: all 0.18s; }
+.btn-cancel { background: #f1f5f9; color: #334155; border-color: #e2e8f0; }
+.btn-cancel:hover { background: #e2e8f0; }
+.btn-save { background: linear-gradient(180deg, #818cf8, #6366f1); color: #fff; box-shadow: 0 4px 10px -2px rgba(99, 102, 241, 0.5); }
 .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn-save:not(:disabled):hover { transform: translateY(-2px); box-shadow: 0 8px 20px -4px rgba(99, 102, 241, 0.6); }
 
 @media (max-width: 700px) {
-  .fields-row { grid-template-columns: 1fr; }
-  .item-row { grid-template-columns: auto 40px 1fr auto; padding: 10px; }
+  .fields-row { grid-template-columns: 1fr; gap: 12px; }
+  .item-row { padding: 12px; gap: 10px; }
+  .item-name { font-size: 13px; }
+  .item-amount { font-size: 14px; }
 }
 </style>
