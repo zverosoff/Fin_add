@@ -34,10 +34,6 @@ const bankType = ref('tbank');
 const saving = ref(false);
 const error = ref('');
 
-// ✅ Ссылки на инпуты файлов
-const scanFileInput = ref(null);
-const pdfFileInput = ref(null);
-
 const userAccounts = computed(() =>
   accounts.accounts.filter(a => (a.owner || 'Сергей') === user.value)
 );
@@ -58,6 +54,7 @@ watch(user, () => {
 // ЛОГИКА ДЛЯ СКРИНШОТА
 // ============================================================
 const scanStep = ref('upload'); // upload | recognizing | preview
+const scanFile = ref(null);
 const scanPreview = ref('');
 const progress = ref(0);
 const statusText = ref('');
@@ -68,7 +65,6 @@ const scanSelected = ref(new Set());
 const canvasRef = ref(null);
 const suggestBank = ref(null);
 const suggestBankModalOpen = ref(false);
-let currentScanFile = null;
 
 let logInterval = null;
 function addLog(text) { scanLogs.value.push(text); }
@@ -82,7 +78,7 @@ watch(scanLogs, () => {
 });
 
 async function drawMaskedImage() {
-  if (!canvasRef.value || !scanPreview.value) return;
+  if (!canvasRef.value || !scanFile.value) return;
   const canvas = canvasRef.value;
   const ctx = canvas.getContext('2d');
   const img = new Image();
@@ -122,7 +118,7 @@ async function drawMaskedImage() {
 async function onScanFile(e) {
   const f = e.target.files?.[0];
   if (!f) return;
-  currentScanFile = f;
+  scanFile.value = f;
   scanPreview.value = URL.createObjectURL(f);
   error.value = '';
   scanStep.value = 'recognizing';
@@ -201,15 +197,12 @@ async function saveScan() {
 }
 
 async function switchBankAndRescan() {
-  if (!suggestBank.value || !currentScanFile) return;
+  if (!suggestBank.value || !scanFile.value) return;
   suggestBankModalOpen.value = false;
   bankType.value = suggestBank.value;
   const targetAcc = userAccounts.value.find(a => a.id.startsWith(suggestBank.value));
   if (targetAcc) accountId.value = targetAcc.id;
-  
-  // Эмулируем выбор файла заново
-  const fakeEvent = { target: { files: [currentScanFile] } };
-  await onScanFile(fakeEvent);
+  await onScanFile({ target: { files: [scanFile.value] } });
 }
 
 // ============================================================
@@ -284,32 +277,46 @@ async function saveManual() {
 // ЛОГИКА ДЛЯ PDF
 // ============================================================
 const pdfStep = ref('upload'); // upload | preview
+const pdfFile = ref(null);
 const pdfName = ref('');
 const pdfBankHint = ref('auto');
 const pdfLoading = ref(false);
 const pdfItems = ref([]);
 const pdfSelected = ref(new Set());
-let currentPdfFile = null;
+const pdfMonths = ref([]);
 
 function onPdfFile(e) {
   const f = e.target.files?.[0];
   if (!f) return;
   if (!f.name.toLowerCase().endsWith('.pdf')) { error.value = 'Выберите PDF'; return; }
-  currentPdfFile = f;
+  pdfFile.value = f;
   pdfName.value = f.name;
   error.value = '';
 }
 
 async function parsePdf() {
-  if (!currentPdfFile) return;
+  if (!pdfFile.value) return;
   pdfLoading.value = true;
   error.value = '';
   try {
-    const { bank, operations } = await parsePdfFile(currentPdfFile, pdfBankHint.value);
+    const { bank, operations } = await parsePdfFile(pdfFile.value, pdfBankHint.value);
     if (!operations.length) throw new Error('Не удалось найти операции');
 
     pdfItems.value = operations;
     pdfSelected.value = new Set(operations.map((_, i) => i));
+
+    const monthsMap = new Map();
+    for (const op of operations) {
+      const d = new Date(op.date);
+      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      if (!monthsMap.has(key)) {
+        monthsMap.set(key, { key, year: d.getFullYear(), month: d.getMonth(),
+          label: ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'][d.getMonth()] + ' ' + d.getFullYear(),
+          count: 0, active: true });
+      }
+      monthsMap.get(key).count++;
+    }
+    pdfMonths.value = Array.from(monthsMap.values()).sort((a, b) => b.year - a.year || b.month - a.month);
     pdfStep.value = 'preview';
   } catch (e) {
     error.value = e.message || 'Ошибка разбора PDF';
@@ -351,21 +358,22 @@ function resetAll() {
   saving.value = false;
 
   // Scan
-  scanStep.value = 'upload'; scanPreview.value = '';
+  scanStep.value = 'upload'; scanFile.value = null; scanPreview.value = '';
   scanItems.value = []; scanSelected.value = new Set(); scanLogs.value = []; currentLogIndex.value = 0;
-  suggestBank.value = null; suggestBankModalOpen.value = false; currentScanFile = null;
+  suggestBank.value = null; suggestBankModalOpen.value = false;
   if (logInterval) { clearInterval(logInterval); logInterval = null; }
 
   // Manual
   manualForm.value = { type: 'expense', name: '', amount: '', category: 'Прочее', date: new Date().toISOString().split('T')[0], accountId: '' };
 
   // PDF
-  pdfStep.value = 'upload'; pdfName.value = ''; pdfItems.value = []; pdfSelected.value = new Set(); currentPdfFile = null;
+  pdfStep.value = 'upload'; pdfFile.value = null; pdfName.value = ''; pdfItems.value = []; pdfSelected.value = new Set(); pdfMonths.value = [];
 
   user.value = auth.user || 'Сергей';
   accountId.value = userAccounts.value[0]?.id || '';
 }
 
+// ✅ ВОТ ОНО! Сбрасываем всё при каждом открытии модалки
 watch(() => props.modelValue, (open) => {
   if (open) resetAll();
 });
@@ -379,6 +387,7 @@ function close() { emit('update:modelValue', false); }
     title="📸 Сканирование"
     @update:model-value="emit('update:modelValue', $event)"
   >
+    <!-- ✅ ПАНЕЛЬ ВКЛАДОК -->
     <div class="sticky-tabs">
       <div class="mode-switch">
         <button type="button" class="mode" :class="{ active: activeTab === 'scan' }" @click="activeTab = 'scan'">
@@ -393,7 +402,7 @@ function close() { emit('update:modelValue', false); }
       </div>
     </div>
 
-    <!-- ВКЛАДКА 1: СКРИНШОТ -->
+    <!-- ================= ВКЛАДКА 1: СКРИНШОТ ================= -->
     <div v-if="activeTab === 'scan'" class="step">
       <div v-if="scanStep === 'upload'" class="step">
         <div class="bank-selector">
@@ -409,6 +418,7 @@ function close() { emit('update:modelValue', false); }
             </button>
           </div>
         </div>
+
         <div class="field">
           <label>👤 Кто вносит</label>
           <div class="user-picker">
@@ -416,10 +426,10 @@ function close() { emit('update:modelValue', false); }
             <button class="up-btn" :class="{ active: user === 'Саша' }" @click="user = 'Саша'">👩 Саша</button>
           </div>
         </div>
+
         <div class="field" style="margin-top: 16px;">
-          <!-- ✅ Используем ref вместо id -->
-          <input type="file" accept="image/*" hidden ref="scanFileInput" @change="onScanFile" />
-          <button class="upload-btn" type="button" @click="scanFileInput?.click()">
+          <input id="scanFileInput" type="file" accept="image/*" hidden @change="onScanFile" />
+          <button class="upload-btn" type="button" @click="document.getElementById('scanFileInput').click()">
             <span class="upload-icon">🖼️</span>
             <span class="upload-text">
               <span class="upload-title">Выбрать скриншот</span>
@@ -430,6 +440,7 @@ function close() { emit('update:modelValue', false); }
         <div v-if="error" class="error-msg">{{ error }}</div>
       </div>
 
+      <!-- Распознавание -->
       <div v-else-if="scanStep === 'recognizing'" class="step">
         <div class="recognize">
           <div class="spinner"></div>
@@ -444,6 +455,7 @@ function close() { emit('update:modelValue', false); }
         </div>
       </div>
 
+      <!-- Предпросмотр -->
       <div v-else-if="scanStep === 'preview'" class="step">
         <div v-if="scanPreview" class="preview-wrapper">
           <canvas ref="canvasRef" class="preview-canvas"></canvas>
@@ -470,7 +482,7 @@ function close() { emit('update:modelValue', false); }
       </div>
     </div>
 
-    <!-- ВКЛАДКА 2: ВРУЧНУЮ -->
+    <!-- ================= ВКЛАДКА 2: ВРУЧНУЮ ================= -->
     <div v-else-if="activeTab === 'manual'" class="step">
       <div class="form">
         <div class="field">
@@ -492,7 +504,7 @@ function close() { emit('update:modelValue', false); }
       </div>
     </div>
 
-    <!-- ВКЛАДКА 3: PDF -->
+    <!-- ================= ВКЛАДКА 3: PDF ================= -->
     <div v-else-if="activeTab === 'pdf'" class="step">
       <div v-if="pdfStep === 'upload'" class="step">
         <div class="field"><label>👤 Кто вносит</label><select v-model="user"><option value="Сергей">👨 Сергей</option><option value="Саша">👩 Саша</option></select></div>
@@ -500,9 +512,8 @@ function close() { emit('update:modelValue', false); }
         <div class="field"><label>🏦 Банк</label><select v-model="pdfBankHint"><option value="auto">🔍 Авто</option><option value="tbank">🟡 Т-Банк</option><option value="sber">🟢 Сбер</option></select></div>
         <div class="field">
           <label>📄 PDF-файл</label>
-          <!-- ✅ Используем ref вместо id -->
-          <input type="file" accept=".pdf" hidden ref="pdfFileInput" @change="onPdfFile" />
-          <button class="upload-btn" type="button" @click="pdfFileInput?.click()">
+          <input id="pdfFileInput" type="file" accept=".pdf" hidden @change="onPdfFile" />
+          <button class="upload-btn" type="button" @click="document.getElementById('pdfFileInput').click()">
             <span class="upload-icon">📄</span>
             <span class="upload-text"><span class="upload-title">Выбрать PDF</span><span class="upload-sub">Выписка из банка</span></span>
           </button>
@@ -526,6 +537,7 @@ function close() { emit('update:modelValue', false); }
       </div>
     </div>
 
+    <!-- Футер -->
     <template #footer>
       <template v-if="activeTab === 'scan'">
         <button v-if="scanStep === 'upload'" class="btn-cancel" @click="close">Отмена</button>
@@ -543,7 +555,7 @@ function close() { emit('update:modelValue', false); }
 
       <template v-else-if="activeTab === 'pdf'">
         <button v-if="pdfStep === 'upload'" class="btn-cancel" @click="close">Отмена</button>
-        <button v-if="pdfStep === 'upload'" class="btn-save" :disabled="!pdfName || pdfLoading" @click="parsePdf">{{ pdfLoading ? 'Разбор…' : '🔍 Разобрать' }}</button>
+        <button v-if="pdfStep === 'upload'" class="btn-save" :disabled="!pdfFile || pdfLoading" @click="parsePdf">{{ pdfLoading ? 'Разбор…' : '🔍 Разобрать' }}</button>
         <template v-else-if="pdfStep === 'preview'">
           <button class="btn-cancel" @click="pdfStep = 'upload'">← Назад</button>
           <button class="btn-save" :disabled="saving" @click="savePdf">{{ saving ? 'Сохранение…' : '✅ Добавить' }}</button>
@@ -551,6 +563,7 @@ function close() { emit('update:modelValue', false); }
       </template>
     </template>
 
+    <!-- Модалка подсказки банка -->
     <Modal :model-value="suggestBankModalOpen" title="🤔 Ошибка выбора" @update:model-value="suggestBankModalOpen = false">
       <div style="padding: 4px 0; font-size: 14px; line-height: 1.5;">
         Похоже, это <strong>{{ suggestBank === 'sber' ? 'СберБанк' : 'Т-Банк' }}</strong>. Переключить?
@@ -564,12 +577,13 @@ function close() { emit('update:modelValue', false); }
 </template>
 
 <style scoped lang="scss">
-/* Стили без изменений */
+/* Вкладки */
 .sticky-tabs { position: sticky; top: -16px; z-index: 100; background: #fff; padding: 16px 0 12px; margin: -16px 0 12px; border-bottom: 1px solid #e2e8f0; }
 .mode-switch { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; padding: 4px; background: linear-gradient(180deg, #f1f5f9, #e2e8f0); border-radius: 14px; }
 .mode { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 12px; border: none; background: transparent; color: #64748b; font-family: inherit; font-size: 12.5px; font-weight: 800; border-radius: 10px; cursor: pointer; }
 .mode.active { background: linear-gradient(180deg, #818cf8, #6366f1); color: #fff; box-shadow: 0 1px 0 rgba(255,255,255,0.3) inset, 0 -2px 0 rgba(49,46,129,0.3) inset, 0 4px 10px -2px rgba(99,102,241,0.5); }
 
+/* Остальные стили (немного дублируются из старых файлов) */
 .step { display: flex; flex-direction: column; gap: 16px; }
 .bank-selector { margin-bottom: 16px; }
 .bs-label { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }

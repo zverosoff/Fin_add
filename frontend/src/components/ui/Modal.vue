@@ -121,6 +121,8 @@ onUnmounted(() => {
           <div class="modal-handle"></div>
 
           <header class="modal-head">
+            <!-- ✅ Если передан кастомный slot header — рендерим его,
+                 иначе — стандартный h3 с title -->
             <slot name="header">
               <h3 class="modal-title">{{ title }}</h3>
             </slot>
@@ -155,8 +157,6 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   padding: 16px;
-  /* ✅ Ускоряем исчезновение, чтобы не мешать кликам */
-  transition: opacity 0.2s ease;
 }
 
 .modal-box {
@@ -176,6 +176,7 @@ onUnmounted(() => {
   transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
+/* ✅ Тонкая ручка — только на мобильных */
 .modal-handle {
   display: none;
   width: 36px;
@@ -280,19 +281,17 @@ onUnmounted(() => {
   background: #14091f;
 }
 
-/* ✅ Быстрая и плавная анимация */
 .modal-enter-active,
 .modal-leave-active {
-  transition: opacity 0.2s ease;
+  transition: opacity 0.22s ease;
 }
 .modal-enter-from,
 .modal-leave-to {
   opacity: 0;
 }
-
 .modal-enter-active .modal-box,
 .modal-leave-active .modal-box {
-  transition: transform 0.25s cubic-bezier(.34,1.56,.64,1), opacity 0.2s;
+  transition: transform 0.28s cubic-bezier(.34,1.56,.64,1), opacity 0.22s;
 }
 .modal-enter-from .modal-box,
 .modal-leave-to .modal-box {
