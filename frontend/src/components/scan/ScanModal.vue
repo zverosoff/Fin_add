@@ -27,7 +27,7 @@ const file = ref(null);
 const filePreview = ref('');
 const progress = ref(0);
 const statusText = ref('');
-const scanLogs = ref([]); // Строчки "размышлений"
+const scanLogs = ref([]);
 const currentLogIndex = ref(0);
 
 const items = ref([]);
@@ -39,18 +39,20 @@ const bankType = ref('tbank');
 const error = ref('');
 const saving = ref(false);
 
+// ✅ Состояние для подсказки смены банка
+const suggestBank = ref(null);
+const suggestBankModalOpen = ref(false);
+
 const canvasRef = ref(null);
 const userAccounts = computed(() =>
   accounts.accounts.filter(a => (a.owner || 'Сергей') === user.value)
 );
 
-// Следим за сменой счёта и меняем банк
 watch(accountId, (newId) => {
   if (newId.startsWith('sber')) bankType.value = 'sber';
   else if (newId.startsWith('tbank')) bankType.value = 'tbank';
 }, { immediate: true });
 
-// Логика для перелистывания "мыслей" сканера
 let logInterval = null;
 function addLog(text) {
   scanLogs.value.push(text);
@@ -73,7 +75,6 @@ watch(step, (val) => {
   }
 });
 
-// Логика для дат
 const hasUncertainDates = computed(() => items.value.some(it => it.dateUncertain));
 const uncertainDateInput = ref('');
 const defaultNextDay = computed(() => {
@@ -122,6 +123,8 @@ function reset() {
   error.value = '';
   saving.value = false;
   uncertainDateInput.value = '';
+  suggestBank.value = null;
+  suggestBankModalOpen.value = false;
   if (logInterval) { clearInterval(logInterval); logInterval = null; }
 }
 
@@ -212,26 +215,33 @@ async function processFile(f) {
     });
     addLog('Чтение завершено. Ищу операции…');
 
-    const parsed = parseBankScreenshot(result.lines, bankType.value);
+    // ✅ Получаем результат парсинга и возможную подсказку банка
+    const { operations, suggestedBank: suggested } = parseBankScreenshot(result.lines, bankType.value);
 
-    if (!parsed.length) {
+    if (!operations.length) {
       error.value = 'Не удалось найти операции.';
       step.value = 'upload';
       return;
     }
 
-    addLog(`Нашел строк: ${parsed.length}`);
+    addLog(`Нашел строк: ${operations.length}`);
     
-    const suspicious = parsed.filter(p => p.isSuspicious).length;
+    const suspicious = operations.filter(p => p.isSuspicious).length;
     if (suspicious > 0) {
       addLog(`Обнаружил ${suspicious} сомнительных операций.`);
     } else {
       addLog('Все операции выглядят надежно.');
     }
 
-    items.value = parsed;
+    // ✅ Если банк не совпадает — показываем подсказку
+    if (suggested) {
+      suggestBank.value = suggested;
+      suggestBankModalOpen.value = true;
+    }
+
+    items.value = operations;
     selectedIndices.value = new Set(
-      parsed.map((it, i) => it.isSuspicious ? -1 : i).filter(i => i !== -1)
+      operations.map((it, i) => it.isSuspicious ? -1 : i).filter(i => i !== -1)
     );
     
     step.value = 'preview';
@@ -242,6 +252,22 @@ async function processFile(f) {
     error.value = e.message || 'Ошибка распознавания';
     step.value = 'upload';
   }
+}
+
+// ✅ Переключение банка
+async function switchBankAndRescan() {
+  if (!suggestBank.value || !file.value) return;
+  
+  suggestBankModalOpen.value = false;
+  const newBank = suggestBank.value;
+  bankType.value = newBank;
+  
+  // Меняем счёт на соответствующий
+  const targetAcc = userAccounts.value.find(a => a.id.startsWith(newBank));
+  if (targetAcc) accountId.value = targetAcc.id;
+
+  // Перезапускаем распознавание с новым парсером
+  await processFile(file.value);
 }
 
 function triggerFileInput() {
@@ -303,7 +329,7 @@ function close() { emit('update:modelValue', false); }
     title="📸 Сканирование"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <!-- ✅ ПАНЕЛЬ ВКЛАДОК (закреплена) -->
+    <!-- Вкладки -->
     <div class="sticky-tabs">
       <div class="mode-switch">
         <button type="button" class="mode active" disabled>
@@ -318,8 +344,8 @@ function close() { emit('update:modelValue', false); }
       </div>
     </div>
 
+    <!-- ШАГ 1. Загрузка -->
     <div v-if="step === 'upload'" class="step">
-      <!-- Выбор счёта -->
       <div class="bank-selector">
         <div class="bs-label">Выберите счёт</div>
         <div class="bs-options">
@@ -359,7 +385,7 @@ function close() { emit('update:modelValue', false); }
       <div v-if="error" class="error-msg">{{ error }}</div>
     </div>
 
-    <!-- ШАГ РАСПОЗНАВАНИЯ (С ЛОГАМИ) -->
+    <!-- ШАГ 2. Распознавание -->
     <div v-else-if="step === 'recognizing'" class="step">
       <div class="recognize">
         <div class="spinner"></div>
@@ -368,7 +394,6 @@ function close() { emit('update:modelValue', false); }
           <div class="progress-fill" :style="{ width: progress + '%' }"></div>
         </div>
         
-        <!-- ✅ Строчка "размышлений" -->
         <div class="ai-thoughts">
           <div class="ai-thoughts-label">AI Парсер:</div>
           <Transition name="thought-fade" mode="out-in">
@@ -380,7 +405,7 @@ function close() { emit('update:modelValue', false); }
       </div>
     </div>
 
-    <!-- ШАГ ПРЕДПРОСМОТРА -->
+    <!-- ШАГ 3. Предпросмотр -->
     <div v-else-if="step === 'preview'" class="step">
       <div v-if="filePreview" class="preview-wrapper">
         <canvas ref="canvasRef" class="preview-canvas"></canvas>
@@ -461,48 +486,44 @@ function close() { emit('update:modelValue', false); }
         </button>
       </template>
     </template>
+
+    <!-- ✅ МОДАЛКА ПОДСКАЗКИ СМЕНЫ БАНКА -->
+    <Modal
+      :model-value="suggestBankModalOpen"
+      title="🤔 Похоже, вы ошиблись"
+      @update:model-value="suggestBankModalOpen = false"
+    >
+      <div class="suggest-content">
+        <p>Скриншот больше похож на <strong>{{ suggestBank === 'sber' ? 'СберБанк' : 'Т-Банк' }}</strong>, но выбран другой счёт.</p>
+        <p>Переключиться и распознать заново?</p>
+      </div>
+      <template #footer>
+        <button class="btn-cancel" @click="suggestBankModalOpen = false">Нет, оставить</button>
+        <button class="btn-save" @click="switchBankAndRescan">Да, переключить</button>
+      </template>
+    </Modal>
   </Modal>
 </template>
 
 <style scoped lang="scss">
-/* ✅ Панель вкладок (закреплена, всегда сверху) */
-.sticky-tabs {
-  position: sticky;
-  top: -16px;
-  z-index: 100;
-  background: #ffffff;
-  padding: 16px 0 12px;
-  margin: -16px 0 12px;
-  border-bottom: 1px solid #e2e8f0;
-}
+/* Все стили из предыдущего файла + новые для suggest */
+.suggest-content { padding: 4px 0; font-size: 14px; line-height: 1.5; color: #0f172a; }
+.suggest-content p { margin: 0 0 8px; }
+.suggest-content strong { color: #6366f1; }
 
+.sticky-tabs { position: sticky; top: -16px; z-index: 100; background: #fff; padding: 16px 0 12px; margin: -16px 0 12px; border-bottom: 1px solid #e2e8f0; }
 .mode-switch { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; padding: 4px; background: linear-gradient(180deg, #f1f5f9, #e2e8f0); border-radius: 14px; }
 .mode { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 12px; border: none; background: transparent; color: #64748b; font-family: inherit; font-size: 12.5px; font-weight: 800; border-radius: 10px; cursor: pointer; }
 .mode.active { background: linear-gradient(180deg, #818cf8, #6366f1); color: #fff; box-shadow: 0 1px 0 rgba(255,255,255,0.3) inset, 0 -2px 0 rgba(49,46,129,0.3) inset, 0 4px 10px -2px rgba(99,102,241,0.5); }
 
-/* ✅ Логи AI */
-.ai-thoughts {
-  width: 100%;
-  max-width: 320px;
-  margin-top: 16px;
-  padding: 10px 14px;
-  background: rgba(99, 102, 241, 0.05);
-  border: 1px dashed rgba(99, 102, 241, 0.3);
-  border-radius: 10px;
-  text-align: left;
-  min-height: 52px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
+.ai-thoughts { width: 100%; max-width: 320px; margin-top: 16px; padding: 10px 14px; background: rgba(99, 102, 241, 0.05); border: 1px dashed rgba(99, 102, 241, 0.3); border-radius: 10px; text-align: left; min-height: 52px; display: flex; flex-direction: column; justify-content: center; }
 .ai-thoughts-label { font-size: 10px; font-weight: 800; color: #818cf8; text-transform: uppercase; margin-bottom: 2px; }
 .ai-thoughts-text { font-size: 12px; font-weight: 600; color: #4f46e5; line-height: 1.3; }
-
 .thought-fade-enter-active, .thought-fade-leave-active { transition: all 0.3s ease; }
 .thought-fade-enter-from { opacity: 0; transform: translateY(4px); }
 .thought-fade-leave-to { opacity: 0; transform: translateY(-4px); }
 
-/* Остальные стили */
+/* ... остальные стили (bank-selector, field, recognize, preview и т.д.) ... */
 .date-warning { display: flex; gap: 12px; padding: 12px 14px; background: #fffbeb; border: 1px solid #fcd34d; border-radius: 12px; margin-bottom: 12px; }
 .dw-icon { font-size: 20px; }
 .dw-content { flex: 1; }
@@ -559,10 +580,8 @@ function close() { emit('update:modelValue', false); }
 .item-row.selected { border-color: #6366f1; background: #f5f3ff; }
 .item-row.suspicious { border-color: #f59e0b; background: #fffbeb; }
 .item-row.suspicious.selected { border-color: #f59e0b; background: #fef3c7; }
-
 .suspicious-badge { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: #f59e0b; color: #fff; font-size: 11px; font-weight: 900; cursor: help; }
 .suspicious-hint { font-size: 10.5px; color: #b45309; margin-top: 2px; font-style: italic; }
-
 .item-checkbox { width: 22px; height: 22px; }
 .checkbox-inner { width: 100%; height: 100%; border-radius: 6px; border: 2px solid #cbd5e1; display: flex; align-items: center; justify-content: center; }
 .checkbox-inner.checked { background: #6366f1; border-color: #6366f1; }
