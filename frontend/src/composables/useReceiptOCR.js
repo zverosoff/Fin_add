@@ -4,38 +4,27 @@ export function preprocessImage(file) {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
-      const scale = 2;
+      const scale = 2; // Увеличиваем для лучшего OCR
       const canvas = document.createElement('canvas');
       canvas.width = img.width * scale;
       canvas.height = img.height * scale;
       const ctx = canvas.getContext('2d');
-      ctx.imageSmoothingEnabled = false;
+      
+      // Отключаем сглаживание, чтобы текст был резким
+      ctx.imageSmoothingEnabled = false; 
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
 
-      let sum = 0;
+      // Делаем изображение черно-белым (бинаризация)
       for (let i = 0; i < data.length; i += 4) {
-        sum += (data[i] + data[i + 1] + data[i + 2]) / 3;
-      }
-      const avg = sum / (data.length / 4);
-      const invert = avg < 128;
-
-      for (let i = 0; i < data.length; i += 4) {
-        let r = data[i], g = data[i + 1], b = data[i + 2];
-        if (invert) { r = 255 - r; g = 255 - g; b = 255 - b; }
-
-        const max = Math.max(r, g, b);
-        const min = Math.min(r, g, b);
-        const saturation = max - min;
-
-        let v;
-        if (saturation > 60) v = 0;
-        else {
-          const gray = (r + g + b) / 3;
-          v = gray > 130 ? 255 : 0;
-        }
+        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        
+        // Если пиксель темный (фон скриншота), делаем его белым для OCR
+        // Если светлый (текст), делаем черным.
+        const v = gray < 150 ? 255 : 0; 
+        
         data[i] = data[i + 1] = data[i + 2] = v;
       }
 
@@ -59,10 +48,16 @@ export async function recognizeText(file, onProgress) {
     },
   });
 
+  // ✅ ВАЖНО: Указываем Tesseract, что это разреженный текст (список), а не сплошной абзац
+  await worker.setParameters({
+    tessedit_pageseg_mode: '6', // 6 = Assume a single uniform block of text. Лучше для списков.
+  });
+
   const { data } = await worker.recognize(file);
   await worker.terminate();
 
   const textLines = [];
+  // Берем именно строки (lines), а не блоки (blocks)
   if (data.lines && Array.isArray(data.lines)) {
     for (const line of data.lines) {
       const t = (line.text || '').trim();
@@ -84,15 +79,14 @@ export async function recognizeText(file, onProgress) {
 export function parseBankScreenshot(textLines) {
   if (!textLines || !textLines.length) return [];
 
+  // Сортируем строки сверху вниз
   const lines = [...textLines].sort((a, b) => {
     if (!a.bbox || !b.bbox) return 0;
     return a.bbox.y0 - b.bbox.y0;
   });
 
   const operations = [];
-  let currentDate = new Date();
-  currentDate.setHours(12, 0, 0, 0);
-
+  
   const MONTHS = {
     'января': 0, 'февраля': 1, 'марта': 2, 'апреля': 3, 'мая': 4, 'июня': 5,
     'июля': 6, 'августа': 7, 'сентября': 8, 'октября': 9, 'ноября': 10, 'декабря': 11
@@ -109,31 +103,46 @@ export function parseBankScreenshot(textLines) {
     'Связь', 'Подписки', 'Выдача наличных', 'Пополнение'
   ];
 
+  // ============================================================
+  // ШАГ 1: Собираем все даты и операции в один массив (сверху вниз)
+  // ============================================================
+  const parsedItems = []; // { type: 'date'|'op', y: number, date?: Date, opData?: object }
+
+  const now = new Date();
+  let defaultYear = now.getFullYear();
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const text = (line.text || '').trim();
     if (!text) continue;
+    const y = line.bbox ? line.bbox.y0 : 0;
+
+    // --- Ищем дату ---
+    let foundDate = null;
 
     if (DATE_WORD_RE.test(text)) {
       const word = text.match(DATE_WORD_RE)[0].toLowerCase();
-      if (word === 'сегодня') currentDate = new Date();
-      else if (word === 'вчера') { currentDate = new Date(); currentDate.setDate(currentDate.getDate() - 1); }
-      else if (word === 'позавчера') { currentDate = new Date(); currentDate.setDate(currentDate.getDate() - 2); }
-      currentDate.setHours(12, 0, 0, 0);
-      continue;
+      foundDate = new Date();
+      if (word === 'вчера') foundDate.setDate(foundDate.getDate() - 1);
+      else if (word === 'позавчера') foundDate.setDate(foundDate.getDate() - 2);
+    } else {
+      const dateMatch = text.match(DATE_NUM_RE);
+      if (dateMatch) {
+        const day = parseInt(dateMatch[1], 10);
+        const month = MONTHS[dateMatch[2].toLowerCase()];
+        let year = defaultYear;
+        if (month > now.getMonth()) year -= 1;
+        foundDate = new Date(year, month, day, 12, 0, 0);
+      }
     }
 
-    const dateMatch = text.match(DATE_NUM_RE);
-    if (dateMatch) {
-      const day = parseInt(dateMatch[1], 10);
-      const month = MONTHS[dateMatch[2].toLowerCase()];
-      const now = new Date();
-      let year = now.getFullYear();
-      if (month > now.getMonth()) year -= 1;
-      currentDate = new Date(year, month, day, 12, 0, 0);
-      continue;
+    if (foundDate) {
+      foundDate.setHours(12, 0, 0, 0);
+      parsedItems.push({ type: 'date', y, date: foundDate });
+      continue; // Это дата, идём дальше
     }
 
+    // --- Ищем операцию ---
     const amountMatch = text.match(AMOUNT_RE);
     if (!amountMatch) continue;
 
@@ -146,23 +155,28 @@ export function parseBankScreenshot(textLines) {
     const type = sign === '+' ? 'income' : 'expense';
 
     let description = text.replace(amountMatch[0], '').trim();
-    let category = 'Прочее';
-
+    
+    // Пропускаем кэшбэк
     if (description.toLowerCase().includes('black') || description.toLowerCase().includes('+')) {
         continue;
     }
 
+    // Если описание пустое, ищем его в предыдущей или следующей строке
     let mainLineIndex = i;
     if (!description || description.length < 2) {
       if (i - 1 >= 0 && !DATE_WORD_RE.test(lines[i-1].text) && !DATE_NUM_RE.test(lines[i-1].text)) {
         description = lines[i-1].text;
         mainLineIndex = i - 1;
+      } else if (i + 1 < lines.length) {
+        description = lines[i+1].text;
       }
     }
 
     description = description.replace(/[|•·\-\+−]/g, '').trim();
     if (!description) description = 'Операция';
 
+    // Ищем категорию
+    let category = 'Прочее';
     const linesToCheck = [description, lines[i+1]?.text || '', lines[i-1]?.text || ''];
     for (const checkText of linesToCheck) {
         const low = checkText.toLowerCase();
@@ -176,7 +190,7 @@ export function parseBankScreenshot(textLines) {
         if (category !== 'Прочее') break;
     }
 
-    // ✅ Собираем общий bbox (название + сумма)
+    // Собираем bbox
     let opBbox = line.bbox;
     if (lines[mainLineIndex] && lines[mainLineIndex].bbox && line.bbox) {
        const l1 = lines[mainLineIndex].bbox;
@@ -189,16 +203,47 @@ export function parseBankScreenshot(textLines) {
        };
     }
 
-    operations.push({
-      date: currentDate.toISOString(),
-      name: description.slice(0, 80),
-      amount,
-      type,
-      category,
-      bbox: opBbox,
+    parsedItems.push({
+      type: 'op',
+      y,
+      opData: {
+        name: description.slice(0, 80),
+        amount,
+        type,
+        category,
+        bbox: opBbox,
+      }
     });
   }
 
+  // ============================================================
+  // ШАГ 2: Распределяем даты (снизу вверх)
+  // ============================================================
+  // Идем с конца. Если встречаем дату — все операции ВЫШЕ неё относятся к ней.
+  
+  let currentDateForOps = new Date(); // По умолчанию "Сегодня"
+  currentDateForOps.setHours(12, 0, 0, 0);
+
+  // Проходим по массиву снизу вверх
+  for (let i = parsedItems.length - 1; i >= 0; i--) {
+    const item = parsedItems[i];
+
+    if (item.type === 'date') {
+      // Нашли дату — она применяется ко всем операциям, которые выше неё
+      currentDateForOps = item.date;
+    } else if (item.type === 'op') {
+      // Добавляем операцию с текущей датой
+      operations.push({
+        ...item.opData,
+        date: currentDateForOps.toISOString(),
+      });
+    }
+  }
+
+  // Так как мы шли снизу вверх, массив получился в обратном порядке. Разворачиваем.
+  operations.reverse();
+
+  // Убираем дубликаты
   const seen = new Set();
   return operations.filter(op => {
     const key = `${op.name}|${op.amount}|${op.date.slice(0, 10)}`;
