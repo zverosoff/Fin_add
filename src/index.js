@@ -141,4 +141,5 @@ server.listen(PORT, () => {
   console.log('='.repeat(60));
 });
 
-startDailyReminderCron();
+// ✅ Передаем io, чтобы напоминания могли летать в чат
+startDailyReminderCron(io);
