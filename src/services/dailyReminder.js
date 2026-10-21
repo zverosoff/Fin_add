@@ -1,6 +1,5 @@
 // backend/src/services/dailyReminder.js
 import cron from 'node-cron';
-const USERS = ['Сергей', 'Саша'];
 import db from '../db/index.js';
 import { sendPushToUser } from './push.js';
 
@@ -14,9 +13,6 @@ const REMINDER_TZ   = process.env.REMINDER_TZ   || 'Europe/Moscow';
 // ✅ Текст напоминания
 const REMINDER_TITLE = 'Финансы PRO+';
 const REMINDER_TEXT  = '📝 Напоминание: не забудь внести расходы и доходы за сегодня.';
-
-async function sendDailyReminder() {
-const REMINDER_TEXT = '📝 Напоминание: не забудь внести расходы и доходы за сегодня.';
 
 const insertMsg = db.prepare(`
   INSERT INTO messages
@@ -56,19 +52,11 @@ function rowToMessage(row) {
   };
 }
 
-async function sendDailyReminder(io) {
+export async function sendDailyReminder(io) {
   const now = new Date().toISOString();
   console.log(`[reminder] рассылка в ${now}`);
 
   for (const to of USERS) {
-    try {
-      await sendPushToUser(to, {
-        title: REMINDER_TITLE,
-        body: REMINDER_TEXT,
-        url: '/',
-        tag: 'daily-reminder',
-      });
-      console.log(`[reminder] ✓ push отправлен для ${to}`);
     const id = makeId();
     const msg = {
       id,
@@ -91,7 +79,7 @@ async function sendDailyReminder(io) {
 
       // ✅ Push — придёт как обычное новое сообщение
       await sendPushToUser(to, {
-        title: 'Финансы PRO+',
+        title: REMINDER_TITLE,
         body: REMINDER_TEXT,
         url: '/',
         messageId: id,
@@ -104,7 +92,6 @@ async function sendDailyReminder(io) {
   }
 }
 
-export function startDailyReminderCron() {
 export function startDailyReminderCron(io) {
   const [h, m] = String(REMINDER_TIME).split(':').map(n => parseInt(n, 10));
   const H = Number.isFinite(h) ? Math.min(23, Math.max(0, h)) : 21;
@@ -115,12 +102,8 @@ export function startDailyReminderCron(io) {
   console.log(`[reminder] cron: "${expr}" (${REMINDER_TZ})`);
 
   cron.schedule(expr, () => {
-    sendDailyReminder();
     sendDailyReminder(io);
   }, {
     timezone: REMINDER_TZ,
   });
 }
-
-// ✅ Ручной запуск — для теста
-export { sendDailyReminder };
