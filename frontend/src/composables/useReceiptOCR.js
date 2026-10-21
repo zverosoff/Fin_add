@@ -379,7 +379,7 @@ function parseSber(lines) {
 }
 
 // ============================================================
-// ГЛАВНАЯ ФУНКЦИЯ
+// ГЛАВуНАЯ ФУНКЦИЯ
 // ============================================================
 export function parseBankScreenshot(textLines, currentBankType = 'tbank') {
   if (!textLines || !textLines.length) return { operations: [], suggestedBank: null };
