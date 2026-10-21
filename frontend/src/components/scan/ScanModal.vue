@@ -33,7 +33,7 @@ const selectedIndices = ref(new Set());
 
 const user = ref(auth.user || 'Сергей');
 const accountId = ref('');
-const bankType = ref('tbank'); // 'tbank' | 'sber'
+const bankType = ref('tbank');
 const error = ref('');
 const saving = ref(false);
 
@@ -42,13 +42,11 @@ const userAccounts = computed(() =>
   accounts.accounts.filter(a => (a.owner || 'Сергей') === user.value)
 );
 
-// ✅ Определяем банк по ID счёта
 watch(accountId, (newId) => {
   if (newId.startsWith('sber')) bankType.value = 'sber';
   else if (newId.startsWith('tbank')) bankType.value = 'tbank';
 }, { immediate: true });
 
-// Состояние для выбора даты
 const hasUncertainDates = computed(() => items.value.some(it => it.dateUncertain));
 const uncertainDateInput = ref('');
 const defaultNextDay = computed(() => {
@@ -79,15 +77,8 @@ function applyDateToAll(dateStr) {
   toast.success('Дата применена');
 }
 
-function switchToManual() {
-  emit('update:modelValue', false);
-  emit('switch-to-manual');
-}
-
-function switchToPdf() {
-  emit('update:modelValue', false);
-  emit('switch-to-pdf');
-}
+function switchToManual() { emit('update:modelValue', false); emit('switch-to-manual'); }
+function switchToPdf() { emit('update:modelValue', false); emit('switch-to-pdf'); }
 
 function reset() {
   step.value = 'upload';
@@ -144,10 +135,10 @@ async function drawMaskedImage() {
     }
 
     ctx.globalCompositeOperation = 'source-over';
-    ctx.strokeStyle = '#ef4444';
     ctx.lineWidth = 3;
     for (const item of items.value) {
       if (!item.bbox) continue;
+      ctx.strokeStyle = item.isSuspicious ? '#f59e0b' : '#ef4444';
       const x = item.bbox.x0 / 2;
       const y = item.bbox.y0 / 2;
       const w = (item.bbox.x1 - item.bbox.x0) / 2;
@@ -184,7 +175,6 @@ async function processFile(f) {
       statusText.value = `Сканирование: ${pct}%`;
     });
 
-    // ✅ Передаем тип банка в парсер
     const parsed = parseBankScreenshot(result.lines, bankType.value);
 
     if (!parsed.length) {
@@ -194,9 +184,13 @@ async function processFile(f) {
     }
 
     items.value = parsed;
-    selectedIndices.value = new Set(parsed.map((_, i) => i));
-    step.value = 'preview';
     
+    // ✅ Автоматически ставим галочки только на НЕ сомнительные операции
+    selectedIndices.value = new Set(
+      parsed.map((it, i) => it.isSuspicious ? -1 : i).filter(i => i !== -1)
+    );
+    
+    step.value = 'preview';
     await nextTick();
     drawMaskedImage();
   } catch (e) {
@@ -221,13 +215,10 @@ const selectedCount = computed(() => selectedIndices.value.size);
 
 async function save() {
   const toSave = items.value.filter((_, i) => selectedIndices.value.has(i));
-  if (!toSave.length) { 
-    error.value = 'Выберите хотя бы одну операцию'; 
-    return; 
-  }
+  if (!toSave.length) { error.value = 'Выберите хотя бы одну операцию'; return; }
 
   if (toSave.some(it => it.dateUncertain)) {
-    error.value = 'Укажите дату для операций без даты (желтая плашка выше)';
+    error.value = 'Укажите дату для операций без даты';
     return;
   }
 
@@ -252,17 +243,14 @@ async function save() {
   }
 
   saving.value = false;
-  if (failed > 0) {
-    toast.error(`Добавлено ${added}, ошибок: ${failed}`);
-  } else {
+  if (failed > 0) toast.error(`Добавлено ${added}, ошибок: ${failed}`);
+  else {
     toast.success(`✅ Добавлено ${added} операций`);
     emit('update:modelValue', false);
   }
 }
 
-function close() {
-  emit('update:modelValue', false);
-}
+function close() { emit('update:modelValue', false); }
 </script>
 
 <template>
@@ -271,7 +259,6 @@ function close() {
     title="📸 Сканирование"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <!-- Панель вкладок -->
     <div class="sticky-tabs">
       <div class="mode-switch">
         <button type="button" class="mode active" disabled>
@@ -286,7 +273,6 @@ function close() {
       </div>
     </div>
 
-    <!-- ШАГ 1. Загрузка -->
     <div v-if="step === 'upload'" class="step">
       <div class="bank-selector">
         <div class="bs-label">Выберите счёт</div>
@@ -327,7 +313,6 @@ function close() {
       <div v-if="error" class="error-msg">{{ error }}</div>
     </div>
 
-    <!-- ШАГ 2. Распознавание -->
     <div v-else-if="step === 'recognizing'" class="step">
       <div class="recognize">
         <div class="spinner"></div>
@@ -338,9 +323,7 @@ function close() {
       </div>
     </div>
 
-    <!-- ШАГ 3. Предпросмотр -->
     <div v-else-if="step === 'preview'" class="step">
-      
       <div v-if="filePreview" class="preview-wrapper">
         <canvas ref="canvasRef" class="preview-canvas"></canvas>
       </div>
@@ -372,7 +355,7 @@ function close() {
           v-for="(it, i) in items"
           :key="i"
           class="item-row"
-          :class="{ selected: selectedIndices.has(i) }"
+          :class="{ selected: selectedIndices.has(i), suspicious: it.isSuspicious }"
           @click="toggleItem(i)"
         >
           <div class="item-checkbox">
@@ -389,8 +372,11 @@ function close() {
                 {{ it.dateUncertain ? '??.??' : new Date(it.date).toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit'}) }}
               </span>
               <span class="item-cat">{{ it.category }}</span>
+              <!-- ✅ Значок вопроса для сомнительных операций -->
+              <span v-if="it.isSuspicious" class="suspicious-badge" :title="it.suspicionReason">?</span>
             </div>
             <div class="item-name">{{ it.name }}</div>
+            <div v-if="it.isSuspicious" class="suspicious-hint">{{ it.suspicionReason }}</div>
           </div>
 
           <div class="item-amount" :class="it.type">
@@ -422,65 +408,24 @@ function close() {
 </template>
 
 <style scoped lang="scss">
-/* Стили идентичны предыдущей версии, они не менялись */
-.sticky-tabs {
-  position: sticky;
-  top: -16px;
-  z-index: 10;
-  background: #ffffff;
-  padding: 16px 0 12px;
-  margin: -16px 0 12px;
-  border-bottom: 1px solid #e2e8f0;
-}
+/* Все стили из предыдущего файла + новые для сомнительных операций */
 
+.sticky-tabs { position: sticky; top: -16px; z-index: 10; background: #fff; padding: 16px 0 12px; margin: -16px 0 12px; border-bottom: 1px solid #e2e8f0; }
 .mode-switch { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; padding: 4px; background: linear-gradient(180deg, #f1f5f9, #e2e8f0); border-radius: 14px; }
 .mode { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 12px; border: none; background: transparent; color: #64748b; font-family: inherit; font-size: 12.5px; font-weight: 800; border-radius: 10px; cursor: pointer; }
-.mode.active { background: linear-gradient(180deg, #818cf8, #6366f1); color: #fff; box-shadow: 0 1px 0 rgba(255, 255, 255, 0.3) inset, 0 -2px 0 rgba(49, 46, 129, 0.3) inset, 0 4px 10px -2px rgba(99, 102, 241, 0.5); }
+.mode.active { background: linear-gradient(180deg, #818cf8, #6366f1); color: #fff; box-shadow: 0 1px 0 rgba(255,255,255,0.3) inset, 0 -2px 0 rgba(49,46,129,0.3) inset, 0 4px 10px -2px rgba(99,102,241,0.5); }
 
-.date-warning {
-  display: flex;
-  gap: 12px;
-  padding: 12px 14px;
-  background: #fffbeb;
-  border: 1px solid #fcd34d;
-  border-radius: 12px;
-  margin-bottom: 12px;
-}
+.date-warning { display: flex; gap: 12px; padding: 12px 14px; background: #fffbeb; border: 1px solid #fcd34d; border-radius: 12px; margin-bottom: 12px; }
 .dw-icon { font-size: 20px; }
 .dw-content { flex: 1; }
 .dw-title { font-size: 13px; font-weight: 800; color: #b45309; margin-bottom: 2px; }
 .dw-text { font-size: 11.5px; color: #92400e; margin-bottom: 8px; }
 .dw-controls { display: flex; gap: 8px; flex-wrap: wrap; }
-.dw-btn {
-  padding: 6px 12px;
-  background: #fef3c7;
-  border: 1px solid #fcd34d;
-  border-radius: 8px;
-  font-size: 12px;
-  font-weight: 700;
-  color: #b45309;
-  cursor: pointer;
-}
+.dw-btn { padding: 6px 12px; background: #fef3c7; border: 1px solid #fcd34d; border-radius: 8px; font-size: 12px; font-weight: 700; color: #b45309; cursor: pointer; }
 .dw-btn:hover { background: #fde68a; }
 .dw-manual { display: flex; gap: 4px; align-items: center; }
-.dw-manual input {
-  padding: 5px 8px;
-  border: 1px solid #fcd34d;
-  border-radius: 8px;
-  font-size: 12px;
-  background: #fff;
-  outline: none;
-}
-.dw-apply {
-  padding: 6px 10px;
-  background: #f59e0b;
-  border: none;
-  border-radius: 8px;
-  color: #fff;
-  font-size: 12px;
-  font-weight: 700;
-  cursor: pointer;
-}
+.dw-manual input { padding: 5px 8px; border: 1px solid #fcd34d; border-radius: 8px; font-size: 12px; background: #fff; outline: none; }
+.dw-apply { padding: 6px 10px; background: #f59e0b; border: none; border-radius: 8px; color: #fff; font-size: 12px; font-weight: 700; cursor: pointer; }
 
 .bank-selector { margin-bottom: 16px; }
 .bs-label { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
@@ -521,8 +466,16 @@ function close() {
 .ph-title { font-size: 13px; font-weight: 800; }
 .ph-hint { font-size: 11px; color: #94a3b8; }
 .items-list { display: flex; flex-direction: column; gap: 8px; max-height: 40vh; overflow-y: auto; padding-right: 4px; }
-.item-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; border: 1.5px solid #e2e8f0; background: #fff; cursor: pointer; }
+
+/* ✅ Стили для сомнительных операций */
+.item-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; border: 1.5px solid #e2e8f0; background: #fff; cursor: pointer; position: relative; }
 .item-row.selected { border-color: #6366f1; background: #f5f3ff; }
+.item-row.suspicious { border-color: #f59e0b; background: #fffbeb; }
+.item-row.suspicious.selected { border-color: #f59e0b; background: #fef3c7; }
+
+.suspicious-badge { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: #f59e0b; color: #fff; font-size: 11px; font-weight: 900; cursor: help; }
+.suspicious-hint { font-size: 10.5px; color: #b45309; margin-top: 2px; font-style: italic; }
+
 .item-checkbox { width: 22px; height: 22px; }
 .checkbox-inner { width: 100%; height: 100%; border-radius: 6px; border: 2px solid #cbd5e1; display: flex; align-items: center; justify-content: center; }
 .checkbox-inner.checked { background: #6366f1; border-color: #6366f1; }
