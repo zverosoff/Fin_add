@@ -5,7 +5,6 @@ export function runMigrations() {
   console.log('[migrate] проверка схемы…');
 
   // ============================================================
-  // push_subscriptions — остаётся (нужен для напоминаний)
   // messages
   // ============================================================
   const hasMessages = db.prepare(`
@@ -124,7 +123,6 @@ export function runMigrations() {
   }
 
   // ============================================================
-  // user_profiles — остаётся (профили для UI)
   // user_profiles
   // ============================================================
   const hasProfiles = db.prepare(`
@@ -145,7 +143,6 @@ export function runMigrations() {
     `);
     console.log('[migrate] ✅ таблица user_profiles создана');
   } else {
-    // ✅ Добавляем created_at, если колонки нет
     const cols = db.prepare(`PRAGMA table_info(user_profiles)`).all();
     const hasCreatedAt = cols.some(c => c.name === 'created_at');
     if (!hasCreatedAt) {
@@ -154,21 +151,7 @@ export function runMigrations() {
     }
   }
 
-  // ============================================================
-  // 🧹 Удаляем таблицы мессенджера, если они остались
-  // ============================================================
-  const legacyTables = ['messages', 'message_reactions', 'user_presence'];
-  for (const t of legacyTables) {
-    const exists = db.prepare(`
-      SELECT name FROM sqlite_master WHERE type='table' AND name=?
-    `).get(t);
-    if (exists) {
-      console.log(`[migrate] 🗑 удаляю legacy-таблицу ${t}`);
-      db.exec(`DROP TABLE IF EXISTS ${t}`);
-    }
-  }
   // Системный пользователь «Приложение»
-  // ============================================================
   const now = new Date().toISOString();
   db.prepare(`
     INSERT INTO user_presence (user, last_seen, updated_at)
