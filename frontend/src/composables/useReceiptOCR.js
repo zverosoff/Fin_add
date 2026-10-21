@@ -147,7 +147,7 @@ function isValidBankScreenshot(lines) {
 }
 
 // ============================================================
-// ПАРСЕР ДЛЯ Т-БАНКА (v5, С КОПЕЙКАМИ)
+// ПАРСЕР ДЛЯ Т-БАНКА (v6, ПОИСК ПО ВСЕМ ОПЕРАЦИЯМ)
 // ============================================================
 function parseTbank(lines) {
   const parsedItems = [];
@@ -157,36 +157,18 @@ function parseTbank(lines) {
   const DATE_WORD_RE = /(Сегодня|Вчера|Позавчера)/i;
   const DATE_NUM_RE = /(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)/i;
   
-  // Суммы: ищем с минусом или плюсом, сохраняем копейки
+  // Ищем сумму: обязателен минус или плюс перед цифрами
   const AMOUNT_RE = /([+\-−])\s*(\d[\d\s]*[.,]?\d*)\s*(?:₽|p|P|р|Р)?/;
   
-  // Игнорируем заголовки и системный мусор
+  // Системный мусор
   const JUNK_RE = /^(траты|доходы|счета и карты|без переводов|операции|октябрь|сентябрь|баланс|всего|расходы|поступления)/i;
 
-  let listStartY = 0;
+  // 1. Находим все даты и их Y-координаты, чтобы потом присвоить их операциям
+  const dateAnchors = [];
   for (const line of lines) {
     const text = (line.text || '').trim();
-    if (DATE_WORD_RE.test(text) || DATE_NUM_RE.test(text)) {
-      listStartY = line.bbox ? line.bbox.y0 : 0;
-      break;
-    }
-  }
-
-  for (let i = 0; i < lines.length; i++) {
-    const line = lines[i];
-    const text = (line.text || '').trim();
-    if (!text) continue;
-    
-    const y = line.bbox ? line.bbox.y0 : 0;
-    const x = line.bbox ? line.bbox.x0 : 0;
-
-    // Мягкая отсечка сверху: если есть дата, отсекаем всё, что выше неё на 50px
-    if (listStartY > 0 && y < listStartY - 50) continue;
-    
-    if (JUNK_RE.test(text)) continue;
-
-    // Ищем дату
     let foundDate = null;
+    
     if (DATE_WORD_RE.test(text)) {
       const word = text.match(DATE_WORD_RE)[0].toLowerCase();
       foundDate = new Date();
@@ -203,46 +185,59 @@ function parseTbank(lines) {
       }
     }
 
-    if (foundDate) {
-      foundDate.setHours(12, 0, 0, 0);
-      parsedItems.push({ type: 'date', y, date: foundDate });
-      continue;
+    if (foundDate && line.bbox) {
+      dateAnchors.push({ y: line.bbox.y0, date: foundDate });
     }
+  }
 
-    // Ищем сумму
+  // Сортируем даты сверху вниз
+  dateAnchors.sort((a, b) => a.y - b.y);
+
+  // 2. Ищем все операции
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    const text = (line.text || '').trim();
+    if (!text) continue;
+    
+    const y = line.bbox ? line.bbox.y0 : 0;
+    const x = line.bbox ? line.bbox.x0 : 0;
+
+    if (JUNK_RE.test(text)) continue;
+
+    // Проверяем, есть ли на этой строке сумма
     const amountMatch = text.match(AMOUNT_RE);
     if (!amountMatch) continue;
 
     const sign = amountMatch[1];
-    // Очищаем сумму от пробелов, заменяем запятую на точку
     const rawAmount = amountMatch[2].replace(/\s+/g, '').replace(',', '.');
     let amount = parseFloat(rawAmount);
     
     if (isNaN(amount) || amount <= 0) continue;
 
-    // Отсекаем кэшбэк (например, +10, +8)
+    // Отсекаем кэшбэк (например, +10)
     if (amount < 50 && sign === '+') continue;
 
-    // Жесткая отсечка итогов (суммы > 50 000)
+    // Отсекаем итоговые суммы (Траты/Доходы), они обычно больше 50 000
     if (amount > 50000) continue; 
 
     const type = sign === '+' ? 'income' : 'expense';
-    // ✅ НЕ ОКРУГЛЯЕМ ДО ЦЕЛЫХ! Оставляем копейки.
     amount = Math.round(amount * 100) / 100;
 
-    // Очищаем описание
+    // 3. ДВОЙНАЯ ПРОВЕРКА: Ищем описание
     let description = text.replace(amountMatch[0], '').trim();
     description = description.replace(/[|•·\-\+−₽]/g, '').trim();
     
-    // Если описание пустое или мусор (Black), ищем выше
-    if (!description || description.length < 2 || /^\d+$/.test(description) || /^\d{1,2}:\d{2}$/.test(description) || description.toLowerCase() === 'black') {
+    // Если описание пустое или это просто цифры/Black, ищем на соседних строках
+    if (!description || description.length < 2 || /^\d+$/.test(description) || description.toLowerCase() === 'black') {
+      // Ищем строку выше (обычно там название операции)
       if (i - 1 >= 0 && lines[i-1].bbox) {
           const prevText = lines[i-1].text.trim();
           const prevY = lines[i-1].bbox.y0;
           const prevX = lines[i-1].bbox.x0;
           
           if (!AMOUNT_RE.test(prevText) && !JUNK_RE.test(prevText) && !DATE_WORD_RE.test(prevText) && !DATE_NUM_RE.test(prevText)) {
-              if (Math.abs(prevX - x) < 150 || Math.abs(prevY - y) < 50) {
+              // Проверяем, что это в той же колонке или чуть выше
+              if (Math.abs(prevX - x) < 150 || Math.abs(prevY - y) < 60) {
                   description = prevText;
               }
           }
@@ -250,6 +245,25 @@ function parseTbank(lines) {
     }
 
     if (!description || description.length < 2) description = 'Операция';
+
+    // 4. Определяем дату для этой операции
+    // Ищем ближайшую дату ВЫШЕ этой операции
+    let opDate = null;
+    let dateUncertain = true;
+    
+    for (let d = dateAnchors.length - 1; d >= 0; d--) {
+      if (dateAnchors[d].y < y) {
+        opDate = dateAnchors[d].date;
+        dateUncertain = false;
+        break;
+      }
+    }
+
+    // Если дата не найдена (операция на самом верху списка)
+    if (!opDate) {
+      opDate = new Date(); // по умолчанию сегодня
+      dateUncertain = true;
+    }
 
     // Категория
     let category = 'Прочее';
@@ -260,7 +274,7 @@ function parseTbank(lines) {
         category = extractCategory(description);
     }
 
-    // Bbox для маски
+    // Bbox для маски (выделяем и название, и сумму)
     let opBbox = line.bbox;
     if (lines[i-1] && lines[i-1].bbox && line.bbox && description === lines[i-1].text.trim()) {
        const l1 = lines[i-1].bbox;
@@ -276,6 +290,8 @@ function parseTbank(lines) {
             amount, 
             type, 
             category, 
+            date: opDate.toISOString(),
+            dateUncertain,
             bbox: opBbox
         } 
     });
@@ -379,7 +395,7 @@ function parseSber(lines) {
 }
 
 // ============================================================
-// ГЛАВуНАЯ ФУНКЦИЯ
+// ГЛАВНАЯ ФУНКЦИЯ
 // ============================================================
 export function parseBankScreenshot(textLines, currentBankType = 'tbank') {
   if (!textLines || !textLines.length) return { operations: [], suggestedBank: null };
@@ -412,32 +428,42 @@ export function parseBankScreenshot(textLines, currentBankType = 'tbank') {
   }
 
   const operations = [];
-  let currentDate = new Date();
-  currentDate.setHours(12, 0, 0, 0);
-  let currentOpsGroup = [];
-  let isUncertainGroup = false; 
-
-  for (let i = parsedItems.length - 1; i >= 0; i--) {
-    const item = parsedItems[i];
-    if (item.type === 'op') {
-      currentOpsGroup.push(item);
-    } else if (item.type === 'date') {
-      currentDate = item.date;
-      for (const op of currentOpsGroup) {
-        operations.push({ ...op.opData, date: currentDate.toISOString(), dateUncertain: isUncertainGroup });
+  
+  // Для Т-Банка операции уже содержат дату внутри (мы нашли её через dateAnchors)
+  if (currentBankType === 'tbank') {
+    for (const item of parsedItems) {
+      if (item.type === 'op') {
+        operations.push(item.opData);
       }
-      currentOpsGroup = []; 
-      isUncertainGroup = false; 
-      currentDate = new Date(currentDate);
-      currentDate.setDate(currentDate.getDate() + 1);
     }
-  }
+  } else {
+    // Для Сбера — старая логика группировки
+    let currentDate = new Date();
+    currentDate.setHours(12, 0, 0, 0);
+    let currentOpsGroup = [];
+    let isUncertainGroup = false; 
 
-  for (const op of currentOpsGroup) {
-    operations.push({ ...op.opData, date: currentDate.toISOString(), dateUncertain: true });
-  }
+    for (let i = parsedItems.length - 1; i >= 0; i--) {
+      const item = parsedItems[i];
+      if (item.type === 'op') {
+        currentOpsGroup.push(item);
+      } else if (item.type === 'date') {
+        currentDate = item.date;
+        for (const op of currentOpsGroup) {
+          operations.push({ ...op.opData, date: currentDate.toISOString(), dateUncertain: isUncertainGroup });
+        }
+        currentOpsGroup = []; 
+        isUncertainGroup = false; 
+        currentDate = new Date(currentDate);
+        currentDate.setDate(currentDate.getDate() + 1);
+      }
+    }
 
-  operations.reverse();
+    for (const op of currentOpsGroup) {
+      operations.push({ ...op.opData, date: currentDate.toISOString(), dateUncertain: true });
+    }
+    operations.reverse();
+  }
 
   const validatedOperations = operations.map((op) => {
     let isSuspicious = false;
