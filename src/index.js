@@ -15,6 +15,10 @@ runMigrations();
 import authRoutes from './routes/auth.js';
 import stateRoutes from './routes/state.js';
 import txRoutes from './routes/transactions.js';
+<<<<<<< HEAD
+=======
+import messagesRoutes from './routes/messages.js';
+>>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
 import pushRoutes from './routes/push.js';
 import profileRoutes from './routes/profile.js';
 import { attachSocket } from './services/wsService.js';
@@ -77,6 +81,10 @@ app.use((req, _res, next) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/state', stateRoutes);
 app.use('/api/transactions', txRoutes);
+<<<<<<< HEAD
+=======
+app.use('/api/messages', messagesRoutes);
+>>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
 app.use('/api/push', pushRoutes);
 app.use('/api/profile', profileRoutes);
 
@@ -85,7 +93,11 @@ app.get('/api/health', (_req, res) => {
 });
 
 // ============================================================
+<<<<<<< HEAD
 // Socket.IO — синхронизация состояния счетов
+=======
+// Socket.IO
+>>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
 // ============================================================
 const io = new SocketServer(server, {
   cors: { origin: ALLOWED_ORIGINS, credentials: true },
@@ -141,4 +153,8 @@ server.listen(PORT, () => {
   console.log('='.repeat(60));
 });
 
+<<<<<<< HEAD
 startDailyReminderCron();
+=======
+startDailyReminderCron(io);
+>>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c

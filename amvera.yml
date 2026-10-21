@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ---
 meta:
   environment: nodejs
@@ -18,3 +19,18 @@ run:
   containerPort: 80
   singleton: true
   zeroDowntime: false
+=======
+meta:
+  environment: node
+  toolchain:
+    name: npm
+    version: 20
+
+build:
+  additionalCommands: npm run build:all
+
+run:
+  scriptName: backend/src/index.js
+  persistenceMount: /data
+  containerPort: 80
+>>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c

@@ -1,8 +1,26 @@
 import jwt from 'jsonwebtoken';
+<<<<<<< HEAD
 
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me';
 
 const onlineUsers = new Map(); // userId → Set<socketId>
+=======
+import db from '../db/index.js';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'change-me';
+
+const onlineUsers = new Map();   // userId → Set<socketId>
+
+const touchPresenceStmt = db.prepare(`
+  INSERT INTO user_presence (user, last_seen, updated_at)
+  VALUES (@user, @now, @now)
+  ON CONFLICT(user) DO UPDATE SET
+    last_seen = @now,
+    updated_at = @now
+`);
+
+const getAllPresenceStmt = db.prepare('SELECT * FROM user_presence');
+>>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
 
 function addOnline(userId, socketId) {
   if (!onlineUsers.has(userId)) onlineUsers.set(userId, new Set());
@@ -43,12 +61,31 @@ export function attachSocket(io) {
     console.log(`[ws] ✓ подключился ${user} (${socket.id})`);
 
     addOnline(user, socket.id);
+<<<<<<< HEAD
     io.emit('users:online', getOnlineList());
+=======
+
+    // ✅ Обновляем presence
+    const now = new Date().toISOString();
+    touchPresenceStmt.run({ user, now });
+
+    io.emit('users:online', getOnlineList());
+    io.emit('presence:update', { user, lastSeen: now });
+>>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
 
     socket.on('disconnect', (reason) => {
       console.log(`[ws] ✗ отключился ${user} (${reason})`);
       removeOnline(user, socket.id);
+<<<<<<< HEAD
       io.emit('users:online', getOnlineList());
+=======
+
+      const lastSeen = new Date().toISOString();
+      touchPresenceStmt.run({ user, now: lastSeen });
+
+      io.emit('users:online', getOnlineList());
+      io.emit('presence:update', { user, lastSeen });
+>>>>>>> 72ae6b494e5a8af39bc8f082b5382df5f483af0c
     });
 
     socket.on('ping:client', () => {
