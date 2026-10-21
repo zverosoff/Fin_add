@@ -48,9 +48,7 @@ export function preprocessImage(file) {
 }
 
 export async function recognizeText(file, onProgress) {
-  if (!window.Tesseract) {
-    throw new Error('Tesseract.js не загрузился');
-  }
+  if (!window.Tesseract) throw new Error('Tesseract.js не загрузился');
 
   const worker = await Tesseract.createWorker('rus+eng', 1, {
     logger: (m) => {
@@ -80,7 +78,7 @@ export async function recognizeText(file, onProgress) {
     }
   }
 
-  return { lines: textLines, width: data.imageWidth, height: data.imageHeight };
+  return { lines: textLines, width: data.imageWidth || 0, height: data.imageHeight || 0 };
 }
 
 export function parseBankScreenshot(textLines) {
@@ -116,7 +114,6 @@ export function parseBankScreenshot(textLines) {
     const text = (line.text || '').trim();
     if (!text) continue;
 
-    // Даты
     if (DATE_WORD_RE.test(text)) {
       const word = text.match(DATE_WORD_RE)[0].toLowerCase();
       if (word === 'сегодня') currentDate = new Date();
@@ -137,7 +134,6 @@ export function parseBankScreenshot(textLines) {
       continue;
     }
 
-    // Сумма
     const amountMatch = text.match(AMOUNT_RE);
     if (!amountMatch) continue;
 
@@ -149,26 +145,25 @@ export function parseBankScreenshot(textLines) {
     amount = Math.round(amount);
     const type = sign === '+' ? 'income' : 'expense';
 
-    // Название и категория
     let description = text.replace(amountMatch[0], '').trim();
-    
-    if (!description || description.length < 2) {
-      if (i + 1 < lines.length) {
-        const nextText = (lines[i + 1].text || '').trim();
-        if (!/\d/.test(nextText)) description = nextText;
-      }
-    }
-    
+    let category = 'Прочее';
+
     if (description.toLowerCase().includes('black') || description.toLowerCase().includes('+')) {
         continue;
     }
 
-    description = description.replace(/[|•·\-\+−]/g, '').trim();
-    if (!description || description.length < 2) description = 'Операция';
+    let mainLineIndex = i;
+    if (!description || description.length < 2) {
+      if (i - 1 >= 0 && !DATE_WORD_RE.test(lines[i-1].text) && !DATE_NUM_RE.test(lines[i-1].text)) {
+        description = lines[i-1].text;
+        mainLineIndex = i - 1;
+      }
+    }
 
-    let category = 'Прочее';
+    description = description.replace(/[|•·\-\+−]/g, '').trim();
+    if (!description) description = 'Операция';
+
     const linesToCheck = [description, lines[i+1]?.text || '', lines[i-1]?.text || ''];
-    
     for (const checkText of linesToCheck) {
         const low = checkText.toLowerCase();
         for (const cat of CATEGORY_WORDS) {
@@ -181,16 +176,26 @@ export function parseBankScreenshot(textLines) {
         if (category !== 'Прочее') break;
     }
 
-    if (!description) description = 'Операция';
+    // ✅ Собираем общий bbox (название + сумма)
+    let opBbox = line.bbox;
+    if (lines[mainLineIndex] && lines[mainLineIndex].bbox && line.bbox) {
+       const l1 = lines[mainLineIndex].bbox;
+       const l2 = line.bbox;
+       opBbox = {
+           x0: Math.min(l1.x0, l2.x0),
+           y0: Math.min(l1.y0, l2.y0),
+           x1: Math.max(l1.x1, l2.x1),
+           y1: Math.max(l1.y1, l2.y1)
+       };
+    }
 
-    // ✅ Сохраняем bbox (координаты), чтобы нарисовать окно на фото
     operations.push({
       date: currentDate.toISOString(),
       name: description.slice(0, 80),
       amount,
       type,
       category,
-      bbox: line.bbox, // <--- Вот тут передаем координаты
+      bbox: opBbox,
     });
   }
 

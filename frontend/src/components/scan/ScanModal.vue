@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, nextTick } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
 import { useTransactionsStore } from '@/stores/transactions';
 import { useAuthStore } from '@/stores/auth';
@@ -36,9 +36,7 @@ const accountId = ref('');
 const error = ref('');
 const saving = ref(false);
 
-// Для маски на фото
-const imageMeta = ref({ width: 0, height: 0 });
-const highlightBoxes = ref([]);
+const canvasRef = ref(null);
 
 const userAccounts = computed(() =>
   accounts.accounts.filter(a => (a.owner || 'Сергей') === user.value)
@@ -62,8 +60,6 @@ function reset() {
   statusText.value = '';
   items.value = [];
   selectedIndices.value = new Set();
-  highlightBoxes.value = [];
-  imageMeta.value = { width: 0, height: 0 };
   user.value = auth.user || 'Сергей';
   accountId.value = userAccounts.value[0]?.id || '';
   error.value = '';
@@ -80,6 +76,57 @@ watch(user, () => {
     accountId.value = accs[0]?.id || '';
   }
 });
+
+async function drawMaskedImage() {
+  if (!canvasRef.value || !file.value) return;
+
+  const canvas = canvasRef.value;
+  const ctx = canvas.getContext('2d');
+  const img = new Image();
+
+  img.onload = () => {
+    // Задаем размеры холста такими же, как у оригинального изображения
+    canvas.width = img.width;
+    canvas.height = img.height;
+
+    // 1. Рисуем оригинальное фото
+    ctx.drawImage(img, 0, 0);
+
+    // 2. Заливаем полупрозрачным темным цветом
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.88)';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // 3. Вырезаем "окна" для найденных операций
+    ctx.globalCompositeOperation = 'destination-out';
+
+    for (const item of items.value) {
+      if (!item.bbox) continue;
+
+      // Т.к. Tesseract сканировал увеличенное в 2 раза изображение, координаты делим на 2
+      const x = item.bbox.x0 / 2;
+      const y = item.bbox.y0 / 2;
+      const w = (item.bbox.x1 - item.bbox.x0) / 2;
+      const h = (item.bbox.y1 - item.bbox.y0) / 2;
+
+      // Чуть расширяем окно, чтобы было красиво
+      const padding = 8;
+
+      ctx.beginPath();
+      // Используем встроенный метод для скругления
+      if (ctx.roundRect) {
+        ctx.roundRect(x - padding, y - padding, w + padding * 2, h + padding * 2, 8);
+      } else {
+        ctx.rect(x - padding, y - padding, w + padding * 2, h + padding * 2);
+      }
+      ctx.fill();
+    }
+
+    // Сбрасываем режим обратно
+    ctx.globalCompositeOperation = 'source-over';
+  };
+
+  img.src = filePreview.value;
+}
 
 async function onFileSelected(e) {
   const f = e.target.files?.[0];
@@ -99,16 +146,10 @@ async function processFile(f) {
     const processed = await preprocessImage(f);
     statusText.value = 'Загрузка модели OCR…';
     
-    // Передаем размеры картинки для точного расчета
     const result = await recognizeText(processed, (pct) => {
       progress.value = pct;
       statusText.value = `Сканирование: ${pct}%`;
     });
-
-    imageMeta.value = {
-      width: result.width || 1000,
-      height: result.height || 1000,
-    };
 
     const parsed = parseBankScreenshot(result.lines);
 
@@ -120,18 +161,11 @@ async function processFile(f) {
 
     items.value = parsed;
     selectedIndices.value = new Set(parsed.map((_, i) => i));
-    
-    // Собираем координаты операций (делим на 2, т.к. preprocessImage увеличивает в 2 раза)
-    highlightBoxes.value = parsed
-      .filter(it => it.bbox)
-      .map(it => ({
-        left: (it.bbox.x0 / 2 / imageMeta.value.width) * 100,
-        top: (it.bbox.y0 / 2 / imageMeta.value.height) * 100,
-        width: ((it.bbox.x1 - it.bbox.x0) / 2 / imageMeta.value.width) * 100,
-        height: ((it.bbox.y1 - it.bbox.y0) / 2 / imageMeta.value.height) * 100,
-      }));
-
     step.value = 'preview';
+    
+    await nextTick();
+    drawMaskedImage();
+    
   } catch (e) {
     console.error('[scan] ошибка OCR:', e);
     error.value = e.message || 'Ошибка распознавания';
@@ -159,15 +193,10 @@ const selectedCount = computed(() => selectedIndices.value.size);
 
 async function save() {
   const toSave = items.value.filter((_, i) => selectedIndices.value.has(i));
-
-  if (!toSave.length) {
-    error.value = 'Ничего не выбрано';
-    return;
-  }
+  if (!toSave.length) { error.value = 'Ничего не выбрано'; return; }
 
   saving.value = true;
   error.value = '';
-
   let added = 0, failed = 0;
 
   for (const it of toSave) {
@@ -183,24 +212,17 @@ async function save() {
       internalTransfer: false,
       importOrder: it._idx,
     };
-
     try {
       await txStore.save(txData);
       added++;
     } catch (e) {
       failed++;
-      console.warn('[scan] ошибка сохранения', e);
     }
   }
 
   saving.value = false;
-
-  if (failed > 0) {
-    toast.error(`Добавлено ${added}, ошибок: ${failed}`);
-  } else {
-    toast.success(`✅ Добавлено ${added} операций`);
-  }
-
+  if (failed > 0) toast.error(`Добавлено ${added}, ошибок: ${failed}`);
+  else toast.success(`✅ Добавлено ${added} операций`);
   emit('update:modelValue', false);
 }
 
@@ -281,25 +303,9 @@ function close() {
     <!-- ШАГ 3. Предпросмотр -->
     <div v-else-if="step === 'preview'" class="step">
       
-      <!-- ✅ Визуальное превью с заштриховкой -->
+      <!-- ✅ Визуальное превью с маской -->
       <div v-if="filePreview" class="preview-wrapper">
-        <img :src="filePreview" class="preview-img" />
-        
-        <!-- Затеняем всё, кроме найденных операций -->
-        <div class="preview-overlay">
-          <!-- Затемненные зоны (между окнами) рисуются автоматически за счет разницы цвета фона -->
-          <div 
-            v-for="(box, i) in highlightBoxes" 
-            :key="i"
-            class="highlight-box"
-            :style="{
-              left: box.left + '%',
-              top: box.top + '%',
-              width: box.width + '%',
-              height: box.height + '%',
-            }"
-          ></div>
-        </div>
+        <canvas ref="canvasRef" class="preview-canvas"></canvas>
       </div>
 
       <div class="preview-header">
@@ -363,11 +369,11 @@ function close() {
 <style scoped lang="scss">
 .step { display: flex; flex-direction: column; gap: 16px; }
 
-/* ✅ Красивое превью с окнами */
+/* ✅ Стили для Canvas-превью */
 .preview-wrapper {
   position: relative;
   width: 100%;
-  max-height: 300px;
+  max-height: 250px; /* Ограничиваем высоту, чтобы модалка не растягивалась */
   overflow: hidden;
   border-radius: 12px;
   background: #0f172a;
@@ -376,31 +382,14 @@ function close() {
   border: 1px solid #e2e8f0;
 }
 
-.preview-img {
-  width: 100%;
-  height: auto;
+.preview-canvas {
+  max-width: 100%;
+  max-height: 250px;
   object-fit: contain;
   display: block;
+  border-radius: 12px;
 }
 
-.preview-overlay {
-  position: absolute;
-  inset: 0;
-  background: rgba(15, 23, 42, 0.7); /* Затенение всего фона */
-  backdrop-filter: blur(2px);
-}
-
-.highlight-box {
-  position: absolute;
-  background: transparent;
-  box-shadow: 0 0 0 100vmax rgba(15, 23, 42, 0.7); /* Оставляем только "окно" прозрачным */
-  border: 2px solid rgba(99, 102, 241, 0.8); /* Подсветка рамки */
-  border-radius: 4px;
-  transform: translateZ(0);
-  pointer-events: none;
-}
-
-/* ... остальные стили ... */
 .mode-switch {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -410,6 +399,7 @@ function close() {
   background: linear-gradient(180deg, #f1f5f9, #e2e8f0);
   border-radius: 14px;
 }
+
 .mode {
   display: flex;
   align-items: center;
@@ -425,28 +415,34 @@ function close() {
   border-radius: 10px;
   cursor: pointer;
 }
+
 .mode.active {
   background: linear-gradient(180deg, #818cf8, #6366f1);
   color: #ffffff;
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.3) inset, 0 -2px 0 rgba(49, 46, 129, 0.3) inset, 0 4px 10px -2px rgba(99, 102, 241, 0.5);
 }
+
 .fields-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field label { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; }
 .field select { width: 100%; padding: 12px 14px; border-radius: 12px; border: 1.5px solid #e2e8f0; background: #fff; font-weight: 700; }
+
 .upload-btn { display: flex; align-items: center; gap: 16px; width: 100%; padding: 18px 20px; border-radius: 16px; border: 2px dashed rgba(99, 102, 241, 0.4); background: linear-gradient(180deg, #eef2ff, #e0e7ff); cursor: pointer; text-align: left; }
 .upload-icon { font-size: 26px; }
 .upload-title { font-size: 15px; font-weight: 800; display: block; }
 .upload-sub { font-size: 12px; color: #64748b; }
+
 .recognize { display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 40px 20px; text-align: center; }
 .spinner { width: 48px; height: 48px; border: 4px solid rgba(99, 102, 241, 0.2); border-top-color: #6366f1; border-radius: 50%; animation: spin 1s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 .status { font-size: 14px; font-weight: 700; }
 .progress { width: 100%; max-width: 320px; height: 10px; border-radius: 5px; background: #e2e8f0; overflow: hidden; }
 .progress-fill { height: 100%; background: linear-gradient(180deg, #818cf8, #6366f1); }
+
 .preview-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; }
 .ph-title { font-size: 13px; font-weight: 800; }
 .ph-hint { font-size: 11px; color: #94a3b8; }
+
 .items-list { display: flex; flex-direction: column; gap: 6px; max-height: 45vh; overflow-y: auto; padding-right: 4px; }
 .item-row { display: grid; grid-template-columns: auto 44px 1fr auto; gap: 10px; align-items: center; padding: 12px 14px; border-radius: 12px; border: 1px solid #e2e8f0; background: #fff; }
 .item-row.selected { border-color: rgba(99, 102, 241, 0.5); background: #f5f3ff; }
@@ -458,11 +454,14 @@ function close() {
 .item-amount { font-family: var(--mono); font-size: 13.5px; font-weight: 800; white-space: nowrap; }
 .item-amount.income { color: #16a34a; }
 .item-amount.expense { color: #dc2626; }
+
 .error-msg { padding: 10px 14px; border-radius: 10px; background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; font-size: 12.5px; font-weight: 700; }
+
 .btn-cancel, .btn-save { padding: 12px 22px; border-radius: 12px; font-family: inherit; font-size: 14px; font-weight: 800; cursor: pointer; }
 .btn-cancel { background: #f1f5f9; color: #334155; border: 1px solid #e2e8f0; }
 .btn-save { background: linear-gradient(180deg, #818cf8, #6366f1); color: #fff; border: none; }
 .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
+
 @media (max-width: 700px) {
   .fields-row { grid-template-columns: 1fr; }
   .item-row { grid-template-columns: auto 40px 1fr auto; padding: 10px; }
