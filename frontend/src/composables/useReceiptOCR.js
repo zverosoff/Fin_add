@@ -4,27 +4,20 @@ export function preprocessImage(file) {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
-      const scale = 2; // Увеличиваем для лучшего OCR
+      const scale = 2;
       const canvas = document.createElement('canvas');
       canvas.width = img.width * scale;
       canvas.height = img.height * scale;
       const ctx = canvas.getContext('2d');
-      
-      // Отключаем сглаживание, чтобы текст был резким
       ctx.imageSmoothingEnabled = false; 
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
 
-      // Делаем изображение черно-белым (бинаризация)
       for (let i = 0; i < data.length; i += 4) {
         const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        
-        // Если пиксель темный (фон скриншота), делаем его белым для OCR
-        // Если светлый (текст), делаем черным.
         const v = gray < 150 ? 255 : 0; 
-        
         data[i] = data[i + 1] = data[i + 2] = v;
       }
 
@@ -48,16 +41,14 @@ export async function recognizeText(file, onProgress) {
     },
   });
 
-  // ✅ ВАЖНО: Указываем Tesseract, что это разреженный текст (список), а не сплошной абзац
   await worker.setParameters({
-    tessedit_pageseg_mode: '6', // 6 = Assume a single uniform block of text. Лучше для списков.
+    tessedit_pageseg_mode: '6',
   });
 
   const { data } = await worker.recognize(file);
   await worker.terminate();
 
   const textLines = [];
-  // Берем именно строки (lines), а не блоки (blocks)
   if (data.lines && Array.isArray(data.lines)) {
     for (const line of data.lines) {
       const t = (line.text || '').trim();
@@ -79,7 +70,6 @@ export async function recognizeText(file, onProgress) {
 export function parseBankScreenshot(textLines) {
   if (!textLines || !textLines.length) return [];
 
-  // Сортируем строки сверху вниз
   const lines = [...textLines].sort((a, b) => {
     if (!a.bbox || !b.bbox) return 0;
     return a.bbox.y0 - b.bbox.y0;
@@ -103,10 +93,7 @@ export function parseBankScreenshot(textLines) {
     'Связь', 'Подписки', 'Выдача наличных', 'Пополнение'
   ];
 
-  // ============================================================
-  // ШАГ 1: Собираем все даты и операции в один массив (сверху вниз)
-  // ============================================================
-  const parsedItems = []; // { type: 'date'|'op', y: number, date?: Date, opData?: object }
+  const parsedItems = []; 
 
   const now = new Date();
   let defaultYear = now.getFullYear();
@@ -117,7 +104,6 @@ export function parseBankScreenshot(textLines) {
     if (!text) continue;
     const y = line.bbox ? line.bbox.y0 : 0;
 
-    // --- Ищем дату ---
     let foundDate = null;
 
     if (DATE_WORD_RE.test(text)) {
@@ -139,10 +125,9 @@ export function parseBankScreenshot(textLines) {
     if (foundDate) {
       foundDate.setHours(12, 0, 0, 0);
       parsedItems.push({ type: 'date', y, date: foundDate });
-      continue; // Это дата, идём дальше
+      continue;
     }
 
-    // --- Ищем операцию ---
     const amountMatch = text.match(AMOUNT_RE);
     if (!amountMatch) continue;
 
@@ -156,12 +141,10 @@ export function parseBankScreenshot(textLines) {
 
     let description = text.replace(amountMatch[0], '').trim();
     
-    // Пропускаем кэшбэк
     if (description.toLowerCase().includes('black') || description.toLowerCase().includes('+')) {
         continue;
     }
 
-    // Если описание пустое, ищем его в предыдущей или следующей строке
     let mainLineIndex = i;
     if (!description || description.length < 2) {
       if (i - 1 >= 0 && !DATE_WORD_RE.test(lines[i-1].text) && !DATE_NUM_RE.test(lines[i-1].text)) {
@@ -175,7 +158,6 @@ export function parseBankScreenshot(textLines) {
     description = description.replace(/[|•·\-\+−]/g, '').trim();
     if (!description) description = 'Операция';
 
-    // Ищем категорию
     let category = 'Прочее';
     const linesToCheck = [description, lines[i+1]?.text || '', lines[i-1]?.text || ''];
     for (const checkText of linesToCheck) {
@@ -190,7 +172,6 @@ export function parseBankScreenshot(textLines) {
         if (category !== 'Прочее') break;
     }
 
-    // Собираем bbox
     let opBbox = line.bbox;
     if (lines[mainLineIndex] && lines[mainLineIndex].bbox && line.bbox) {
        const l1 = lines[mainLineIndex].bbox;
@@ -217,33 +198,51 @@ export function parseBankScreenshot(textLines) {
   }
 
   // ============================================================
-  // ШАГ 2: Распределяем даты (снизу вверх)
+  // Логика распределения дат (СНИЗУ ВВЕРХ)
   // ============================================================
-  // Идем с конца. Если встречаем дату — все операции ВЫШЕ неё относятся к ней.
+  let currentDate = new Date();
+  currentDate.setHours(12, 0, 0, 0);
   
-  let currentDateForOps = new Date(); // По умолчанию "Сегодня"
-  currentDateForOps.setHours(12, 0, 0, 0);
+  let currentOpsGroup = [];
+  let isUncertainGroup = false; // Флаг для верхней группы
 
-  // Проходим по массиву снизу вверх
   for (let i = parsedItems.length - 1; i >= 0; i--) {
     const item = parsedItems[i];
 
-    if (item.type === 'date') {
-      // Нашли дату — она применяется ко всем операциям, которые выше неё
-      currentDateForOps = item.date;
-    } else if (item.type === 'op') {
-      // Добавляем операцию с текущей датой
-      operations.push({
-        ...item.opData,
-        date: currentDateForOps.toISOString(),
-      });
+    if (item.type === 'op') {
+      currentOpsGroup.push(item);
+    } else if (item.type === 'date') {
+      currentDate = item.date;
+      
+      // Присваиваем группе найденную дату
+      for (const op of currentOpsGroup) {
+        operations.push({
+          ...op.opData,
+          date: currentDate.toISOString(),
+          dateUncertain: isUncertainGroup, // Передаем флаг
+        });
+      }
+      
+      currentOpsGroup = []; 
+      isUncertainGroup = false; // Следующая группа (выше) будет неопределенной
+      
+      // Готовим дату для группы выше
+      currentDate = new Date(currentDate);
+      currentDate.setDate(currentDate.getDate() + 1);
     }
   }
 
-  // Так как мы шли снизу вверх, массив получился в обратном порядке. Разворачиваем.
+  // Самые верхние операции (у которых не было даты сверху)
+  for (const op of currentOpsGroup) {
+    operations.push({
+      ...op.opData,
+      date: currentDate.toISOString(),
+      dateUncertain: true, // Помечаем как неопределенные
+    });
+  }
+
   operations.reverse();
 
-  // Убираем дубликаты
   const seen = new Set();
   return operations.filter(op => {
     const key = `${op.name}|${op.amount}|${op.date.slice(0, 10)}`;
