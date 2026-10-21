@@ -100,6 +100,32 @@ function extractCategory(text) {
   return 'Прочее';
 }
 
+// ✅ 1. Определение банка по тексту
+function detectBankType(lines) {
+  const fullText = lines.map(l => l.text).join(' ').toLowerCase();
+  
+  let tbankScore = 0;
+  let sberScore = 0;
+
+  // Маркеры Т-Банка
+  if (fullText.includes('т-банк') || fullText.includes('tbank') || fullText.includes('тинькофф')) tbankScore += 2;
+  if (fullText.includes('black') || fullText.includes('блек')) tbankScore += 1;
+  if (fullText.includes('кэшбэк') && fullText.includes('руб')) tbankScore += 1;
+  if (fullText.includes('переводы') && fullText.includes('без переводов')) tbankScore += 1;
+
+  // Маркеры Сбера
+  if (fullText.includes('сбер') || fullText.includes('sber')) sberScore += 2;
+  if (fullText.includes('спасибо') || fullText.includes('бонусов')) sberScore += 1;
+  if (fullText.includes('оплата товаров и услуг')) sberScore += 1;
+  if (fullText.includes('переводы людям')) sberScore += 1;
+  if (fullText.includes('зачисления') || fullText.includes('расходы в')) sberScore += 1;
+
+  if (tbankScore > sberScore) return 'tbank';
+  if (sberScore > tbankScore) return 'sber';
+  return null; // Не смогли определить
+}
+
+// ✅ 2. Проверка на банковский скриншот
 function isValidBankScreenshot(lines) {
   const fullText = lines.map(l => l.text).join(' ').toLowerCase();
   const bankMarkers = ['₽', 'руб', 'оплата', 'перевод', 'баланс', 'карта', 'счёт', 'счет', 'сбер', 'т-банк', 'tbank', 'история', 'операции'];
@@ -301,12 +327,16 @@ function parseSber(lines) {
 // ============================================================
 // ГЛАВНАЯ ФУНКЦИЯ
 // ============================================================
-export function parseBankScreenshot(textLines, bankType = 'tbank') {
-  if (!textLines || !textLines.length) return [];
+export function parseBankScreenshot(textLines, currentBankType = 'tbank') {
+  if (!textLines || !textLines.length) return { operations: [], suggestedBank: null };
 
   if (!isValidBankScreenshot(textLines)) {
     throw new Error('Этот скриншот не похож на выписку из банка. Попробуйте загрузить скриншот операций.');
   }
+
+  // ✅ Проверяем, совпадает ли выбранный банк с тем, что на скрине
+  const detectedBank = detectBankType(textLines);
+  const suggestedBank = (detectedBank && detectedBank !== currentBankType) ? detectedBank : null;
 
   const lines = [...textLines].sort((a, b) => {
     if (!a.bbox || !b.bbox) return 0;
@@ -314,7 +344,8 @@ export function parseBankScreenshot(textLines, bankType = 'tbank') {
   });
 
   let parsedItems = [];
-  if (bankType === 'sber') {
+  // Парсим тем банком, который выбран пользователем, даже если мы думаем, что это ошибка
+  if (currentBankType === 'sber') {
     parsedItems = parseSber(lines);
   } else {
     parsedItems = parseTbank(lines);
@@ -352,24 +383,21 @@ export function parseBankScreenshot(textLines, bankType = 'tbank') {
 
   operations.reverse();
 
-  // ✅ ВТОРОЙ ПРОХОД: Анализ и сомнения
-  const validatedOperations = operations.map((op, index) => {
+  // Второй проход (валидация)
+  const validatedOperations = operations.map((op) => {
     let isSuspicious = false;
     let suspicionReason = '';
 
-    // 1. Сомневаемся, если название слишком короткое или странное
     if (op.name.length < 3 || /^[^а-яА-ЯёЁa-zA-Z]+$/.test(op.name)) {
       isSuspicious = true;
       suspicionReason = 'Непонятное название';
     }
 
-    // 2. Сомневаемся, если сумма подозрительно круглая и большая (часто это аналитика)
     if (op.amount > 10000 && op.amount % 1000 === 0) {
        isSuspicious = true;
        suspicionReason = 'Похоже на аналитику';
     }
 
-    // 3. Сомневаемся, если текст похож на рекламу или аналитику
     const lowerName = op.name.toLowerCase();
     if (lowerName.includes('расходы') || lowerName.includes('зачислен') || lowerName.includes('переводы людям') || lowerName.includes('аналитика')) {
       isSuspicious = true;
@@ -380,10 +408,12 @@ export function parseBankScreenshot(textLines, bankType = 'tbank') {
   });
 
   const seen = new Set();
-  return validatedOperations.filter(op => {
+  const finalOps = validatedOperations.filter(op => {
     const key = `${op.name}|${op.amount}|${op.date.slice(0, 10)}`;
     if (seen.has(key)) return false;
     seen.add(key);
     return true;
   });
+
+  return { operations: finalOps, suggestedBank };
 }
