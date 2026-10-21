@@ -38,7 +38,6 @@ const saving = ref(false);
 
 // Для Canvas
 const canvasRef = ref(null);
-const originalDims = ref({ width: 0, height: 0 });
 
 const userAccounts = computed(() =>
   accounts.accounts.filter(a => (a.owner || 'Сергей') === user.value)
@@ -93,7 +92,6 @@ async function drawMaskedImage() {
     // Устанавливаем размеры холста как у оригинала
     canvas.width = img.width;
     canvas.height = img.height;
-    originalDims.value = { width: img.width, height: img.height };
 
     // 1. Рисуем оригинальное фото
     ctx.drawImage(img, 0, 0);
@@ -114,7 +112,6 @@ async function drawMaskedImage() {
 
       ctx.beginPath();
       if (ctx.roundRect) {
-        // Добавляем отступы (padding), чтобы рамка была чуть шире текста
         ctx.roundRect(x - 10, y - 10, w + 20, h + 20, 8);
       } else {
         ctx.rect(x - 10, y - 10, w + 20, h + 20);
@@ -192,6 +189,10 @@ async function processFile(f) {
   }
 }
 
+function triggerFileInput() {
+  document.getElementById('scanFileInput')?.click();
+}
+
 function toggleItem(i) {
   const set = new Set(selectedIndices.value);
   if (set.has(i)) set.delete(i);
@@ -203,7 +204,10 @@ const selectedCount = computed(() => selectedIndices.value.size);
 
 async function save() {
   const toSave = items.value.filter((_, i) => selectedIndices.value.has(i));
-  if (!toSave.length) { error.value = 'Выберите хотя бы одну операцию'; return; }
+  if (!toSave.length) { 
+    error.value = 'Выберите хотя бы одну операцию'; 
+    return; 
+  }
 
   saving.value = true;
   error.value = '';
@@ -222,13 +226,20 @@ async function save() {
         fromScan: true,
       });
       added++;
-    } catch (e) { failed++; }
+    } catch (e) { 
+      failed++; 
+      console.error('Save error:', e);
+    }
   }
 
   saving.value = false;
-  if (failed > 0) toast.error(`Добавлено ${added}, ошибок: ${failed}`);
-  else toast.success(`✅ Добавлено ${added} операций`);
-  emit('update:modelValue', false);
+  
+  if (failed > 0) {
+    toast.error(`Добавлено ${added}, ошибок: ${failed}`);
+  } else {
+    toast.success(`✅ Добавлено ${added} операций`);
+    emit('update:modelValue', false);
+  }
 }
 
 function close() {
@@ -294,7 +305,7 @@ function close() {
 
       <div class="field" style="margin-top: 16px;">
         <input id="scanFileInput" type="file" accept="image/*" hidden @change="onFileSelected" />
-        <button class="upload-btn" type="button" onclick="document.getElementById('scanFileInput').click()">
+        <button class="upload-btn" type="button" @click="triggerFileInput">
           <span class="upload-icon">🖼️</span>
           <span class="upload-text">
             <span class="upload-title">Выбрать скриншот</span>
@@ -392,7 +403,7 @@ function close() {
 .bank-selector { margin-bottom: 16px; }
 .bs-label { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 8px; }
 .bs-options { display: flex; gap: 10px; }
-.bs-btn { flex: 1; display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 12px; border: 1.5px solid #e2e8f0; background: #fff; cursor: pointer; transition: all 0.2s; }
+.bs-btn { flex: 1; display: flex; align-items: center; gap: 8px; padding: 10px 14px; border-radius: 12px; border: 1.5px solid #e2e8f0; background: #fff; cursor: pointer; transition: all 0.2s; position: relative; z-index: 1; }
 .bs-btn img { width: 24px; height: 24px; object-fit: contain; }
 .bs-btn .bs-name { font-size: 13px; font-weight: 700; color: #64748b; }
 .bs-btn.active { border-color: #6366f1; background: #f5f3ff; box-shadow: 0 2px 8px -2px rgba(99, 102, 241, 0.2); }
@@ -406,11 +417,11 @@ function close() {
 .field { display: flex; flex-direction: column; gap: 6px; }
 .field label { font-size: 11px; font-weight: 800; color: #64748b; text-transform: uppercase; }
 .user-picker { display: flex; gap: 10px; }
-.up-btn { flex: 1; padding: 10px; border-radius: 12px; border: 1.5px solid #e2e8f0; background: #fff; cursor: pointer; font-weight: 700; color: #64748b; }
+.up-btn { flex: 1; padding: 10px; border-radius: 12px; border: 1.5px solid #e2e8f0; background: #fff; cursor: pointer; font-weight: 700; color: #64748b; position: relative; z-index: 1; }
 .up-btn.active { border-color: #6366f1; background: #f5f3ff; color: #4f46e5; }
 
 /* Загрузка */
-.upload-btn { display: flex; align-items: center; gap: 16px; width: 100%; padding: 18px 20px; border-radius: 16px; border: 2px dashed rgba(99, 102, 241, 0.4); background: linear-gradient(180deg, #eef2ff, #e0e7ff); cursor: pointer; text-align: left; }
+.upload-btn { display: flex; align-items: center; gap: 16px; width: 100%; padding: 18px 20px; border-radius: 16px; border: 2px dashed rgba(99, 102, 241, 0.4); background: linear-gradient(180deg, #eef2ff, #e0e7ff); cursor: pointer; text-align: left; position: relative; z-index: 1; }
 .upload-btn:hover { border-color: #6366f1; }
 .upload-icon { font-size: 26px; }
 .upload-title { font-size: 15px; font-weight: 800; color: #0f172a; display: block; }
@@ -432,8 +443,8 @@ function close() {
 .preview-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; }
 .ph-title { font-size: 13px; font-weight: 800; }
 .ph-hint { font-size: 11px; color: #94a3b8; }
-.items-list { display: flex; flex-direction: column; gap: 8px; max-height: 40vh; overflow-y: auto; }
-.item-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; border: 1.5px solid #e2e8f0; background: #fff; cursor: pointer; }
+.items-list { display: flex; flex-direction: column; gap: 8px; max-height: 40vh; overflow-y: auto; padding-right: 4px; }
+.item-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; border: 1.5px solid #e2e8f0; background: #fff; cursor: pointer; position: relative; z-index: 1; }
 .item-row.selected { border-color: #6366f1; background: #f5f3ff; }
 .item-checkbox { width: 22px; height: 22px; }
 .checkbox-inner { width: 100%; height: 100%; border-radius: 6px; border: 2px solid #cbd5e1; display: flex; align-items: center; justify-content: center; }
@@ -450,7 +461,7 @@ function close() {
 
 /* Ошибки и кнопки */
 .error-msg { padding: 10px 14px; border-radius: 10px; background: #fef2f2; border: 1px solid #fecaca; color: #dc2626; font-size: 12.5px; font-weight: 700; }
-.btn-cancel, .btn-save { padding: 12px 22px; border-radius: 12px; font-family: inherit; font-size: 14px; font-weight: 800; cursor: pointer; border: 1px solid transparent; }
+.btn-cancel, .btn-save { padding: 12px 22px; border-radius: 12px; font-family: inherit; font-size: 14px; font-weight: 800; cursor: pointer; border: 1px solid transparent; position: relative; z-index: 100; }
 .btn-cancel { background: #f1f5f9; color: #334155; border-color: #e2e8f0; }
 .btn-save { background: linear-gradient(180deg, #818cf8, #6366f1); color: #fff; }
 .btn-save:disabled { opacity: 0.5; cursor: not-allowed; }
