@@ -4,20 +4,40 @@ export function preprocessImage(file) {
   return new Promise((resolve) => {
     const img = new Image();
     img.onload = () => {
-      const scale = 2;
+      const scale = 2; // Увеличиваем для лучшего OCR
       const canvas = document.createElement('canvas');
       canvas.width = img.width * scale;
       canvas.height = img.height * scale;
       const ctx = canvas.getContext('2d');
+      
       ctx.imageSmoothingEnabled = false; 
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
       const data = imageData.data;
 
+      // 1. Вычисляем среднюю яркость картинки, чтобы понять, тёмная она или светлая
+      let totalBrightness = 0;
       for (let i = 0; i < data.length; i += 4) {
-        const gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        const v = gray < 150 ? 255 : 0; 
+        totalBrightness += (data[i] + data[i + 1] + data[i + 2]) / 3;
+      }
+      const avgBrightness = totalBrightness / (data.length / 4);
+
+      // Если картинка тёмная (средняя яркость < 128), её нужно инвертировать
+      const isDarkTheme = avgBrightness < 128;
+
+      // 2. Жесткая бинаризация
+      for (let i = 0; i < data.length; i += 4) {
+        let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        
+        if (isDarkTheme) {
+          gray = 255 - gray; // Инвертируем цвета для тёмной темы
+        }
+
+        // Делаем текст чёрным (0), а фон белым (255)
+        // Порог 180 отлично отделяет светло-серый текст Сбера от тёмного фона
+        const v = gray > 180 ? 0 : 255; 
+        
         data[i] = data[i + 1] = data[i + 2] = v;
       }
 
@@ -42,7 +62,7 @@ export async function recognizeText(file, onProgress) {
   });
 
   await worker.setParameters({
-    tessedit_pageseg_mode: '6',
+    tessedit_pageseg_mode: '6', // Единый блок текста (список)
   });
 
   const { data } = await worker.recognize(file);
@@ -94,7 +114,6 @@ export function parseBankScreenshot(textLines) {
   ];
 
   const parsedItems = []; 
-
   const now = new Date();
   let defaultYear = now.getFullYear();
 
@@ -104,6 +123,7 @@ export function parseBankScreenshot(textLines) {
     if (!text) continue;
     const y = line.bbox ? line.bbox.y0 : 0;
 
+    // --- Ищем дату ---
     let foundDate = null;
 
     if (DATE_WORD_RE.test(text)) {
@@ -128,6 +148,7 @@ export function parseBankScreenshot(textLines) {
       continue;
     }
 
+    // --- Ищем операцию ---
     const amountMatch = text.match(AMOUNT_RE);
     if (!amountMatch) continue;
 
@@ -197,14 +218,11 @@ export function parseBankScreenshot(textLines) {
     });
   }
 
-  // ============================================================
   // Логика распределения дат (СНИЗУ ВВЕРХ)
-  // ============================================================
   let currentDate = new Date();
   currentDate.setHours(12, 0, 0, 0);
-  
   let currentOpsGroup = [];
-  let isUncertainGroup = false; // Флаг для верхней группы
+  let isUncertainGroup = false; 
 
   for (let i = parsedItems.length - 1; i >= 0; i--) {
     const item = parsedItems[i];
@@ -214,30 +232,27 @@ export function parseBankScreenshot(textLines) {
     } else if (item.type === 'date') {
       currentDate = item.date;
       
-      // Присваиваем группе найденную дату
       for (const op of currentOpsGroup) {
         operations.push({
           ...op.opData,
           date: currentDate.toISOString(),
-          dateUncertain: isUncertainGroup, // Передаем флаг
+          dateUncertain: isUncertainGroup,
         });
       }
       
       currentOpsGroup = []; 
-      isUncertainGroup = false; // Следующая группа (выше) будет неопределенной
+      isUncertainGroup = false; 
       
-      // Готовим дату для группы выше
       currentDate = new Date(currentDate);
       currentDate.setDate(currentDate.getDate() + 1);
     }
   }
 
-  // Самые верхние операции (у которых не было даты сверху)
   for (const op of currentOpsGroup) {
     operations.push({
       ...op.opData,
       date: currentDate.toISOString(),
-      dateUncertain: true, // Помечаем как неопределенные
+      dateUncertain: true,
     });
   }
 
