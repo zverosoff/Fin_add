@@ -58,14 +58,20 @@ const percent = ref(0);
 const stage = ref('Запуск…');
 const done = ref(false);
 
-// ✅ Управление модалками
+// Управление модалками
 const manualOpen = ref(false);
 const pdfOpen = ref(false);
 
-// ✅ Функции переключения вкладок
-function openScan() { scanStore.open(); }
-function openManual() { manualOpen.value = true; }
-function openPdf() { pdfOpen.value = true; }
+// ✅ Функции переключения с задержкой для предотвращения наложения
+function openScan() {
+  setTimeout(() => scanStore.open(), 100);
+}
+function openManual() {
+  setTimeout(() => { manualOpen.value = true; }, 100);
+}
+function openPdf() {
+  setTimeout(() => { pdfOpen.value = true; }, 100);
+}
 
 const showBottomNav = computed(() => route.name !== 'login');
 const showChat = computed(() =>
