@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
 import { useTransactionsStore } from '@/stores/transactions';
 import { useToast } from '@/composables/useToast';
-import { notifySaved, notifyError } from '@/composables/useDataStatus';  
+import { notifySaved, notifyError } from '@/composables/useDataStatus';
 import Modal from '@/components/ui/Modal.vue';
 
 const props = defineProps({
@@ -16,9 +16,18 @@ const accounts = useAccountsStore();
 const txStore = useTransactionsStore();
 const toast = useToast();
 
-// ============================================================
-// Форма
-// ============================================================
+// ✅ PNG-иконки
+const ICON_EDIT      = '/img/icons/ui/edit.png';
+const ICON_EXPENSE   = '/img/icons/categories/expense.png';
+const ICON_INCOME    = '/img/icons/categories/income.png';
+const ICON_NOTE      = '/img/icons/ui/note.png';
+const ICON_MONEY_BAG = '/img/icons/nav/money-bag.png';
+const ICON_FOLDER    = '/img/icons/ui/folder.png';
+const ICON_CALENDAR  = '/img/icons/ui/calendar.png';
+const ICON_USER      = '/img/icons/ui/user.png';
+const ICON_CARD      = '/img/icons/banks/default.png';
+const ICON_SAVE      = '/img/icons/ui/save.png';
+
 const form = ref({
   type: 'expense',
   name: '',
@@ -32,9 +41,6 @@ const form = ref({
 const error = ref('');
 const saving = ref(false);
 
-// ============================================================
-// Категории
-// ============================================================
 const INCOME_CATEGORIES = [
   'Зарплата', 'Аванс', 'Премия', 'Фриланс', 'Бизнес',
   'Инвестиции', 'Дивиденды', 'Проценты по вкладу', 'Кэшбэк',
@@ -60,9 +66,6 @@ const userAccounts = computed(() =>
   accounts.accounts.filter(a => (a.owner || 'Сергей') === form.value.user)
 );
 
-// ============================================================
-// Заполнение формы при открытии
-// ============================================================
 watch(() => [props.modelValue, props.tx], ([open, t]) => {
   if (!open || !t) return;
 
@@ -81,7 +84,6 @@ watch(() => [props.modelValue, props.tx], ([open, t]) => {
   error.value = '';
 }, { immediate: true });
 
-// При смене типа — сбросить категорию если не подходит
 watch(() => form.value.type, (newType, oldType) => {
   if (newType === oldType) return;
   const list = newType === 'income' ? INCOME_CATEGORIES : EXPENSE_CATEGORIES;
@@ -90,7 +92,6 @@ watch(() => form.value.type, (newType, oldType) => {
   }
 });
 
-// При смене пользователя — обновить счёт
 watch(() => form.value.user, () => {
   const accs = userAccounts.value;
   if (!accs.find(a => a.id === form.value.accountId)) {
@@ -98,9 +99,6 @@ watch(() => form.value.user, () => {
   }
 });
 
-// ============================================================
-// Сохранение
-// ============================================================
 async function save() {
   error.value = '';
 
@@ -157,11 +155,16 @@ function close() {
 <template>
   <Modal
     :model-value="modelValue"
-    title="✏️ Редактировать операцию"
     @update:model-value="emit('update:modelValue', $event)"
   >
+    <template #header>
+      <div class="modal-head-custom">
+        <img :src="ICON_EDIT" class="mhc-icon" alt="Редактировать" />
+        <h3 class="mhc-title">Редактировать операцию</h3>
+      </div>
+    </template>
+
     <div class="form">
-      <!-- Тип -->
       <div class="field">
         <label>Тип</label>
         <div class="type-switch">
@@ -169,24 +172,34 @@ function close() {
             type="button"
             :class="{ active: form.type === 'expense' }"
             @click="form.type = 'expense'"
-          >📉 Расход</button>
+          >
+            <img :src="ICON_EXPENSE" class="switch-icon" alt="Расход" />
+            <span>Расход</span>
+          </button>
           <button
             type="button"
             :class="{ active: form.type === 'income' }"
             @click="form.type = 'income'"
-          >📈 Доход</button>
+          >
+            <img :src="ICON_INCOME" class="switch-icon" alt="Доход" />
+            <span>Доход</span>
+          </button>
         </div>
       </div>
 
-      <!-- Название -->
       <div class="field">
-        <label>📝 Название</label>
+        <label>
+          <img :src="ICON_NOTE" class="label-icon" alt="" />
+          Название
+        </label>
         <input v-model="form.name" type="text" autocomplete="off" />
       </div>
 
-      <!-- Сумма -->
       <div class="field">
-        <label>💰 Сумма, ₽</label>
+        <label>
+          <img :src="ICON_MONEY_BAG" class="label-icon" alt="" />
+          Сумма, ₽
+        </label>
         <input
           v-model="form.amount"
           type="number"
@@ -196,22 +209,29 @@ function close() {
         />
       </div>
 
-      <!-- Категория -->
       <div class="field">
-        <label>📁 Категория</label>
+        <label>
+          <img :src="ICON_FOLDER" class="label-icon" alt="" />
+          Категория
+        </label>
         <select v-model="form.category">
           <option v-for="c in categories" :key="c" :value="c">{{ c }}</option>
         </select>
       </div>
 
-      <!-- Дата + Кто -->
       <div class="row">
         <div class="field">
-          <label>📅 Дата</label>
+          <label>
+            <img :src="ICON_CALENDAR" class="label-icon" alt="" />
+            Дата
+          </label>
           <input v-model="form.date" type="date" />
         </div>
         <div class="field">
-          <label>👤 Кто вносит</label>
+          <label>
+            <img :src="ICON_USER" class="label-icon" alt="" />
+            Кто вносит
+          </label>
           <select v-model="form.user">
             <option value="Сергей">👨 Сергей</option>
             <option value="Саша">👩 Саша</option>
@@ -219,9 +239,11 @@ function close() {
         </div>
       </div>
 
-      <!-- Счёт -->
       <div class="field">
-        <label>💳 Счёт</label>
+        <label>
+          <img :src="ICON_CARD" class="label-icon" alt="" />
+          Счёт
+        </label>
         <select v-model="form.accountId">
           <option v-for="acc in userAccounts" :key="acc.id" :value="acc.id">
             {{ acc.name }}
@@ -229,26 +251,50 @@ function close() {
         </select>
       </div>
 
-      <!-- Ошибка -->
       <div v-if="error" class="error-msg">{{ error }}</div>
     </div>
 
-    <!-- Футер с кнопками -->
     <template #footer>
       <button class="btn-cancel" type="button" @click="close">Отмена</button>
       <button class="btn-save" type="button" :disabled="saving" @click="save">
-        {{ saving ? 'Сохранение…' : '💾 Сохранить' }}
+        <img v-if="!saving" :src="ICON_SAVE" class="btn-save-icon" alt="" />
+        <span>{{ saving ? 'Сохранение…' : 'Сохранить' }}</span>
       </button>
     </template>
   </Modal>
 </template>
 
 <style scoped lang="scss">
-.form {
+.modal-head-custom {
   display: flex;
-  flex-direction: column;
-  gap: 12px;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
+
+.mhc-icon {
+  display: block;
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  max-width: 26px;
+  max-height: 26px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.mhc-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.form { display: flex; flex-direction: column; gap: 12px; }
 
 .field {
   display: flex;
@@ -256,6 +302,9 @@ function close() {
   gap: 5px;
 
   label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     font-size: 11px;
     font-weight: 700;
     color: var(--muted);
@@ -267,18 +316,31 @@ function close() {
     padding: 9px 12px;
     border: 1px solid var(--border);
     border-radius: 10px;
-    background: #ffffff;
+    background: var(--panel-2);
     color: var(--text);
     font-family: inherit;
     font-size: 14px;
     outline: none;
     width: 100%;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.3s ease;
 
     &:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
     }
   }
+}
+
+.label-icon {
+  display: block;
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  max-width: 14px;
+  max-height: 14px;
+  object-fit: contain;
+  flex-shrink: 0;
+  opacity: 0.85;
 }
 
 .row {
@@ -291,11 +353,16 @@ function close() {
   display: inline-flex;
   gap: 0;
   padding: 3px;
-  background: #f1f5f9;
+  background: var(--panel-2);
+  border: 1px solid var(--border);
   border-radius: 10px;
 
   button {
     flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
     padding: 8px 14px;
     border: none;
     background: transparent;
@@ -308,18 +375,38 @@ function close() {
     transition: all 0.18s;
 
     &.active {
-      background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+      background: var(--grad-primary);
       color: #fff;
-      box-shadow: 0 4px 12px -4px rgba(59, 130, 246, 0.6);
+      box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.3) inset,
+        0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+        0 4px 12px -4px rgba(139, 92, 246, 0.6);
+
+      .switch-icon {
+        filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.6)) brightness(1.2);
+      }
     }
   }
+}
+
+.switch-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+  transition: filter 0.2s ease;
 }
 
 .error-msg {
   padding: 8px 12px;
   border-radius: 8px;
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(244, 63, 94, 0.1);
+  border: 1px solid rgba(244, 63, 94, 0.3);
   color: var(--danger);
   font-size: 12.5px;
   font-weight: 600;
@@ -336,31 +423,57 @@ function close() {
 }
 
 .btn-cancel {
-  background: #f1f5f9;
+  background: var(--panel-2);
   color: var(--text);
   border-color: var(--border);
-
-  &:hover { background: #e2e8f0; }
+  transition: all 0.15s;
+  &:hover { border-color: var(--border-strong); }
 }
 
 .btn-save {
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--grad-primary);
   color: #fff;
-  box-shadow: 0 10px 24px -10px rgba(59, 130, 246, 0.7);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+    0 6px 18px -6px rgba(139, 92, 246, 0.7);
+  transition: all 0.15s;
 
   &:disabled { opacity: 0.5; cursor: wait; }
 
   &:not(:disabled):hover {
     transform: translateY(-1px);
-    box-shadow: 0 14px 30px -10px rgba(59, 130, 246, 0.9);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+      0 10px 24px -6px rgba(139, 92, 246, 0.9);
   }
 }
 
-/* Мобильная версия */
+.btn-save-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.4)) brightness(1.15);
+}
+
 @media (max-width: 700px) {
-  .row {
-    grid-template-columns: 1fr;
-    gap: 10px;
+  .row { grid-template-columns: 1fr; gap: 10px; }
+  .mhc-icon {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    max-width: 22px;
+    max-height: 22px;
   }
+  .mhc-title { font-size: 15px; }
 }
 </style>

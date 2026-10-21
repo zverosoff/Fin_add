@@ -31,9 +31,7 @@ watch(() => props.modelValue, (val) => {
   else document.removeEventListener('keydown', onKeydown);
 }, { immediate: true });
 
-function isMobile() {
-  return window.innerWidth <= 700;
-}
+function isMobile() { return window.innerWidth <= 700; }
 
 function onTouchStart(e) {
   if (!isMobile()) return;
@@ -107,18 +105,38 @@ onUnmounted(() => {
 <template>
   <Teleport to="body">
     <Transition name="modal">
-      <div v-if="modelValue" class="modal-overlay" @click.self="close">
-        <div class="modal-window">
-          <div class="modal-header">
-            <h3>{{ title }}</h3>
-            <button class="close-btn" @click="close">✕</button>
-          </div>
+      <div
+        v-if="modelValue"
+        class="modal-overlay"
+        @click.self="close"
+      >
+        <div
+          ref="boxEl"
+          class="modal-box"
+          @touchstart.passive="onTouchStart"
+          @touchmove.passive="onTouchMove"
+          @touchend="onTouchEnd"
+          @touchcancel="onTouchEnd"
+        >
+          <div class="modal-handle"></div>
+
+          <header class="modal-head">
+            <slot name="header">
+              <h3 class="modal-title">{{ title }}</h3>
+            </slot>
+
+            <button class="modal-close" @click="close" aria-label="Закрыть">
+  <img src="/img/icons/ui/close.png" class="modal-close-img" alt="Закрыть" />
+</button>
+          </header>
+
           <div class="modal-body">
             <slot />
           </div>
-          <div class="modal-footer" v-if="$slots.footer">
+
+          <footer v-if="$slots.footer" class="modal-foot">
             <slot name="footer" />
-          </div>
+          </footer>
         </div>
       </div>
     </Transition>
@@ -137,6 +155,11 @@ onUnmounted(() => {
   align-items: center;
   justify-content: center;
   padding: 16px;
+  transition: background 0.3s ease;
+}
+
+:global(:root[data-app-theme="dark"]) .modal-overlay {
+  background: rgba(0, 0, 0, 0.75);
 }
 
 .modal-box {
@@ -144,7 +167,7 @@ onUnmounted(() => {
   width: 100%;
   max-width: 460px;
   max-height: 92vh;
-  background: #ffffff;
+  background: var(--panel-solid, #ffffff);
   border: 1px solid var(--border);
   border-radius: 18px;
   box-shadow: var(--shadow-lg);
@@ -152,15 +175,25 @@ onUnmounted(() => {
   flex-direction: column;
   overflow: hidden;
   touch-action: pan-y;
+  color: var(--text);
+  transition: background 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
-/* ✅ Тонкая ручка — только на мобильных */
+:global(:root[data-app-theme="dark"]) .modal-box {
+  background: #14091f;
+  border-color: rgba(139, 92, 246, 0.25);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.6),
+    0 24px 60px -20px rgba(139, 92, 246, 0.45),
+    0 0 0 1px rgba(139, 92, 246, 0.15);
+}
+
 .modal-handle {
   display: none;
   width: 36px;
   height: 3px;
   border-radius: 2px;
-  background: rgba(148, 163, 184, 0.45);
+  background: var(--border-strong);
   margin: 6px auto 0;
   flex-shrink: 0;
 }
@@ -172,12 +205,27 @@ onUnmounted(() => {
   padding: 14px 20px 12px;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
+  gap: 12px;
+}
 
-  h3 {
-    margin: 0;
-    font-size: 16px;
-    font-weight: 700;
-  }
+/* ✅ ФИКС: явный цвет заголовка, не наследуется */
+.modal-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ✅ Если title передан через слот-header как <h3> без класса — тоже стилизуем */
+:deep(.modal-head) h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
 }
 
 .modal-close {
@@ -185,18 +233,40 @@ onUnmounted(() => {
   height: 30px;
   border-radius: 8px;
   border: 1px solid var(--border);
-  background: #f8fafc;
+  background: var(--panel-2);
   color: var(--muted);
   cursor: pointer;
-  font-size: 14px;
   transition: all 0.15s;
   flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  overflow: hidden;
 
   &:hover {
     border-color: var(--danger);
-    color: var(--danger);
-    background: rgba(239, 68, 68, 0.08);
+    background: rgba(244, 63, 94, 0.1);
   }
+}
+
+/* ✅ PNG-крестик — фикс 16×16 */
+.modal-close-img {
+  display: block;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  object-fit: contain;
+  opacity: 0.85;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+  transition: opacity 0.15s;
+}
+
+.modal-close:hover .modal-close-img {
+  opacity: 1;
+  filter: drop-shadow(0 0 6px rgba(244, 63, 94, 0.5)) brightness(1.1);
 }
 
 .modal-body {
@@ -204,6 +274,7 @@ onUnmounted(() => {
   overflow-y: auto;
   flex: 1;
   min-height: 0;
+  color: var(--text);
 }
 
 .modal-foot {
@@ -213,17 +284,18 @@ onUnmounted(() => {
   justify-content: flex-end;
   gap: 8px;
   flex-shrink: 0;
-  background: #ffffff;
+  background: var(--panel-solid, #ffffff);
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+:global(:root[data-app-theme="dark"]) .modal-foot {
+  background: #14091f;
 }
 
 .modal-enter-active,
-.modal-leave-active {
-  transition: opacity 0.22s ease;
-}
+.modal-leave-active { transition: opacity 0.22s ease; }
 .modal-enter-from,
-.modal-leave-to {
-  opacity: 0;
-}
+.modal-leave-to { opacity: 0; }
 .modal-enter-active .modal-box,
 .modal-leave-active .modal-box {
   transition: transform 0.28s cubic-bezier(.34,1.56,.64,1), opacity 0.22s;
@@ -235,10 +307,7 @@ onUnmounted(() => {
 }
 
 @media (max-width: 700px) {
-  .modal-overlay {
-    padding: 0;
-    align-items: flex-end;
-  }
+  .modal-overlay { padding: 0; align-items: flex-end; }
 
   .modal-box {
     max-width: 100%;
@@ -260,30 +329,27 @@ onUnmounted(() => {
 
   .modal-head {
     padding: 12px 18px 10px;
-    background: #fff;
+    background: var(--panel-solid, #fff);
     position: sticky;
     top: 0;
     z-index: 5;
   }
 
-  .modal-head h3 {
-    font-size: 15px;
+  :global(:root[data-app-theme="dark"]) .modal-head {
+    background: #14091f;
   }
 
-  .modal-body {
-    padding: 14px 16px;
-  }
+  .modal-title,
+  :deep(.modal-head) h3 { font-size: 15px; }
+
+  .modal-body { padding: 14px 16px; }
 
   .modal-foot {
     padding: 12px 16px 16px;
     flex-direction: column-reverse;
     gap: 8px;
 
-    button {
-      width: 100%;
-      min-height: 48px;
-      font-size: 14px;
-    }
+    button { width: 100%; min-height: 48px; font-size: 14px; }
   }
 
   .modal-enter-active .modal-box,

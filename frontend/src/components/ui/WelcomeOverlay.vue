@@ -10,6 +10,9 @@ const props = defineProps({
 });
 
 const isDone = computed(() => props.done || props.percent >= 100);
+
+// ✅ PNG-монета (если есть)
+const ICON_COIN = '/img/icons/nav/money-bag.png';
 </script>
 
 <template>
@@ -21,7 +24,7 @@ const isDone = computed(() => props.done || props.percent >= 100);
     >
       <div class="welcome-content">
         <div class="welcome-logo">
-          <span class="welcome-logo-star">★</span>
+          <img :src="ICON_COIN" class="welcome-logo-img" alt="₽" />
           <span class="welcome-logo-text">ФИНАНСЫ PRO+</span>
         </div>
 
@@ -29,7 +32,6 @@ const isDone = computed(() => props.done || props.percent >= 100);
           Добро пожаловать<span v-if="userName">, <span class="welcome-name">{{ userName }}</span></span>!
         </div>
 
-        <!-- ✅ Анимированная монетка -->
         <div class="welcome-coin" :class="{ done: isDone }" aria-hidden="true">
           <div class="coin-inner">
             <span class="coin-face coin-front">₽</span>
@@ -123,20 +125,18 @@ const isDone = computed(() => props.done || props.percent >= 100);
   animation: welcomeLogoIn 0.7s cubic-bezier(.34,1.56,.64,1) both;
 }
 
-.welcome-logo-star {
-  font-size: 28px;
-  line-height: 1;
-  color: #fbbf24;
-  filter: drop-shadow(0 0 12px rgba(251, 191, 36, 0.8));
+/* ✅ PNG-иконка монеты в логотипе — фикс 32×32 */
+.welcome-logo-img {
+  display: block;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  max-width: 32px;
+  max-height: 32px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 12px rgba(251, 191, 36, 0.8)) brightness(1.1);
   animation: welcomeStarSpin 3s ease-in-out infinite;
-}
-.welcome-logo-text {
-  font-size: clamp(18px, 4vw, 28px);
-  font-weight: 800;
-  letter-spacing: 0.08em;
-  color: #ffffff;
-  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
-  white-space: nowrap;
 }
 
 @keyframes welcomeLogoIn {
@@ -146,6 +146,15 @@ const isDone = computed(() => props.done || props.percent >= 100);
 @keyframes welcomeStarSpin {
   0%, 100% { transform: rotate(0deg) scale(1); }
   50%      { transform: rotate(180deg) scale(1.15); }
+}
+
+.welcome-logo-text {
+  font-size: clamp(18px, 4vw, 28px);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  color: #ffffff;
+  text-shadow: 0 4px 24px rgba(0, 0, 0, 0.5);
+  white-space: nowrap;
 }
 
 .welcome-text {
@@ -182,7 +191,6 @@ const isDone = computed(() => props.done || props.percent >= 100);
   50%      { background-position: 100% 50%; }
 }
 
-/* ✅ Монетка */
 .welcome-coin {
   position: relative;
   width: 80px;
@@ -366,7 +374,13 @@ const isDone = computed(() => props.done || props.percent >= 100);
 
 @media (max-width: 700px) {
   .welcome-logo { padding: 10px 20px; gap: 8px; }
-  .welcome-logo-star { font-size: 22px; }
+  .welcome-logo-img {
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    max-width: 26px;
+    max-height: 26px;
+  }
   .welcome-logo-text { font-size: 16px; letter-spacing: 0.06em; }
   .welcome-text { font-size: clamp(20px, 7vw, 32px); }
   .welcome-status { font-size: 13px; padding: 8px 16px; }
@@ -378,7 +392,7 @@ const isDone = computed(() => props.done || props.percent >= 100);
 @media (prefers-reduced-motion: reduce) {
   .welcome-overlay { animation: none; background-size: 100% 100%; }
   .welcome-logo,
-  .welcome-logo-star,
+  .welcome-logo-img,
   .welcome-text,
   .welcome-name,
   .wp-fill,
@@ -386,7 +400,5 @@ const isDone = computed(() => props.done || props.percent >= 100);
   .coin-inner,
   .coin-shadow,
   .welcome-coin { animation: none; }
-  .welcome-leave-active { transition: opacity 0.2s ease; }
-  .welcome-leave-to { filter: none; transform: none; }
 }
 </style>

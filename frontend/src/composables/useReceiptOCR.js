@@ -39,9 +39,6 @@ export function preprocessImage(file) {
   });
 }
 
-/* ============================================================
-   OCR
-   ============================================================ */
 export async function recognizeText(file, onProgress) {
   if (!window.Tesseract) throw new Error('Tesseract.js не загрузился');
 

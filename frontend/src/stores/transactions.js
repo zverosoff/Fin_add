@@ -11,6 +11,33 @@ export const useTransactionsStore = defineStore('transactions', () => {
   const loading = ref(false);
   const currentMonth = ref(new Date());
 
+  /**
+   * ✅ Сортировка:
+   *  1) По дате (свежие сверху)
+   *  2) Внутри дня — по importOrder (как в чеке), если есть
+   *  3) Иначе — по id (стабильно, без «прыжков»)
+   */
+  function sortByDateDesc(list) {
+    return [...list].sort((a, b) => {
+      const ta = new Date(a.date).getTime();
+      const tb = new Date(b.date).getTime();
+      if (tb !== ta) return tb - ta;
+
+      const oa = a.importOrder;
+      const ob = b.importOrder;
+      if (typeof oa === 'number' && typeof ob === 'number' && oa !== ob) {
+        return oa - ob;
+      }
+
+      return String(a.id).localeCompare(String(b.id));
+    });
+  }
+
+  function ensureSorted() {
+    if (!accountsStore.transactions) return;
+    accountsStore.transactions = sortByDateDesc(accountsStore.transactions);
+  }
+
   const monthTransactions = computed(() => {
     const start = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth(), 1);
     const end = new Date(currentMonth.value.getFullYear(), currentMonth.value.getMonth() + 1, 0, 23, 59, 59, 999);
@@ -34,7 +61,7 @@ export const useTransactionsStore = defineStore('transactions', () => {
       list = list.filter(t => (t.name || '').toLowerCase().includes(q));
     }
 
-    return [...list].sort((a, b) => new Date(b.date) - new Date(a.date));
+    return sortByDateDesc(list);
   });
 
   const groupedByDay = computed(() => {
@@ -91,7 +118,6 @@ export const useTransactionsStore = defineStore('transactions', () => {
 
   function goToday() { currentMonth.value = new Date(); }
 
-  // ✅ Нормализуем payload перед отправкой, чтобы 500 не возникал из-за CHECK/NOT NULL
   async function save(tx) {
     loading.value = true;
     try {
@@ -115,6 +141,16 @@ export const useTransactionsStore = defineStore('transactions', () => {
 
       const { data } = await api.post('/transactions', payload);
       if (!data.ok) throw new Error(data.error);
+
+      const exists = accountsStore.transactions.find(t => t.id === data.transaction.id);
+      if (!exists) {
+        accountsStore.transactions.push(data.transaction);
+      } else {
+        const idx = accountsStore.transactions.findIndex(t => t.id === data.transaction.id);
+        accountsStore.transactions[idx] = data.transaction;
+      }
+      ensureSorted();
+
       return data.transaction;
     } finally {
       loading.value = false;
@@ -126,6 +162,7 @@ export const useTransactionsStore = defineStore('transactions', () => {
     try {
       const { data } = await api.delete(`/transactions?id=${encodeURIComponent(id)}`);
       if (!data.ok) throw new Error(data.error);
+      accountsStore.transactions = accountsStore.transactions.filter(t => t.id !== id);
       return true;
     } finally {
       loading.value = false;
@@ -141,5 +178,6 @@ export const useTransactionsStore = defineStore('transactions', () => {
     monthTransactions, filtered, groupedByDay, summary, byUser,
     setMonth, prevMonth, nextMonth, goToday,
     save, remove, restore,
+    sortByDateDesc, ensureSorted,
   };
 });

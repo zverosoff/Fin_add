@@ -3,7 +3,6 @@ import { onMounted, ref } from 'vue';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useAccountsStore } from '@/stores/accounts';
-import { useWebSocket } from '@/composables/useWebSocket';
 import { useToast } from '@/composables/useToast';
 import { notifySaved, notifyError } from '@/composables/useDataStatus';
 
@@ -100,19 +99,7 @@ function onUserMenu(owner) {
   min-height: 100vh;
   padding: 20px 20px 20px;
   position: relative;
-}
-
-.finance-page::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(ellipse 70% 50% at 15% 0%, rgba(99, 102, 241, 0.08), transparent 60%),
-    radial-gradient(ellipse 60% 40% at 85% 40%, rgba(139, 92, 246, 0.06), transparent 60%),
-    radial-gradient(ellipse 80% 60% at 50% 100%, rgba(236, 72, 153, 0.05), transparent 65%),
-    linear-gradient(180deg, #fafbff 0%, #f3f5fb 100%);
+  /* ✅ Фон НЕ ставим — он на body */
 }
 
 .finance-grid {

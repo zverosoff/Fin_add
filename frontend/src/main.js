@@ -3,14 +3,26 @@ import { createPinia } from 'pinia';
 import router from './router';
 import App from './App.vue';
 import './styles/global.scss';
+import '@/styles/analytics.scss';
+import '@/composables/useAppTheme.js';
 import { subscribeToPush, initPushHandlers } from '@/composables/usePushNotifications';
+
+// ✅ Устанавливаем ТОЛЬКО data-app-theme, БЕЗ inline background
+try {
+  const stored = localStorage.getItem('finance-app-theme-v1') || 'auto';
+  let theme = stored;
+  if (stored === 'auto') {
+    theme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  document.documentElement.setAttribute('data-app-theme', theme);
+  // Без style.background и style.colorScheme — всё через CSS
+} catch (e) {}
 
 const app = createApp(App);
 app.use(createPinia());
 app.use(router);
 app.mount('#app');
 
-// ✅ PWA: Service Worker + Web Push
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.ready
@@ -21,8 +33,6 @@ if ('serviceWorker' in navigator) {
         console.warn('[pwa] SW не зарегистрирован:', e);
       });
 
-    // ✅ Авто-подписка на push (если пользователь уже дал разрешение)
-    // Первый раз запросит разрешение при логине через App.vue
     if (Notification.permission === 'granted') {
       subscribeToPush().catch((e) => console.warn('[push] subscribe failed:', e));
     }

@@ -7,6 +7,12 @@ import WelcomeOverlay from '@/components/ui/WelcomeOverlay.vue';
 const router = useRouter();
 const auth = useAuthStore();
 
+// ✅ PNG-иконки
+const ICON_LOCK   = '/img/icons/ui/lock.png';
+const ICON_USER   = '/img/icons/ui/user.png';
+const AVATAR_MAN  = '/img/icons/mascots/avatar-man.png';
+const AVATAR_WOMAN = '/img/icons/mascots/avatar-woman.png';
+
 const selectedUser = ref('');
 const pin = ref('');
 const error = ref('');
@@ -66,7 +72,6 @@ async function submit() {
     welcomeStage.value = 'Успешно! Переход…';
     welcomeDone.value = true;
 
-    // ✅ Редирект на /finance — App.vue подхватит bootstrap
     setTimeout(() => {
       router.push('/finance');
     }, 500);
@@ -92,14 +97,12 @@ async function submit() {
 }
 </script>
 
-<!-- template и style — БЕЗ ИЗМЕНЕНИЙ, оставьте как есть -->
-
 <template>
   <div class="login-page">
     <div class="login-card" :class="{ 'has-error': error }">
       <!-- Логотип -->
       <div class="login-logo">
-        <span class="logo-icon">🔐</span>
+        <img :src="ICON_LOCK" class="logo-icon-img" alt="Замок" />
         <span class="logo-text">ФИНАНСЫ PRO+</span>
       </div>
 
@@ -109,11 +112,11 @@ async function submit() {
 
         <div class="user-select">
           <button class="user-btn" type="button" @click="selectUser('Сергей')">
-            <span class="emoji">👨</span>
+            <img :src="AVATAR_MAN" class="user-btn-avatar" alt="Сергей" />
             <span class="name">Сергей</span>
           </button>
           <button class="user-btn" type="button" @click="selectUser('Саша')">
-            <span class="emoji">👩</span>
+            <img :src="AVATAR_WOMAN" class="user-btn-avatar" alt="Саша" />
             <span class="name">Саша</span>
           </button>
         </div>
@@ -157,7 +160,6 @@ async function submit() {
       </template>
     </div>
 
-    <!-- Полноэкранный welcome с реальным прогрессом -->
     <WelcomeOverlay
       :visible="showWelcome"
       :user-name="welcomeUser"
@@ -175,6 +177,16 @@ async function submit() {
   align-items: center;
   justify-content: center;
   padding: 20px;
+  background: linear-gradient(135deg, #dbeafe 0%, #ede9fe 50%, #fce7f3 100%);
+  background-attachment: fixed;
+}
+
+:global(:root[data-app-theme="dark"]) .login-page {
+  background:
+    radial-gradient(circle at 20% 20%, rgba(139, 92, 246, 0.15), transparent 50%),
+    radial-gradient(circle at 80% 80%, rgba(236, 72, 153, 0.1), transparent 50%),
+    linear-gradient(135deg, #0f0a1e 0%, #1a1035 50%, #2d1b5e 100%);
+  background-attachment: fixed;
 }
 
 .login-card {
@@ -198,6 +210,20 @@ async function submit() {
   }
 }
 
+:global(:root[data-app-theme="dark"]) .login-card {
+  background: #14091f;
+  border-color: rgba(139, 92, 246, 0.3);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.5),
+    0 30px 80px -20px rgba(139, 92, 246, 0.5),
+    0 0 0 1px rgba(139, 92, 246, 0.2) inset;
+
+  &.has-error {
+    background: linear-gradient(180deg, rgba(244, 63, 94, 0.15) 0%, #14091f 100%);
+    border-color: rgba(244, 63, 94, 0.6);
+  }
+}
+
 .login-logo {
   display: inline-flex;
   align-items: center;
@@ -211,22 +237,43 @@ async function submit() {
     0 8px 24px -8px rgba(59, 130, 246, 0.3),
     0 0 0 1px rgba(255, 255, 255, 0.8) inset;
   animation: logoIn 0.7s cubic-bezier(.34,1.56,.64,1) both;
+}
 
-  .logo-icon {
-    font-size: 22px;
-    line-height: 1;
-    filter: drop-shadow(0 2px 6px rgba(59, 130, 246, 0.4));
-    animation: iconBounce 2.5s ease-in-out infinite;
-  }
+/* ✅ PNG-замок — фикс 24×24 */
+.logo-icon-img {
+  display: block;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  max-width: 24px;
+  max-height: 24px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 6px rgba(59, 130, 246, 0.5));
+  animation: iconBounce 2.5s ease-in-out infinite;
+}
 
-  .logo-text {
-    font-size: 16px;
-    font-weight: 800;
-    letter-spacing: 0.06em;
-    color: #1e3a8a;
-    white-space: nowrap;
-    text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
-  }
+:global(:root[data-app-theme="dark"]) .logo-icon-img {
+  filter: drop-shadow(0 2px 6px rgba(168, 85, 247, 0.7)) brightness(1.1);
+}
+
+.logo-text {
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  color: #1e3a8a;
+  white-space: nowrap;
+  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+:global(:root[data-app-theme="dark"]) .login-logo {
+  background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(168, 85, 247, 0.15));
+  border-color: rgba(168, 85, 247, 0.4);
+}
+
+:global(:root[data-app-theme="dark"]) .logo-text {
+  color: #e9d5ff;
+  text-shadow: 0 0 12px rgba(168, 85, 247, 0.5);
 }
 
 @keyframes logoIn {
@@ -241,13 +288,13 @@ async function submit() {
 
 .hint {
   font-size: 13px;
-  color: var(--muted);
+  color: var(--muted, #64748b);
   font-weight: 600;
   margin: 0 0 16px;
   min-height: 18px;
 
   strong {
-    color: var(--accent);
+    color: var(--accent, #0284c7);
     font-weight: 800;
   }
 
@@ -255,6 +302,11 @@ async function submit() {
     color: #3b82f6;
     animation: hintPulse 2s ease-in-out infinite;
   }
+}
+
+:global(:root[data-app-theme="dark"]) .hint {
+  color: #8b8ba0;
+  strong { color: #a855f7; text-shadow: 0 0 8px rgba(168, 85, 247, 0.4); }
 }
 
 @keyframes hintPulse {
@@ -273,9 +325,9 @@ async function submit() {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 8px;
   padding: 16px 12px;
-  border: 1.5px solid var(--border);
+  border: 1.5px solid var(--border, #e2e8f0);
   border-radius: 14px;
   background: #f8fafc;
   color: #334155;
@@ -285,23 +337,45 @@ async function submit() {
   cursor: pointer;
   transition: all 0.25s cubic-bezier(.34,1.56,.64,1);
 
-  .emoji {
-    font-size: 26px;
-    line-height: 1;
-    transition: transform 0.25s;
-  }
-
   .name { line-height: 1; }
 
   &:hover {
-    border-color: var(--accent);
+    border-color: var(--accent, #0284c7);
     background: rgba(2, 132, 199, 0.06);
     transform: translateY(-2px);
-
-    .emoji { transform: scale(1.15); }
   }
 
   &:active { transform: scale(0.97); }
+}
+
+/* ✅ PNG-аватар в кнопке выбора — фикс 40×40 */
+.user-btn-avatar {
+  display: block;
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  max-height: 40px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #fff;
+  box-shadow: 0 4px 10px -2px rgba(0, 0, 0, 0.15);
+  transition: transform 0.25s;
+}
+
+.user-btn:hover .user-btn-avatar { transform: scale(1.1); }
+
+:global(:root[data-app-theme="dark"]) .user-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(139, 92, 246, 0.2);
+  color: #f4f4f6;
+
+  &:hover {
+    border-color: #a855f7;
+    background: rgba(168, 85, 247, 0.15);
+    box-shadow: 0 4px 12px -4px rgba(168, 85, 247, 0.4);
+  }
 }
 
 .pin-display {
@@ -326,6 +400,17 @@ async function submit() {
   }
 }
 
+:global(:root[data-app-theme="dark"]) .pin-display .pin-dot {
+  border-color: rgba(139, 92, 246, 0.4);
+
+  &.filled {
+    background: linear-gradient(135deg, #a855f7, #c084fc);
+    box-shadow:
+      0 0 12px rgba(168, 85, 247, 0.6),
+      0 4px 12px -2px rgba(168, 85, 247, 0.5);
+  }
+}
+
 .pin-pad {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -335,10 +420,10 @@ async function submit() {
   button {
     height: 56px;
     border-radius: 14px;
-    border: 1px solid var(--border);
+    border: 1px solid #e2e8f0;
     background: linear-gradient(180deg, #ffffff, #f8fafc);
-    color: var(--text);
-    font-family: var(--mono);
+    color: #0f172a;
+    font-family: var(--mono, monospace);
     font-size: 22px;
     font-weight: 700;
     cursor: pointer;
@@ -356,14 +441,38 @@ async function submit() {
     }
 
     &.special {
-      color: var(--muted);
+      color: #64748b;
       font-size: 18px;
 
       &:hover {
-        color: var(--danger);
+        color: #dc2626;
         border-color: rgba(220, 38, 38, 0.3);
         background: rgba(220, 38, 38, 0.05);
       }
+    }
+  }
+}
+
+:global(:root[data-app-theme="dark"]) .pin-pad button {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(139, 92, 246, 0.2);
+  color: #f4f4f6;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.05) inset,
+    0 2px 6px rgba(0, 0, 0, 0.4);
+
+  &:hover {
+    background: rgba(168, 85, 247, 0.15);
+    border-color: rgba(168, 85, 247, 0.5);
+    color: #ffffff;
+  }
+
+  &.special {
+    color: #8b8ba0;
+    &:hover {
+      color: #f43f5e;
+      border-color: rgba(244, 63, 94, 0.5);
+      background: rgba(244, 63, 94, 0.12);
     }
   }
 }
@@ -396,13 +505,21 @@ async function submit() {
   &:not(:disabled):active { transform: scale(0.97); }
 }
 
+:global(:root[data-app-theme="dark"]) .submit-btn {
+  background: linear-gradient(135deg, #8b5cf6, #a855f7);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 -2px 0 rgba(0, 0, 0, 0.2) inset,
+    0 12px 32px -10px rgba(168, 85, 247, 0.8);
+}
+
 .back-btn {
   display: block;
   width: 100%;
   margin-top: 12px;
   background: none;
   border: none;
-  color: var(--muted);
+  color: #64748b;
   font-family: inherit;
   font-size: 12px;
   font-weight: 600;
@@ -410,7 +527,12 @@ async function submit() {
   text-decoration: underline;
   transition: color 0.15s;
 
-  &:hover { color: var(--accent); }
+  &:hover { color: var(--accent, #0284c7); }
+}
+
+:global(:root[data-app-theme="dark"]) .back-btn {
+  color: #8b8ba0;
+  &:hover { color: #a855f7; }
 }
 
 .error-msg {
@@ -419,10 +541,16 @@ async function submit() {
   background: rgba(239, 68, 68, 0.08);
   border: 1px solid rgba(239, 68, 68, 0.3);
   border-radius: 10px;
-  color: var(--danger);
+  color: #dc2626;
   font-size: 12.5px;
   font-weight: 600;
   line-height: 1.4;
+}
+
+:global(:root[data-app-theme="dark"]) .error-msg {
+  background: rgba(244, 63, 94, 0.15);
+  border-color: rgba(244, 63, 94, 0.4);
+  color: #f43f5e;
 }
 
 .err-enter-active, .err-leave-active {

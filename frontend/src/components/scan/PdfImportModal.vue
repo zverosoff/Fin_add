@@ -18,7 +18,12 @@ const txStore = useTransactionsStore();
 const auth = useAuthStore();
 const toast = useToast();
 
-// Шаги: 'upload' → 'preview'
+// ✅ PNG-иконки
+const ICON_PDF      = '/img/icons/ui/pdf.png';
+const ICON_CALENDAR = '/img/icons/ui/calendar.png';
+const ICON_INCOME   = '/img/icons/categories/income.png';
+const ICON_EXPENSE  = '/img/icons/categories/expense.png';
+
 const step = ref('upload');
 const file = ref(null);
 const fileName = ref('');
@@ -27,7 +32,6 @@ const detectedBank = ref('');
 const loading = ref(false);
 const error = ref('');
 
-// Предпросмотр
 const items = ref([]);
 const selectedIndices = ref(new Set());
 const availableMonths = ref([]);
@@ -40,7 +44,6 @@ const userAccounts = computed(() =>
   accounts.accounts.filter(a => (a.owner || 'Сергей') === user.value)
 );
 
-// Сброс
 function reset() {
   step.value = 'upload';
   file.value = null;
@@ -68,9 +71,6 @@ watch(user, () => {
   }
 });
 
-// ============================================================
-// Выбор файла
-// ============================================================
 function onFileSelected(e) {
   const f = e.target.files?.[0];
   if (!f) return;
@@ -87,9 +87,6 @@ function triggerFileInput() {
   document.getElementById('pdfFileInput')?.click();
 }
 
-// ============================================================
-// Разбор
-// ============================================================
 async function parse() {
   if (!file.value) {
     error.value = 'Сначала выберите PDF';
@@ -112,7 +109,6 @@ async function parse() {
     items.value = operations;
     selectedIndices.value = new Set(operations.map((_, i) => i));
 
-    // Собираем доступные месяцы
     const monthsMap = new Map();
     for (const op of operations) {
       const d = new Date(op.date);
@@ -145,9 +141,6 @@ async function parse() {
   }
 }
 
-// ============================================================
-// Фильтр по месяцам
-// ============================================================
 function toggleMonth(key) {
   const m = availableMonths.value.find(x => x.key === key);
   if (!m) return;
@@ -168,9 +161,6 @@ const visibleItems = computed(() => {
     });
 });
 
-// ============================================================
-// Работа с операциями
-// ============================================================
 function toggleItem(i) {
   const set = new Set(selectedIndices.value);
   if (set.has(i)) set.delete(i);
@@ -207,11 +197,11 @@ function formatDate(iso) {
   return d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' });
 }
 
-// ============================================================
-// Сохранение
-// ============================================================
 async function save() {
-  const toSave = items.value.filter((_, i) => selectedIndices.value.has(i));
+  const toSave = items.value
+    .map((it, i) => ({ ...it, _idx: i }))
+    .filter((it) => selectedIndices.value.has(it._idx));
+
   if (!toSave.length) {
     error.value = 'Ничего не выбрано';
     return;
@@ -233,6 +223,7 @@ async function save() {
       accountId: accountId.value || null,
       fromPdf: true,
       internalTransfer: false,
+      importOrder: it._idx,
     };
 
     try {
@@ -263,9 +254,15 @@ function close() {
 <template>
   <Modal
     :model-value="modelValue"
-    title="📄 Импорт PDF-выписки"
     @update:model-value="emit('update:modelValue', $event)"
   >
+    <template #header>
+      <div class="modal-head-custom">
+        <img :src="ICON_PDF" class="mhc-icon" alt="PDF" />
+        <h3 class="mhc-title">Импорт PDF-выписки</h3>
+      </div>
+    </template>
+
     <!-- ШАГ 1. Загрузка -->
     <div v-if="step === 'upload'" class="step">
       <div class="field">
@@ -304,7 +301,7 @@ function close() {
           @change="onFileSelected"
         />
         <button class="upload-btn" type="button" @click="triggerFileInput">
-          <span class="upload-icon">📄</span>
+          <img :src="ICON_PDF" class="upload-icon-img" alt="" />
           <span class="upload-text">
             <span class="upload-title">Выбрать PDF</span>
             <span class="upload-sub">Выписка из СберБанк-Онлайн или Т-Банка</span>
@@ -323,15 +320,16 @@ function close() {
 
     <!-- ШАГ 2. Предпросмотр -->
     <div v-else-if="step === 'preview'" class="step">
-      <!-- Банк -->
       <div class="bank-badge">
         <span>{{ detectedBank === 'sber' ? '🟢 СберБанк' : detectedBank === 'tbank' ? '🟡 Т-Банк' : '🏦' }}</span>
         <span class="count">Найдено: {{ items.length }} операций</span>
       </div>
 
-      <!-- Фильтр по месяцам -->
       <div v-if="availableMonths.length > 1" class="months-bar">
-        <span class="label">📅 Месяцы:</span>
+        <span class="label">
+          <img :src="ICON_CALENDAR" class="label-icon" alt="" />
+          Месяцы:
+        </span>
         <button
           v-for="m in availableMonths"
           :key="m.key"
@@ -344,7 +342,6 @@ function close() {
         </button>
       </div>
 
-      <!-- Список операций -->
       <div class="items-list">
         <div
           v-for="it in visibleItems"
@@ -368,7 +365,11 @@ function close() {
             :class="it.type"
             @click="toggleType(it.index)"
           >
-            {{ it.type === 'income' ? '📈' : '📉' }}
+            <img
+              :src="it.type === 'income' ? ICON_INCOME : ICON_EXPENSE"
+              class="type-badge-img"
+              :alt="it.type"
+            />
           </div>
 
           <div class="amount" :class="it.type" @click="editAmount(it.index)">
@@ -399,6 +400,36 @@ function close() {
 </template>
 
 <style scoped lang="scss">
+/* ✅ Кастомный заголовок */
+.modal-head-custom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mhc-icon {
+  display: block;
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  max-width: 26px;
+  max-height: 26px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.mhc-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .step { display: flex; flex-direction: column; gap: 12px; }
 
 .field {
@@ -418,17 +449,19 @@ function close() {
     padding: 9px 12px;
     border: 1px solid var(--border);
     border-radius: 10px;
-    background: #ffffff;
+    background: var(--panel-2);
     color: var(--text);
     font-family: inherit;
     font-size: 14px;
     outline: none;
     width: 100%;
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.3s ease;
 
     &:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
     }
+    &::placeholder { color: var(--muted); opacity: 0.6; }
   }
 }
 
@@ -439,8 +472,8 @@ function close() {
   width: 100%;
   padding: 16px 18px;
   border-radius: 14px;
-  border: 2px dashed rgba(56, 189, 248, 0.4);
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(139, 92, 246, 0.06));
+  border: 2px dashed rgba(139, 92, 246, 0.4);
+  background: rgba(139, 92, 246, 0.06);
   color: var(--text);
   font-family: inherit;
   cursor: pointer;
@@ -449,21 +482,21 @@ function close() {
 
   &:hover {
     border-color: var(--accent);
-    background: linear-gradient(135deg, rgba(56, 189, 248, 0.14), rgba(139, 92, 246, 0.1));
+    background: rgba(139, 92, 246, 0.12);
+    transform: translateY(-1px);
   }
 }
 
-.upload-icon {
-  font-size: 32px;
+.upload-icon-img {
+  display: block;
+  width: 36px;
+  height: 36px;
+  min-width: 36px;
+  max-width: 36px;
+  max-height: 36px;
+  object-fit: contain;
   flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 52px;
-  height: 52px;
-  border-radius: 14px;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.15), rgba(139, 92, 246, 0.12));
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
 }
 
 .upload-text { display: flex; flex-direction: column; gap: 2px; }
@@ -471,6 +504,7 @@ function close() {
 .upload-title {
   font-size: 15px;
   font-weight: 700;
+  color: var(--text);
 }
 
 .upload-sub {
@@ -482,9 +516,9 @@ function close() {
   margin-top: 6px;
   padding: 8px 12px;
   border-radius: 10px;
-  background: rgba(34, 197, 94, 0.08);
+  background: rgba(34, 197, 94, 0.1);
   border: 1px solid rgba(34, 197, 94, 0.3);
-  color: #22c55e;
+  color: var(--accent-2, #16a34a);
   font-size: 12px;
   font-weight: 600;
   overflow: hidden;
@@ -505,7 +539,7 @@ function close() {
 .spinner {
   width: 20px;
   height: 20px;
-  border: 3px solid rgba(56, 189, 248, 0.2);
+  border: 3px solid rgba(139, 92, 246, 0.2);
   border-top-color: var(--accent);
   border-radius: 50%;
   animation: spin 0.9s linear infinite;
@@ -522,10 +556,11 @@ function close() {
   gap: 10px;
   padding: 10px 14px;
   border-radius: 10px;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(139, 92, 246, 0.06));
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  background: rgba(139, 92, 246, 0.08);
+  border: 1px solid rgba(139, 92, 246, 0.25);
   font-size: 13px;
   font-weight: 700;
+  color: var(--text);
 
   .count {
     color: var(--muted);
@@ -541,9 +576,12 @@ function close() {
   flex-wrap: wrap;
   padding: 8px 10px;
   border-radius: 10px;
-  background: rgba(148, 163, 184, 0.06);
+  background: var(--panel-2);
+  border: 1px solid var(--border);
 
   .label {
+    display: inline-flex;
+    align-items: center;
     font-size: 11px;
     font-weight: 700;
     color: var(--muted);
@@ -551,11 +589,24 @@ function close() {
   }
 }
 
+.label-icon {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  max-width: 14px;
+  max-height: 14px;
+  object-fit: contain;
+  vertical-align: middle;
+  margin-right: 4px;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+}
+
 .month-chip {
   padding: 4px 10px;
   border-radius: 999px;
   border: 1px solid var(--border);
-  background: #f8fafc;
+  background: var(--panel-solid);
   color: var(--muted);
   font-family: inherit;
   font-size: 11px;
@@ -570,9 +621,10 @@ function close() {
   }
 
   &.active {
-    background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+    background: var(--grad-primary);
     color: #fff;
     border-color: transparent;
+    box-shadow: 0 4px 10px -2px rgba(139, 92, 246, 0.5);
   }
 
   .cnt {
@@ -599,10 +651,13 @@ function close() {
   padding: 10px 12px;
   border-radius: 10px;
   border: 1px solid var(--border);
-  background: #ffffff;
-  transition: border-color 0.15s;
+  background: var(--panel-2);
+  transition: border-color 0.15s, background 0.3s ease;
 
-  &.selected { border-color: var(--accent); }
+  &.selected {
+    border-color: rgba(139, 92, 246, 0.5);
+    background: rgba(139, 92, 246, 0.08);
+  }
 }
 
 .item-desc {
@@ -635,11 +690,26 @@ function close() {
   padding: 4px 8px;
   border-radius: 6px;
   cursor: pointer;
-  font-size: 13px;
-  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  min-height: 30px;
+  overflow: hidden;
 
   &.income { background: rgba(34, 197, 94, 0.15); }
-  &.expense { background: rgba(239, 68, 68, 0.15); }
+  &.expense { background: rgba(244, 63, 94, 0.15); }
+}
+
+.type-badge-img {
+  display: block;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
 }
 
 .amount {
@@ -649,15 +719,15 @@ function close() {
   cursor: pointer;
   white-space: nowrap;
 
-  &.income { color: #16a34a; }
-  &.expense { color: #dc2626; }
+  &.income { color: var(--accent-2, #16a34a); }
+  &.expense { color: var(--danger); }
 }
 
 .error-msg {
   padding: 8px 12px;
   border-radius: 8px;
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(244, 63, 94, 0.1);
+  border: 1px solid rgba(244, 63, 94, 0.3);
   color: var(--danger);
   font-size: 12.5px;
   font-weight: 600;
@@ -674,16 +744,39 @@ function close() {
 }
 
 .btn-cancel {
-  background: #f1f5f9;
+  background: var(--panel-2);
   color: var(--text);
   border-color: var(--border);
+  transition: all 0.15s;
+  &:hover { border-color: var(--border-strong); }
 }
 
 .btn-save {
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: var(--grad-primary);
   color: #fff;
-  box-shadow: 0 10px 24px -10px rgba(59, 130, 246, 0.7);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+    0 6px 18px -6px rgba(139, 92, 246, 0.7);
 
   &:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+  &:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+      0 10px 24px -6px rgba(139, 92, 246, 0.9);
+  }
+}
+
+@media (max-width: 700px) {
+  .mhc-icon {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    max-width: 22px;
+    max-height: 22px;
+  }
+  .mhc-title { font-size: 15px; }
 }
 </style>

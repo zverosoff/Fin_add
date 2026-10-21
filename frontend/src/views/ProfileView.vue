@@ -4,12 +4,28 @@ import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useAccountsStore } from '@/stores/accounts';
 import { useToast } from '@/composables/useToast';
-import { fmt, categoryIcon } from '@/composables/useFormat';
+import {
+  fmt,
+  categoryIcon,
+  categoryEmoji,
+  AVATAR_MAN,
+  AVATAR_WOMAN,
+} from '@/composables/useFormat';
+import ThemeToggle from '@/components/ui/ThemeToggle.vue';
+import IconOrEmoji from '@/components/ui/IconOrEmoji.vue';
 
 const auth = useAuthStore();
 const accounts = useAccountsStore();
 const router = useRouter();
 const toast = useToast();
+
+// ✅ PNG-иконки
+const ICON_USER     = '/img/icons/ui/user.png';
+const ICON_LOGOUT   = '/img/icons/ui/logout.png';
+const ICON_CALENDAR = '/img/icons/ui/calendar.png';
+const ICON_CHART    = '/img/icons/categories/income.png';
+const ICON_TROPHY   = '/img/icons/ui/star-filled.png';
+const ICON_FIRE     = '/img/icons/nav/goal.png';
 
 const me = computed(() => auth.user || 'Сергей');
 
@@ -367,7 +383,7 @@ onUnmounted(() => {
         <div class="hero-photo" :class="{ uploading }" @click="openFilePicker">
           <img v-if="avatarPreview" :src="avatarPreview" alt="avatar" />
           <div v-else class="hero-photo-placeholder">
-            <span>🧑</span>
+            <img :src="ICON_USER" class="hero-placeholder-icon" alt="Профиль" />
           </div>
 
           <div class="hero-photo-vignette"></div>
@@ -456,7 +472,7 @@ onUnmounted(() => {
             <span class="hm-text">С нами с {{ createdAtText }}</span>
           </div>
           <div v-if="extraStats.streak > 0" class="hero-meta-row streak">
-            <span class="hm-icon">🔥</span>
+            <img :src="ICON_FIRE" class="hm-icon-img" alt="Серия" />
             <span class="hm-text">
               <strong>{{ extraStats.streak }}</strong>
               {{ extraStats.streak === 1 ? 'день' : (extraStats.streak < 5 ? 'дня' : 'дней') }} подряд
@@ -475,7 +491,10 @@ onUnmounted(() => {
           </span>
         </div>
 
-        <h2 class="card-title">📊 СТАТИСТИКА ЗА МЕСЯЦ</h2>
+        <h2 class="card-title">
+          <img :src="ICON_CHART" class="card-title-icon" alt="" />
+          СТАТИСТИКА ЗА МЕСЯЦ
+        </h2>
 
         <div class="stats-grid">
           <div class="stat">
@@ -524,7 +543,10 @@ onUnmounted(() => {
       </div>
 
       <div v-if="topCategories.length > 0" class="profile-card">
-        <h2 class="card-title">🏆 ТОП-3 КАТЕГОРИИ РАСХОДОВ</h2>
+        <h2 class="card-title">
+          <img :src="ICON_TROPHY" class="card-title-icon" alt="" />
+          ТОП-3 КАТЕГОРИИ РАСХОДОВ
+        </h2>
         <div class="top-cats">
           <div
             v-for="(cat, i) in topCategories"
@@ -532,7 +554,15 @@ onUnmounted(() => {
             class="top-cat"
           >
             <div class="tc-rank" :class="'rank-' + (i + 1)">{{ i + 1 }}</div>
-            <div class="tc-icon">{{ categoryIcon(cat.category) }}</div>
+            <div class="tc-icon">
+              <IconOrEmoji
+                :src="categoryIcon(cat.category)"
+                :emoji="categoryEmoji(cat.category)"
+                :size="24"
+                :alt="cat.category"
+                class-name="tc-icon-img"
+              />
+            </div>
             <div class="tc-info">
               <div class="tc-name">{{ cat.category }}</div>
               <div class="tc-bar">
@@ -548,8 +578,12 @@ onUnmounted(() => {
       </div>
 
       <div class="profile-card">
+        <ThemeToggle />
+      </div>
+
+      <div class="profile-card">
         <button class="logout-btn" type="button" @click="handleLogout">
-          <span class="logout-icon">🚪</span>
+          <img :src="ICON_LOGOUT" class="logout-icon-img" alt="Выйти" />
           <span>Выйти из аккаунта</span>
         </button>
       </div>
@@ -557,9 +591,11 @@ onUnmounted(() => {
   </div>
 </template>
 
+<!-- Стили — оставь без изменений из прошлой версии -->
+
 <style scoped lang="scss">
 /* ============================================================
-   СТРАНИЦА — мягкий градиентный фон
+   СТРАНИЦА
    ============================================================ */
 .profile-page {
   display: grid;
@@ -573,24 +609,12 @@ onUnmounted(() => {
   min-height: 100vh;
 }
 
-.profile-page::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  z-index: -1;
-  background:
-    radial-gradient(ellipse 80% 60% at 20% 0%, rgba(99, 102, 241, 0.08), transparent 60%),
-    radial-gradient(ellipse 70% 50% at 80% 100%, rgba(236, 72, 153, 0.06), transparent 60%),
-    linear-gradient(180deg, #fafbff 0%, #f4f6fb 100%);
-  pointer-events: none;
-}
-
 @media (max-width: 980px) { .profile-page { grid-template-columns: 1fr; } }
 
 .profile-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 
 /* ============================================================
-   HERO-КАРТОЧКА — многоуровневая тень + внутренний глянец
+   HERO-КАРТОЧКА
    ============================================================ */
 .hero-card {
   position: relative;
@@ -598,22 +622,19 @@ onUnmounted(() => {
   overflow: hidden;
   background: #ffffff;
 
-  /* ✅ Три уровня тени для глубины */
   box-shadow:
     0 1px 2px rgba(15, 23, 42, 0.04),
     0 8px 20px -8px rgba(15, 23, 42, 0.12),
     0 30px 60px -20px rgba(99, 102, 241, 0.25),
     0 40px 80px -30px rgba(15, 23, 42, 0.15);
 
-  /* ✅ Внутренняя подсветка — «глянец» */
   outline: 1px solid rgba(255, 255, 255, 0.6);
   outline-offset: -1px;
 
   display: flex;
   flex-direction: column;
 
-  /* ✅ Плавный подъём при наведении */
-  transition: transform 0.35s cubic-bezier(.34,1.56,.64,1), box-shadow 0.35s ease;
+  transition: transform 0.35s cubic-bezier(.34,1.56,.64,1), box-shadow 0.35s ease, background 0.3s ease;
 }
 
 .hero-card:hover {
@@ -625,9 +646,17 @@ onUnmounted(() => {
     0 50px 100px -35px rgba(15, 23, 42, 0.18);
 }
 
-/* ============================================================
-   ФОТО — внутренняя виньетка + объём
-   ============================================================ */
+:global(:root[data-app-theme="dark"]) .hero-card {
+  background: #14091f;
+  outline-color: rgba(139, 92, 246, 0.2);
+
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 8px 24px -8px rgba(0, 0, 0, 0.5),
+    0 30px 60px -20px rgba(139, 92, 246, 0.35),
+    0 0 0 1px rgba(139, 92, 246, 0.15) inset;
+}
+
 .hero-photo {
   position: relative;
   width: 100%;
@@ -653,11 +682,21 @@ onUnmounted(() => {
 .hero-photo-placeholder {
   width: 100%; height: 100%;
   display: flex; align-items: center; justify-content: center;
-  font-size: 140px;
   background: linear-gradient(135deg, #a5b4fc, #818cf8);
 }
 
-/* ✅ Виньетка по краям фото */
+.hero-placeholder-icon {
+  display: block;
+  width: 140px;
+  height: 140px;
+  min-width: 140px;
+  max-width: 140px;
+  max-height: 140px;
+  object-fit: contain;
+  opacity: 0.65;
+  filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.3)) brightness(1.1);
+}
+
 .hero-photo-vignette {
   position: absolute;
   inset: 0;
@@ -672,11 +711,32 @@ onUnmounted(() => {
   position: absolute; left: 0; right: 0; bottom: 0;
   height: 55%;
   pointer-events: none;
-  background: linear-gradient(180deg, transparent 0%, rgba(255,255,255,0.1) 30%, rgba(255,255,255,0.4) 55%, rgba(255,255,255,0.75) 75%, rgba(255,255,255,0.95) 90%, #ffffff 100%);
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.1) 30%,
+    rgba(255, 255, 255, 0.4) 55%,
+    rgba(255, 255, 255, 0.75) 75%,
+    rgba(255, 255, 255, 0.95) 90%,
+    #ffffff 100%
+  );
   backdrop-filter: blur(10px);
   -webkit-backdrop-filter: blur(10px);
   mask-image: linear-gradient(180deg, transparent 0%, #000 60%, #000 100%);
   -webkit-mask-image: linear-gradient(180deg, transparent 0%, #000 60%, #000 100%);
+  transition: background 0.4s ease;
+}
+
+:global(:root[data-app-theme="dark"]) .hero-photo-blur {
+  background: linear-gradient(
+    180deg,
+    transparent 0%,
+    rgba(20, 9, 31, 0.15) 30%,
+    rgba(20, 9, 31, 0.5) 55%,
+    rgba(20, 9, 31, 0.8) 75%,
+    rgba(20, 9, 31, 0.95) 90%,
+    #14091f 100%
+  );
 }
 
 .hero-photo-loading {
@@ -719,11 +779,16 @@ onUnmounted(() => {
   margin: 0 0 4px;
   letter-spacing: -0.02em; line-height: 1.15;
   text-shadow: 0 2px 12px rgba(255, 255, 255, 0.9);
+  transition: color 0.3s ease, text-shadow 0.3s ease;
 
   span { overflow: hidden; text-overflow: ellipsis; max-width: 280px; white-space: nowrap; }
 }
 
-/* ✅ Кнопка-карандаш с рельефом */
+:global(:root[data-app-theme="dark"]) .hero-name {
+  color: #f4f4f6;
+  text-shadow: 0 2px 12px rgba(20, 9, 31, 0.9);
+}
+
 .hero-name-edit-btn {
   flex-shrink: 0;
   width: 34px; height: 34px;
@@ -758,6 +823,24 @@ onUnmounted(() => {
   &:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 
+:global(:root[data-app-theme="dark"]) .hero-name-edit-btn {
+  background: linear-gradient(180deg, #2a1840, #1e1032);
+  color: #a855f7;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 2px 4px rgba(0, 0, 0, 0.4),
+    0 6px 12px -4px rgba(139, 92, 246, 0.4);
+
+  &:hover {
+    background: linear-gradient(180deg, #a855f7, #8b5cf6);
+    color: #ffffff;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 4px 12px rgba(168, 85, 247, 0.5),
+      0 10px 24px -4px rgba(168, 85, 247, 0.7);
+  }
+}
+
 .hero-name-edit { display: flex; flex-direction: column; gap: 4px; align-items: center; }
 
 .hero-name-input {
@@ -775,6 +858,15 @@ onUnmounted(() => {
     0 0 0 4px rgba(99, 102, 241, 0.1);
 }
 
+:global(:root[data-app-theme="dark"]) .hero-name-input {
+  background: #14091f;
+  color: #f4f4f6;
+  border-color: #a855f7;
+  box-shadow:
+    0 8px 24px -8px rgba(168, 85, 247, 0.6),
+    0 0 0 4px rgba(168, 85, 247, 0.2);
+}
+
 .hero-name-hint {
   font-size: 10.5px; color: #94a3b8;
   font-weight: 600; letter-spacing: 0.02em;
@@ -786,9 +878,11 @@ onUnmounted(() => {
   text-shadow: 0 2px 12px rgba(255, 255, 255, 0.9);
 }
 
-/* ============================================================
-   КНОПКИ HERO — рельеф + тень + подъём
-   ============================================================ */
+:global(:root[data-app-theme="dark"]) .hero-username {
+  color: #8b8ba0;
+  text-shadow: 0 2px 12px rgba(20, 9, 31, 0.9);
+}
+
 .hero-actions {
   position: relative; z-index: 2;
   display: flex; gap: 12px;
@@ -818,7 +912,6 @@ onUnmounted(() => {
   background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
   color: #ffffff;
 
-  /* ✅ Рельеф: верхняя светлая полоса + внешняя тень */
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.15) inset,
     0 -1px 0 rgba(0, 0, 0, 0.3) inset,
@@ -834,13 +927,15 @@ onUnmounted(() => {
       0 6px 16px rgba(15, 23, 42, 0.3),
       0 20px 40px -8px rgba(15, 23, 42, 0.45);
   }
+}
 
-  &:active:not(:disabled) {
-    transform: translateY(0) scale(0.98);
-    box-shadow:
-      0 2px 6px rgba(15, 23, 42, 0.2) inset,
-      0 2px 4px rgba(15, 23, 42, 0.15);
-  }
+:global(:root[data-app-theme="dark"]) .hero-btn-primary {
+  background: linear-gradient(135deg, #8b5cf6, #a855f7);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 -2px 0 rgba(0, 0, 0, 0.3) inset,
+    0 6px 16px rgba(139, 92, 246, 0.5),
+    0 12px 32px -6px rgba(168, 85, 247, 0.6);
 }
 
 .hero-btn-danger {
@@ -860,22 +955,20 @@ onUnmounted(() => {
   &:hover:not(:disabled) {
     background: linear-gradient(180deg, #fef2f2, #fee2e2);
     transform: translateY(-2px) scale(1.05);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.9) inset,
-      0 6px 14px rgba(239, 68, 68, 0.2),
-      0 16px 28px -6px rgba(239, 68, 68, 0.35);
   }
-  &:active:not(:disabled) {
-    transform: scale(0.95);
-    box-shadow: 0 2px 4px rgba(15, 23, 42, 0.15) inset;
-  }
+}
+
+:global(:root[data-app-theme="dark"]) .hero-btn-danger {
+  background: linear-gradient(180deg, #2a1840, #1e1032);
+  color: #f43f5e;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 4px 10px rgba(0, 0, 0, 0.4),
+    0 10px 24px -6px rgba(244, 63, 94, 0.4);
 }
 
 .hero-file { display: none; }
 
-/* ============================================================
-   МЕТАДАННЫЕ — вложенная карточка с inset-тенью
-   ============================================================ */
 .hero-meta {
   position: relative; z-index: 2;
   display: flex; flex-direction: column;
@@ -885,13 +978,23 @@ onUnmounted(() => {
   padding: 14px 16px;
   margin: 0 20px 20px;
 
-  /* ✅ Внутренняя тень сверху */
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.9) inset,
     0 -1px 0 rgba(148, 163, 184, 0.1) inset,
     0 2px 6px rgba(15, 23, 42, 0.04);
 
   border: 1px solid rgba(226, 232, 240, 0.7);
+
+  transition: background 0.3s ease, border-color 0.3s ease;
+}
+
+:global(:root[data-app-theme="dark"]) .hero-meta {
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+  border-color: rgba(139, 92, 246, 0.15);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.05) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.2) inset,
+    0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
 .hero-meta-row {
@@ -902,11 +1005,31 @@ onUnmounted(() => {
   strong { color: #dc2626; font-weight: 800; }
 }
 
+:global(:root[data-app-theme="dark"]) .hero-meta-row {
+  color: #8b8ba0;
+
+  &.streak { color: #f43f5e; }
+  &.streak strong { color: #f43f5e; }
+}
+
 .hm-icon { font-size: 14px; }
+
+.hm-icon-img {
+  display: block;
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  max-width: 14px;
+  max-height: 14px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+}
+
 .hm-text { font-weight: 500; }
 
 /* ============================================================
-   ПРАВЫЕ КАРТОЧКИ — многоуровневая тень + глянец
+   ПРАВЫЕ КАРТОЧКИ
    ============================================================ */
 .profile-card {
   position: relative;
@@ -914,7 +1037,6 @@ onUnmounted(() => {
   border-radius: 20px;
   padding: 22px;
 
-  /* ✅ Три уровня тени */
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.9) inset,
     0 1px 2px rgba(15, 23, 42, 0.04),
@@ -922,29 +1044,47 @@ onUnmounted(() => {
     0 24px 48px -20px rgba(15, 23, 42, 0.12);
 
   border: 1px solid rgba(226, 232, 240, 0.6);
-  transition: transform 0.3s cubic-bezier(.34,1.56,.64,1), box-shadow 0.3s ease;
+  transition: transform 0.3s cubic-bezier(.34,1.56,.64,1), box-shadow 0.3s ease, background 0.3s ease, border-color 0.3s ease;
 }
 
-.profile-card:hover {
-  transform: translateY(-2px);
+:global(:root[data-app-theme="dark"]) .profile-card {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(139, 92, 246, 0.08), transparent 50%),
+    radial-gradient(circle at 0% 100%, rgba(34, 211, 238, 0.05), transparent 50%),
+    linear-gradient(180deg, rgba(30, 16, 48, 0.9) 0%, rgba(20, 9, 31, 0.95) 100%);
+  border-color: rgba(139, 92, 246, 0.15);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.9) inset,
-    0 2px 4px rgba(15, 23, 42, 0.05),
-    0 12px 28px -10px rgba(15, 23, 42, 0.12),
-    0 32px 60px -25px rgba(99, 102, 241, 0.15);
+    0 1px 0 rgba(255, 255, 255, 0.05) inset,
+    0 2px 6px rgba(0, 0, 0, 0.4),
+    0 12px 32px -10px rgba(139, 92, 246, 0.25),
+    0 0 0 1px rgba(139, 92, 246, 0.08) inset;
 }
 
 .card-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   font-size: 12px; font-weight: 800;
   color: #94a3b8; letter-spacing: 0.08em;
   margin: 0 0 12px;
 }
 
+:global(:root[data-app-theme="dark"]) .card-title { color: #8b8ba0; }
+
+.card-title-icon {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  max-width: 14px;
+  max-height: 14px;
+  object-fit: contain;
+  vertical-align: middle;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+}
+
 .stats-card { padding-top: 18px; }
 
-/* ============================================================
-   SYNCED — двойная обводка + свечение
-   ============================================================ */
 .sync-indicator {
   position: absolute;
   top: 16px; right: 16px;
@@ -961,19 +1101,12 @@ onUnmounted(() => {
   text-transform: uppercase;
   color: #94a3b8;
   transition: all 0.3s ease;
-
-  /* ✅ Лёгкая тень для объёма */
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.9) inset,
-    0 2px 4px rgba(15, 23, 42, 0.06);
 }
 
 .sync-dot {
-  width: 7px;
-  height: 7px;
+  width: 7px; height: 7px;
   border-radius: 50%;
   background: #cbd5e1;
-  box-shadow: 0 0 0 0 rgba(148, 163, 184, 0.5);
   transition: all 0.25s;
 }
 
@@ -981,45 +1114,25 @@ onUnmounted(() => {
   color: #6366f1;
   border-color: rgba(99, 102, 241, 0.35);
   background: linear-gradient(180deg, #eef2ff, #e0e7ff);
-
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.9) inset,
-    0 4px 10px rgba(99, 102, 241, 0.15);
-
-  .sync-dot {
-    background: #6366f1;
-    animation: pulseSync 1.2s ease-in-out infinite;
-  }
 }
+.sync-indicator.syncing .sync-dot { background: #6366f1; animation: pulseSync 1.2s ease-in-out infinite; }
 
 .sync-indicator.synced {
   color: #16a34a;
   border-color: rgba(34, 197, 94, 0.4);
   background: linear-gradient(180deg, #f0fdf4, #dcfce7);
-
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.9) inset,
-    0 4px 10px rgba(34, 197, 94, 0.15);
-
-  .sync-dot {
-    background: #22c55e;
-    animation: pulseSynced 1.6s ease-in-out infinite;
-  }
 }
+.sync-indicator.synced .sync-dot { background: #22c55e; animation: pulseSynced 1.6s ease-in-out infinite; }
 
 @keyframes pulseSync {
   0%, 100% { box-shadow: 0 0 0 0 rgba(99, 102, 241, 0.6); }
   50%      { box-shadow: 0 0 0 6px rgba(99, 102, 241, 0); }
 }
-
 @keyframes pulseSynced {
   0%, 100% { box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.6); }
   50%      { box-shadow: 0 0 0 5px rgba(34, 197, 94, 0); }
 }
 
-/* ============================================================
-   STATS — вложенные карточки с внутренним объёмом
-   ============================================================ */
 .stats-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -1033,22 +1146,11 @@ onUnmounted(() => {
   padding: 14px 8px;
   text-align: center;
   border: 1px solid #eef0f4;
-
-  /* ✅ Объём: светлый верх, тёмный низ */
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.95) inset,
-    0 -1px 0 rgba(148, 163, 184, 0.08) inset,
-    0 2px 6px rgba(15, 23, 42, 0.04);
-
-  transition: transform 0.2s cubic-bezier(.34,1.56,.64,1), box-shadow 0.2s ease;
 }
 
-.stat:hover {
-  transform: translateY(-2px);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.95) inset,
-    0 -1px 0 rgba(148, 163, 184, 0.08) inset,
-    0 6px 14px -2px rgba(15, 23, 42, 0.1);
+:global(:root[data-app-theme="dark"]) .stat {
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+  border-color: rgba(139, 92, 246, 0.12);
 }
 
 .stat-value {
@@ -1056,8 +1158,9 @@ onUnmounted(() => {
   font-weight: 800;
   color: #0f172a;
   margin-bottom: 4px;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
 }
+
+:global(:root[data-app-theme="dark"]) .stat-value { color: #f4f4f6; }
 
 .stat-label {
   font-size: 9.5px;
@@ -1067,9 +1170,8 @@ onUnmounted(() => {
   letter-spacing: 0.05em;
 }
 
-/* ============================================================
-   СРАВНЕНИЕ — вложенные строки с градиентом
-   ============================================================ */
+:global(:root[data-app-theme="dark"]) .stat-label { color: #8b8ba0; }
+
 .compare-block {
   display: flex;
   flex-direction: column;
@@ -1077,6 +1179,10 @@ onUnmounted(() => {
   margin-top: 12px;
   padding-top: 12px;
   border-top: 1px dashed #eef0f4;
+}
+
+:global(:root[data-app-theme="dark"]) .compare-block {
+  border-top-color: rgba(139, 92, 246, 0.15);
 }
 
 .compare-row {
@@ -1089,15 +1195,30 @@ onUnmounted(() => {
   font-size: 12px;
   background: linear-gradient(180deg, #ffffff, #f8fafc);
   border: 1px solid #eef0f4;
-
-  /* ✅ Лёгкая вложенная тень */
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.9) inset,
-    0 2px 4px rgba(15, 23, 42, 0.03);
 }
 
-.c-label { font-weight: 700; color: #64748b; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; }
-.c-value { font-family: var(--mono); font-weight: 800; font-size: 13px; color: #0f172a; }
+:global(:root[data-app-theme="dark"]) .compare-row {
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+  border-color: rgba(139, 92, 246, 0.15);
+}
+
+.c-label {
+  font-weight: 700;
+  color: #64748b;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.c-value {
+  font-family: var(--mono);
+  font-weight: 800;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+:global(:root[data-app-theme="dark"]) .c-label { color: #8b8ba0; }
+:global(:root[data-app-theme="dark"]) .c-value { color: #f4f4f6; }
 
 .c-delta {
   font-family: var(--mono);
@@ -1107,27 +1228,39 @@ onUnmounted(() => {
   border-radius: 999px;
   white-space: nowrap;
 
-  /* ✅ Объёмная таблетка */
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.6) inset;
-
-  &.up   {
-    color: #16a34a;
-    background: linear-gradient(180deg, #dcfce7, #bbf7d0);
-    border: 1px solid rgba(34, 197, 94, 0.3);
-  }
-  &.down {
-    color: #dc2626;
-    background: linear-gradient(180deg, #fee2e2, #fecaca);
-    border: 1px solid rgba(239, 68, 68, 0.3);
-  }
-  &.flat {
-    color: #94a3b8;
-    background: linear-gradient(180deg, #f8fafc, #f1f5f9);
-    border: 1px solid #e2e8f0;
-  }
+  &.up   { color: #16a34a; background: linear-gradient(180deg, #dcfce7, #bbf7d0); border: 1px solid rgba(34, 197, 94, 0.3); }
+  &.down { color: #dc2626; background: linear-gradient(180deg, #fee2e2, #fecaca); border: 1px solid rgba(239, 68, 68, 0.3); }
+  &.flat { color: #94a3b8; background: linear-gradient(180deg, #f8fafc, #f1f5f9); border: 1px solid #e2e8f0; }
 }
 
-.stats-extra { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; padding-top: 10px; border-top: 1px dashed #eef0f4; }
+:global(:root[data-app-theme="dark"]) .c-delta.up {
+  color: #4ade80;
+  background: rgba(34, 197, 94, 0.15);
+  border-color: rgba(74, 222, 128, 0.4);
+}
+:global(:root[data-app-theme="dark"]) .c-delta.down {
+  color: #f43f5e;
+  background: rgba(244, 63, 94, 0.15);
+  border-color: rgba(244, 63, 94, 0.4);
+}
+:global(:root[data-app-theme="dark"]) .c-delta.flat {
+  color: #8b8ba0;
+  background: rgba(255,255,255,0.05);
+  border-color: rgba(139, 92, 246, 0.15);
+}
+
+.stats-extra {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed #eef0f4;
+}
+
+:global(:root[data-app-theme="dark"]) .stats-extra {
+  border-top-color: rgba(139, 92, 246, 0.15);
+}
 
 .stat-extra-row {
   display: flex; justify-content: space-between; align-items: baseline;
@@ -1146,12 +1279,34 @@ onUnmounted(() => {
   }
 }
 
-.se-label { font-weight: 700; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; font-size: 10.5px; }
-.se-value { font-family: var(--mono); font-weight: 800; font-size: 13px; }
+:global(:root[data-app-theme="dark"]) .stat-extra-row.income {
+  background: rgba(34, 197, 94, 0.12);
+  border-color: rgba(74, 222, 128, 0.3);
+  .se-label { color: #8b8ba0; }
+  .se-value { color: #4ade80; }
+}
 
-/* ============================================================
-   ТОП-3 — карточки с подъёмом и медалями
-   ============================================================ */
+:global(:root[data-app-theme="dark"]) .stat-extra-row.expense {
+  background: rgba(244, 63, 94, 0.12);
+  border-color: rgba(244, 63, 94, 0.3);
+  .se-label { color: #8b8ba0; }
+  .se-value { color: #f43f5e; }
+}
+
+.se-label {
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-size: 10.5px;
+}
+
+.se-value {
+  font-family: var(--mono);
+  font-weight: 800;
+  font-size: 13px;
+}
+
 .top-cats { display: flex; flex-direction: column; gap: 10px; }
 
 .top-cat {
@@ -1163,22 +1318,11 @@ onUnmounted(() => {
   border-radius: 12px;
   background: linear-gradient(180deg, #ffffff, #f8fafc);
   border: 1px solid #eef0f4;
+}
 
-  /* ✅ Объёмная карточка */
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.95) inset,
-    0 -1px 0 rgba(148, 163, 184, 0.06) inset,
-    0 2px 6px rgba(15, 23, 42, 0.04);
-
-  transition: transform 0.2s cubic-bezier(.34,1.56,.64,1), box-shadow 0.2s ease;
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.95) inset,
-      0 -1px 0 rgba(148, 163, 184, 0.06) inset,
-      0 8px 20px -4px rgba(99, 102, 241, 0.15);
-  }
+:global(:root[data-app-theme="dark"]) .top-cat {
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+  border-color: rgba(139, 92, 246, 0.12);
 }
 
 .tc-rank {
@@ -1187,20 +1331,31 @@ onUnmounted(() => {
   display: flex; align-items: center; justify-content: center;
   font-size: 12px; font-weight: 900;
   color: #ffffff;
-  text-shadow: 0 1px 2px rgba(0,0,0,0.25);
 
-  /* ✅ Объёмная медаль */
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.5) inset,
-    0 -2px 4px rgba(0,0,0,0.15) inset,
-    0 4px 8px rgba(0,0,0,0.15);
-
-  &.rank-1 { background: linear-gradient(180deg, #fcd34d, #f59e0b); box-shadow: 0 1px 0 rgba(255,255,255,0.5) inset, 0 -2px 4px rgba(180,83,9,0.3) inset, 0 6px 12px -3px rgba(245,158,11,0.5); }
+  &.rank-1 { background: linear-gradient(180deg, #fcd34d, #f59e0b); }
   &.rank-2 { background: linear-gradient(180deg, #e2e8f0, #94a3b8); }
   &.rank-3 { background: linear-gradient(180deg, #f59e0b, #b45309); }
 }
 
-.tc-icon { font-size: 22px; text-align: center; }
+.tc-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+}
+
+.tc-icon-img {
+  display: block;
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  max-width: 24px;
+  max-height: 24px;
+  object-fit: contain;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.15));
+}
 
 .tc-info { min-width: 0; }
 .tc-name {
@@ -1210,16 +1365,17 @@ onUnmounted(() => {
   margin-bottom: 6px;
 }
 
+:global(:root[data-app-theme="dark"]) .tc-name { color: #f4f4f6; }
+
 .tc-bar {
   height: 6px;
   background: linear-gradient(180deg, #e2e8f0, #f1f5f9);
   border-radius: 3px;
   overflow: hidden;
+}
 
-  /* ✅ Внутренняя тень трека */
-  box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.08) inset,
-    0 1px 0 rgba(255, 255, 255, 0.9);
+:global(:root[data-app-theme="dark"]) .tc-bar {
+  background: linear-gradient(180deg, rgba(0,0,0,0.3), rgba(0,0,0,0.2));
 }
 
 .tc-bar-fill {
@@ -1227,20 +1383,31 @@ onUnmounted(() => {
   background: linear-gradient(180deg, #818cf8, #6366f1);
   border-radius: 3px;
   transition: width 0.6s cubic-bezier(.22,.61,.36,1);
+}
 
-  /* ✅ Подсветка сверху полосы */
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.5) inset,
-    0 2px 4px rgba(99, 102, 241, 0.35);
+:global(:root[data-app-theme="dark"]) .tc-bar-fill {
+  background: linear-gradient(180deg, #a855f7, #8b5cf6);
 }
 
 .tc-amount { text-align: right; flex-shrink: 0; }
-.tc-amount-value { font-family: var(--mono); font-size: 12.5px; font-weight: 800; color: #0f172a; }
-.tc-amount-pct { font-size: 10.5px; color: #94a3b8; font-weight: 700; margin-top: 2px; }
+.tc-amount-value {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #0f172a;
+}
 
-/* ============================================================
-   ВЫЙТИ — рельефная кнопка + пульсация при hover
-   ============================================================ */
+:global(:root[data-app-theme="dark"]) .tc-amount-value { color: #f4f4f6; }
+
+.tc-amount-pct {
+  font-size: 10.5px;
+  color: #94a3b8;
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+:global(:root[data-app-theme="dark"]) .tc-amount-pct { color: #8b8ba0; }
+
 .logout-btn {
   display: flex; align-items: center; justify-content: center;
   gap: 8px; width: 100%;
@@ -1255,35 +1422,26 @@ onUnmounted(() => {
   cursor: pointer;
 
   transition: all 0.2s cubic-bezier(.34,1.56,.64,1);
-
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.9) inset,
-    0 -1px 0 rgba(239, 68, 68, 0.1) inset,
-    0 4px 12px -2px rgba(239, 68, 68, 0.15);
-
-  &:hover {
-    background: linear-gradient(180deg, #fee2e2, #fecaca);
-    border-color: #dc2626;
-    transform: translateY(-2px);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.9) inset,
-      0 -1px 0 rgba(239, 68, 68, 0.15) inset,
-      0 8px 20px -4px rgba(239, 68, 68, 0.35),
-      0 0 0 4px rgba(239, 68, 68, 0.08);
-  }
-
-  &:active {
-    transform: translateY(0) scale(0.98);
-    box-shadow:
-      0 2px 4px rgba(239, 68, 68, 0.2) inset;
-  }
 }
 
-.logout-icon { font-size: 16px; }
+.logout-icon-img {
+  display: block;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  max-height: 18px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+}
 
-/* ============================================================
-   МОБИЛЬНЫЙ
-   ============================================================ */
+:global(:root[data-app-theme="dark"]) .logout-btn {
+  background: linear-gradient(180deg, rgba(244,63,94,0.15), rgba(244,63,94,0.05));
+  border-color: rgba(244, 63, 94, 0.4);
+  color: #f43f5e;
+}
+
 @media (max-width: 980px) { .hero-photo { aspect-ratio: 4 / 5; max-height: 460px; } }
 
 @media (max-width: 700px) {
@@ -1293,13 +1451,18 @@ onUnmounted(() => {
 
   .hero-card { border-radius: 20px; }
   .hero-photo { aspect-ratio: 3 / 4; max-height: none; }
-  .hero-photo-placeholder { font-size: 100px; }
+  .hero-placeholder-icon {
+    width: 100px;
+    height: 100px;
+    min-width: 100px;
+    max-width: 100px;
+    max-height: 100px;
+  }
   .hero-photo-blur { height: 60%; }
 
   .hero-info { margin-top: -90px; padding: 0 18px 6px; }
   .hero-name { font-size: 24px; }
   .hero-name span { max-width: 200px; }
-  .hero-name-input { font-size: 20px; padding: 6px 14px; }
   .hero-username { font-size: 13px; }
 
   .hero-actions { padding: 6px 16px 16px; gap: 10px; }
@@ -1311,12 +1474,20 @@ onUnmounted(() => {
 
   .stat-value { font-size: 15px; }
 
-  .sync-indicator { top: 12px; right: 12px; font-size: 9.5px; padding: 4px 10px 4px 8px; }
-  .sync-dot { width: 6px; height: 6px; }
+  .tc-icon {
+    width: 30px;
+    height: 30px;
+  }
+  .tc-icon-img {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    max-width: 20px;
+    max-height: 20px;
+  }
 
   .top-cat { grid-template-columns: 22px 30px 1fr auto; gap: 8px; padding: 10px 12px; }
   .tc-rank { width: 22px; height: 22px; font-size: 11px; }
-  .tc-icon { font-size: 18px; }
   .tc-name { font-size: 12px; }
   .tc-amount-value { font-size: 12px; }
 }

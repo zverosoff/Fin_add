@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue';
 import { useTransactionsStore } from '@/stores/transactions';
 import { useAuthStore } from '@/stores/auth';
-import { fmt } from '@/composables/useFormat';
+import { fmt, AVATAR_MAN, AVATAR_WOMAN } from '@/composables/useFormat';
 
 const tx = useTransactionsStore();
 const auth = useAuthStore();
@@ -10,8 +10,20 @@ const auth = useAuthStore();
 const LS_KEY = 'financeProUsersCollapsed_v1';
 const collapsed = ref(true);
 
+// ✅ PNG-иконки
+const ICON_INCOME  = '/img/icons/categories/income.png';
+const ICON_EXPENSE = '/img/icons/categories/expense.png';
+const ICON_BALANCE = '/img/icons/nav/money-bag.png';
+const ICON_USERS   = '/img/icons/ui/users.png';
+
 function displayUser(technicalUser) {
   return auth.nameFor(technicalUser);
+}
+
+function userAvatar(user) {
+  if (user === 'Сергей') return AVATAR_MAN;
+  if (user === 'Саша') return AVATAR_WOMAN;
+  return AVATAR_MAN;
 }
 
 onMounted(() => {
@@ -41,26 +53,26 @@ const balanceClass = computed(() => {
   <div class="summary-compact" :class="{ collapsed }">
     <div class="sc-top">
       <div class="sc-item">
-        <span class="sc-icon">📈</span>
+        <img :src="ICON_INCOME" class="sc-icon-img" alt="Доходы" />
         <span class="sc-value income">{{ fmt(income) }} ₽</span>
         <span class="sc-label">доходы</span>
       </div>
       <div class="sc-divider"></div>
       <div class="sc-item">
-        <span class="sc-icon">📉</span>
+        <img :src="ICON_EXPENSE" class="sc-icon-img" alt="Расходы" />
         <span class="sc-value expense">{{ fmt(expense) }} ₽</span>
         <span class="sc-label">расходы</span>
       </div>
       <div class="sc-divider"></div>
       <div class="sc-item">
-        <span class="sc-icon">💰</span>
+        <img :src="ICON_BALANCE" class="sc-icon-img" alt="Баланс" />
         <span class="sc-value" :class="balanceClass">{{ fmt(balance) }} ₽</span>
         <span class="sc-label">баланс</span>
       </div>
     </div>
 
     <div class="sc-users-header" @click="toggle">
-      <span class="sc-users-icon">👥</span>
+      <img :src="ICON_USERS" class="sc-users-icon-img" alt="Пользователи" />
       <span class="sc-users-title">По пользователям</span>
       <button class="sc-toggle" type="button">
         <svg viewBox="0 0 24 24" class="chev" :class="{ open: !collapsed }">
@@ -76,7 +88,7 @@ const balanceClass = computed(() => {
         class="sc-user-row"
         :class="user === 'Сергей' ? 'sergey' : 'sasha'"
       >
-        <span class="sc-user-avatar">{{ user === 'Сергей' ? '👨' : '👩' }}</span>
+        <img :src="userAvatar(user)" class="sc-user-avatar-img" :alt="user" />
         <span class="sc-user-name">{{ displayUser(user) }}</span>
         <span class="sc-user-details">
           <span class="sc-user-inc">+{{ fmt(data.income) }} ₽</span>
@@ -93,7 +105,7 @@ const balanceClass = computed(() => {
 
 <style scoped lang="scss">
 /* ============================================================
-   ✅ КОНТЕЙНЕР — стеклянный с многослойной тенью
+   КОНТЕЙНЕР
    ============================================================ */
 .summary-compact {
   position: relative;
@@ -103,7 +115,6 @@ const balanceClass = computed(() => {
   background:
     radial-gradient(circle at 100% 0%, rgba(34, 197, 94, 0.06), transparent 50%),
     linear-gradient(180deg, #ffffff 0%, #fafbff 100%);
-
   border: 1px solid rgba(226, 232, 240, 0.8);
 
   box-shadow:
@@ -113,7 +124,11 @@ const balanceClass = computed(() => {
     0 8px 20px -6px rgba(15, 23, 42, 0.08),
     0 16px 32px -14px rgba(34, 197, 94, 0.15);
 
-  transition: transform 0.3s cubic-bezier(.34,1.56,.64,1), box-shadow 0.3s ease;
+  transition:
+    transform 0.3s cubic-bezier(.34,1.56,.64,1),
+    box-shadow 0.3s ease,
+    background 0.3s ease,
+    border-color 0.3s ease;
 
   &:hover {
     transform: translateY(-1px);
@@ -128,9 +143,25 @@ const balanceClass = computed(() => {
   &.collapsed { padding: 14px 16px 12px; }
 }
 
-/* ============================================================
-   ВЕРХНЯЯ ЧАСТЬ — доходы/расходы/баланс
-   ============================================================ */
+:global(:root[data-app-theme="dark"]) .summary-compact {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(139, 92, 246, 0.08), transparent 50%),
+    radial-gradient(circle at 0% 100%, rgba(34, 211, 238, 0.05), transparent 50%),
+    linear-gradient(180deg, rgba(30, 16, 48, 0.9) 0%, rgba(20, 9, 31, 0.95) 100%);
+  border-color: rgba(139, 92, 246, 0.15);
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.35),
+    0 12px 28px -8px rgba(139, 92, 246, 0.25),
+    0 0 0 1px rgba(139, 92, 246, 0.08) inset;
+}
+
+:global(:root[data-app-theme="dark"]) .summary-compact:hover {
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.45),
+    0 20px 48px -10px rgba(168, 85, 247, 0.35),
+    0 0 0 1px rgba(139, 92, 246, 0.2) inset;
+}
+
 .sc-top {
   display: grid;
   grid-template-columns: 1fr auto 1fr auto 1fr;
@@ -138,8 +169,27 @@ const balanceClass = computed(() => {
   gap: 10px;
 }
 
-.sc-item { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.sc-icon { font-size: 13px; opacity: 0.85; }
+.sc-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  align-items: flex-start;
+}
+
+/* ✅ PNG-иконки в шапке — фикс 20×20 */
+.sc-icon-img {
+  display: block;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  max-width: 20px;
+  max-height: 20px;
+  object-fit: contain;
+  margin-bottom: 2px;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+}
 
 .sc-value {
   font-family: var(--mono);
@@ -150,7 +200,7 @@ const balanceClass = computed(() => {
   text-overflow: ellipsis;
   font-variant-numeric: tabular-nums;
   transition: color 0.3s ease;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
+  color: var(--text);
 
   &.income   { color: #16a34a; }
   &.expense  { color: #dc2626; }
@@ -172,9 +222,10 @@ const balanceClass = computed(() => {
   background: linear-gradient(180deg, transparent, rgba(148, 163, 184, 0.3), transparent);
 }
 
-/* ============================================================
-   ЗАГОЛОВОК «По пользователям» — кликабельный
-   ============================================================ */
+:global(:root[data-app-theme="dark"]) .sc-divider {
+  background: linear-gradient(180deg, transparent, rgba(139, 92, 246, 0.3), transparent);
+}
+
 .sc-users-header {
   display: flex;
   align-items: center;
@@ -188,7 +239,22 @@ const balanceClass = computed(() => {
   &:hover .sc-users-title { color: var(--accent); }
 }
 
-.sc-users-icon { font-size: 14px; flex-shrink: 0; }
+:global(:root[data-app-theme="dark"]) .sc-users-header {
+  border-top-color: rgba(139, 92, 246, 0.2);
+}
+
+/* ✅ PNG-иконка группы — фикс 18×18 */
+.sc-users-icon-img {
+  display: block;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  max-height: 18px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+}
 
 .sc-users-title {
   font-size: 11px;
@@ -203,9 +269,12 @@ const balanceClass = computed(() => {
 .sc-toggle {
   width: 26px;
   height: 26px;
+  min-width: 26px;
+  max-width: 26px;
+  max-height: 26px;
   border-radius: 8px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  background: linear-gradient(180deg, #ffffff, #f8fafc);
+  border: 1px solid var(--border);
+  background: var(--panel-2);
   color: var(--muted);
   cursor: pointer;
   display: inline-flex;
@@ -220,13 +289,10 @@ const balanceClass = computed(() => {
     0 2px 4px rgba(15, 23, 42, 0.06);
 
   &:hover {
-    border-color: rgba(99, 102, 241, 0.4);
-    color: #6366f1;
-    background: linear-gradient(180deg, #eef2ff, #e0e7ff);
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(139, 92, 246, 0.1);
     transform: translateY(-1px);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.95) inset,
-      0 4px 8px -2px rgba(99, 102, 241, 0.3);
   }
 
   .chev {
@@ -238,9 +304,14 @@ const balanceClass = computed(() => {
   .chev.open { transform: rotate(180deg); }
 }
 
-/* ============================================================
-   СПИСОК ПОЛЬЗОВАТЕЛЕЙ
-   ============================================================ */
+:global(:root[data-app-theme="dark"]) .sc-toggle {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(139, 92, 246, 0.2);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.03) inset,
+    0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
 .sc-users {
   display: flex;
   flex-direction: column;
@@ -273,7 +344,7 @@ const balanceClass = computed(() => {
     0 1px 0 rgba(255, 255, 255, 0.9) inset,
     0 1px 3px rgba(15, 23, 42, 0.03);
 
-  transition: transform 0.15s ease, box-shadow 0.2s ease;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, background 0.3s ease, border-color 0.3s ease;
 
   &:hover {
     transform: translateY(-1px);
@@ -283,12 +354,38 @@ const balanceClass = computed(() => {
   }
 }
 
-.sc-user-avatar { font-size: 14px; }
+:global(:root[data-app-theme="dark"]) .sc-user-row {
+  background: linear-gradient(180deg, rgba(255,255,255,0.05), rgba(255,255,255,0.02));
+  border-color: rgba(139, 92, 246, 0.12);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.03) inset,
+    0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* ✅ PNG-аватар — фикс 22×22 */
+.sc-user-avatar-img {
+  display: block;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  max-width: 22px;
+  max-height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1.5px solid rgba(99, 102, 241, 0.35);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
+  background: #fff;
+}
+
+.sc-user-row.sasha .sc-user-avatar-img {
+  border-color: rgba(236, 72, 153, 0.4);
+}
 
 .sc-user-name {
   font-weight: 800;
   min-width: 52px;
-  color: #0f172a;
+  color: var(--text);
 }
 
 .sc-user-details {
@@ -328,39 +425,98 @@ const balanceClass = computed(() => {
     color: #16a34a;
     background: linear-gradient(180deg, #dcfce7, #bbf7d0);
     border-color: rgba(34, 197, 94, 0.3);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.9) inset,
-      0 2px 4px rgba(34, 197, 94, 0.15);
   }
   &.negative {
     color: #dc2626;
     background: linear-gradient(180deg, #fee2e2, #fecaca);
     border-color: rgba(239, 68, 68, 0.3);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.9) inset,
-      0 2px 4px rgba(239, 68, 68, 0.15);
   }
 }
 
-/* ============================================================
-   МОБИЛЬНЫЙ
-   ============================================================ */
+:global(:root[data-app-theme="dark"]) {
+  .sc-value.income,
+  .sc-value.positive {
+    color: #4ade80;
+    text-shadow: 0 0 10px rgba(74, 222, 128, 0.4);
+  }
+  .sc-value.expense,
+  .sc-value.negative {
+    color: #f43f5e;
+    text-shadow: 0 0 10px rgba(244, 63, 94, 0.4);
+  }
+
+  .sc-user-inc {
+    color: #4ade80;
+    text-shadow: 0 0 10px rgba(74, 222, 128, 0.4);
+  }
+  .sc-user-exp {
+    color: #f43f5e;
+    text-shadow: 0 0 10px rgba(244, 63, 94, 0.4);
+  }
+
+  .sc-user-bal {
+    &.positive {
+      color: #4ade80;
+      background: rgba(34, 197, 94, 0.15);
+      border-color: rgba(74, 222, 128, 0.35);
+      box-shadow: 0 0 12px rgba(74, 222, 128, 0.2);
+    }
+    &.negative {
+      color: #f43f5e;
+      background: rgba(244, 63, 94, 0.15);
+      border-color: rgba(244, 63, 94, 0.35);
+      box-shadow: 0 0 12px rgba(244, 63, 94, 0.2);
+    }
+  }
+}
+
 @media (max-width: 700px) {
   .summary-compact { padding: 12px 14px; border-radius: 14px; }
   .sc-top { gap: 6px; }
-  .sc-icon { font-size: 12px; }
+
+  .sc-icon-img {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    max-width: 18px;
+    max-height: 18px;
+  }
+
   .sc-value { font-size: 14px; }
   .sc-label { font-size: 8.5px; letter-spacing: 0.05em; }
   .sc-divider { height: 28px; }
 
   .sc-users-header { margin-top: 10px; padding-top: 10px; gap: 6px; }
-  .sc-users-icon { font-size: 12px; }
+
+  .sc-users-icon-img {
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    max-width: 16px;
+    max-height: 16px;
+  }
+
   .sc-users-title { font-size: 10px; }
-  .sc-toggle { width: 24px; height: 24px; }
+
+  .sc-toggle {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    max-width: 24px;
+    max-height: 24px;
+  }
   .sc-toggle .chev { width: 11px; height: 11px; }
 
   .sc-user-row { padding: 6px 8px; margin: 0 -2px; gap: 6px; }
-  .sc-user-avatar { font-size: 13px; }
+
+  .sc-user-avatar-img {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    max-width: 20px;
+    max-height: 20px;
+  }
+
   .sc-user-name { font-size: 11px; min-width: 44px; }
   .sc-user-details { gap: 6px; }
   .sc-user-inc, .sc-user-exp { font-size: 10px; }

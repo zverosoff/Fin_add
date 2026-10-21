@@ -1,9 +1,8 @@
-<!-- frontend/src/components/accounts/AccountsBlock.vue -->
 <script setup>
 import { computed, ref, onMounted, watch } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
 import { useAuthStore } from '@/stores/auth';
-import { fmt } from '@/composables/useFormat';
+import { fmt, AVATAR_MAN, AVATAR_WOMAN } from '@/composables/useFormat';
 
 const emit = defineEmits(['reconcile', 'user-menu']);
 const accounts = useAccountsStore();
@@ -19,8 +18,10 @@ function displayOwner(owner) {
   if (!owner) return '';
   return auth.nameFor(owner);
 }
+
+// ✅ PNG-аватар владельца
 function ownerAvatar(owner) {
-  return auth.avatarFor(owner);
+  return owner === 'Сергей' ? AVATAR_MAN : AVATAR_WOMAN;
 }
 
 const ownersSorted = computed(() => {
@@ -41,97 +42,22 @@ function toggleOwner(owner) {
 function ownerTotal(list) {
   return list.reduce((s, a) => s + (Number(a.value) || 0), 0);
 }
+
+// ✅ Путь к логотипу банка — /img/icons/banks/
 function bankLogo(id) {
   if (!id) return null;
-  if (id.startsWith('sber')) return '/img/sber.png';
-  if (id.startsWith('tbank')) return '/img/tbank.png';
+  if (id.startsWith('sber')) return '/img/icons/banks/sber.png';
+  if (id.startsWith('tbank')) return '/img/icons/banks/tbank.png';
   return null;
 }
+
 function isMe(owner) { return owner === userName.value; }
 
-const myAvatar = computed(() => auth.avatarFor(userName.value));
-
-// ============================================================
-// 3D-наклон
-// ============================================================
-const cardEl = ref(null);
-const tilt = ref({ rx: 0, ry: 0, mx: 50, my: 50 });
-const isTilting = ref(false);
-
-const MAX_TILT = 10;
-const RETURN_MS = 400;
-
-let rafId = null;
-let pendingTilt = null;
-
-function applyTilt() {
-  if (!pendingTilt) return;
-  tilt.value = pendingTilt;
-  pendingTilt = null;
-  rafId = null;
-}
-
-function updateTilt(clientX, clientY) {
-  const el = cardEl.value;
-  if (!el) return;
-  const rect = el.getBoundingClientRect();
-  const px = (clientX - rect.left) / rect.width;
-  const py = (clientY - rect.top) / rect.height;
-  const dx = (px - 0.5) * 2;
-  const dy = (py - 0.5) * 2;
-  pendingTilt = {
-    rx: -dy * MAX_TILT,
-    ry: dx * MAX_TILT,
-    mx: px * 100,
-    my: py * 100,
-  };
-  if (!rafId) rafId = requestAnimationFrame(applyTilt);
-}
-
-function onMouseMove(e) {
-  isTilting.value = true;
-  updateTilt(e.clientX, e.clientY);
-}
-function onMouseLeave() {
-  isTilting.value = false;
-  tilt.value = { rx: 0, ry: 0, mx: 50, my: 50 };
-}
-function onTouchStart(e) {
-  if (e.touches.length !== 1) return;
-  isTilting.value = true;
-  updateTilt(e.touches[0].clientX, e.touches[0].clientY);
-}
-function onTouchMove(e) {
-  if (e.touches.length !== 1) return;
-  if (e.cancelable) e.preventDefault();
-  updateTilt(e.touches[0].clientX, e.touches[0].clientY);
-}
-function onTouchEnd() {
-  isTilting.value = false;
-  tilt.value = { rx: 0, ry: 0, mx: 50, my: 50 };
-}
-
-const cardStyle = computed(() => {
-  const t = tilt.value;
-  return {
-    transform: `perspective(1000px) rotateX(${t.rx}deg) rotateY(${t.ry}deg) scale(${isTilting.value ? 1.02 : 1})`,
-    transition: isTilting.value
-      ? 'transform 0.05s linear'
-      : `transform ${RETURN_MS}ms cubic-bezier(.34,1.56,.64,1)`,
-  };
-});
-
-const shineStyle = computed(() => {
-  const t = tilt.value;
-  return {
-    background: `radial-gradient(
-      circle at ${t.mx}% ${t.my}%,
-      rgba(255, 255, 255, 0.55) 0%,
-      rgba(255, 255, 255, 0.15) 25%,
-      transparent 50%
-    )`,
-    opacity: isTilting.value ? 1 : 0,
-  };
+const myAvatar = computed(() => {
+  // Если пользователь загрузил свой аватар — используем его
+  if (auth.avatar) return auth.avatar;
+  // Иначе — стандартный PNG по имени
+  return ownerAvatar(userName.value);
 });
 
 onMounted(async () => {
@@ -154,42 +80,24 @@ watch(expandedOwners, (val) => {
 <template>
   <section class="accounts-block">
     <div
-      ref="cardEl"
       class="debit-card"
-      :class="{ 'is-tilting': isTilting, 'has-avatar': !!myAvatar }"
-      :style="cardStyle"
-      @mousemove="onMouseMove"
-      @mouseleave="onMouseLeave"
-      @touchstart.passive="onTouchStart"
-      @touchmove="onTouchMove"
-      @touchend="onTouchEnd"
-      @touchcancel="onTouchEnd"
+      :class="{ 'has-avatar': !!myAvatar }"
     >
       <div class="dc-bg" aria-hidden="true">
-        <div class="dc-bg-photo">
-          <template v-if="myAvatar">
-            <!-- ✅ Слой Кен Бёрнса — медленный zoom + pan -->
-            <div
-              class="dc-photo-kenburns"
-              :style="{ backgroundImage: `url(${myAvatar})` }"
-            ></div>
+<div class="dc-bg-photo">
+  <div
+    class="dc-photo-kenburns"
+    :style="{ backgroundImage: `url(${myAvatar})` }"
+  ></div>
+  <div
+    class="dc-photo-glitch"
+    :style="{ backgroundImage: `url(${myAvatar})` }"
+  ></div>
+  <div class="dc-bg-stripes"></div>
+  <div class="dc-bg-photo-shade"></div>
+  <div class="dc-bg-scanlines"></div>
+</div>
 
-            <!-- ✅ Слой глитча — поверх Кен Бёрнса -->
-            <div
-              class="dc-photo-glitch"
-              :style="{ backgroundImage: `url(${myAvatar})` }"
-            ></div>
-          </template>
-          <div v-else class="dc-bg-placeholder">
-            <span class="dc-bg-emoji">{{ userName === 'Сергей' ? '👨' : '👩' }}</span>
-          </div>
-
-          <div class="dc-bg-stripes"></div>
-          <div class="dc-bg-photo-shade"></div>
-          <div class="dc-bg-scanlines"></div>
-        </div>
-
-        <!-- ✅ RGB-расслоение на границе -->
         <div class="dc-bg-chroma dc-bg-chroma-cyan"></div>
         <div class="dc-bg-chroma dc-bg-chroma-magenta"></div>
 
@@ -197,7 +105,6 @@ watch(expandedOwners, (val) => {
         <div class="dc-bg-ribbon"></div>
       </div>
 
-      <div class="dc-shine-cursor" :style="shineStyle" aria-hidden="true"></div>
       <div class="dc-gloss" aria-hidden="true"></div>
       <div class="dc-pattern" aria-hidden="true"></div>
       <div class="dc-watermark" aria-hidden="true">₽</div>
@@ -229,12 +136,10 @@ watch(expandedOwners, (val) => {
             @click="toggleOwner(owner)"
           >
             <img
-              v-if="ownerAvatar(owner)"
               :src="ownerAvatar(owner)"
               alt="avatar"
               class="dc-owner-avatar-img"
             />
-            <span v-else class="dc-owner-emoji">{{ owner === 'Сергей' ? '👨' : '👩' }}</span>
             <span class="dc-owner-text">{{ displayOwner(owner) }}</span>
             <span v-if="isMe(owner)" class="dc-owner-you">вы</span>
             <svg class="dc-owner-chev" :class="{ open: isExpanded(owner) }" viewBox="0 0 24 24">
@@ -296,20 +201,10 @@ watch(expandedOwners, (val) => {
   gap: 10px;
   min-height: 240px;
 
-  will-change: transform;
   user-select: none;
   -webkit-user-select: none;
-  touch-action: pan-y;
-  transition: box-shadow 0.35s ease;
 
-  &.is-tilting {
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.4) inset,
-      0 -1px 0 rgba(0, 0, 0, 0.15) inset,
-      0 6px 12px rgba(79, 70, 229, 0.3),
-      0 20px 48px -8px rgba(79, 70, 229, 0.5),
-      0 40px 80px -30px rgba(15, 23, 42, 0.35);
-  }
+  transition: box-shadow 0.4s ease;
 }
 
 .dc-bg {
@@ -329,9 +224,6 @@ watch(expandedOwners, (val) => {
   overflow: hidden;
 }
 
-/* ============================================================
-   ✅ КЕН БЁРНС — медленный zoom + pan
-   ============================================================ */
 .dc-photo-kenburns {
   position: absolute;
   inset: 0;
@@ -354,9 +246,6 @@ watch(expandedOwners, (val) => {
   100% { transform: translateZ(0) scale(1.02) translate(0%, 0%); }
 }
 
-/* ============================================================
-   ✅ ГЛИТЧ — поверх Кен Бёрнса
-   ============================================================ */
 .dc-photo-glitch {
   position: absolute;
   inset: 0;
@@ -417,9 +306,17 @@ watch(expandedOwners, (val) => {
   justify-content: center;
   opacity: 0.82;
 }
-.dc-bg-emoji {
-  font-size: 88px;
-  line-height: 1;
+
+/* ✅ PNG-аватар в placeholder — фикс 88×88 */
+.dc-bg-avatar-img {
+  display: block;
+  width: 88px;
+  height: 88px;
+  min-width: 88px;
+  max-width: 88px;
+  max-height: 88px;
+  object-fit: cover;
+  border-radius: 50%;
   filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.35));
 }
 
@@ -474,9 +371,6 @@ watch(expandedOwners, (val) => {
     );
 }
 
-/* ============================================================
-   RGB-РАССЛОЕНИЕ
-   ============================================================ */
 .dc-bg-chroma {
   position: absolute;
   top: 0;
@@ -517,9 +411,6 @@ watch(expandedOwners, (val) => {
   50%      { opacity: 0.8; }
 }
 
-/* ============================================================
-   ФИОЛЕТОВАЯ ЧАСТЬ
-   ============================================================ */
 .dc-bg-solid {
   position: absolute;
   top: 0;
@@ -532,6 +423,13 @@ watch(expandedOwners, (val) => {
     linear-gradient(135deg, #4338ca 0%, #6366f1 30%, #8b5cf6 60%, #4f46e5 100%);
   clip-path: polygon(22% 0%, 100% 0%, 100% 100%, 8% 100%);
   z-index: 10;
+}
+
+:global(:root[data-app-theme="dark"]) .dc-bg-solid {
+  background:
+    radial-gradient(circle at 85% 15%, rgba(168, 85, 247, 0.25), transparent 55%),
+    radial-gradient(circle at 95% 100%, rgba(34, 211, 238, 0.15), transparent 60%),
+    linear-gradient(135deg, #1e1b4b 0%, #312e81 30%, #4c1d95 60%, #3b0764 100%);
 }
 
 .dc-bg-ribbon {
@@ -558,15 +456,6 @@ watch(expandedOwners, (val) => {
     transparent 100%
   );
   clip-path: polygon(22% 0%, 100% 0%, 100% 100%, 8% 100%);
-}
-
-.dc-shine-cursor {
-  position: absolute;
-  inset: 0;
-  pointer-events: none;
-  z-index: 12;
-  mix-blend-mode: overlay;
-  transition: opacity 0.15s linear;
 }
 
 .dc-gloss {
@@ -609,9 +498,6 @@ watch(expandedOwners, (val) => {
   z-index: 14;
 }
 
-/* ============================================================
-   КОНТЕНТ
-   ============================================================ */
 .dc-top {
   position: relative;
   z-index: 15;
@@ -719,15 +605,21 @@ watch(expandedOwners, (val) => {
   }
 }
 
-.dc-owner-emoji { font-size: 13px; }
+/* ✅ PNG-аватар в чипе владельца — фикс 18×18 */
 .dc-owner-avatar-img {
+  display: block;
   width: 18px;
   height: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  max-height: 18px;
   border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
+  background: #fff;
   border: 1px solid rgba(255, 255, 255, 0.5);
 }
+
 .dc-owner-text { line-height: 1; }
 .dc-owner-you {
   margin-left: 4px;
@@ -823,9 +715,31 @@ watch(expandedOwners, (val) => {
   box-shadow: 0 4px 10px -4px rgba(0, 0, 0, 0.35);
 }
 
-/* ============================================================
-   МОБИЛЬНЫЙ — всё то же, что и на ПК, только меньше размеры
-   ============================================================ */
+:global(:root[data-app-theme="dark"]) .debit-card {
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.15) inset,
+    0 -1px 0 rgba(0, 0, 0, 0.3) inset,
+    0 6px 12px rgba(0, 0, 0, 0.5),
+    0 16px 36px -6px rgba(139, 92, 246, 0.45),
+    0 32px 64px -20px rgba(168, 85, 247, 0.35),
+    0 0 0 1px rgba(139, 92, 246, 0.2);
+}
+
+:global(:root[data-app-theme="dark"]) .dc-owner-total {
+  background: rgba(168, 85, 247, 0.95);
+  color: #ffffff;
+  box-shadow:
+    0 4px 12px -2px rgba(168, 85, 247, 0.6),
+    0 0 20px -4px rgba(168, 85, 247, 0.4);
+}
+
+:global(:root[data-app-theme="dark"]) .dc-balance-value {
+  text-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.8),
+    0 0 30px rgba(168, 85, 247, 0.4),
+    0 2px 6px rgba(0, 0, 0, 0.6);
+}
+
 @media (max-width: 700px) {
   .debit-card { padding: 14px 16px 12px; border-radius: 20px; gap: 8px; min-height: 200px; }
 
@@ -834,7 +748,13 @@ watch(expandedOwners, (val) => {
   .dc-bg-photo { width: 52%; }
   .dc-bg-solid { width: 68%; }
   .dc-bg-ribbon { width: 68%; }
-  .dc-bg-emoji { font-size: 64px; }
+  .dc-bg-avatar-img {
+    width: 64px;
+    height: 64px;
+    min-width: 64px;
+    max-width: 64px;
+    max-height: 64px;
+  }
 
   .dc-issuer-name { font-size: 10.5px; letter-spacing: 0.12em; }
   .dc-issuer-sub { font-size: 8.5px; }
@@ -846,8 +766,13 @@ watch(expandedOwners, (val) => {
   .dc-accounts { gap: 5px; padding-top: 8px; margin-top: 4px; }
   .dc-owner-row { gap: 6px; }
   .dc-owner-name { font-size: 10.5px; padding: 3px 7px 3px 3px; }
-  .dc-owner-emoji { font-size: 12px; }
-  .dc-owner-avatar-img { width: 16px; height: 16px; }
+  .dc-owner-avatar-img {
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    max-width: 16px;
+    max-height: 16px;
+  }
   .dc-owner-chev { width: 12px; height: 12px; }
   .dc-chip { font-size: 11px; padding: 3px 9px 3px 3px; gap: 5px; }
   .dc-chip-logo,
@@ -858,7 +783,13 @@ watch(expandedOwners, (val) => {
 }
 
 @media (max-width: 380px) {
-  .dc-bg-emoji { font-size: 52px; }
+  .dc-bg-avatar-img {
+    width: 52px;
+    height: 52px;
+    min-width: 52px;
+    max-width: 52px;
+    max-height: 52px;
+  }
   .dc-balance-value { font-size: 28px; }
   .dc-issuer-name { font-size: 9.5px; }
   .dc-chips { gap: 4px; }
@@ -872,15 +803,9 @@ watch(expandedOwners, (val) => {
   .dc-bg-chroma-magenta {
     animation: none !important;
   }
-  .dc-photo-kenburns {
-    transform: translateZ(0) scale(1.05) !important;
-  }
-  .dc-photo-glitch {
-    opacity: 0 !important;
-  }
+  .dc-photo-kenburns { transform: translateZ(0) scale(1.05) !important; }
+  .dc-photo-glitch { opacity: 0 !important; }
   .dc-bg-chroma-cyan,
-  .dc-bg-chroma-magenta {
-    opacity: 0.6 !important;
-  }
+  .dc-bg-chroma-magenta { opacity: 0.6 !important; }
 }
 </style>

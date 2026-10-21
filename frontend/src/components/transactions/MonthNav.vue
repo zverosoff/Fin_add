@@ -13,6 +13,11 @@ const toast = useToast();
 
 const deleting = ref(false);
 
+// ✅ PNG-иконки
+const ICON_ARROW_LEFT  = '/img/icons/ui/arrow-left.png';
+const ICON_ARROW_RIGHT = '/img/icons/ui/arrow-right.png';
+const ICON_DELETE      = '/img/icons/ui/delete.png';
+
 const label = computed(() => fmtMonth(tx.currentMonth));
 
 const isCurrentMonth = computed(() => {
@@ -100,7 +105,9 @@ async function deleteMonth() {
 
 <template>
   <div class="month-nav">
-    <button class="mn-arrow" @click="tx.prevMonth()" aria-label="Предыдущий месяц">◀</button>
+    <button class="mn-arrow" @click="tx.prevMonth()" aria-label="Предыдущий месяц">
+      <img :src="ICON_ARROW_LEFT" class="mn-arrow-img" alt="Назад" />
+    </button>
 
     <div class="month-label">
       <span class="month-name">{{ label }}</span>
@@ -109,7 +116,9 @@ async function deleteMonth() {
       </span>
     </div>
 
-    <button class="mn-arrow" @click="tx.nextMonth()" aria-label="Следующий месяц">▶</button>
+    <button class="mn-arrow" @click="tx.nextMonth()" aria-label="Следующий месяц">
+      <img :src="ICON_ARROW_RIGHT" class="mn-arrow-img" alt="Вперёд" />
+    </button>
 
     <button class="today-btn" @click="tx.goToday()">Сегодня</button>
 
@@ -121,14 +130,14 @@ async function deleteMonth() {
       title="Удалить все операции за месяц"
       aria-label="Удалить все операции за месяц"
     >
-      🗑
+      <img :src="ICON_DELETE" class="del-month-img" alt="Удалить" />
     </button>
   </div>
 </template>
 
 <style scoped lang="scss">
 /* ============================================================
-   ✅ Контейнер — стеклянный с многослойной тенью
+   КОНТЕЙНЕР
    ============================================================ */
 .month-nav {
   display: flex;
@@ -155,7 +164,11 @@ async function deleteMonth() {
     0 8px 20px -6px rgba(15, 23, 42, 0.08),
     0 16px 32px -14px rgba(99, 102, 241, 0.15);
 
-  transition: box-shadow 0.3s ease, transform 0.3s ease;
+  transition:
+    box-shadow 0.3s ease,
+    transform 0.3s ease,
+    background 0.3s ease,
+    border-color 0.3s ease;
 
   &:hover {
     transform: translateY(-1px);
@@ -168,25 +181,49 @@ async function deleteMonth() {
   }
 }
 
+:global(:root[data-app-theme="dark"]) .month-nav {
+  background: linear-gradient(
+    180deg,
+    rgba(30, 16, 48, 0.9) 0%,
+    rgba(20, 9, 31, 0.95) 100%
+  );
+  border-color: rgba(139, 92, 246, 0.15);
+
+  box-shadow:
+    0 2px 6px rgba(0, 0, 0, 0.35),
+    0 12px 28px -8px rgba(139, 92, 246, 0.25),
+    0 0 0 1px rgba(139, 92, 246, 0.08) inset;
+
+  &:hover {
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.45),
+      0 20px 48px -10px rgba(168, 85, 247, 0.35),
+      0 0 0 1px rgba(139, 92, 246, 0.2) inset;
+  }
+}
+
 /* ============================================================
-   ✅ Стрелки — рельефные, с подъёмом
+   СТРЕЛКИ — фикс 38×38
    ============================================================ */
 .mn-arrow {
   width: 38px;
   height: 38px;
+  min-width: 38px;
+  max-width: 38px;
+  max-height: 38px;
   border-radius: 12px;
   border: 1px solid rgba(226, 232, 240, 0.9);
 
   background: linear-gradient(180deg, #ffffff, #f8fafc);
   color: var(--text);
-  font-size: 13px;
-  font-weight: 800;
 
   cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  padding: 0;
+  overflow: hidden;
 
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.95) inset,
@@ -197,21 +234,44 @@ async function deleteMonth() {
   transition: all 0.18s cubic-bezier(.34,1.56,.64,1);
 
   &:hover {
-    background: linear-gradient(180deg, #eef2ff, #e0e7ff);
-    border-color: rgba(99, 102, 241, 0.4);
-    color: #6366f1;
+    background: var(--grad-primary);
+    border-color: transparent;
     transform: translateY(-2px);
     box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.95) inset,
-      0 4px 10px -2px rgba(99, 102, 241, 0.3),
-      0 8px 16px -4px rgba(99, 102, 241, 0.2);
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 4px 10px -2px rgba(139, 92, 246, 0.4),
+      0 8px 16px -4px rgba(139, 92, 246, 0.3);
+
+    .mn-arrow-img {
+      filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.7)) brightness(1.3);
+    }
   }
 
   &:active {
     transform: translateY(0) scale(0.95);
-    box-shadow:
-      0 2px 4px rgba(15, 23, 42, 0.1) inset;
   }
+}
+
+:global(:root[data-app-theme="dark"]) .mn-arrow {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(139, 92, 246, 0.2);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.03) inset,
+    0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+/* ✅ PNG-стрелки — фикс 20×20 */
+.mn-arrow-img {
+  display: block;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  max-width: 20px;
+  max-height: 20px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+  transition: filter 0.2s ease;
 }
 
 /* ============================================================
@@ -236,11 +296,9 @@ async function deleteMonth() {
   overflow: hidden;
   text-overflow: ellipsis;
   max-width: 100%;
-  color: #0f172a;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
+  color: var(--text);
 }
 
-/* ✅ Зелёная плашка — объёмная */
 .today-badge {
   display: inline-flex;
   align-items: center;
@@ -259,12 +317,21 @@ async function deleteMonth() {
     0 2px 4px rgba(34, 197, 94, 0.15);
 }
 
+:global(:root[data-app-theme="dark"]) .today-badge {
+  background: rgba(34, 197, 94, 0.15);
+  color: #4ade80;
+  border-color: rgba(74, 222, 128, 0.4);
+  box-shadow: 0 0 12px rgba(74, 222, 128, 0.2);
+}
+
 /* ============================================================
-   ✅ Кнопка «Сегодня» — рельефная
+   КНОПКА «СЕГОДНЯ» — фикс 38px
    ============================================================ */
 .today-btn {
   padding: 0 16px;
   height: 38px;
+  min-height: 38px;
+  max-height: 38px;
   border-radius: 12px;
   border: 1px solid rgba(226, 232, 240, 0.9);
 
@@ -286,30 +353,40 @@ async function deleteMonth() {
   transition: all 0.18s cubic-bezier(.34,1.56,.64,1);
 
   &:hover {
-    background: linear-gradient(180deg, #eef2ff, #e0e7ff);
-    border-color: rgba(99, 102, 241, 0.4);
-    color: #6366f1;
+    background: var(--grad-primary);
+    border-color: transparent;
+    color: #ffffff;
     transform: translateY(-2px);
     box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.95) inset,
-      0 4px 10px -2px rgba(99, 102, 241, 0.3),
-      0 8px 16px -4px rgba(99, 102, 241, 0.2);
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 4px 10px -2px rgba(139, 92, 246, 0.4),
+      0 8px 16px -4px rgba(139, 92, 246, 0.3);
   }
 
   &:active {
     transform: translateY(0) scale(0.96);
-    box-shadow: 0 2px 4px rgba(15, 23, 42, 0.1) inset;
   }
 }
 
+:global(:root[data-app-theme="dark"]) .today-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(139, 92, 246, 0.2);
+  color: #f4f4f6;
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.03) inset,
+    0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
 /* ============================================================
-   ✅ Кнопка удаления — рельефная красная
+   КНОПКА УДАЛЕНИЯ МЕСЯЦА — фикс 38×38
    ============================================================ */
 .del-month-btn {
   width: 38px;
   height: 38px;
+  min-width: 38px;
+  max-width: 38px;
+  max-height: 38px;
   padding: 0;
-  font-size: 16px;
   border: 1px solid rgba(226, 232, 240, 0.9);
 
   background: linear-gradient(180deg, #ffffff, #f8fafc);
@@ -320,6 +397,7 @@ async function deleteMonth() {
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
 
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.95) inset,
@@ -330,19 +408,21 @@ async function deleteMonth() {
   transition: all 0.18s cubic-bezier(.34,1.56,.64,1);
 
   &:hover {
-    background: linear-gradient(180deg, #fef2f2, #fee2e2);
-    border-color: rgba(239, 68, 68, 0.4);
-    color: #dc2626;
+    background: var(--grad-expense);
+    border-color: transparent;
     transform: translateY(-2px);
     box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.95) inset,
-      0 4px 10px -2px rgba(239, 68, 68, 0.3),
-      0 8px 16px -4px rgba(239, 68, 68, 0.2);
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 4px 10px -2px rgba(244, 63, 94, 0.4),
+      0 8px 16px -4px rgba(244, 63, 94, 0.3);
+
+    .del-month-img {
+      filter: drop-shadow(0 0 8px rgba(255, 255, 255, 0.7)) brightness(1.4);
+    }
   }
 
   &:active {
     transform: translateY(0) scale(0.95);
-    box-shadow: 0 2px 4px rgba(239, 68, 68, 0.2) inset;
   }
 
   &:disabled {
@@ -352,9 +432,32 @@ async function deleteMonth() {
   }
 }
 
-.desktop-only {
-  display: inline-flex;
+:global(:root[data-app-theme="dark"]) .del-month-btn {
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(139, 92, 246, 0.2);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.03) inset,
+    0 2px 6px rgba(0, 0, 0, 0.4);
 }
+
+/* ✅ PNG-иконка удаления — фикс 20×20 */
+.del-month-img {
+  display: block;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  max-width: 20px;
+  max-height: 20px;
+  object-fit: contain;
+  flex-shrink: 0;
+  opacity: 0.85;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+  transition: filter 0.2s ease, opacity 0.2s ease;
+}
+
+.del-month-btn:hover .del-month-img { opacity: 1; }
+
+.desktop-only { display: inline-flex; }
 
 /* ============================================================
    МОБИЛЬНЫЙ
@@ -369,29 +472,33 @@ async function deleteMonth() {
   .mn-arrow {
     width: 34px;
     height: 34px;
-    font-size: 12px;
+    min-width: 34px;
+    max-width: 34px;
+    max-height: 34px;
     border-radius: 10px;
   }
 
-  .month-name {
-    font-size: 13.5px;
+  .mn-arrow-img {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    max-width: 18px;
+    max-height: 18px;
   }
 
-  .today-badge {
-    font-size: 9.5px;
-    padding: 2px 8px;
-  }
+  .month-name { font-size: 13.5px; }
+  .today-badge { font-size: 9.5px; padding: 2px 8px; }
 
   .today-btn {
     height: 34px;
+    min-height: 34px;
+    max-height: 34px;
     padding: 0 12px;
     font-size: 11px;
     border-radius: 10px;
   }
 
-  .desktop-only {
-    display: none !important;
-  }
+  .desktop-only { display: none !important; }
 }
 
 @media (prefers-reduced-motion: reduce) {

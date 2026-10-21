@@ -1,5 +1,6 @@
+<!-- frontend/src/views/AnalyticsView.vue -->
 <script setup>
-import { onMounted, computed, ref } from 'vue';
+import { onMounted, onUnmounted, computed, ref } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
 import { useAnalyticsStore } from '@/stores/analytics';
 import { useGoalsStore } from '@/stores/goals';
@@ -7,15 +8,17 @@ import { useToast } from '@/composables/useToast';
 import { notifySaved, notifyError } from '@/composables/useDataStatus';
 import { fmt } from '@/composables/useFormat';
 
-import PeriodSelector from '@/components/analytics/PeriodSelector.vue';
-import MetricCard from '@/components/analytics/MetricCard.vue';
-import ComparisonCard from '@/components/analytics/ComparisonCard.vue';
+import AnalyticsHero from '@/components/analytics/AnalyticsHero.vue';
+import MetricTile from '@/components/analytics/MetricTile.vue';
+import MascotImage from '@/components/analytics/MascotImage.vue';
+
+import MonthNav from '@/components/analytics/MonthNav.vue';
+import CategoryBreakdown from '@/components/analytics/CategoryBreakdown.vue';
 import GoalsList from '@/components/goals/GoalsList.vue';
 import GoalModal from '@/components/goals/GoalModal.vue';
 import ContributeModal from '@/components/goals/ContributeModal.vue';
 import EditContribModal from '@/components/goals/EditContribModal.vue';
 import FinancialAssistant from '@/components/analytics/FinancialAssistant.vue';
-import FinanceQuotes from '@/components/analytics/FinanceQuotes.vue';
 
 const accounts = useAccountsStore();
 const analytics = useAnalyticsStore();
@@ -24,15 +27,16 @@ const toast = useToast();
 
 const goalModalOpen = ref(false);
 const goalToEdit = ref(null);
-
 const contributeModalOpen = ref(false);
 const contributeGoal = ref(null);
-
 const editContribModalOpen = ref(false);
 const editContribGoal = ref(null);
 const editContribUser = ref('');
 
+// ✅ КОСТЫЛЬ: помечаем body классом на время аналитики
 onMounted(async () => {
+  document.body.classList.add('analytics-active');
+
   try {
     if (!accounts.loaded) await accounts.load();
     notifySaved('готово');
@@ -43,12 +47,11 @@ onMounted(async () => {
   }
 });
 
-const metrics = computed(() => analytics.currentMonthMetrics);
-
-const saveRateHint = computed(() => {
-  const m = metrics.value;
-  return `${m.savePercent}% от дохода ${fmt(m.monthIncome)} ₽`;
+onUnmounted(() => {
+  document.body.classList.remove('analytics-active');
 });
+
+const metrics = computed(() => analytics.currentMonthMetrics);
 
 const runwayHint = computed(() => {
   const r = metrics.value.runway;
@@ -57,133 +60,114 @@ const runwayHint = computed(() => {
   return '❗ Мало';
 });
 
-const saveMonthlyHint = computed(() => {
-  const m = metrics.value;
-  return `${m.monthName}: рекомендовано ${m.savePercent}% от ${fmt(m.monthIncome)} ₽`;
-});
-
 const realFreeHint = computed(() => {
   const m = metrics.value;
-  if (m.realFree > 0) return `Свободно после расходов: ${fmt(m.realFree)} ₽`;
-  if (m.realFree < 0) return `Перерасход: ${fmt(Math.abs(m.realFree))} ₽`;
-  return 'Нет данных';
+  if (m.realFree > 0) return 'после обязательных';
+  if (m.realFree < 0) return 'перерасход';
+  return 'нет данных';
 });
 
-function openAddGoal() {
-  goalToEdit.value = null;
-  goalModalOpen.value = true;
-}
+const dailyAvgHint = computed(() => {
+  const m = metrics.value;
+  return `при ${fmt(m.avgExpense)} ₽/мес`;
+});
 
-function openEditGoal(goal) {
-  goalToEdit.value = goal;
-  goalModalOpen.value = true;
-}
-
+function openAddGoal() { goalToEdit.value = null; goalModalOpen.value = true; }
+function openEditGoal(goal) { goalToEdit.value = goal; goalModalOpen.value = true; }
 async function onDeleteGoal(goal) {
   if (!confirm(`Удалить цель «${goal.name}»?`)) return;
-  try {
-    await goalsStore.remove(goal.id);
-    toast.info('🗑 Цель удалена');
-  } catch (e) {
-    toast.error('Ошибка: ' + e.message);
-  }
+  try { await goalsStore.remove(goal.id); toast.info('🗑 Цель удалена'); }
+  catch (e) { toast.error('Ошибка: ' + e.message); }
 }
-
 async function onSetPrimary(goal) {
   try {
-    if (goal.primary) {
-      await goalsStore.clearPrimary();
-      toast.info('☆ Основная цель снята');
-    } else {
-      await goalsStore.setPrimary(goal.id);
-      toast.success(`⭐ «${goal.name}» — основная цель`);
-    }
-  } catch (e) {
-    toast.error('Ошибка: ' + e.message);
-  }
+    if (goal.primary) { await goalsStore.clearPrimary(); toast.info('☆ Основная цель снята'); }
+    else { await goalsStore.setPrimary(goal.id); toast.success(`⭐ «${goal.name}» — основная цель`); }
+  } catch (e) { toast.error('Ошибка: ' + e.message); }
 }
-
-function openContribute(goal) {
-  contributeGoal.value = goal;
-  contributeModalOpen.value = true;
-}
-
-function openEditContrib({ goal, user }) {
-  editContribGoal.value = goal;
-  editContribUser.value = user;
-  editContribModalOpen.value = true;
-}
+function openContribute(goal) { contributeGoal.value = goal; contributeModalOpen.value = true; }
+function openEditContrib({ goal, user }) { editContribGoal.value = goal; editContribUser.value = user; editContribModalOpen.value = true; }
 </script>
 
 <template>
   <div class="analytics-page">
     <div class="analytics-grid">
-      <!-- ЛЕВАЯ КОЛОНКА -->
       <div class="an-col an-col-left">
+        <AnalyticsHero />
+
         <div class="metrics-grid">
-          <MetricCard
-            icon="💰"
-            label="Можно откладывать (10%)"
-            :value="fmt(metrics.monthSave) + ' ₽'"
-            :hint="saveMonthlyHint"
-            accent
-            size="big"
-            style="animation-delay: 0ms"
+          <MetricTile
+            label="Свободно"
+            :value="metrics.realFree"
+            unit="₽"
+            :sub="realFreeHint"
+            color="emerald"
+            mascot="wallet"
+            mascot-pos="left"
+            emoji="💰"
+            :mascot-size="120"
           />
-          <MetricCard
-            icon="📊"
-            label="Свободно после расходов"
-            :value="fmt(metrics.realFree) + ' ₽'"
-            :hint="realFreeHint"
-            style="animation-delay: 70ms"
-          />
-          <MetricCard
-            icon="⏳"
+
+          <MetricTile
             label="Подушка"
-            :value="metrics.runway.toFixed(1) + ' мес'"
-            :hint="runwayHint"
-            style="animation-delay: 140ms"
+            :value="Number(metrics.runway || 0).toFixed(1)"
+            unit="мес"
+            :sub="runwayHint"
+            color="amber"
+            mascot="shield"
+            mascot-pos="right"
+            emoji="⏳"
+            :mascot-size="120"
           />
-          <MetricCard
-            icon="🔥"
-            label="Расход в день"
-            :value="fmt(metrics.dailyAvg) + ' ₽'"
-            :hint="'при ' + fmt(metrics.avgExpense) + ' ₽/мес'"
-            style="animation-delay: 210ms"
+
+          <MetricTile
+            label="Расход/день"
+            :value="metrics.dailyAvg"
+            unit="₽"
+            :sub="dailyAvgHint"
+            color="rose"
+            mascot="calculator"
+            mascot-pos="right"
+            emoji="🔥"
+            :mascot-size="120"
+            class="tile-calc"
           />
         </div>
 
-        <PeriodSelector />
+        <MonthNav />
 
-        <section class="card">
-          <h2 class="card-title">🔀 Сравнение с прошлым периодом</h2>
-          <ComparisonCard />
-        </section>
-
-        <!-- ✅ ЦЕЛИ — теперь в левой колонке -->
-        <section class="card">
-          <div class="card-head">
-            <h2 class="card-title">🎯 Цели накоплений и желаемые покупки</h2>
-            <button class="btn-add-goal" @click="openAddGoal">+ Добавить</button>
-          </div>
-          <GoalsList
-            @add="openAddGoal"
-            @edit="openEditGoal"
-            @delete="onDeleteGoal"
-            @contribute="openContribute"
-            @edit-contrib="openEditContrib"
-            @set-primary="onSetPrimary"
-          />
+        <section class="card card-dark">
+          <CategoryBreakdown />
         </section>
       </div>
 
-      <!-- ПРАВАЯ КОЛОНКА -->
       <div class="an-col an-col-right">
-        <!-- ✅ Финансовый помощник -->
         <FinancialAssistant />
 
-        <!-- ✅ Цитаты -->
-        <FinanceQuotes />
+        <section class="card card-dark card-goals">
+          <MascotImage
+            name="star"
+            position="goals-corner"
+            :size="200"
+            fallback="🎯"
+            alt="Цели"
+          />
+
+          <div class="card-goals__content">
+            <div class="card-head">
+              <h2 class="card-title">🎯 Цели</h2>
+              <button class="btn-add-goal" @click="openAddGoal">+ Добавить</button>
+            </div>
+            <GoalsList
+              @add="openAddGoal"
+              @edit="openEditGoal"
+              @delete="onDeleteGoal"
+              @contribute="openContribute"
+              @edit-contrib="openEditContrib"
+              @set-primary="onSetPrimary"
+            />
+          </div>
+        </section>
       </div>
     </div>
 
@@ -199,11 +183,17 @@ function openEditContrib({ goal, user }) {
 
 <style scoped lang="scss">
 .analytics-page {
-  min-height: 100vh;
-  padding: 20px 20px 20px;
+  position: relative;
+  min-height: calc(100vh + 100px);
+  padding: calc(20px + env(safe-area-inset-top, 0)) 40px 40px;
+  color: #ffffff !important;
+  background: linear-gradient(135deg, #1a0f3a 0%, #2d1b5e 50%, #4c1d95 100%);
+  background-attachment: fixed;
+  box-sizing: border-box;
 }
 
 .analytics-grid {
+  position: relative;
   max-width: 1400px;
   margin: 0 auto;
   display: grid;
@@ -222,26 +212,40 @@ function openEditContrib({ goal, user }) {
 .an-col-right {
   position: sticky;
   top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
 }
 
 .metrics-grid {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
-  gap: 10px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
 }
 
 .card {
-  padding: 16px 18px;
-  background: rgba(255, 255, 255, 0.9);
-  border: 1px solid var(--border);
-  border-radius: 16px;
-  box-shadow: var(--shadow-md);
-  animation: cardEnter 0.55s cubic-bezier(.34,1.56,.64,1) both;
+  padding: 20px 22px;
+  border-radius: 18px;
+  box-shadow:
+    0 0 0 1px rgba(255, 255, 255, 0.08) inset,
+    0 12px 32px -10px rgba(139, 92, 246, 0.35);
 }
 
-@keyframes cardEnter {
-  from { opacity: 0; transform: translateY(16px) scale(0.95); filter: blur(4px); }
-  to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
+.card-dark {
+  background: linear-gradient(135deg, #1e1b4b 0%, #312e81 100%) !important;
+  color: #ffffff !important;
+}
+
+.card-goals {
+  position: relative;
+  overflow: visible;
+  padding: 20px 22px;
+}
+
+.card-goals__content {
+  position: relative;
+  z-index: 3;
+  min-width: 0;
 }
 
 .card-head {
@@ -251,69 +255,135 @@ function openEditContrib({ goal, user }) {
   gap: 10px;
   flex-wrap: wrap;
   margin-bottom: 12px;
+  padding-right: 100px;
 }
 
 .card-title {
   font-size: 12px;
-  color: var(--accent);
+  color: rgba(255, 255, 255, 0.85);
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-weight: 700;
   margin: 0;
 }
 
-.card-head .card-title { margin-bottom: 0; }
-
 .btn-add-goal {
   padding: 6px 14px;
   border-radius: 999px;
   border: none;
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-  color: #fff;
+  background: linear-gradient(180deg, #fde047, #facc15);
+  color: #0a0612;
   font-family: inherit;
   font-size: 12px;
-  font-weight: 700;
+  font-weight: 800;
   cursor: pointer;
-  box-shadow: 0 6px 16px -8px rgba(59, 130, 246, 0.7);
-  transition: all 0.15s;
+  transition: transform 0.15s;
   white-space: nowrap;
 
-  &:hover { transform: translateY(-1px); box-shadow: 0 10px 22px -10px rgba(59, 130, 246, 0.9); }
+  &:hover { transform: translateY(-1px); }
 }
 
-.an-col-left .card:nth-child(3) { animation-delay: 280ms; }
-.an-col-left .card:nth-child(4) { animation-delay: 350ms; }
-.an-col-right .card:nth-child(1) { animation-delay: 300ms; }
-.an-col-right .card:nth-child(2) { animation-delay: 400ms; }
+/* ✅ Перебиваем светлые стили GoalCard — тёмная тема */
+.card-goals :deep(.goal-card),
+.card-goals :deep(.goals-list),
+.card-goals :deep(.goal-item) {
+  background: rgba(255, 255, 255, 0.05) !important;
+  color: #ffffff !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+/* ✅ Белый текст в названии цели */
+.card-goals :deep(.goal-card__name),
+.card-goals :deep(.goal-name),
+.card-goals :deep(.goal-card__title),
+.card-goals :deep(.goal-card h3),
+.card-goals :deep(.goal-card h4),
+.card-goals :deep(.goal-card strong) {
+  color: #ffffff !important;
+}
+
+.card-goals :deep(.goal-card__empty),
+.card-goals :deep(.goal-empty),
+.card-goals :deep([class*="empty"]),
+.card-goals :deep([class*="hint"]) {
+  color: #1e1b4b !important;
+  font-weight: 700 !important;
+}
+
+/* ✅ Бейджи владельца — непрозрачные, читаемые */
+.card-goals :deep(.goal-owner) {
+  background: #312e81 !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(139, 92, 246, 0.5) !important;
+  opacity: 1 !important;
+  font-weight: 800 !important;
+}
+
+.card-goals :deep(.goal-owner.sergey) {
+  background: #1e3a8a !important;
+  color: #ffffff !important;
+  border-color: rgba(59, 130, 246, 0.5) !important;
+}
+
+.card-goals :deep(.goal-owner.sasha) {
+  background: #831843 !important;
+  color: #ffffff !important;
+  border-color: rgba(236, 72, 153, 0.5) !important;
+}
+
+/* ✅ Бейдж «Основная» — тоже непрозрачный */
+.card-goals :deep(.goal-primary-badge) {
+  background: linear-gradient(135deg, #fbbf24, #f59e0b) !important;
+  color: #78350f !important;
+  opacity: 1 !important;
+}
+
+/* ✅ Бейджи взносов (кто сколько внёс) — непрозрачные */
+.card-goals :deep(.goal-contrib) {
+  background: rgba(49, 46, 129, 0.95) !important;
+  border-color: rgba(139, 92, 246, 0.4) !important;
+  color: #ffffff !important;
+  opacity: 1 !important;
+}
+.card-goals :deep(.goal-contrib .name) {
+  color: rgba(255, 255, 255, 0.75) !important;
+}
+.card-goals :deep(.goal-contrib .amount) {
+  color: #ffffff !important;
+}
+.card-goals :deep(.goal-contrib.sergey) {
+  background: #1e3a8a !important;
+}
+.card-goals :deep(.goal-contrib.sasha) {
+  background: #831843 !important;
+}
 
 @media (max-width: 1100px) {
+  .analytics-page { padding: calc(20px + env(safe-area-inset-top, 0)) 24px 40px; }
   .analytics-grid { grid-template-columns: 1fr; max-width: 900px; }
   .an-col-right { position: static; }
-  .metrics-grid {
-    grid-template-columns: 1fr 1fr;
-    gap: 8px;
-    & > :first-child { grid-column: 1 / -1; }
-  }
+  .metrics-grid { grid-template-columns: 1fr 1fr; gap: 14px; }
 }
 
 @media (max-width: 700px) {
-  .analytics-page { padding: 12px 12px 20px; }
-  .analytics-grid { gap: 10px; }
-  .an-col { gap: 10px; }
-  .card { padding: 12px 14px; border-radius: 14px; }
+  .analytics-page {
+    padding: calc(16px + env(safe-area-inset-top, 0)) 16px 40px;
+  }
+  .analytics-grid { gap: 12px; }
+  .an-col { gap: 12px; }
+  .card { padding: 16px 18px; border-radius: 14px; }
   .card-title { font-size: 11px; letter-spacing: 0.06em; }
-  .card-head { margin-bottom: 10px; gap: 6px; }
-  .btn-add-goal { padding: 6px 12px; font-size: 11px; }
-}
+  .metrics-grid { grid-template-columns: 1fr; gap: 16px; }
 
-@media (max-width: 380px) {
-  .metrics-grid { grid-template-columns: 1fr; }
-}
+  .card-goals { padding: 16px 18px; }
+  .card-head { padding-right: 80px; }
 
-@media (prefers-reduced-motion: reduce) {
-  .card,
-  :deep(.metric-card) {
-    animation: none !important;
+  .card-goals :deep(.goal-card),
+  .card-goals :deep(.goals-list > *),
+  .card-goals :deep(.goals-list) {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
   }
 }
 </style>

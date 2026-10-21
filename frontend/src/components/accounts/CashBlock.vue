@@ -1,14 +1,37 @@
 <script setup>
-import { computed, ref } from 'vue';
+import { computed, ref, onMounted, watch } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
 import { useGoalsStore } from '@/stores/goals';
 import { useAuthStore } from '@/stores/auth';
-import { fmt } from '@/composables/useFormat';
+import { fmt, AVATAR_MAN, AVATAR_WOMAN } from '@/composables/useFormat';
 import CashModal from '@/components/transactions/CashModal.vue';
 
 const accounts = useAccountsStore();
 const goalsStore = useGoalsStore();
 const auth = useAuthStore();
+
+// ✅ PNG-иконки
+const ICON_CASH    = '/img/icons/nav/cash.png';
+const ICON_PLUS    = '/img/icons/ui/plus.png';
+const ICON_MINUS   = '/img/icons/ui/minus.png';
+const ICON_BALANCE = '/img/icons/ui/balance.png';
+const ICON_GOAL    = '/img/icons/nav/goal.png';
+
+const LS_KEY = 'financeProCashCollapsed_v1';
+const collapsed = ref(false);
+
+onMounted(() => {
+  try {
+    const saved = localStorage.getItem(LS_KEY);
+    if (saved !== null) collapsed.value = saved === '1';
+  } catch (e) {}
+});
+
+watch(collapsed, (val) => {
+  try { localStorage.setItem(LS_KEY, val ? '1' : '0'); } catch (e) {}
+});
+
+function toggle() { collapsed.value = !collapsed.value; }
 
 const cashModalOpen = ref(false);
 const cashModalOwner = ref('');
@@ -16,18 +39,16 @@ const cashModalMode = ref('add');
 
 const totalBalance = computed(() => accounts.totalCash);
 
+// ✅ Аватары PNG вместо эмодзи
 const owners = computed(() =>
   ['Сергей', 'Саша'].map(owner => ({
     owner,
     displayName: auth.nameFor(owner),
-    emoji: owner === 'Сергей' ? '👨' : '👩',
+    avatar: owner === 'Сергей' ? AVATAR_MAN : AVATAR_WOMAN,
     balance: accounts.getCash(owner),
   }))
 );
 
-// ============================================================
-// ✅ ОСНОВНАЯ ЦЕЛЬ — учитываем наличные как накопления
-// ============================================================
 const cashInWallets = computed(() => accounts.totalCash);
 
 const goalContributionsSum = computed(() => {
@@ -63,7 +84,6 @@ function openModal(owner = '', mode = 'add') {
   cashModalOpen.value = true;
 }
 
-// Купюры
 const fallingBills = [
   { id: 1,  left: '6%',   delay: '0s',    duration: '14s', rotate: -12, scale: 0.75 },
   { id: 2,  left: '18%',  delay: '2.5s',  duration: '18s', rotate: 8,   scale: 0.9 },
@@ -80,7 +100,7 @@ const fallingBills = [
 
 <template>
   <section class="cash-block">
-    <div class="cash-note">
+    <div class="cash-note" :class="{ collapsed }">
       <div class="cn-falling" aria-hidden="true">
         <div
           v-for="b in fallingBills"
@@ -112,67 +132,89 @@ const fallingBills = [
       <div class="cn-pattern"></div>
       <div class="cn-watermark">₽</div>
 
-      <div class="cn-top">
-        <div class="cn-nominal">
-          <span class="cn-icon">💵</span>
-          <span class="cn-label">НАЛИЧНЫЕ</span>
-        </div>
-        <div class="cn-total">
-          <div class="cn-total-value">{{ fmt(totalBalance) }} ₽</div>
-          <div class="cn-total-label">всего на руках</div>
-        </div>
-      </div>
-
-      <div class="cn-owners">
-        <div
-          v-for="o in owners"
-          :key="o.owner"
-          class="cn-owner"
-        >
-          <span class="cn-owner-emoji">{{ o.emoji }}</span>
-          <span class="cn-owner-name">{{ o.displayName }}</span>
-          <span class="cn-owner-value">{{ fmt(o.balance) }} ₽</span>
-        </div>
-      </div>
-
-      <div class="cn-actions">
-        <button class="cn-act cn-act-primary" type="button" @click="openModal('', 'add')">
-          <span class="cn-act-icon">＋</span>
-          <span>Добавить</span>
-        </button>
-        <button class="cn-act" type="button" @click="openModal('', 'withdraw')">
-          <span class="cn-act-icon">−</span>
-          <span>Убрать</span>
-        </button>
-        <button class="cn-act" type="button" @click="openModal('', 'set')">
-          <span class="cn-act-icon">⚖️</span>
-          <span>Сверка</span>
-        </button>
-      </div>
-
-      <!-- ОСНОВНАЯ ЦЕЛЬ -->
-      <div v-if="goalsStore.primaryGoal" class="cn-goal" :class="{ done: isDone }">
-        <div class="cn-goal-head">
-          <span class="cn-goal-emoji">{{ goalsStore.primaryGoal.emoji || '🎯' }}</span>
-          <span class="cn-goal-name">{{ goalsStore.primaryGoal.name }}</span>
-          <span class="cn-goal-badge" :class="{ done: isDone }">
-            {{ isDone ? '✅' : '⭐' }}
-          </span>
-        </div>
-
-        <div class="cn-goal-progress">
-          <div class="cn-goal-track">
-            <div
-              class="cn-goal-fill"
-              :class="{ done: isDone }"
-              :style="{ width: progressPct + '%' }"
-            ></div>
+      <div
+        class="cn-header"
+        @click="toggle"
+        role="button"
+        tabindex="0"
+        :aria-expanded="!collapsed"
+        @keydown.enter="toggle"
+        @keydown.space.prevent="toggle"
+      >
+        <div class="cn-header-left">
+          <img :src="ICON_CASH" class="cn-header-icon-img" alt="Наличные" />
+          <div class="cn-header-titles">
+            <span class="cn-header-title">НАЛИЧНЫЕ</span>
+            <span class="cn-header-sub">БИЛЕТ БАНКА · РУБЛЬ</span>
           </div>
-          <div class="cn-goal-info">
-            <span class="cn-goal-left">
-              {{ isDone ? 'Цель достигнута!' : `Осталось ${fmt(remaining)} ₽` }}
-            </span>
-            <span class="cn-goal-target">из {{ fmt(goalsStore.primaryGoal.target) }} ₽</span>
+        </div>
+
+        <div class="cn-header-right">
+          <div class="cn-header-value">{{ fmt(totalBalance) }} ₽</div>
+          <div class="cn-header-label">всего на руках</div>
+        </div>
+      </div>
+
+      <div class="cn-collapsible">
+        <div class="cn-collapsible-inner">
+          <!-- ✅ Владельцы — с PNG-аватарами -->
+          <div class="cn-owners">
+            <div
+              v-for="o in owners"
+              :key="o.owner"
+              class="cn-owner"
+            >
+              <img :src="o.avatar" class="cn-owner-avatar" :alt="o.displayName" />
+              <span class="cn-owner-name">{{ o.displayName }}</span>
+              <span class="cn-owner-value">{{ fmt(o.balance) }} ₽</span>
+            </div>
+          </div>
+
+          <div class="cn-actions">
+            <button class="cn-act cn-act-primary" type="button" @click="openModal('', 'add')">
+              <img :src="ICON_PLUS" class="cn-act-icon-img" alt="Добавить" />
+              <span>Добавить</span>
+            </button>
+            <button class="cn-act" type="button" @click="openModal('', 'withdraw')">
+              <img :src="ICON_MINUS" class="cn-act-icon-img" alt="Убрать" />
+              <span>Убрать</span>
+            </button>
+            <button class="cn-act" type="button" @click="openModal('', 'set')">
+              <img :src="ICON_BALANCE" class="cn-act-icon-img" alt="Сверка" />
+              <span>Сверка</span>
+            </button>
+          </div>
+
+          <div v-if="goalsStore.primaryGoal" class="cn-goal" :class="{ done: isDone }">
+            <div class="cn-goal-head">
+              <img
+                v-if="!goalsStore.primaryGoal.emoji || goalsStore.primaryGoal.emoji === '🎯'"
+                :src="ICON_GOAL"
+                class="cn-goal-icon-img"
+                alt="Цель"
+              />
+              <span v-else class="cn-goal-emoji">{{ goalsStore.primaryGoal.emoji }}</span>
+              <span class="cn-goal-name">{{ goalsStore.primaryGoal.name }}</span>
+              <span class="cn-goal-badge" :class="{ done: isDone }">
+                {{ isDone ? '✅' : '⭐' }}
+              </span>
+            </div>
+
+            <div class="cn-goal-progress">
+              <div class="cn-goal-track">
+                <div
+                  class="cn-goal-fill"
+                  :class="{ done: isDone }"
+                  :style="{ width: progressPct + '%' }"
+                ></div>
+              </div>
+              <div class="cn-goal-info">
+                <span class="cn-goal-left">
+                  {{ isDone ? 'Цель достигнута!' : `Осталось ${fmt(remaining)} ₽` }}
+                </span>
+                <span class="cn-goal-target">из {{ fmt(goalsStore.primaryGoal.target) }} ₽</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -193,9 +235,6 @@ const fallingBills = [
   gap: 12px;
 }
 
-/* ============================================================
-   ✅ Купюра — многослойная тень + объём
-   ============================================================ */
 .cash-note {
   position: relative;
   border-radius: 20px;
@@ -217,8 +256,14 @@ const fallingBills = [
     0 10px 24px -6px rgba(5, 150, 105, 0.35),
     0 20px 40px -12px rgba(16, 185, 129, 0.3);
 
-  transition: transform 0.35s cubic-bezier(.34,1.56,.64,1), box-shadow 0.35s ease;
+  transition:
+    transform 0.35s cubic-bezier(.34,1.56,.64,1),
+    box-shadow 0.35s ease,
+    padding 0.3s ease,
+    background 0.4s ease;
 }
+
+.cash-note.collapsed { padding: 14px 20px; }
 
 .cash-note:hover {
   transform: translateY(-2px);
@@ -310,74 +355,136 @@ const fallingBills = [
   100% { transform: translate3d(-10px, 110%, 0) rotate(calc(var(--rot, 0deg) - 20deg)) scale(var(--scale, 1)); opacity: 0; }
 }
 
-.cn-top {
+.cn-header {
   position: relative;
   z-index: 3;
   display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 10px;
-  margin-bottom: 14px;
-}
-
-.cn-nominal {
-  display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 14px 6px 10px;
-  border-radius: 999px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.28), rgba(255, 255, 255, 0.14));
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.35) inset,
-    0 -1px 0 rgba(0, 0, 0, 0.1) inset,
-    0 4px 10px -2px rgba(0, 0, 0, 0.15);
+  justify-content: space-between;
+  gap: 12px;
+  cursor: pointer;
+  user-select: none;
+  padding: 4px 0;
+  width: 100%;
+  transition: transform 0.2s ease;
 }
 
-.cn-icon { font-size: 16px; }
+.cn-header:hover { transform: translateY(-1px); }
 
-.cn-label {
-  font-size: 10.5px;
+.cn-header-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 0 1 auto;
+}
+
+/* ✅ PNG-иконка наличных — фикс 32×32 */
+.cn-header-icon-img {
+  display: block;
+  width: 32px;
+  height: 32px;
+  min-width: 32px;
+  max-width: 32px;
+  max-height: 32px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.35)) brightness(1.05);
+}
+
+.cn-header-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cn-header-title {
+  font-family: inherit;
+  font-size: 16px;
   font-weight: 800;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
+  color: #ffffff;
+  text-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.35),
+    0 0 16px rgba(255, 255, 255, 0.25);
+  line-height: 1.1;
+  white-space: nowrap;
 }
 
-.cn-total { text-align: right; }
+.cn-header-sub {
+  font-family: inherit;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.75);
+  line-height: 1;
+  white-space: nowrap;
+}
 
-.cn-total-value {
+.cn-header-right {
+  text-align: right;
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+.cn-header-value {
   font-family: var(--mono);
   font-size: 26px;
   font-weight: 800;
   letter-spacing: -0.02em;
   line-height: 1.1;
-  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
+  text-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.25),
+    0 0 20px rgba(255, 255, 255, 0.15);
+  white-space: nowrap;
 }
 
-.cn-total-label {
-  font-size: 10px;
-  font-weight: 700;
+.cn-header-label {
+  font-family: inherit;
+  font-size: 9.5px;
+  font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.1em;
   opacity: 0.85;
   margin-top: 2px;
+  white-space: nowrap;
 }
 
-/* ============================================================
-   ✅ ПОЛЬЗОВАТЕЛИ — вложенные карточки
-   ============================================================ */
-.cn-owners {
+.cn-collapsible {
   position: relative;
   z-index: 3;
-  margin-bottom: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed rgba(255, 255, 255, 0.25);
+  max-height: 600px;
+  opacity: 1;
+  overflow: hidden;
+  margin-top: 12px;
+  transition:
+    max-height 0.4s cubic-bezier(.22,.61,.36,1),
+    opacity 0.3s ease,
+    margin 0.35s ease;
+}
+
+.cash-note.collapsed .cn-collapsible {
+  max-height: 0;
+  opacity: 0;
+  margin-top: 0;
+}
+
+.cn-collapsible-inner {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 6px;
+}
+
+.cn-owners {
   display: flex;
   flex-direction: column;
   gap: 6px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.25);
 }
 
 .cn-owner {
@@ -398,7 +505,21 @@ const fallingBills = [
     0 2px 6px rgba(0, 0, 0, 0.06);
 }
 
-.cn-owner-emoji { font-size: 16px; line-height: 1; }
+/* ✅ PNG-аватар владельца — фикс 22×22 */
+.cn-owner-avatar {
+  display: block;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  max-width: 22px;
+  max-height: 22px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  border: 1.5px solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  background: #fff;
+}
 
 .cn-owner-name {
   font-size: 12.5px;
@@ -416,16 +537,11 @@ const fallingBills = [
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
-/* ============================================================
-   ✅ КНОПКИ — рельефные
-   ============================================================ */
 .cn-actions {
-  position: relative;
-  z-index: 3;
   display: grid;
   grid-template-columns: 1.3fr 1fr 1fr;
   gap: 6px;
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
 .cn-act {
@@ -446,6 +562,7 @@ const fallingBills = [
   white-space: nowrap;
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  overflow: hidden;
 
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.35) inset,
@@ -461,11 +578,14 @@ const fallingBills = [
       0 1px 0 rgba(255, 255, 255, 0.4) inset,
       0 -1px 0 rgba(0, 0, 0, 0.12) inset,
       0 6px 14px -4px rgba(0, 0, 0, 0.35);
+
+    .cn-act-icon-img {
+      transform: scale(1.1) rotate(-4deg);
+    }
   }
   &:active {
     transform: translateY(0) scale(0.97);
-    box-shadow:
-      0 2px 4px rgba(0, 0, 0, 0.15) inset;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15) inset;
   }
 
   &.cn-act-primary {
@@ -493,18 +613,21 @@ const fallingBills = [
   }
 }
 
-.cn-act-icon {
-  font-size: 13px;
-  line-height: 1;
+/* ✅ PNG-иконки внутри кнопок — фикс 18×18 */
+.cn-act-icon-img {
+  display: block;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  max-height: 18px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25));
+  transition: transform 0.2s cubic-bezier(.34,1.56,.64,1);
 }
 
-/* ============================================================
-   ✅ ЦЕЛЬ
-   ============================================================ */
 .cn-goal {
-  position: relative;
-  z-index: 3;
-  margin-top: 10px;
   padding: 12px 14px;
   border-radius: 14px;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.18), rgba(255, 255, 255, 0.08));
@@ -514,6 +637,7 @@ const fallingBills = [
   display: flex;
   flex-direction: column;
   gap: 8px;
+  margin-top: 4px;
 
   box-shadow:
     0 1px 0 rgba(255, 255, 255, 0.25) inset,
@@ -531,17 +655,20 @@ const fallingBills = [
   }
 }
 
-.cn-goal-head {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-width: 0;
-}
+.cn-goal-head { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.cn-goal-emoji { font-size: 16px; line-height: 1; flex-shrink: 0; }
 
-.cn-goal-emoji {
-  font-size: 16px;
-  line-height: 1;
+/* ✅ PNG-иконка цели — фикс 20×20 */
+.cn-goal-icon-img {
+  display: block;
+  width: 20px;
+  height: 20px;
+  min-width: 20px;
+  max-width: 20px;
+  max-height: 20px;
+  object-fit: contain;
   flex-shrink: 0;
+  filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.3));
 }
 
 .cn-goal-name {
@@ -561,6 +688,9 @@ const fallingBills = [
   justify-content: center;
   width: 26px;
   height: 26px;
+  min-width: 26px;
+  max-width: 26px;
+  max-height: 26px;
   border-radius: 50%;
   background: linear-gradient(180deg, #fcd34d, #f59e0b);
   font-size: 12px;
@@ -580,11 +710,7 @@ const fallingBills = [
   }
 }
 
-.cn-goal-progress {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
+.cn-goal-progress { display: flex; flex-direction: column; gap: 6px; }
 
 .cn-goal-track {
   height: 8px;
@@ -638,30 +764,94 @@ const fallingBills = [
   white-space: nowrap;
 }
 
-/* ============================================================
-   МОБИЛЬНЫЙ
-   ============================================================ */
+/* Тёмная тема */
+:global(:root[data-app-theme="dark"]) {
+  .cash-note {
+    background:
+      radial-gradient(circle at 10% 20%, rgba(74, 222, 128, 0.15), transparent 40%),
+      radial-gradient(circle at 90% 80%, rgba(34, 211, 238, 0.12), transparent 45%),
+      linear-gradient(135deg, #064e3b 0%, #065f46 40%, #047857 70%, #064e3b 100%);
+    box-shadow:
+      0 1px 0 rgba(74, 222, 128, 0.25) inset,
+      0 -1px 0 rgba(0, 0, 0, 0.3) inset,
+      0 6px 16px rgba(34, 197, 94, 0.25),
+      0 16px 32px -8px rgba(16, 185, 129, 0.35),
+      0 28px 56px -16px rgba(34, 197, 94, 0.25),
+      0 0 0 1px rgba(74, 222, 128, 0.15);
+  }
+
+  .cash-note:hover {
+    box-shadow:
+      0 1px 0 rgba(74, 222, 128, 0.35) inset,
+      0 -1px 0 rgba(0, 0, 0, 0.3) inset,
+      0 8px 20px rgba(34, 197, 94, 0.35),
+      0 22px 44px -8px rgba(16, 185, 129, 0.5),
+      0 40px 72px -16px rgba(34, 197, 94, 0.35),
+      0 0 0 1px rgba(74, 222, 128, 0.25);
+  }
+
+  .cn-bill { color: rgba(74, 222, 128, 0.4); }
+  .cn-watermark { color: rgba(74, 222, 128, 0.08); }
+  .cn-owner-value { text-shadow: 0 0 8px rgba(74, 222, 128, 0.5); }
+}
+
 @media (max-width: 700px) {
   .cash-note { padding: 14px 16px 12px; border-radius: 18px; }
-  .cn-total-value { font-size: 22px; }
-  .cn-total-label { font-size: 9px; }
-  .cn-label { font-size: 9.5px; letter-spacing: 0.1em; }
-  .cn-icon { font-size: 14px; }
+  .cash-note.collapsed { padding: 12px 14px; }
 
-  .cn-owners { padding-top: 8px; margin-bottom: 8px; gap: 5px; }
+  .cn-header { gap: 8px; padding: 2px 0; }
+  .cn-header-left { gap: 8px; }
+
+  .cn-header-icon-img {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+    max-width: 28px;
+    max-height: 28px;
+  }
+
+  .cn-header-title { font-size: 13.5px; letter-spacing: 0.06em; }
+  .cn-header-sub { font-size: 8px; letter-spacing: 0.12em; }
+
+  .cn-header-value { font-size: 20px; }
+  .cn-header-label { font-size: 8.5px; letter-spacing: 0.08em; }
+
+  .cn-owners { padding-top: 8px; gap: 5px; }
   .cn-owner { padding: 6px 10px; gap: 8px; border-radius: 10px; }
-  .cn-owner-emoji { font-size: 14px; }
+
+  .cn-owner-avatar {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    max-width: 20px;
+    max-height: 20px;
+  }
+
   .cn-owner-name { font-size: 11.5px; }
   .cn-owner-value { font-size: 12.5px; }
 
-  .cn-actions { gap: 5px; margin-top: 6px; }
+  .cn-actions { gap: 5px; }
   .cn-act { padding: 8px 6px; font-size: 10.5px; gap: 4px; border-radius: 10px; }
-  .cn-act-icon { font-size: 12px; }
+
+  .cn-act-icon-img {
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    max-width: 16px;
+    max-height: 16px;
+  }
 
   .cn-watermark { font-size: 110px; bottom: -24px; right: -8px; }
   .cn-bill { width: 36px; height: 22px; }
 
-  .cn-goal { padding: 10px 12px; gap: 6px; border-radius: 12px; margin-top: 8px; }
+  .cn-goal { padding: 10px 12px; gap: 6px; border-radius: 12px; }
+  .cn-goal-icon-img {
+    width: 18px;
+    height: 18px;
+    min-width: 18px;
+    max-width: 18px;
+    max-height: 18px;
+  }
   .cn-goal-emoji { font-size: 14px; }
   .cn-goal-name { font-size: 12px; }
   .cn-goal-badge { width: 22px; height: 22px; font-size: 11px; }
@@ -670,13 +860,19 @@ const fallingBills = [
   .cn-goal-track { height: 7px; }
 }
 
-@media (max-width: 380px) {
-  .cn-total-value { font-size: 19px; }
-  .cn-act { font-size: 10px; }
-  .cn-owner-name { font-size: 11px; }
-  .cn-owner-value { font-size: 12px; }
-  .cn-goal-name { font-size: 11.5px; }
-  .cn-goal-left { font-size: 11px; }
+@media (max-width: 400px) {
+  .cn-header-title { font-size: 12.5px; letter-spacing: 0.04em; }
+  .cn-header-sub { display: none; }
+  .cn-header-value { font-size: 18px; }
+  .cn-header-label { font-size: 8px; }
+  .cn-header-icon-img {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    max-width: 24px;
+    max-height: 24px;
+  }
+  .cn-header-left { gap: 6px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -685,6 +881,8 @@ const fallingBills = [
   .cash-note,
   .cn-act,
   .cn-goal,
-  .cn-goal-fill { transition: none !important; transform: none !important; }
+  .cn-goal-fill,
+  .cn-header,
+  .cn-collapsible { transition: none !important; transform: none !important; }
 }
 </style>

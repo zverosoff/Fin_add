@@ -1,9 +1,8 @@
 <script setup>
 import { useToast } from '@/composables/useToast';
-import { useAuthStore } from '@/stores/auth';
-
 const { toasts, runAction, dismiss } = useToast();
-const auth = useAuthStore();
+
+const ICON_CLOSE = '/img/icons/ui/close.png';
 </script>
 
 <template>
@@ -12,34 +11,28 @@ const auth = useAuthStore();
       <div
         v-for="t in toasts"
         :key="t.id"
-        class="ios-toast"
+        class="toast"
         :class="[t.type, { 'has-action': !!t.action }]"
-        @click="t.action ? runAction(t.id) : null"
       >
-        <!-- Аватарка -->
-        <div class="toast-avatar">
-          <img v-if="auth.avatar" :src="auth.avatar" alt="Avatar" />
-          <div v-else class="avatar-placeholder">
-            {{ auth.user === 'Сергей' ? '👨' : '👩' }}
-          </div>
-          <!-- Иконка приложения поверх аватарки -->
-          <div class="app-icon">
-            <img src="/img/favicon.png" alt="App" />
-          </div>
-        </div>
+        <span class="toast-msg">{{ t.message }}</span>
 
-        <!-- Контент -->
-        <div class="toast-content">
-          <div class="toast-header">
-            <span class="toast-app-name">Финансы PRO+</span>
-            <span class="toast-time">сейчас</span>
-          </div>
-          <div class="toast-title">{{ t.title || auth.displayName || auth.user }}</div>
-          <div class="toast-msg">{{ t.message }}</div>
-        </div>
+        <div class="toast-actions">
+          <button
+            v-if="t.action"
+            class="toast-action"
+            @click="runAction(t.id)"
+          >
+            {{ t.action.label }}
+          </button>
 
-        <!-- Кнопка закрытия -->
-        <button class="toast-close" @click.stop="dismiss(t.id)">✕</button>
+          <button
+            class="toast-close"
+            @click="dismiss(t.id)"
+            aria-label="Закрыть"
+          >
+            <img :src="ICON_CLOSE" class="toast-close-img" alt="Закрыть" />
+          </button>
+        </div>
       </div>
     </TransitionGroup>
   </div>
@@ -48,175 +41,258 @@ const auth = useAuthStore();
 <style scoped lang="scss">
 .toast-container {
   position: fixed;
-  top: calc(16px + env(safe-area-inset-top, 0));
+  bottom: calc(90px + env(safe-area-inset-bottom, 0));
   left: 50%;
   transform: translateX(-50%);
-  z-index: 100000;
+  z-index: 9999;
+
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 8px;
+  align-items: stretch;
+
   width: 100%;
-  max-width: 420px;
-  padding: 0 16px;
+  max-width: 460px;
+  padding: 0 12px;
+  box-sizing: border-box;
   pointer-events: none;
-  box-sizing: border-box;
 }
 
-/* ✅ Стиль iOS-уведомления */
-.ios-toast {
-  position: relative;
+.toast {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 12px;
-  padding: 14px 16px;
-  border-radius: 20px;
-  
-  background: rgba(255, 255, 255, 0.85);
-  backdrop-filter: blur(24px) saturate(180%);
-  -webkit-backdrop-filter: blur(24px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.5);
-  
-  box-shadow: 
-    0 10px 40px -10px rgba(15, 23, 42, 0.2),
-    0 2px 10px rgba(15, 23, 42, 0.05);
-  
-  pointer-events: auto;
+
   width: 100%;
   box-sizing: border-box;
-  cursor: default;
+
+  padding: 12px 14px 12px 18px;
+  border-radius: 14px;
+
+  background: var(--overlay-bg, #ffffff);
+  border: 1.5px solid var(--accent);
+  color: var(--text);
+
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.35;
+
+  box-shadow: var(--shadow-lg);
+
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+
+  pointer-events: auto;
+
+  transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
+
+  &.success { border-color: var(--accent-2, #16a34a); }
+  &.error   { border-color: var(--danger, #dc2626); }
+
+  &.has-action {
+    padding-right: 12px;
+  }
 }
 
-.ios-toast.has-action {
-  cursor: pointer;
-}
-.ios-toast.has-action:active {
-  transform: scale(0.98);
+:global(:root[data-app-theme="dark"]) .toast {
+  background: rgba(30, 16, 48, 0.95);
+  border-color: rgba(168, 85, 247, 0.6);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.6),
+    0 16px 40px -12px rgba(139, 92, 246, 0.5),
+    0 0 0 1px rgba(168, 85, 247, 0.3);
+
+  &.success {
+    border-color: rgba(74, 222, 128, 0.7);
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.6),
+      0 16px 40px -12px rgba(34, 197, 94, 0.4),
+      0 0 0 1px rgba(74, 222, 128, 0.3);
+  }
+  &.error {
+    border-color: rgba(244, 63, 94, 0.7);
+    box-shadow:
+      0 4px 12px rgba(0, 0, 0, 0.6),
+      0 16px 40px -12px rgba(244, 63, 94, 0.4),
+      0 0 0 1px rgba(244, 63, 94, 0.3);
+  }
 }
 
-/* Аватарка */
-.toast-avatar {
-  position: relative;
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  flex-shrink: 0;
-  background: #e2e8f0;
-}
-.toast-avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: 50%;
-}
-.avatar-placeholder {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  background: #f1f5f9;
-  border-radius: 50%;
-}
-
-/* Иконка приложения поверх аватарки */
-.app-icon {
-  position: absolute;
-  bottom: -4px;
-  right: -4px;
-  width: 18px;
-  height: 18px;
-  border-radius: 50%;
-  background: #fff;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.2);
-}
-.app-icon img {
-  width: 14px;
-  height: 14px;
-  border-radius: 50%;
-  object-fit: contain;
-}
-
-/* Контент */
-.toast-content {
+.toast-msg {
   flex: 1;
   min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.toast-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2px;
-}
-.toast-app-name {
-  font-size: 11px;
-  font-weight: 700;
-  color: #94a3b8;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-}
-.toast-time {
-  font-size: 11px;
-  color: #94a3b8;
-}
-.toast-title {
-  font-size: 14px;
-  font-weight: 700;
-  color: #0f172a;
-  line-height: 1.2;
-}
-.toast-msg {
-  font-size: 13px;
-  color: #334155;
-  line-height: 1.4;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  word-break: break-word;
+  overflow-wrap: anywhere;
 }
 
-/* Кнопка закрытия */
+.toast-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.toast-action {
+  padding: 7px 14px;
+  border-radius: 10px;
+  border: 1px solid var(--accent);
+  background: rgba(139, 92, 246, 0.1);
+  color: var(--accent);
+
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 800;
+  cursor: pointer;
+  white-space: nowrap;
+
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1) inset;
+
+  transition: all 0.15s cubic-bezier(.34,1.56,.64,1);
+
+  &:hover {
+    background: var(--accent);
+    color: #ffffff;
+    transform: translateY(-1px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 4px 10px -2px rgba(139, 92, 246, 0.5);
+  }
+  &:active { transform: scale(0.96); }
+}
+
+/* ✅ Кнопка закрытия — фикс 26×26 */
 .toast-close {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  width: 20px;
-  height: 20px;
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  max-width: 26px;
+  min-height: 26px;
+  max-height: 26px;
+
   border-radius: 50%;
   border: none;
-  background: rgba(0, 0, 0, 0.05);
-  color: #94a3b8;
-  font-size: 10px;
-  display: flex;
+  background: rgba(148, 163, 184, 0.15);
+
+  cursor: pointer;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  cursor: pointer;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-.ios-toast:hover .toast-close {
-  opacity: 1;
+  padding: 0;
+  overflow: hidden;
+  flex-shrink: 0;
+
+  transition: background 0.15s, transform 0.15s;
+
+  &:hover {
+    background: rgba(244, 63, 94, 0.15);
+  }
+  &:active { transform: scale(0.92); }
 }
 
-/* Анимация падения сверху (iOS style) */
+/* ✅ PNG-крестик — фикс 14×14 */
+.toast-close-img {
+  display: block;
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  max-width: 14px;
+  max-height: 14px;
+  object-fit: contain;
+  opacity: 0.75;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+  transition: opacity 0.15s, filter 0.15s;
+}
+
+.toast-close:hover .toast-close-img {
+  opacity: 1;
+  filter: drop-shadow(0 0 6px rgba(244, 63, 94, 0.6)) brightness(1.15);
+}
+
+/* Анимации */
 .toast-enter-active {
-  transition: all 0.4s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transition:
+    opacity 0.25s ease,
+    transform 0.35s cubic-bezier(.34,1.56,.64,1);
 }
 .toast-leave-active {
-  transition: all 0.3s cubic-bezier(0.4, 0, 1, 1);
+  transition:
+    opacity 0.2s ease,
+    transform 0.25s ease;
 }
 .toast-enter-from {
   opacity: 0;
-  transform: translateY(-20px) scale(0.9);
+  transform: translateY(20px) scale(0.94);
 }
 .toast-leave-to {
   opacity: 0;
-  transform: translateY(-20px) scale(0.9);
+  transform: translateY(-10px) scale(0.94);
+}
+
+/* ============================================================
+   МОБИЛЬНЫЙ
+   ============================================================ */
+@media (max-width: 700px) {
+  .toast-container {
+    bottom: calc(84px + env(safe-area-inset-bottom, 0));
+    max-width: 100%;
+    padding: 0 10px;
+    gap: 6px;
+  }
+
+  .toast {
+    padding: 12px 12px 12px 16px;
+    font-size: 13px;
+    gap: 10px;
+    border-radius: 13px;
+  }
+
+  .toast-msg {
+    font-size: 13px;
+    line-height: 1.3;
+  }
+
+  .toast-action {
+    padding: 7px 12px;
+    font-size: 12px;
+  }
+
+  .toast-close {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    max-width: 24px;
+    min-height: 24px;
+    max-height: 24px;
+  }
+
+  .toast-close-img {
+    width: 12px;
+    height: 12px;
+    min-width: 12px;
+    max-width: 12px;
+    max-height: 12px;
+  }
+}
+
+@media (max-width: 380px) {
+  .toast {
+    font-size: 12.5px;
+    padding: 11px 10px 11px 14px;
+    gap: 8px;
+  }
+  .toast-action {
+    padding: 6px 10px;
+    font-size: 11.5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .toast-enter-active,
+  .toast-leave-active,
+  .toast-action,
+  .toast-close {
+    transition: none !important;
+    transform: none !important;
+  }
 }
 </style>

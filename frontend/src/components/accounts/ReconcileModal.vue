@@ -19,6 +19,11 @@ const txStore = useTransactionsStore();
 const auth = useAuthStore();
 const toast = useToast();
 
+// ✅ PNG-иконки
+const ICON_BALANCE   = '/img/icons/ui/balance.png';
+const ICON_MONEY_BAG = '/img/icons/nav/money-bag.png';
+const ICON_SAVE      = '/img/icons/ui/save.png';
+
 const actualBalance = ref('');
 const error = ref('');
 const saving = ref(false);
@@ -106,9 +111,15 @@ function close() {
 <template>
   <Modal
     :model-value="modelValue"
-    :title="`⚖️ Сверка: ${account?.name || 'счёт'}`"
     @update:model-value="emit('update:modelValue', $event)"
   >
+    <template #header>
+      <div class="modal-head-custom">
+        <img :src="ICON_BALANCE" class="mhc-icon" alt="Сверка" />
+        <h3 class="mhc-title">Сверка: {{ account?.name || 'счёт' }}</h3>
+      </div>
+    </template>
+
     <div v-if="account" class="form">
       <div class="reconcile-info">
         <div class="row">
@@ -122,7 +133,10 @@ function close() {
       </div>
 
       <div class="field">
-        <label>💰 Фактический баланс (из банка), ₽</label>
+        <label>
+          <img :src="ICON_MONEY_BAG" class="label-icon" alt="" />
+          Фактический баланс (из банка), ₽
+        </label>
         <input
           v-model="actualBalance"
           type="number"
@@ -136,9 +150,7 @@ function close() {
 
       <div v-if="diff !== null" class="preview">
         <template v-if="!hasDiff">
-          <div class="preview-ok">
-            ✅ Расхождения нет — баланс совпадает
-          </div>
+          <div class="preview-ok">✅ Расхождения нет — баланс совпадает</div>
         </template>
         <template v-else>
           <div class="preview-diff">
@@ -157,20 +169,50 @@ function close() {
     <template #footer>
       <button class="btn-cancel" @click="close">Отмена</button>
       <button class="btn-save" :disabled="saving || !hasDiff" @click="save">
-        {{ saving ? 'Сохранение…' : '💾 Создать корректировку' }}
+        <img v-if="!saving" :src="ICON_SAVE" class="btn-save-icon" alt="" />
+        <span>{{ saving ? 'Сохранение…' : 'Создать корректировку' }}</span>
       </button>
     </template>
   </Modal>
 </template>
 
 <style scoped lang="scss">
+.modal-head-custom {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.mhc-icon {
+  display: block;
+  width: 26px;
+  height: 26px;
+  min-width: 26px;
+  max-width: 26px;
+  max-height: 26px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.2));
+}
+
+.mhc-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .form { display: flex; flex-direction: column; gap: 12px; }
 
 .reconcile-info {
   padding: 12px 14px;
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(139, 92, 246, 0.06));
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  background: rgba(139, 92, 246, 0.08);
+  border: 1px solid rgba(139, 92, 246, 0.25);
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -197,6 +239,9 @@ function close() {
   gap: 5px;
 
   label {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
     font-size: 11px;
     font-weight: 700;
     color: var(--muted);
@@ -214,13 +259,27 @@ function close() {
     color: var(--text);
     outline: none;
     width: 100%;
-    background: #ffffff;
+    background: var(--panel-2);
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.3s ease;
 
     &:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
     }
   }
+}
+
+/* ✅ PNG-иконка в label — фикс 14×14 */
+.label-icon {
+  display: block;
+  width: 14px;
+  height: 14px;
+  min-width: 14px;
+  max-width: 14px;
+  max-height: 14px;
+  object-fit: contain;
+  flex-shrink: 0;
+  opacity: 0.85;
 }
 
 .preview { min-height: 0; }
@@ -230,7 +289,7 @@ function close() {
   border-radius: 10px;
   background: rgba(34, 197, 94, 0.1);
   border: 1px solid rgba(34, 197, 94, 0.3);
-  color: #16a34a;
+  color: var(--accent-2, #16a34a);
   font-size: 13px;
   font-weight: 700;
   text-align: center;
@@ -239,8 +298,8 @@ function close() {
 .preview-diff {
   padding: 12px 14px;
   border-radius: 10px;
-  background: rgba(245, 158, 11, 0.1);
-  border: 1px solid rgba(245, 158, 11, 0.35);
+  background: rgba(251, 191, 36, 0.1);
+  border: 1px solid rgba(251, 191, 36, 0.35);
   color: var(--text);
   font-size: 13px;
   line-height: 1.5;
@@ -253,11 +312,15 @@ function close() {
   }
 }
 
+:global(:root[data-app-theme="dark"]) {
+  .preview-diff strong { color: #fbbf24; }
+}
+
 .error-msg {
   padding: 8px 12px;
   border-radius: 8px;
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(244, 63, 94, 0.1);
+  border: 1px solid rgba(244, 63, 94, 0.3);
   color: var(--danger);
   font-size: 12.5px;
   font-weight: 600;
@@ -274,24 +337,61 @@ function close() {
 }
 
 .btn-cancel {
-  background: #f1f5f9;
+  background: var(--panel-2);
   color: var(--text);
   border-color: var(--border);
+  transition: all 0.15s;
+  &:hover { border-color: var(--border-strong); }
 }
 
 .btn-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: linear-gradient(135deg, #f59e0b, #f97316);
   color: #fff;
-  box-shadow: 0 10px 24px -10px rgba(245, 158, 11, 0.7);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+    0 6px 18px -6px rgba(245, 158, 11, 0.7);
+  transition: all 0.15s;
 
   &:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+  &:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+      0 10px 24px -6px rgba(245, 158, 11, 0.9);
+  }
+}
+
+/* ✅ PNG-иконка в кнопке — фикс 16×16 */
+.btn-save-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.4)) brightness(1.15);
 }
 
 @media (max-width: 700px) {
   .field input { font-size: 16px; padding: 12px 14px; min-height: 46px; }
-
   .reconcile-info .row { font-size: 12.5px; }
   .preview-diff { font-size: 12.5px; }
   .preview-diff strong { font-size: 14px; }
+
+  .mhc-icon {
+    width: 22px;
+    height: 22px;
+    min-width: 22px;
+    max-width: 22px;
+    max-height: 22px;
+  }
+  .mhc-title { font-size: 15px; }
 }
 </style>

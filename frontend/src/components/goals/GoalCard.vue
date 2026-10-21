@@ -11,6 +11,16 @@ const emit = defineEmits(['edit', 'delete', 'contribute', 'edit-contrib', 'set-p
 
 const analytics = useAnalyticsStore();
 
+// ✅ PNG-иконки
+const ICON_EDIT         = '/img/icons/ui/edit.png';
+const ICON_DELETE       = '/img/icons/ui/close.png';
+const ICON_PLUS         = '/img/icons/ui/plus.png';
+const ICON_STAR_FILLED  = '/img/icons/ui/star-filled.png';
+const ICON_STAR_OUTLINE = '/img/icons/ui/star-outline.png';
+const ICON_GOAL         = '/img/icons/nav/goal.png';
+const AVATAR_MAN        = '/img/icons/mascots/avatar-man.png';
+const AVATAR_WOMAN      = '/img/icons/mascots/avatar-woman.png';
+
 const eta = computed(() => {
   if (props.goal.done) return null;
   const monthlySave = Math.max(0, analytics.currentMonthMetrics.monthSave);
@@ -28,7 +38,6 @@ function plural(n, one, few, many) {
   return many;
 }
 
-// ✅ ETA-счётчик — «печатает» число
 const etaDisplay = ref(0);
 const etaVisible = computed(() => eta.value != null);
 
@@ -54,7 +63,6 @@ const etaText = computed(() => {
   return `≈ ${n} ${plural(n, 'месяц', 'месяца', 'месяцев')}`;
 });
 
-// ✅ Конфетти при достижении 100%
 const confettiActive = ref(false);
 const confettiParticles = ref([]);
 
@@ -64,8 +72,6 @@ function spawnConfetti() {
   for (let i = 0; i < 60; i++) {
     particles.push({
       id: i,
-      x: 0,
-      y: 0,
       angle: Math.random() * 360,
       distance: 60 + Math.random() * 120,
       size: 4 + Math.random() * 6,
@@ -83,9 +89,7 @@ function spawnConfetti() {
 }
 
 onMounted(() => {
-  if (props.goal.done) {
-    setTimeout(spawnConfetti, 300);
-  }
+  if (props.goal.done) setTimeout(spawnConfetti, 300);
 });
 
 watch(() => props.goal.done, (isDone, wasDone) => {
@@ -98,25 +102,23 @@ const contributors = computed(() =>
     .map(([user, value]) => ({
       user,
       value: Number(value),
-      emoji: user === 'Сергей' ? '👨' : '👩',
+      avatar: user === 'Сергей' ? AVATAR_MAN : AVATAR_WOMAN,
       cls: user === 'Сергей' ? 'sergey' : 'sasha',
     }))
 );
 
-const ownerEmoji = computed(() => props.goal.owner === 'Сергей' ? '👨' : '👩');
+const ownerAvatar = computed(() =>
+  props.goal.owner === 'Сергей' ? AVATAR_MAN : AVATAR_WOMAN
+);
 const ownerCls = computed(() => props.goal.owner === 'Сергей' ? 'sergey' : 'sasha');
 
 function onEditContrib(user) {
   emit('edit-contrib', { goal: props.goal, user });
 }
-
-// Уникальный id для градиента волны
-const waveId = computed(() => 'wave-' + props.goal.id);
 </script>
 
 <template>
   <div class="goal-card" :class="{ done: goal.done, primary: goal.primary }">
-    <!-- ✅ Конфетти при 100% -->
     <div v-if="confettiActive" class="goal-confetti" aria-hidden="true">
       <span
         v-for="p in confettiParticles"
@@ -135,13 +137,24 @@ const waveId = computed(() => 'wave-' + props.goal.id);
 
     <div class="goal-head">
       <div class="goal-title-row">
-        <span class="goal-emoji">{{ goal.emoji || '🎯' }}</span>
+        <img
+          v-if="!goal.emoji || goal.emoji === '🎯'"
+          :src="ICON_GOAL"
+          class="goal-icon-img"
+          alt="Цель"
+        />
+        <span v-else class="goal-emoji">{{ goal.emoji }}</span>
+
         <span class="goal-name">{{ goal.name }}</span>
+
         <span v-if="goal.primary" class="goal-primary-badge" title="Основная цель">
-          ⭐ Основная
+          <img :src="ICON_STAR_FILLED" class="badge-star-img" alt="" />
+          Основная
         </span>
+
         <span class="goal-owner" :class="ownerCls">
-          {{ ownerEmoji }} {{ goal.owner }}
+          <img :src="ownerAvatar" class="goal-owner-avatar" :alt="goal.owner" />
+          {{ goal.owner }}
         </span>
       </div>
 
@@ -152,17 +165,31 @@ const waveId = computed(() => 'wave-' + props.goal.id);
           :class="{ active: goal.primary }"
           @click="emit('set-primary', goal)"
           :title="goal.primary ? 'Убрать основную' : 'Сделать основной'"
-        >{{ goal.primary ? '★' : '☆' }}</button>
+        >
+          <img
+            :src="goal.primary ? ICON_STAR_FILLED : ICON_STAR_OUTLINE"
+            class="act-icon-img"
+            alt=""
+          />
+        </button>
 
         <button
           class="act-contribute"
           type="button"
           @click="emit('contribute', goal)"
           title="Внести деньги"
-        >+ Внести</button>
+        >
+          <img :src="ICON_PLUS" class="act-icon-img act-icon-light" alt="" />
+          <span>Внести</span>
+        </button>
 
-        <button type="button" @click="emit('edit', goal)" title="Редактировать">✏️</button>
-        <button class="danger" type="button" @click="emit('delete', goal)" title="Удалить">✕</button>
+        <button type="button" @click="emit('edit', goal)" title="Редактировать">
+          <img :src="ICON_EDIT" class="act-icon-img" alt="Редактировать" />
+        </button>
+
+        <button class="danger" type="button" @click="emit('delete', goal)" title="Удалить">
+          <img :src="ICON_DELETE" class="act-icon-img" alt="Удалить" />
+        </button>
       </div>
     </div>
 
@@ -171,7 +198,6 @@ const waveId = computed(() => 'wave-' + props.goal.id);
       <span class="target">из {{ fmt(goal.target) }} ₽</span>
     </div>
 
-    <!-- ✅ Прогресс-бар с волной -->
     <div class="goal-track">
       <div
         class="goal-fill"
@@ -204,7 +230,7 @@ const waveId = computed(() => 'wave-' + props.goal.id);
         @click="onEditContrib(c.user)"
         :title="`Изменить взнос ${c.user}`"
       >
-        <span class="avatar">{{ c.emoji }}</span>
+        <img :src="c.avatar" class="contrib-avatar" :alt="c.user" />
         <span class="name">{{ c.user }}</span>
         <span class="amount">{{ fmt(c.value) }} ₽</span>
       </span>
@@ -221,13 +247,17 @@ const waveId = computed(() => 'wave-' + props.goal.id);
 .goal-card {
   position: relative;
   padding: 14px 16px;
-  background: #ffffff;
+  background: var(--grad-card);
   border: 1px solid var(--border);
   border-radius: 12px;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  transition: transform 0.15s, box-shadow 0.2s, border-color 0.2s;
+  transition:
+    transform 0.15s,
+    box-shadow 0.2s,
+    border-color 0.2s,
+    background 0.3s ease;
   min-width: 0;
   overflow: hidden;
 
@@ -238,19 +268,20 @@ const waveId = computed(() => 'wave-' + props.goal.id);
 
   &.done {
     border-color: rgba(34, 197, 94, 0.4);
-    background: linear-gradient(135deg, rgba(34, 197, 94, 0.04), transparent 60%), #ffffff;
+    background:
+      linear-gradient(135deg, rgba(34, 197, 94, 0.06), transparent 60%),
+      var(--grad-card);
   }
 
   &.primary {
-    border-color: rgba(245, 158, 11, 0.5);
+    border-color: rgba(251, 191, 36, 0.5);
     background:
       linear-gradient(135deg, rgba(251, 191, 36, 0.08), rgba(245, 158, 11, 0.03)),
-      #ffffff;
+      var(--grad-card);
     box-shadow: 0 6px 20px -10px rgba(245, 158, 11, 0.5);
   }
 }
 
-/* ✅ Конфетти */
 .goal-confetti {
   position: absolute;
   left: 30px;
@@ -271,10 +302,7 @@ const waveId = computed(() => 'wave-' + props.goal.id);
 }
 
 @keyframes confettiBurst {
-  0% {
-    transform: translate(0, 0) rotate(0deg) scale(0.3);
-    opacity: 1;
-  }
+  0% { transform: translate(0, 0) rotate(0deg) scale(0.3); opacity: 1; }
   20% { opacity: 1; }
   100% {
     transform:
@@ -296,7 +324,22 @@ const waveId = computed(() => 'wave-' + props.goal.id);
   min-width: 0;
   flex-wrap: wrap;
 }
+
+/* ✅ PNG-иконка цели — фикс 22×22 */
+.goal-icon-img {
+  display: block;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  max-width: 22px;
+  max-height: 22px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+}
+
 .goal-emoji { font-size: 22px; line-height: 1; flex-shrink: 0; }
+
 .goal-name {
   flex: 1 1 auto;
   font-size: 14px;
@@ -306,10 +349,11 @@ const waveId = computed(() => 'wave-' + props.goal.id);
   overflow-wrap: anywhere;
   min-width: 0;
 }
+
 .goal-primary-badge {
   display: inline-flex;
   align-items: center;
-  gap: 3px;
+  gap: 4px;
   padding: 2px 8px;
   border-radius: 999px;
   background: linear-gradient(135deg, #fbbf24, #f59e0b);
@@ -322,18 +366,48 @@ const waveId = computed(() => 'wave-' + props.goal.id);
   flex-shrink: 0;
   box-shadow: 0 4px 10px -3px rgba(245, 158, 11, 0.5);
 }
+
+/* ✅ PNG-звезда в бейдже — фикс 12×12 */
+.badge-star-img {
+  display: block;
+  width: 12px;
+  height: 12px;
+  min-width: 12px;
+  max-width: 12px;
+  max-height: 12px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: brightness(0.6) drop-shadow(0 1px 1px rgba(255, 255, 255, 0.4));
+}
+
 .goal-owner {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 5px;
   font-size: 10.5px;
   font-weight: 700;
-  padding: 3px 9px;
+  padding: 2px 9px 2px 3px;
   border-radius: 999px;
   white-space: nowrap;
   flex-shrink: 0;
+
   &.sergey { color: #2563eb; background: rgba(59, 130, 246, 0.12); }
   &.sasha  { color: #ec4899; background: rgba(236, 72, 153, 0.12); }
+}
+
+/* ✅ PNG-аватар владельца — фикс 16×16 */
+.goal-owner-avatar {
+  display: block;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
 }
 
 .goal-actions {
@@ -346,7 +420,7 @@ const waveId = computed(() => 'wave-' + props.goal.id);
     height: 30px;
     border-radius: 8px;
     border: 1px solid var(--border);
-    background: transparent;
+    background: var(--panel-2);
     color: var(--muted);
     font-size: 12px;
     font-weight: 700;
@@ -355,18 +429,27 @@ const waveId = computed(() => 'wave-' + props.goal.id);
     align-items: center;
     justify-content: center;
     padding: 0 8px;
+    gap: 5px;
     transition: all 0.15s;
     font-family: inherit;
+    overflow: hidden;
 
-    &:hover { color: var(--accent); border-color: var(--accent); background: rgba(56, 189, 248, 0.08); }
-    &.danger:hover { color: var(--danger); border-color: var(--danger); background: rgba(239, 68, 68, 0.08); }
+    &:hover {
+      color: var(--accent);
+      border-color: var(--accent);
+      background: rgba(139, 92, 246, 0.1);
+      transform: translateY(-1px);
+    }
+    &.danger:hover {
+      color: var(--danger);
+      border-color: var(--danger);
+      background: rgba(244, 63, 94, 0.1);
+    }
 
     &.act-primary {
       min-width: 30px;
       height: 30px;
       padding: 0;
-      font-size: 15px;
-      font-weight: 800;
       &:not(.active):hover { color: #f59e0b; border-color: #f59e0b; background: rgba(245, 158, 11, 0.1); }
       &.active {
         background: linear-gradient(135deg, #fbbf24, #f59e0b);
@@ -377,16 +460,42 @@ const waveId = computed(() => 'wave-' + props.goal.id);
     }
 
     &.act-contribute {
-      background: linear-gradient(135deg, #22c55e, #4ade80);
+      background: var(--grad-income);
       border-color: transparent;
       color: #fff;
       font-size: 12px;
       font-weight: 700;
       width: auto;
       padding: 0 12px;
-      &:hover { color: #fff; transform: translateY(-1px); box-shadow: 0 6px 16px -4px rgba(34, 197, 94, 0.7); }
+      box-shadow:
+        0 1px 0 rgba(255, 255, 255, 0.3) inset,
+        0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+        0 6px 14px -4px rgba(34, 197, 94, 0.5);
+      &:hover { color: #fff; transform: translateY(-1px); box-shadow: 0 8px 18px -4px rgba(34, 197, 94, 0.7); }
     }
   }
+}
+
+/* ✅ PNG-иконки внутри кнопок действий — фикс 16×16 */
+.act-icon-img {
+  display: block;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
+  transition: filter 0.15s, transform 0.2s cubic-bezier(.34,1.56,.64,1);
+}
+
+.act-icon-light {
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.4)) brightness(1.2);
+}
+
+.goal-actions button:hover .act-icon-img {
+  transform: scale(1.12) rotate(-4deg);
 }
 
 .goal-progress {
@@ -399,7 +508,6 @@ const waveId = computed(() => 'wave-' + props.goal.id);
   .target  { font-family: var(--mono); font-size: 11.5px; font-weight: 700; color: var(--muted); }
 }
 
-/* ✅ Прогресс-бар с волной */
 .goal-track {
   position: relative;
   height: 10px;
@@ -411,13 +519,13 @@ const waveId = computed(() => 'wave-' + props.goal.id);
   position: relative;
   height: 100%;
   border-radius: 5px;
-  background: linear-gradient(90deg, #38bdf8, #8b5cf6);
+  background: var(--grad-primary);
   transition: width 0.6s cubic-bezier(.22,.61,.36,1);
-  box-shadow: 0 0 10px rgba(56, 189, 248, 0.4);
+  box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);
   overflow: hidden;
 
   &.done {
-    background: linear-gradient(90deg, #22c55e, #4ade80);
+    background: var(--grad-income);
     box-shadow: 0 0 10px rgba(34, 197, 94, 0.5);
   }
 }
@@ -456,7 +564,7 @@ const waveId = computed(() => 'wave-' + props.goal.id);
     font-weight: 800;
     color: var(--accent);
     font-variant-numeric: tabular-nums;
-    &.done { color: #22c55e; }
+    &.done { color: var(--accent-2, #22c55e); }
   }
 }
 
@@ -471,20 +579,36 @@ const waveId = computed(() => 'wave-' + props.goal.id);
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 9px;
+  padding: 3px 9px 3px 3px;
   border-radius: 999px;
   font-size: 11px;
   font-weight: 700;
   border: 1px solid var(--border);
-  background: rgba(148, 163, 184, 0.1);
+  background: var(--panel-2);
   cursor: pointer;
   transition: transform 0.15s, box-shadow 0.2s;
-  &:hover { transform: translateY(-1px); box-shadow: 0 4px 12px -4px rgba(15, 23, 42, 0.15); }
+  &:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
   .name { color: var(--muted); font-weight: 600; }
   .amount { font-family: var(--mono); font-weight: 800; color: var(--text); }
   &.sergey { background: rgba(59, 130, 246, 0.08); border-color: rgba(59, 130, 246, 0.25); .amount { color: #2563eb; } }
   &.sasha  { background: rgba(236, 72, 153, 0.08); border-color: rgba(236, 72, 153, 0.25); .amount { color: #db2777; } }
 }
+
+/* ✅ PNG-аватар в бейдже взноса — фикс 18×18 */
+.contrib-avatar {
+  display: block;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  max-height: 18px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+}
+
 .goal-empty-contribs {
   display: flex;
   align-items: center;
@@ -492,32 +616,89 @@ const waveId = computed(() => 'wave-' + props.goal.id);
   gap: 6px;
   padding: 6px 10px;
   border-radius: 8px;
-  background: rgba(148, 163, 184, 0.08);
+  background: var(--panel-2);
   color: var(--muted);
   font-size: 11px;
   font-style: italic;
   text-align: center;
+  border: 1px dashed var(--border);
   .emoji { font-style: normal; }
   .hint { color: var(--accent); font-weight: 600; font-style: normal; }
+}
+
+:global(:root[data-app-theme="dark"]) {
+  .goal-card.primary {
+    border-color: rgba(251, 191, 36, 0.4);
+    background:
+      linear-gradient(135deg, rgba(251, 191, 36, 0.12), rgba(245, 158, 11, 0.04)),
+      linear-gradient(180deg, rgba(30, 16, 48, 0.9) 0%, rgba(20, 9, 31, 0.95) 100%);
+    box-shadow:
+      0 6px 20px -10px rgba(245, 158, 11, 0.6),
+      0 0 0 1px rgba(251, 191, 36, 0.15);
+  }
+
+  .goal-card.done {
+    border-color: rgba(74, 222, 128, 0.4);
+    background:
+      linear-gradient(135deg, rgba(34, 197, 94, 0.12), transparent 60%),
+      linear-gradient(180deg, rgba(30, 16, 48, 0.9) 0%, rgba(20, 9, 31, 0.95) 100%);
+  }
+
+  .goal-fill {
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 0 16px rgba(168, 85, 247, 0.6);
+  }
+  .goal-fill.done {
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 0 16px rgba(74, 222, 128, 0.6);
+  }
+
+  .goal-contrib.sergey .amount {
+    color: #60a5fa;
+    text-shadow: 0 0 8px rgba(96, 165, 250, 0.4);
+  }
+  .goal-contrib.sasha .amount {
+    color: #f472b6;
+    text-shadow: 0 0 8px rgba(244, 114, 182, 0.4);
+  }
 }
 
 @media (max-width: 700px) {
   .goal-card { padding: 12px 14px; gap: 8px; border-radius: 12px; }
   .goal-title-row { gap: 6px; }
+  .goal-icon-img {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    max-width: 20px;
+    max-height: 20px;
+  }
   .goal-emoji { font-size: 20px; }
   .goal-name { font-size: 13px; }
   .goal-primary-badge { font-size: 9px; padding: 2px 6px; }
-  .goal-owner { font-size: 10px; padding: 2px 7px; }
+  .badge-star-img { width: 10px; height: 10px; min-width: 10px; max-width: 10px; max-height: 10px; }
+  .goal-owner { font-size: 10px; padding: 2px 7px 2px 2px; }
+  .goal-owner-avatar { width: 14px; height: 14px; min-width: 14px; max-width: 14px; max-height: 14px; }
   .goal-actions {
     gap: 4px;
     button { min-width: 28px; height: 28px; font-size: 11px; }
-    button.act-primary { min-width: 28px; height: 28px; font-size: 14px; }
+    button.act-primary { min-width: 28px; height: 28px; }
     button.act-contribute { padding: 0 10px; font-size: 11px; height: 28px; }
+  }
+  .act-icon-img {
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
+    max-width: 14px;
+    max-height: 14px;
   }
   .goal-progress { .current { font-size: 15px; } .target { font-size: 11px; } }
   .goal-foot { font-size: 11px; }
   .goal-contribs { gap: 5px; padding-top: 6px; }
-  .goal-contrib { font-size: 10.5px; padding: 3px 8px; gap: 4px; }
+  .goal-contrib { font-size: 10.5px; padding: 2px 8px 2px 2px; gap: 4px; }
+  .contrib-avatar { width: 16px; height: 16px; min-width: 16px; max-width: 16px; max-height: 16px; }
   .goal-empty-contribs { font-size: 10.5px; padding: 5px 8px; }
 }
 
@@ -527,6 +708,6 @@ const waveId = computed(() => 'wave-' + props.goal.id);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .goal-wave, .confetti-particle { animation: none !important; }
+  .goal-wave, .confetti-particle, .act-icon-img { animation: none !important; transition: none !important; }
 }
 </style>

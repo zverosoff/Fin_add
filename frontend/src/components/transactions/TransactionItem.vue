@@ -1,9 +1,21 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue';
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
 import { useFiltersStore } from '@/stores/filters';
 import { useAuthStore } from '@/stores/auth';
-import { fmt, categoryIcon, userEmoji, bankLogo, bankLabel } from '@/composables/useFormat';
+import {
+  fmt,
+  categoryIcon,
+  categoryEmoji,
+  bankIconPath,
+  bankLabel,
+  AVATAR_MAN,
+  AVATAR_WOMAN,
+} from '@/composables/useFormat';
+import IconOrEmoji from '@/components/ui/IconOrEmoji.vue';
+
+const ICON_EDIT   = '/img/icons/ui/edit.png';
+const ICON_DELETE = '/img/icons/ui/delete.png';
 
 const props = defineProps({
   tx: { type: Object, required: true },
@@ -17,57 +29,31 @@ const filters = useFiltersStore();
 const auth = useAuthStore();
 
 const accountName = computed(() => accounts.getAccountName(props.tx.accountId));
-const bank = computed(() => accounts.getBank(props.tx.accountId));
-const bankLogoUrl = computed(() => bankLogo(props.tx.accountId));
 const amountSign = computed(() => (props.tx.type === 'income' ? '+' : '−'));
 const amountClass = computed(() => (props.tx.type === 'income' ? 'income' : 'expense'));
-const icon = computed(() => categoryIcon(props.tx.category));
+
+const categoryIconPath = computed(() => categoryIcon(props.tx.category));
+const categoryEmojiChar = computed(() => categoryEmoji(props.tx.category));
+
 const userClass = computed(() => (props.tx.user === 'Сергей' ? 'sergey' : 'sasha'));
 const displayUserName = computed(() => auth.nameFor(props.tx.user));
-const userAvatar = computed(() => auth.avatarFor(props.tx.user));
 
-// ✅ Банк-фон: цвет + лого
-const bankStyle = computed(() => {
+const userAvatar = computed(() => {
+  if (props.tx.user === 'Сергей') return AVATAR_MAN;
+  if (props.tx.user === 'Саша') return AVATAR_WOMAN;
+  return AVATAR_MAN;
+});
+
+const bankIcon = computed(() => bankIconPath(props.tx.accountId));
+const bankLabelText = computed(() => bankLabel(props.tx.accountId));
+
+const bankType = computed(() => {
   const id = props.tx.accountId;
-  if (!id) return null;
-
-  if (id === 'cash' || id.startsWith('cash_')) {
-    return {
-      type: 'cash',
-      icon: '💵',
-      label: 'Наличные',
-      color: '#22c55e',
-      colorSoft: 'rgba(34, 197, 94, 0.15)',
-    };
-  }
-
-  if (id.startsWith('tbank')) {
-    return {
-      type: 'tbank',
-      logo: bankLogoUrl.value,
-      label: 'Т-Банк',
-      color: '#eab308',
-      colorSoft: 'rgba(234, 179, 8, 0.18)',
-    };
-  }
-
-  if (id.startsWith('sber')) {
-    return {
-      type: 'sber',
-      logo: bankLogoUrl.value,
-      label: 'СберБанк',
-      color: '#21a038',
-      colorSoft: 'rgba(33, 160, 56, 0.15)',
-    };
-  }
-
-  return {
-    type: 'default',
-    icon: '💳',
-    label: accountName.value || 'Счёт',
-    color: '#64748b',
-    colorSoft: 'rgba(100, 116, 139, 0.12)',
-  };
+  if (!id) return 'default';
+  if (id === 'cash' || id.startsWith('cash_')) return 'cash';
+  if (id.startsWith('sber')) return 'sber';
+  if (id.startsWith('tbank')) return 'tbank';
+  return 'default';
 });
 
 const appearing = ref(false);
@@ -90,20 +76,43 @@ watch(() => props.tx.amount, (newVal, oldVal) => {
 function onFilter(key, value) { filters.toggle(key, value); }
 
 function onDelete() {
+  closeReveal();
   deleting.value = true;
   setTimeout(() => { emit('delete', props.tx); }, 300);
 }
 
+function onEdit() {
+  closeReveal();
+  emit('edit', props.tx);
+}
+
 const el = ref(null);
 const offsetX = ref(0);
-const swipeState = ref(null);
-const swipeProgress = ref(0);
+const revealed = ref(false);
+const dragging = ref(false);
 
 let touchStartX = 0;
 let touchStartY = 0;
 let isHorizontal = null;
+let rafId = null;
+let pendingX = null;
+
+const REVEAL_WIDTH = 96;
+const THRESHOLD = 40;
 
 function isMobile() { return window.innerWidth <= 700; }
+
+function applyOffset() {
+  if (pendingX === null) return;
+  offsetX.value = pendingX;
+  pendingX = null;
+  rafId = null;
+}
+
+function setOffset(x) {
+  pendingX = Math.min(0, Math.max(-(REVEAL_WIDTH + 20), x));
+  if (!rafId) rafId = requestAnimationFrame(applyOffset);
+}
 
 function onTouchStart(e) {
   if (!isMobile()) return;
@@ -111,57 +120,90 @@ function onTouchStart(e) {
   touchStartX = e.touches[0].clientX;
   touchStartY = e.touches[0].clientY;
   isHorizontal = null;
-  offsetX.value = 0;
-  swipeProgress.value = 0;
+  dragging.value = true;
 }
 
 function onTouchMove(e) {
-  if (!isMobile()) return;
+  if (!dragging.value) return;
   if (e.touches.length !== 1) return;
   const dx = e.touches[0].clientX - touchStartX;
   const dy = e.touches[0].clientY - touchStartY;
+
   if (isHorizontal === null) {
     if (Math.abs(dx) > 8 || Math.abs(dy) > 8) {
       isHorizontal = Math.abs(dx) > Math.abs(dy) + 4;
     }
+    if (!isHorizontal) return;
   }
   if (!isHorizontal) return;
-  offsetX.value = Math.max(-80, Math.min(80, dx));
-  swipeProgress.value = Math.min(1, Math.abs(offsetX.value) / 55);
+
+  if (revealed.value) {
+    setOffset(-REVEAL_WIDTH + dx);
+  } else {
+    if (dx >= 0) { setOffset(0); return; }
+    setOffset(dx);
+  }
 }
 
 function onTouchEnd() {
-  if (!isMobile()) return;
-  if (!isHorizontal) { offsetX.value = 0; swipeProgress.value = 0; return; }
-  const threshold = 55;
-  if (offsetX.value <= -threshold) {
-    swipeState.value = 'left';
-    offsetX.value = -70;
-    setTimeout(() => {
-      swipeState.value = null;
-      offsetX.value = 0;
-      swipeProgress.value = 0;
-      emit('delete', props.tx);
-    }, 250);
-  } else if (offsetX.value >= threshold) {
-    swipeState.value = 'right';
-    offsetX.value = 70;
-    setTimeout(() => {
-      swipeState.value = null;
-      offsetX.value = 0;
-      swipeProgress.value = 0;
-      emit('edit', props.tx);
-    }, 250);
-  } else {
-    offsetX.value = 0;
-    swipeProgress.value = 0;
+  if (!dragging.value) return;
+  dragging.value = false;
+
+  if (!isHorizontal) {
+    setOffset(0);
+    return;
   }
+
+  const current = offsetX.value;
+  const absX = Math.abs(current);
+
+  if (revealed.value) {
+    if (absX < REVEAL_WIDTH / 2) {
+      revealed.value = false;
+      setOffset(0);
+    } else {
+      setOffset(-REVEAL_WIDTH);
+    }
+  } else {
+    if (absX > THRESHOLD) {
+      revealed.value = true;
+      setOffset(-REVEAL_WIDTH);
+    } else {
+      setOffset(0);
+    }
+  }
+
+  isHorizontal = null;
 }
 
-function itemStyle() {
+function closeReveal() {
+  if (!revealed.value) return;
+  revealed.value = false;
+  setOffset(0);
+}
+
+function onDocClick(e) {
+  if (!revealed.value) return;
+  if (el.value && el.value.contains(e.target)) return;
+  closeReveal();
+}
+
+onMounted(() => {
+  document.addEventListener('touchstart', onDocClick, { passive: true });
+});
+onUnmounted(() => {
+  document.removeEventListener('touchstart', onDocClick);
+  if (rafId) cancelAnimationFrame(rafId);
+});
+
+const itemStyle = computed(() => {
   if (!offsetX.value) return {};
   return { transform: `translate3d(${offsetX.value}px, 0, 0)` };
-}
+});
+
+const progress = computed(() =>
+  revealed.value ? 1 : Math.min(1, Math.abs(offsetX.value) / REVEAL_WIDTH)
+);
 </script>
 
 <template>
@@ -169,292 +211,290 @@ function itemStyle() {
     ref="el"
     class="tx-item"
     :class="[
-      swipeState ? 'swipe-' + swipeState : '',
-      { 'is-appearing': appearing, 'is-deleting': deleting },
-      bankStyle ? 'has-bank-' + bankStyle.type : '',
+      { 'is-appearing': appearing, 'is-deleting': deleting, 'is-revealed': revealed },
     ]"
-    :style="itemStyle()"
-    @touchstart.passive="onTouchStart"
-    @touchmove.passive="onTouchMove"
-    @touchend="onTouchEnd"
   >
-    <!-- ✅ ЛОГО БАНКА В ВЕРХНЕМ ЛЕВОМ УГЛУ — как фоновый водяной знак -->
     <div
-      v-if="bankStyle"
-      class="tx-bank-watermark"
-      :class="'wm-' + bankStyle.type"
+      class="tx-actions-panel"
+      :style="{ opacity: progress }"
       aria-hidden="true"
     >
-      <!-- Радиальное свечение под логотипом -->
-      <div
-        class="tx-bank-glow"
-        :style="{ background: `radial-gradient(circle at 30% 30%, ${bankStyle.colorSoft} 0%, transparent 70%)` }"
-      ></div>
-
-      <!-- Лого или иконка -->
-      <img
-        v-if="bankStyle.logo"
-        :src="bankStyle.logo"
-        :alt="bankStyle.label"
-        class="tx-bank-wm-logo"
-        loading="lazy"
-        @error="(e) => (e.target.style.display = 'none')"
-      />
-      <span v-else class="tx-bank-wm-icon">{{ bankStyle.icon }}</span>
+      <button
+        class="tx-action-btn tx-action-edit"
+        type="button"
+        @click.stop="onEdit"
+        aria-label="Редактировать"
+      >
+        <img :src="ICON_EDIT" class="tab-icon-img" alt="Редактировать" />
+      </button>
+      <button
+        class="tx-action-btn tx-action-delete"
+        type="button"
+        @click.stop="onDelete"
+        aria-label="Удалить"
+      >
+        <img :src="ICON_DELETE" class="tab-icon-img" alt="Удалить" />
+      </button>
     </div>
 
     <div
-      v-if="swipeProgress > 0"
-      class="tx-swipe-progress"
-      :class="offsetX < 0 ? 'danger' : 'primary'"
-      :style="{ opacity: swipeProgress }"
-    ></div>
-
-    <!-- АВАТАР — вернулся влево -->
-    <div class="tx-avatar" :class="userClass">
-      <img
-        v-if="userAvatar"
-        :src="userAvatar"
-        alt="avatar"
-        class="tx-avatar-img"
-        loading="lazy"
-      />
-      <span v-else class="tx-avatar-emoji">{{ userEmoji(tx.user) }}</span>
-    </div>
-
-    <div class="tx-main">
-      <div class="tx-name">{{ tx.name || 'Без названия' }}</div>
-      <div class="tx-meta">
-        <span class="who" @click.stop="onFilter('user', tx.user)">{{ displayUserName }}</span>
-        <span class="cat" @click.stop="onFilter('category', tx.category)">
-          {{ icon }} {{ tx.category || 'Прочее' }}
-        </span>
-        <span
-          v-if="tx.accountId"
-          class="cat acc-badge"
-          :class="bank"
-          @click.stop="onFilter('account', tx.accountId)"
-        >{{ accountName }}</span>
-      </div>
-    </div>
-
-    <div class="tx-right">
-      <div
-        class="tx-amount"
-        :class="[amountClass, amountFlash ? 'flash-' + amountFlash : '']"
-        @click.stop="onFilter('type', tx.type)"
-      >
-        {{ amountSign }} {{ fmt(tx.amount) }} ₽
+      class="tx-card"
+      :style="itemStyle"
+      @touchstart.passive="onTouchStart"
+      @touchmove.passive="onTouchMove"
+      @touchend="onTouchEnd"
+      @touchcancel="onTouchEnd"
+    >
+      <div class="tx-avatar" :class="userClass">
+        <img
+          :src="userAvatar"
+          alt="avatar"
+          class="tx-avatar-img"
+          loading="lazy"
+          decoding="async"
+        />
       </div>
 
-      <div class="tx-actions">
-        <button class="edit" type="button" @click.stop="emit('edit', tx)">✏️</button>
-        <button class="danger" type="button" @click.stop="onDelete">🗑</button>
+      <div class="tx-main">
+        <div class="tx-name">{{ tx.name || 'Без названия' }}</div>
+        <div class="tx-meta">
+          <span class="who" @click.stop="onFilter('user', tx.user)">{{ displayUserName }}</span>
+          <span class="cat" @click.stop="onFilter('category', tx.category)">
+            <IconOrEmoji
+              :src="categoryIconPath"
+              :emoji="categoryEmojiChar"
+              :size="14"
+              :alt="tx.category"
+              class-name="tx-cat-icon"
+            />
+            {{ tx.category || 'Прочее' }}
+          </span>
+        </div>
+      </div>
+
+      <div class="tx-right">
+        <div
+          class="tx-amount"
+          :class="[amountClass, amountFlash ? 'flash-' + amountFlash : '']"
+          @click.stop="onFilter('type', tx.type)"
+        >
+          {{ amountSign }} {{ fmt(tx.amount) }} ₽
+        </div>
+
+        <div class="tx-right-bottom">
+          <div class="tx-actions-inline">
+            <button
+              class="tx-inline-btn tx-inline-edit"
+              type="button"
+              @click.stop="onEdit"
+              title="Редактировать"
+              aria-label="Редактировать"
+            >
+              <img :src="ICON_EDIT" class="tib-icon-img" alt="Редактировать" />
+            </button>
+            <button
+              class="tx-inline-btn tx-inline-delete"
+              type="button"
+              @click.stop="onDelete"
+              title="Удалить"
+              aria-label="Удалить"
+            >
+              <img :src="ICON_DELETE" class="tib-icon-img" alt="Удалить" />
+            </button>
+          </div>
+
+          <div
+            class="tx-bank-coin"
+            :class="'coin-' + bankType"
+            :title="bankLabelText"
+            @click.stop="tx.accountId && onFilter('account', tx.accountId)"
+          >
+            <img
+              :src="bankIcon"
+              class="tx-bank-coin-img"
+              :alt="bankLabelText"
+              loading="lazy"
+              decoding="async"
+            />
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
 
+<!-- Стили — оставь без изменений из прошлой версии -->
+
 <style scoped lang="scss">
 /* ============================================================
-   КАРТОЧКА
+   КОНТЕЙНЕР
    ============================================================ */
 .tx-item {
   position: relative;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-
-  /* ✅ padding вернули как было */
-  padding: 14px 16px;
-
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.98) 0%,
-    rgba(250, 251, 255, 0.95) 100%
-  );
-
-  border: 1px solid rgba(226, 232, 240, 0.8);
   border-radius: 16px;
   overflow: hidden;
-
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.95) inset,
-    0 -1px 0 rgba(148, 163, 184, 0.06) inset,
-    0 2px 6px rgba(15, 23, 42, 0.05),
-    0 8px 20px -6px rgba(15, 23, 42, 0.08);
-
-  transition:
-    transform 0.25s cubic-bezier(.34,1.56,.64,1),
-    box-shadow 0.3s ease,
-    border-color 0.2s ease;
   touch-action: pan-y;
   box-sizing: border-box;
 
-  &:hover {
-    border-color: rgba(99, 102, 241, 0.4);
-    transform: translateY(-2px);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.95) inset,
-      0 -1px 0 rgba(148, 163, 184, 0.06) inset,
-      0 4px 10px rgba(15, 23, 42, 0.06),
-      0 16px 32px -10px rgba(99, 102, 241, 0.2),
-      0 24px 48px -16px rgba(15, 23, 42, 0.12);
-  }
-
-  &.is-appearing {
-    animation: txAppear 0.5s cubic-bezier(.34,1.56,.64,1);
-  }
-
+  &.is-appearing { animation: txAppear 0.5s cubic-bezier(.34,1.56,.64,1); }
   &.is-deleting {
     animation: txDelete 0.3s cubic-bezier(.4,0,.6,1) forwards;
     pointer-events: none;
   }
 }
 
+/* ✅ ЖЁСТКИЙ СБРОС — все картинки внутри карточки ограничены */
+.tx-item img {
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  object-fit: contain;
+}
+
 @keyframes txAppear {
-  from {
-    opacity: 0;
-    transform: translateY(8px) scale(0.96);
-    filter: blur(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
-    filter: blur(0);
-  }
+  from { opacity: 0; transform: translateY(8px) scale(0.96); filter: blur(4px); }
+  to   { opacity: 1; transform: translateY(0) scale(1); filter: blur(0); }
 }
 
 @keyframes txDelete {
-  from {
-    opacity: 1;
-    transform: translateX(0) scale(1);
+  from { opacity: 1; transform: translateX(0) scale(1); }
+  to   { opacity: 0; transform: translateX(60px) scale(0.9); }
+}
+
+/* ============================================================
+   ПАНЕЛЬ ДЕЙСТВИЙ (свайп)
+   ============================================================ */
+.tx-actions-panel {
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 96px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  padding: 0 8px;
+  z-index: 0;
+  pointer-events: none;
+
+  background: linear-gradient(
+    270deg,
+    rgba(139, 92, 246, 0.14) 0%,
+    rgba(139, 92, 246, 0.06) 100%
+  );
+  transition: opacity 0.15s linear;
+
+  .tx-item.is-revealed & { pointer-events: auto; }
+}
+
+/* ✅ Кнопки swipe — фикс 40×40 */
+.tx-action-btn {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  max-width: 40px;
+  max-height: 40px;
+  border-radius: 12px;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  font-family: inherit;
+  flex-shrink: 0;
+  overflow: hidden;
+  transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), box-shadow 0.2s;
+
+  &:active { transform: scale(0.92); }
+}
+
+/* ✅ Иконка внутри swipe-кнопки — фикс 22×22 */
+.tab-icon-img {
+  display: block;
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
+  max-width: 22px;
+  max-height: 22px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25)) brightness(1.05);
+}
+
+.tx-action-edit {
+  background: linear-gradient(180deg, #818cf8, #6366f1);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.4) inset,
+    0 -2px 0 rgba(29, 78, 216, 0.3) inset,
+    0 4px 10px -2px rgba(99, 102, 241, 0.5);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.4) inset,
+      0 -2px 0 rgba(29, 78, 216, 0.3) inset,
+      0 8px 16px -2px rgba(99, 102, 241, 0.7);
   }
-  to {
-    opacity: 0;
-    transform: translateX(-60px) scale(0.9);
+}
+
+.tx-action-delete {
+  background: linear-gradient(180deg, #f87171, #dc2626);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.4) inset,
+    0 -2px 0 rgba(153, 27, 27, 0.3) inset,
+    0 4px 10px -2px rgba(239, 68, 68, 0.5);
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.4) inset,
+      0 -2px 0 rgba(153, 27, 27, 0.3) inset,
+      0 8px 16px -2px rgba(239, 68, 68, 0.7);
   }
 }
 
 /* ============================================================
-   ✅ ЛОГО БАНКА — ФОНОВЫЙ ВОДЯНОЙ ЗНАК В ЛЕВОМ ВЕРХНЕМ УГЛУ
+   КАРТОЧКА
    ============================================================ */
-.tx-bank-watermark {
-  position: absolute;
-  top: -12px;
-  left: -12px;
-  width: 140px;
-  height: 140px;
-  z-index: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-/* Радиальное свечение под логотипом */
-.tx-bank-glow {
-  position: absolute;
-  inset: -20px;
-  z-index: 0;
-  pointer-events: none;
-  filter: blur(20px);
-  opacity: 0.9;
-}
-
-/* Лого — большое, размытое, полупрозрачное */
-.tx-bank-wm-logo {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-  padding: 20px;
-  box-sizing: border-box;
-  display: block;
-
-  /* ✅ Мягкое размытие + полупрозрачность */
-  opacity: 0.1;
-  filter: blur(1px) saturate(1.3);
-
-  /* ✅ Плавный переход к правому нижнему краю */
-  -webkit-mask-image: radial-gradient(
-    circle at 30% 30%,
-    #000 0%,
-    rgba(0, 0, 0, 0.7) 40%,
-    rgba(0, 0, 0, 0.2) 70%,
-    transparent 100%
-  );
-  mask-image: radial-gradient(
-    circle at 30% 30%,
-    #000 0%,
-    rgba(0, 0, 0, 0.7) 40%,
-    rgba(0, 0, 0, 0.2) 70%,
-    transparent 100%
-  );
-}
-
-/* Иконка наличных/дефолт */
-.tx-bank-wm-icon {
+.tx-card {
   position: relative;
   z-index: 1;
   display: flex;
   align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  font-size: 72px;
-  line-height: 1;
+  gap: 12px;
+  padding: 14px 16px;
 
-  /* ✅ Мягкое размытие + полупрозрачность */
-  opacity: 0.15;
-  filter: blur(0.5px) saturate(1.3);
+  background: var(--grad-card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  box-sizing: border-box;
 
-  /* ✅ Плавный переход */
-  -webkit-mask-image: radial-gradient(
-    circle at 30% 30%,
-    #000 0%,
-    rgba(0, 0, 0, 0.7) 40%,
-    rgba(0, 0, 0, 0.2) 70%,
-    transparent 100%
-  );
-  mask-image: radial-gradient(
-    circle at 30% 30%,
-    #000 0%,
-    rgba(0, 0, 0, 0.7) 40%,
-    rgba(0, 0, 0, 0.2) 70%,
-    transparent 100%
-  );
-}
+  box-shadow: var(--shadow-md);
 
-/* ✅ На мобильном водяной знак меньше */
-@media (max-width: 700px) {
-  .tx-bank-watermark {
-    width: 110px;
-    height: 110px;
-    top: -8px;
-    left: -8px;
+  will-change: transform;
+  transition:
+    transform 0.32s cubic-bezier(.34,1.56,.64,1),
+    box-shadow 0.3s ease,
+    border-color 0.25s ease,
+    background 0.3s ease;
+
+  &:hover {
+    border-color: var(--border-strong);
+    box-shadow: var(--shadow-lg);
   }
-  .tx-bank-wm-icon { font-size: 56px; }
-  .tx-bank-wm-logo { padding: 14px; }
-}
-
-@media (max-width: 380px) {
-  .tx-bank-watermark {
-    width: 90px;
-    height: 90px;
-    top: -6px;
-    left: -6px;
-  }
-  .tx-bank-wm-icon { font-size: 46px; }
-  .tx-bank-wm-logo { padding: 12px; }
 }
 
 /* ============================================================
-   АВАТАР — как было (42×42)
+   АВАТАР — жёстко 42×42
    ============================================================ */
 .tx-avatar {
   flex: 0 0 42px;
   width: 42px;
   height: 42px;
+  min-width: 42px;
+  max-width: 42px;
+  max-height: 42px;
   border-radius: 50%;
   display: flex;
   align-items: center;
@@ -462,46 +502,38 @@ function itemStyle() {
   overflow: hidden;
   position: relative;
   z-index: 2;
-
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
 }
 
 .tx-avatar.sergey {
   background: linear-gradient(180deg, rgba(147, 197, 253, 0.35), rgba(139, 92, 246, 0.35));
-  border: 1.5px solid rgba(59, 130, 246, 0.4);
+  border: 1.5px solid rgba(99, 102, 241, 0.55);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.6) inset,
-    0 4px 10px -2px rgba(59, 130, 246, 0.25);
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 4px 10px -2px rgba(99, 102, 241, 0.35);
 }
 .tx-avatar.sasha {
-  background: linear-gradient(180deg, rgba(251, 207, 232, 0.4), rgba(253, 186, 116, 0.3));
-  border: 1.5px solid rgba(236, 72, 153, 0.4);
+  background: linear-gradient(180deg, rgba(251, 207, 232, 0.35), rgba(253, 186, 116, 0.3));
+  border: 1.5px solid rgba(236, 72, 153, 0.55);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.6) inset,
-    0 4px 10px -2px rgba(236, 72, 153, 0.25);
+    0 1px 0 rgba(255, 255, 255, 0.35) inset,
+    0 4px 10px -2px rgba(236, 72, 153, 0.35);
 }
 
+/* ✅ Аватар-картинка — 100% родителя, не больше */
 .tx-avatar-img {
+  display: block;
   width: 100%;
   height: 100%;
+  max-width: 42px;
+  max-height: 42px;
   object-fit: cover;
-  display: block;
-}
-
-.tx-avatar-emoji {
-  font-size: 20px;
-  line-height: 1;
+  border-radius: 50%;
 }
 
 /* ============================================================
    ТЕКСТ
    ============================================================ */
-.tx-main {
-  flex: 1;
-  min-width: 0;
-  position: relative;
-  z-index: 2;
-}
+.tx-main { flex: 1; min-width: 0; position: relative; z-index: 2; }
 
 .tx-name {
   font-weight: 700;
@@ -529,65 +561,54 @@ function itemStyle() {
   font-weight: 700;
   color: var(--text);
   cursor: pointer;
-  transition: color 0.15s ease;
   user-select: none;
+  transition: color 0.15s ease;
   &:hover { color: var(--accent); }
 }
 
 .tx-meta .cat {
-  padding: 3px 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px 3px 5px;
   border-radius: 999px;
-  background: linear-gradient(180deg, rgba(241, 245, 249, 0.95), rgba(226, 232, 240, 0.85));
+  background: var(--panel-2);
   color: var(--accent);
   font-size: 11px;
   font-weight: 700;
   cursor: pointer;
-  transition: all 0.15s ease;
   user-select: none;
   white-space: nowrap;
-  border: 1px solid rgba(148, 163, 184, 0.15);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.8) inset,
-    0 1px 2px rgba(15, 23, 42, 0.04);
+  border: 1px solid var(--border);
+  transition: all 0.18s ease;
 
   &:hover {
-    background: linear-gradient(180deg, #818cf8, #6366f1);
+    background: var(--grad-primary);
     color: #ffffff;
     border-color: transparent;
     transform: translateY(-1px);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.3) inset,
-      0 4px 10px -2px rgba(99, 102, 241, 0.5);
-  }
-  &.acc-badge.sber {
-    background: linear-gradient(180deg, rgba(220, 252, 231, 1), rgba(187, 247, 208, 0.8));
-    color: #166534;
-    border-color: rgba(33, 160, 56, 0.25);
-    &:hover {
-      background: linear-gradient(180deg, #4cd964, #21a038);
-      color: #ffffff;
-      box-shadow: 0 4px 10px -2px rgba(33, 160, 56, 0.5);
-    }
-  }
-  &.acc-badge.tbank {
-    background: linear-gradient(180deg, rgba(254, 249, 195, 1), rgba(253, 224, 71, 0.6));
-    color: #92400e;
-    border-color: rgba(245, 158, 11, 0.3);
-    &:hover {
-      background: linear-gradient(180deg, #fde047, #f59e0b);
-      color: #000000;
-      box-shadow: 0 4px 10px -2px rgba(245, 158, 11, 0.5);
-    }
-  }
-  &.acc-badge.cash {
-    background: linear-gradient(180deg, rgba(220, 252, 231, 1), rgba(187, 247, 208, 0.8));
-    color: #166534;
-    border-color: rgba(34, 197, 94, 0.3);
+    box-shadow: 0 4px 12px -2px rgba(139, 92, 246, 0.5);
+
+    .tx-cat-icon { filter: drop-shadow(0 0 6px rgba(255,255,255,0.5)); }
   }
 }
 
+/* ✅ Иконка категории — фикс 16×16 */
+.tx-cat-icon {
+  display: block;
+  width: 16px;
+  height: 16px;
+  min-width: 16px;
+  max-width: 16px;
+  max-height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
+  transition: filter 0.2s ease;
+}
+
 /* ============================================================
-   СУММА
+   ПРАВАЯ ЧАСТЬ
    ============================================================ */
 .tx-right {
   flex: 0 0 auto;
@@ -599,26 +620,33 @@ function itemStyle() {
   z-index: 2;
 }
 
+.tx-right-bottom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .tx-amount {
-  font-family: var(--mono, "JetBrains Mono", monospace);
+  font-family: var(--mono);
   font-size: 18px;
   font-weight: 800;
   letter-spacing: -0.02em;
   cursor: pointer;
   white-space: nowrap;
-  transition: all 0.15s ease;
   user-select: none;
   border-radius: 8px;
-  padding: 2px 6px;
-  text-shadow: 0 1px 0 rgba(255, 255, 255, 0.9);
+  padding: 2px 8px;
+  transition: all 0.2s ease;
 
   &.income {
-    color: #16a34a;
-    background: linear-gradient(180deg, rgba(220, 252, 231, 0.5), rgba(187, 247, 208, 0.3));
+    color: var(--accent-2);
+    background: rgba(34, 197, 94, 0.12);
+    text-shadow: 0 0 12px rgba(34, 197, 94, 0.35);
   }
   &.expense {
-    color: #dc2626;
-    background: linear-gradient(180deg, rgba(254, 226, 226, 0.5), rgba(254, 202, 202, 0.3));
+    color: var(--danger);
+    background: rgba(244, 63, 94, 0.12);
+    text-shadow: 0 0 12px rgba(244, 63, 94, 0.35);
   }
 
   &:hover { transform: scale(1.04); }
@@ -628,147 +656,243 @@ function itemStyle() {
 }
 
 @keyframes amountFlashUp {
-  0%   { background: rgba(34, 197, 94, 0.4); transform: scale(1.12); }
+  0%   { background: rgba(34, 197, 94, 0.5); transform: scale(1.12); }
   100% { background: transparent; transform: scale(1); }
 }
 @keyframes amountFlashDown {
-  0%   { background: rgba(239, 68, 68, 0.4); transform: scale(1.12); }
+  0%   { background: rgba(244, 63, 94, 0.5); transform: scale(1.12); }
   100% { background: transparent; transform: scale(1); }
 }
 
 /* ============================================================
-   КНОПКИ
+   ИНЛАЙН-КНОПКИ (ПК) — фикс 34×34
    ============================================================ */
-.tx-actions {
-  display: flex;
-  gap: 4px;
-  opacity: 0;
-  transition: opacity 0.2s ease;
+.tx-actions-inline {
+  display: none;
+  align-items: center;
+  gap: 6px;
 }
-.tx-item:hover .tx-actions { opacity: 1; }
 
-.tx-actions button {
-  width: 30px; height: 30px;
-  border-radius: 8px;
-  border: 1px solid rgba(226, 232, 240, 0.9);
-  background: linear-gradient(180deg, #ffffff, #f8fafc);
-  color: var(--muted);
+.tx-inline-btn {
+  width: 34px;
+  height: 34px;
+  min-width: 34px;
+  max-width: 34px;
+  max-height: 34px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--panel-2);
   cursor: pointer;
-  transition: all 0.15s cubic-bezier(.34,1.56,.64,1);
-  padding: 0;
-  font-size: 14px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  padding: 0;
   flex-shrink: 0;
+  overflow: hidden;
 
+  box-shadow: var(--shadow-sm);
+
+  transition:
+    transform 0.18s cubic-bezier(.34,1.56,.64,1),
+    box-shadow 0.22s ease,
+    background 0.15s ease,
+    border-color 0.15s ease;
+
+  &:active { transform: scale(0.94); }
+}
+
+/* ✅ Иконка внутри inline-кнопки — фикс 18×18 */
+.tib-icon-img {
+  display: block;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  max-width: 18px;
+  max-height: 18px;
+  object-fit: contain;
+  flex-shrink: 0;
+  opacity: 0.8;
+  transition: opacity 0.15s ease, transform 0.2s cubic-bezier(.34,1.56,.64,1);
+}
+
+.tx-inline-edit:hover {
+  background: rgba(139, 92, 246, 0.15);
+  border-color: rgba(139, 92, 246, 0.5);
+  transform: translateY(-2px);
   box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.95) inset,
-    0 2px 4px rgba(15, 23, 42, 0.06);
+    0 6px 14px -4px rgba(139, 92, 246, 0.4),
+    0 0 0 1px rgba(139, 92, 246, 0.3);
 
-  &:hover {
-    border-color: rgba(99, 102, 241, 0.4);
-    color: #6366f1;
-    background: linear-gradient(180deg, #eef2ff, #e0e7ff);
-    transform: translateY(-1px);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.95) inset,
-      0 4px 10px -2px rgba(99, 102, 241, 0.3);
-  }
-  &:active {
-    transform: translateY(0) scale(0.95);
-    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.1) inset;
-  }
-  &.danger:hover {
-    border-color: rgba(239, 68, 68, 0.4);
-    color: #dc2626;
-    background: linear-gradient(180deg, #fef2f2, #fee2e2);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.95) inset,
-      0 4px 10px -2px rgba(239, 68, 68, 0.3);
-  }
+  .tib-icon-img { opacity: 1; transform: translateY(-1px) rotate(-6deg) scale(1.1); }
+}
+
+.tx-inline-delete:hover {
+  background: rgba(244, 63, 94, 0.15);
+  border-color: rgba(244, 63, 94, 0.5);
+  transform: translateY(-2px);
+  box-shadow:
+    0 6px 14px -4px rgba(244, 63, 94, 0.4),
+    0 0 0 1px rgba(244, 63, 94, 0.3);
+
+  .tib-icon-img { opacity: 1; transform: scale(1.12); }
+}
+
+@media (min-width: 701px) {
+  .tx-actions-inline { display: inline-flex; }
 }
 
 /* ============================================================
-   Свайп
+   БАНК-МОНЕТА — фикс 30×30
    ============================================================ */
-.tx-swipe-progress {
-  position: absolute;
-  inset: 0;
-  border-radius: 16px;
-  pointer-events: none;
-  z-index: 3;
-  transition: opacity 0.12s;
-
-  &.primary {
-    background: linear-gradient(90deg, transparent 0%, rgba(59, 130, 246, 0.35) 100%);
-  }
-  &.danger {
-    background: linear-gradient(90deg, rgba(239, 68, 68, 0.35) 0%, transparent 100%);
-  }
-}
-
-.tx-item.swipe-left { border-color: rgba(239, 68, 68, 0.5); }
-.tx-item.swipe-right { border-color: rgba(59, 130, 246, 0.5); }
-
-.tx-item.swipe-left::before {
-  content: "🗑";
-  position: absolute;
-  top: 0; right: 0; bottom: 0;
-  width: 100%;
+.tx-bank-coin {
+  position: relative;
+  width: 30px;
+  height: 30px;
+  min-width: 30px;
+  max-width: 30px;
+  max-height: 30px;
+  border-radius: 50%;
   display: flex;
   align-items: center;
-  justify-content: flex-end;
-  padding-right: 24px;
-  background: linear-gradient(90deg, transparent, rgba(239, 68, 68, 0.85));
-  color: #fff;
-  font-size: 20px;
-  border-radius: 16px;
-  z-index: 4;
-  pointer-events: none;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  overflow: hidden;
+
+  background: #ffffff;
+  border: 1px solid var(--border);
+
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.95) inset,
+    0 -1px 0 rgba(148, 163, 184, 0.08) inset,
+    0 4px 10px -2px rgba(15, 23, 42, 0.18);
+
+  transition: transform 0.18s cubic-bezier(.34,1.56,.64,1), box-shadow 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px) scale(1.06);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.95) inset,
+      0 -1px 0 rgba(148, 163, 184, 0.08) inset,
+      0 8px 18px -2px rgba(139, 92, 246, 0.4),
+      0 0 0 1px var(--neon-purple);
+  }
+  &:active { transform: scale(0.95); }
+
+  &.coin-tbank { border-color: rgba(234, 179, 8, 0.5); }
+  &.coin-sber { border-color: rgba(33, 160, 56, 0.5); }
+  &.coin-cash { border-color: rgba(34, 197, 94, 0.5); }
+  &.coin-default { border-color: rgba(139, 92, 246, 0.5); }
 }
-.tx-item.swipe-right::before {
-  content: "✏️";
-  position: absolute;
-  top: 0; left: 0; bottom: 0;
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
-  padding-left: 24px;
-  background: linear-gradient(90deg, rgba(59, 130, 246, 0.85), transparent);
-  color: #fff;
-  font-size: 20px;
-  border-radius: 16px;
-  z-index: 4;
-  pointer-events: none;
+
+/* ✅ Логотип банка внутри монеты — 78%, не больше 24px */
+.tx-bank-coin-img {
+  display: block;
+  width: 78%;
+  height: 78%;
+  max-width: 24px;
+  max-height: 24px;
+  object-fit: contain;
+}
+
+/* ============================================================
+   ТЁМНАЯ ТЕМА
+   ============================================================ */
+:global(:root[data-app-theme="dark"]) {
+  .tx-bank-coin {
+    background: rgba(255, 255, 255, 0.95);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.9) inset,
+      0 -1px 0 rgba(0, 0, 0, 0.2) inset,
+      0 4px 12px -2px rgba(0, 0, 0, 0.5),
+      0 0 0 1px rgba(139, 92, 246, 0.3);
+  }
+
+  .tx-inline-btn {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(139, 92, 246, 0.2);
+  }
 }
 
 /* ============================================================
    МОБИЛЬНЫЙ
    ============================================================ */
 @media (max-width: 700px) {
-  .tx-item { padding: 12px 14px; gap: 10px; border-radius: 14px; }
-  .tx-avatar { flex: 0 0 38px; width: 38px; height: 38px; }
-  .tx-avatar-emoji { font-size: 18px; }
+  .tx-card { padding: 12px 14px; gap: 10px; border-radius: 14px; }
+
+  .tx-avatar {
+    flex: 0 0 38px;
+    width: 38px;
+    height: 38px;
+    min-width: 38px;
+    max-width: 38px;
+    max-height: 38px;
+  }
+  .tx-avatar-img { max-width: 38px; max-height: 38px; }
+
   .tx-name { font-size: 14px; }
   .tx-meta { font-size: 11px; gap: 5px; }
-  .tx-meta .cat { font-size: 10px; padding: 2px 8px; }
+  .tx-meta .cat { font-size: 10px; padding: 2px 8px 2px 4px; gap: 4px; }
+
+  .tx-cat-icon {
+    width: 14px;
+    height: 14px;
+    min-width: 14px;
+    max-width: 14px;
+    max-height: 14px;
+  }
+
   .tx-amount { font-size: 15px; }
-  .tx-actions { opacity: 1; }
-  .tx-actions button { width: 32px; height: 32px; }
-  .tx-item:active { transform: scale(0.99); }
+
+  .tx-bank-coin {
+    width: 26px;
+    height: 26px;
+    min-width: 26px;
+    max-width: 26px;
+    max-height: 26px;
+  }
+  .tx-bank-coin-img { max-width: 20px; max-height: 20px; }
+
+  .tx-actions-panel { width: 92px; }
+  .tx-action-btn {
+    width: 36px;
+    height: 36px;
+    min-width: 36px;
+    max-width: 36px;
+    max-height: 36px;
+  }
+  .tab-icon-img {
+    width: 20px;
+    height: 20px;
+    min-width: 20px;
+    max-width: 20px;
+    max-height: 20px;
+  }
+}
+
+@media (max-width: 380px) {
+  .tx-bank-coin {
+    width: 24px;
+    height: 24px;
+    min-width: 24px;
+    max-width: 24px;
+    max-height: 24px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tx-item,
-  .tx-item:hover,
+  .tx-card,
   .tx-avatar,
-  .tx-actions button,
-  .tx-amount { transition: none !important; transform: none !important; }
-  .tx-item.is-appearing,
-  .tx-item.is-deleting,
+  .tx-bank-coin,
+  .tx-inline-btn,
+  .tx-amount,
+  .tib-icon-img { transition: none !important; }
+  .tx-card:hover { transform: none; }
+  .tx-inline-btn:hover { transform: none; }
+  .tx-inline-btn:hover .tib-icon-img { transform: none; }
   .tx-amount.flash-up,
-  .tx-amount.flash-down { animation: none !important; }
+  .tx-amount.flash-down,
+  .tx-item.is-appearing,
+  .tx-item.is-deleting { animation: none !important; }
 }
 </style>

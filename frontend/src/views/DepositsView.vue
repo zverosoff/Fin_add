@@ -32,6 +32,7 @@ onMounted(async () => {
 .deposits-page {
   min-height: 100vh;
   padding: 20px 20px 20px;
+  position: relative;
 }
 
 .container {

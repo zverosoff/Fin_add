@@ -121,8 +121,8 @@ async function remove() {
   gap: 10px;
   padding: 12px 14px;
   border-radius: 12px;
-  background: linear-gradient(135deg, rgba(56, 189, 248, 0.08), rgba(139, 92, 246, 0.06));
-  border: 1px solid rgba(56, 189, 248, 0.25);
+  background: rgba(139, 92, 246, 0.08);
+  border: 1px solid rgba(139, 92, 246, 0.25);
 
   .icon { font-size: 26px; flex-shrink: 0; }
   .text { flex: 1; min-width: 0; }
@@ -132,6 +132,7 @@ async function remove() {
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
+    color: var(--text);
   }
   .progress {
     font-size: 11.5px;
@@ -161,10 +162,13 @@ async function remove() {
     font-family: inherit;
     outline: none;
     width: 100%;
+    background: var(--panel-2);
+    color: var(--text);
+    transition: border-color 0.15s, box-shadow 0.15s, background 0.3s ease;
 
     &:focus {
       border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
     }
   }
 }
@@ -179,8 +183,8 @@ async function remove() {
 .error-msg {
   padding: 8px 12px;
   border-radius: 8px;
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.3);
+  background: rgba(244, 63, 94, 0.1);
+  border: 1px solid rgba(244, 63, 94, 0.3);
   color: var(--danger);
   font-size: 12.5px;
   font-weight: 600;
@@ -198,24 +202,37 @@ async function remove() {
 
 .btn-delete {
   margin-right: auto;
-  background: rgba(239, 68, 68, 0.08);
+  background: rgba(244, 63, 94, 0.1);
   color: var(--danger);
-  border-color: rgba(239, 68, 68, 0.3);
-
-  &:hover { background: rgba(239, 68, 68, 0.15); }
+  border-color: rgba(244, 63, 94, 0.3);
+  transition: all 0.15s;
+  &:hover { background: rgba(244, 63, 94, 0.2); }
 }
 
 .btn-cancel {
-  background: #f1f5f9;
+  background: var(--panel-2);
   color: var(--text);
   border-color: var(--border);
+  transition: all 0.15s;
+  &:hover { border-color: var(--border-strong); }
 }
 
 .btn-save {
-  background: linear-gradient(135deg, #3b82f6, #8b5cf6);
+  background: var(--grad-primary);
   color: #fff;
-  box-shadow: 0 10px 24px -10px rgba(59, 130, 246, 0.7);
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.3) inset,
+    0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+    0 6px 18px -6px rgba(139, 92, 246, 0.7);
+  transition: all 0.15s;
 
   &:disabled { opacity: 0.5; cursor: wait; }
+  &:not(:disabled):hover {
+    transform: translateY(-1px);
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.3) inset,
+      0 -2px 0 rgba(0, 0, 0, 0.15) inset,
+      0 10px 24px -6px rgba(139, 92, 246, 0.9);
+  }
 }
 </style>
