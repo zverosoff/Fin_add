@@ -12,8 +12,9 @@ import WelcomeOverlay from '@/components/ui/WelcomeOverlay.vue';
 import ToastContainer from '@/components/ui/ToastContainer.vue';
 import BottomNav from '@/components/ui/BottomNav.vue';
 import ScanModal from '@/components/scan/ScanModal.vue';
-// ✅ ЧАТ УБРАН, чтобы сборка прошла успешно
-// import ChatWidget from '@/components/chat/ChatWidget.vue';
+import ManualModal from '@/components/transactions/ManualModal.vue';
+import PdfImportModal from '@/components/scan/PdfImportModal.vue';
+import ChatWidget from '@/components/chat/ChatWidget.vue';
 
 const auth = useAuthStore();
 const accounts = useAccountsStore();
@@ -27,10 +28,17 @@ const booting = ref(false);
 const percent = ref(0);
 const stage = ref('Запуск…');
 const done = ref(false);
+const manualOpen = ref(false);
+const pdfOpen = ref(false);
 
 const showBottomNav = computed(() => route.name !== 'login');
-// ✅ ЧАТ УБРАН
-// const showChat = computed(() => ... );
+
+// ✅ Чат НЕ на /login и НЕ на /profile
+const showChat = computed(() =>
+  route.name !== 'login' &&
+  route.name !== 'profile' &&
+  auth.isAuthenticated
+);
 
 const TAB_ORDER = ['finance', 'analytics', 'deposits', 'profile'];
 const transitionName = ref('fade-page');
@@ -50,12 +58,20 @@ watch(() => route.name, (newName, oldName) => {
   }
 });
 
+function switchToManual() { scanStore.close(); manualOpen.value = true; }
+function switchToPdf() { scanStore.close(); pdfOpen.value = true; }
+
+// ✅ Загрузить профили ВСЕХ других пользователей (не только текущего)
 async function preloadPeerProfiles() {
   const owners = ['Сергей', 'Саша'];
   const me = auth.user;
   for (const owner of owners) {
     if (owner !== me) {
-      try { await auth.loadPeerProfile(owner); } catch (e) {}
+      try {
+        await auth.loadPeerProfile(owner);
+      } catch (e) {
+        console.warn('[app] loadPeerProfile failed for', owner, e.message);
+      }
     }
   }
 }
@@ -102,6 +118,7 @@ onMounted(async () => {
       stage.value = 'Данные недоступны';
     }
 
+    // ✅ Подтягиваем профили других пользователей сразу
     stage.value = 'Загрузка профилей…';
     percent.value = 85;
     await preloadPeerProfiles();
@@ -112,7 +129,11 @@ onMounted(async () => {
     connect();
     notifySaved('готово');
 
-    try { await subscribeToPush(); } catch (e) {}
+    try {
+      await subscribeToPush();
+    } catch (e) {
+      console.warn('[app] push subscribe failed:', e.message);
+    }
 
     percent.value = 100;
     stage.value = 'Готово!';
@@ -126,6 +147,7 @@ onMounted(async () => {
   }
 });
 
+// ✅ Если пользователь разлогинился и зашёл под другим — перезагружаем профили
 watch(() => auth.user, async (newUser, oldUser) => {
   if (newUser && newUser !== oldUser && auth.isAuthenticated) {
     await preloadPeerProfiles();
@@ -152,12 +174,16 @@ onUnmounted(() => {
   </div>
 
   <BottomNav v-if="showBottomNav" />
-  
-  <!-- ✅ ЧАТ УБРАН -->
-  <!-- <ChatWidget v-if="showChat" /> -->
+  <ChatWidget v-if="showChat" />
 
-  <!-- Теперь у нас только одна модалка, которая умеет всё -->
-  <ScanModal v-model="scanStore.isOpen" />
+  <ScanModal
+    v-model="scanStore.isOpen"
+    @switch-to-manual="switchToManual"
+    @switch-to-pdf="switchToPdf"
+  />
+
+  <ManualModal v-model="manualOpen" />
+  <PdfImportModal v-model="pdfOpen" />
 
   <WelcomeOverlay
     :visible="booting"
