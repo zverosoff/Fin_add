@@ -84,27 +84,18 @@ export async function recognizeText(file, onProgress) {
 }
 
 // ============================================================
-// ✅ Новый парсер для банковских скриншотов (Т-Банк, Сбер)
+// ✅ Умный парсер для банковских скриншотов (Т-Банк, Сбер)
 // ============================================================
-
-const CATEGORY_WORDS = [
-  'Супермаркеты', 'Фастфуд', 'Переводы', 'Заправки', 'Сервис', 
-  'Кафе и рестораны', 'Транспорт', 'Развлечения', 'Здоровье', 
-  'Аптеки', 'Одежда и обувь', 'Разное', 'Коммунальные', 
-  'Связь', 'Подписки', 'Выдача наличных', 'Пополнение'
-];
-
 export function parseBankScreenshot(textLines) {
   if (!textLines || !textLines.length) return [];
 
-  // 1. Сортируем все строки сверху вниз (по Y)
   const lines = [...textLines].sort((a, b) => {
     if (!a.bbox || !b.bbox) return 0;
     return a.bbox.y0 - b.bbox.y0;
   });
 
   const operations = [];
-  let currentDate = new Date(); // по умолчанию сегодня
+  let currentDate = new Date();
   currentDate.setHours(12, 0, 0, 0);
 
   const MONTHS = {
@@ -112,31 +103,28 @@ export function parseBankScreenshot(textLines) {
     'июля': 6, 'августа': 7, 'сентября': 8, 'октября': 9, 'ноября': 10, 'декабря': 11
   };
 
-  // Регулярки для поиска
-  // Ищем сумму: знак, пробелы, цифры, запятая/точка, 2 знака
   const AMOUNT_RE = /([+\-−])\s*([\d\s]+(?:[.,]\d{2})?)\s*[₽pPрР]?/;
   const DATE_WORD_RE = /(Сегодня|Вчера|Позавчера)/i;
-  // Ищем дату: "19 октября, пн" или "19 октября"
   const DATE_NUM_RE = /(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:[,\s]+([а-я]{2}))?/i;
 
-  // 2. Проходим по строкам
+  const CATEGORY_WORDS = [
+    'Супермаркеты', 'Фастфуд', 'Переводы', 'Заправки', 'Сервис', 
+    'Кафе и рестораны', 'Транспорт', 'Развлечения', 'Здоровье', 
+    'Аптеки', 'Одежда и обувь', 'Разное', 'Коммунальные', 
+    'Связь', 'Подписки', 'Выдача наличных', 'Пополнение'
+  ];
+
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const text = (line.text || '').trim();
     if (!text) continue;
 
-    // === 2.1. Проверяем, не заголовок ли это дня ===
+    // 1. Проверяем заголовки дат
     if (DATE_WORD_RE.test(text)) {
       const word = text.match(DATE_WORD_RE)[0].toLowerCase();
-      if (word === 'сегодня') {
-        currentDate = new Date();
-      } else if (word === 'вчера') {
-        currentDate = new Date();
-        currentDate.setDate(currentDate.getDate() - 1);
-      } else if (word === 'позавчера') {
-        currentDate = new Date();
-        currentDate.setDate(currentDate.getDate() - 2);
-      }
+      if (word === 'сегодня') currentDate = new Date();
+      else if (word === 'вчера') { currentDate = new Date(); currentDate.setDate(currentDate.getDate() - 1); }
+      else if (word === 'позавчера') { currentDate = new Date(); currentDate.setDate(currentDate.getDate() - 2); }
       currentDate.setHours(12, 0, 0, 0);
       continue;
     }
@@ -144,53 +132,41 @@ export function parseBankScreenshot(textLines) {
     const dateMatch = text.match(DATE_NUM_RE);
     if (dateMatch) {
       const day = parseInt(dateMatch[1], 10);
-      const monthName = dateMatch[2].toLowerCase();
-      const month = MONTHS[monthName];
+      const month = MONTHS[dateMatch[2].toLowerCase()];
       const now = new Date();
       let year = now.getFullYear();
-      
-      // Если месяц в скриншоте больше текущего, значит это прошлый год
       if (month > now.getMonth()) year -= 1;
-
       currentDate = new Date(year, month, day, 12, 0, 0);
       continue;
     }
 
-    // === 2.2. Проверяем, есть ли в строке сумма ===
+    // 2. Ищем сумму
     const amountMatch = text.match(AMOUNT_RE);
     if (!amountMatch) continue;
 
     const sign = amountMatch[1];
-    // Убираем пробелы, меняем запятую на точку
     const rawAmount = amountMatch[2].replace(/\s+/g, '').replace(',', '.');
     let amount = parseFloat(rawAmount);
-    
     if (isNaN(amount) || amount <= 0) continue;
 
-    // Округляем до целого
-    amount = Math.round(amount);
-
+    amount = Math.round(amount); // Округление до целого
     const type = sign === '+' ? 'income' : 'expense';
 
-    // === 2.3. Извлекаем название и категорию ===
+    // 3. Парсим название и категорию
     let description = text.replace(amountMatch[0], '').trim();
     let category = 'Прочее';
 
-    // Если описание пустое или слишком короткое, смотрим на следующую строку
+    // Если описание короткое, берем следующую строку
     if (!description || description.length < 2) {
       if (i + 1 < lines.length) {
         const nextText = (lines[i + 1].text || '').trim();
-        // Если следующая строка не содержит цифр, это категория или описание
-        if (!/\d/.test(nextText)) {
-          description = nextText;
-        }
+        if (!/\d/.test(nextText)) description = nextText;
       }
     }
 
-    // Чистим описание от лишних символов
     description = description.replace(/[|•·\-\+−]/g, '').trim();
 
-    // Пытаемся определить категорию из описания
+    // Вытаскиваем категорию
     for (const cat of CATEGORY_WORDS) {
       if (description.toLowerCase().includes(cat.toLowerCase())) {
         category = cat;
@@ -199,15 +175,9 @@ export function parseBankScreenshot(textLines) {
       }
     }
 
-    // Если описание всё ещё пустое — ставим заглушку
-    if (!description || description.length < 2) {
-      description = 'Операция';
-    }
-
-    // Убираем лишние пробелы и обрезаем
+    if (!description || description.length < 2) description = 'Операция';
     description = description.replace(/\s+/g, ' ').slice(0, 80);
 
-    // === 2.4. Сохраняем операцию ===
     operations.push({
       date: currentDate.toISOString(),
       name: description,
@@ -217,7 +187,7 @@ export function parseBankScreenshot(textLines) {
     });
   }
 
-  // Дедупликация (иногда OCR дублирует строки из-за размытия)
+  // Убираем дубликаты
   const seen = new Set();
   return operations.filter(op => {
     const key = `${op.name}|${op.amount}|${op.date.slice(0, 10)}`;

@@ -24,7 +24,6 @@ const toast = useToast();
 
 const step = ref('upload'); // 'upload' | 'recognizing' | 'preview'
 const file = ref(null);
-const filePreview = ref('');
 const progress = ref(0);
 const statusText = ref('');
 
@@ -53,7 +52,6 @@ function switchToPdf() {
 function reset() {
   step.value = 'upload';
   file.value = null;
-  filePreview.value = '';
   progress.value = 0;
   statusText.value = '';
   items.value = [];
@@ -83,28 +81,25 @@ async function onFileSelected(e) {
 
 async function processFile(f) {
   file.value = f;
-  filePreview.value = URL.createObjectURL(f);
   error.value = '';
   step.value = 'recognizing';
   progress.value = 0;
   statusText.value = 'Подготовка изображения…';
 
   try {
-    // 1. Улучшаем картинку (контраст, ч/б)
     const processed = await preprocessImage(f);
     statusText.value = 'Загрузка модели OCR…';
     
-    // 2. Распознаем текст
     const result = await recognizeText(processed, (pct) => {
       progress.value = pct;
       statusText.value = `Сканирование: ${pct}%`;
     });
 
-    // 3. Парсим как банковский скриншот
+    // Парсим скриншот
     const parsed = parseBankScreenshot(result.lines);
 
     if (!parsed.length) {
-      error.value = 'Не удалось найти операции на скриншоте. Убедитесь, что это скриншот списка операций из банка.';
+      error.value = 'Не удалось найти операции. Убедитесь, что на скриншоте есть список операций с датами и суммами.';
       step.value = 'upload';
       return;
     }
@@ -194,7 +189,6 @@ function close() {
     title="📸 Сканирование"
     @update:model-value="emit('update:modelValue', $event)"
   >
-    <!-- Переключатель режима -->
     <div class="mode-switch">
       <button type="button" class="mode active" disabled>
         <span class="m-icon">📸</span> Скриншот
