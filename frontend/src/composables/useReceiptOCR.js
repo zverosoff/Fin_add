@@ -147,7 +147,7 @@ function isValidBankScreenshot(lines) {
 }
 
 // ============================================================
-// ПАРСЕР ДЛЯ Т-БАНКА (v4, ИСПРАВЛЕННЫЙ)
+// ПАРСЕР ДЛЯ Т-БАНКА (v5, С КОПЕЙКАМИ)
 // ============================================================
 function parseTbank(lines) {
   const parsedItems = [];
@@ -157,13 +157,12 @@ function parseTbank(lines) {
   const DATE_WORD_RE = /(Сегодня|Вчера|Позавчера)/i;
   const DATE_NUM_RE = /(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)/i;
   
-  // Суммы: ищем только явные операции (с минусом или плюсом, но не кэшбэк)
+  // Суммы: ищем с минусом или плюсом, сохраняем копейки
   const AMOUNT_RE = /([+\-−])\s*(\d[\d\s]*[.,]?\d*)\s*(?:₽|p|P|р|Р)?/;
   
-  // Игнорируем заголовки карточек
+  // Игнорируем заголовки и системный мусор
   const JUNK_RE = /^(траты|доходы|счета и карты|без переводов|операции|октябрь|сентябрь|баланс|всего|расходы|поступления)/i;
 
-  // Находим Y первого заголовка даты (например, "16 октября")
   let listStartY = 0;
   for (const line of lines) {
     const text = (line.text || '').trim();
@@ -181,12 +180,12 @@ function parseTbank(lines) {
     const y = line.bbox ? line.bbox.y0 : 0;
     const x = line.bbox ? line.bbox.x0 : 0;
 
-    // 1. Отсекаем всё, что выше первой даты (карточки "Траты/Доходы")
-    if (listStartY > 0 && y < listStartY - 20) continue;
+    // Мягкая отсечка сверху: если есть дата, отсекаем всё, что выше неё на 50px
+    if (listStartY > 0 && y < listStartY - 50) continue;
     
     if (JUNK_RE.test(text)) continue;
 
-    // 2. Ищем дату
+    // Ищем дату
     let foundDate = null;
     if (DATE_WORD_RE.test(text)) {
       const word = text.match(DATE_WORD_RE)[0].toLowerCase();
@@ -210,39 +209,39 @@ function parseTbank(lines) {
       continue;
     }
 
-    // 3. Ищем сумму операции
+    // Ищем сумму
     const amountMatch = text.match(AMOUNT_RE);
     if (!amountMatch) continue;
 
     const sign = amountMatch[1];
+    // Очищаем сумму от пробелов, заменяем запятую на точку
     const rawAmount = amountMatch[2].replace(/\s+/g, '').replace(',', '.');
     let amount = parseFloat(rawAmount);
     
     if (isNaN(amount) || amount <= 0) continue;
 
-    // Отсекаем кэшбэк (например, +10, +8), если это не крупная операция
+    // Отсекаем кэшбэк (например, +10, +8)
     if (amount < 50 && sign === '+') continue;
 
-    // Жесткая отсечка: суммы > 50 000 — это итоги за месяц
+    // Жесткая отсечка итогов (суммы > 50 000)
     if (amount > 50000) continue; 
 
     const type = sign === '+' ? 'income' : 'expense';
-    amount = Math.round(amount);
+    // ✅ НЕ ОКРУГЛЯЕМ ДО ЦЕЛЫХ! Оставляем копейки.
+    amount = Math.round(amount * 100) / 100;
 
-    // 4. Очищаем описание от лишних символов
+    // Очищаем описание
     let description = text.replace(amountMatch[0], '').trim();
     description = description.replace(/[|•·\-\+−₽]/g, '').trim();
     
-    // Если описание — просто число, время или слово Black, ищем на соседних строках
+    // Если описание пустое или мусор (Black), ищем выше
     if (!description || description.length < 2 || /^\d+$/.test(description) || /^\d{1,2}:\d{2}$/.test(description) || description.toLowerCase() === 'black') {
-      // Ищем строку выше с таким же X или чуть выше по Y
       if (i - 1 >= 0 && lines[i-1].bbox) {
           const prevText = lines[i-1].text.trim();
           const prevY = lines[i-1].bbox.y0;
           const prevX = lines[i-1].bbox.x0;
           
           if (!AMOUNT_RE.test(prevText) && !JUNK_RE.test(prevText) && !DATE_WORD_RE.test(prevText) && !DATE_NUM_RE.test(prevText)) {
-              // Если по X он близко (в той же колонке названий) или разница по Y небольшая
               if (Math.abs(prevX - x) < 150 || Math.abs(prevY - y) < 50) {
                   description = prevText;
               }
@@ -254,7 +253,6 @@ function parseTbank(lines) {
 
     // Категория
     let category = 'Прочее';
-    // Пробуем взять категорию из следующей строки (обычно это "Супермаркеты", "Фастфуд")
     const nextLine = lines[i+1]?.text || '';
     if (nextLine && !AMOUNT_RE.test(nextLine) && !JUNK_RE.test(nextLine)) {
         category = extractCategory(nextLine) || extractCategory(description);
@@ -262,7 +260,7 @@ function parseTbank(lines) {
         category = extractCategory(description);
     }
 
-    // Bbox для маски (выделяем и название, и сумму)
+    // Bbox для маски
     let opBbox = line.bbox;
     if (lines[i-1] && lines[i-1].bbox && line.bbox && description === lines[i-1].text.trim()) {
        const l1 = lines[i-1].bbox;
@@ -348,7 +346,7 @@ function parseSber(lines) {
     if (amount < 1 && !text.includes('₽')) continue;
 
     const type = sign === '+' ? 'income' : 'expense';
-    amount = Math.round(amount);
+    amount = Math.round(amount * 100) / 100;
 
     let description = text.replace(amountMatch[0], '').trim();
     description = description.replace(/[|•·\-\+−]/g, '').trim();
@@ -386,7 +384,6 @@ function parseSber(lines) {
 export function parseBankScreenshot(textLines, currentBankType = 'tbank') {
   if (!textLines || !textLines.length) return { operations: [], suggestedBank: null };
 
-  // Сначала определяем банк по маркерам
   const detectedBank = detectBankType(textLines);
   const suggestedBank = (detectedBank && detectedBank !== currentBankType) ? detectedBank : null;
 
