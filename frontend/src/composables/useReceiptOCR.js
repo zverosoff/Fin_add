@@ -27,7 +27,6 @@ export function preprocessImage(file) {
         let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
         if (isDarkTheme) gray = 255 - gray; 
         
-        // Бинаризация: текст черный (0), фон белый (255)
         const v = gray > 180 ? 0 : 255; 
         data[i] = data[i + 1] = data[i + 2] = v;
       }
@@ -101,8 +100,41 @@ function extractCategory(text) {
   return 'Прочее';
 }
 
+// ✅ Проверка, является ли текст банковским скриншотом
+function isValidBankScreenshot(lines) {
+  const fullText = lines.map(l => l.text).join(' ').toLowerCase();
+  
+  const bankMarkers = ['₽', 'руб', 'оплата', 'перевод', 'баланс', 'карта', 'счёт', 'счет', 'сбер', 'т-банк', 'tbank', 'история', 'операции'];
+  let foundMarkers = 0;
+  
+  for (const marker of bankMarkers) {
+    if (fullText.includes(marker)) foundMarkers++;
+  }
+
+  if (foundMarkers === 0) return false;
+
+  let russianLettersCount = 0;
+  let totalCharsCount = 0;
+  
+  for (const line of lines) {
+    const t = line.text || '';
+    totalCharsCount += t.length;
+    for (let i = 0; i < t.length; i++) {
+      if (t.charCodeAt(i) >= 1040 && t.charCodeAt(i) <= 1103) {
+        russianLettersCount++;
+      }
+    }
+  }
+
+  if (totalCharsCount > 0 && (russianLettersCount / totalCharsCount) < 0.3) {
+    return false;
+  }
+
+  return true;
+}
+
 // ============================================================
-// ПАРСЕР ДЛЯ Т-БАНКА (Старый)
+// ПАРСЕР ДЛЯ Т-БАНКА
 // ============================================================
 function parseTbank(lines) {
   const parsedItems = [];
@@ -179,7 +211,7 @@ function parseTbank(lines) {
 }
 
 // ============================================================
-// ПАРСЕР ДЛЯ СБЕРА (НОВЫЙ)
+// ПАРСЕР ДЛЯ СБЕРА
 // ============================================================
 function parseSber(lines) {
   const parsedItems = [];
@@ -187,12 +219,15 @@ function parseSber(lines) {
   let defaultYear = now.getFullYear();
 
   const DATE_WORD_RE = /(Сегодня|Вчера|Позавчера)/i;
-  // Сбер: "19 октября, пн"
   const DATE_NUM_RE = /(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:[,\s]+([а-я]{2}))?/i;
-
-  // В Сбере сумма всегда в конце строки. Ловим последнее число.
-  // Оно может быть с "+" или без, с копейками или без. В конце может быть "₽".
   const SBER_AMOUNT_RE = /([+\-−]?)\s*(\d[\d\s]*(?:[.,]\d{2})?)\s*[₽pPрР]?\s*$/;
+
+  // ✅ Жесткий фильтр аналитики Сбера (всё, что выше списка операций)
+  const SBER_ANALYTICS_WORDS = [
+    'расходы в', 'переводы людям', 'зачисления', 'аналитика', 
+    'кредит', 'специальные условия', 'сберу', 'подать заявку', 
+    'подробнее об акции', 'накопления', 'кэшбэк', 'бонусы'
+  ];
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -200,7 +235,19 @@ function parseSber(lines) {
     if (!text) continue;
     const y = line.bbox ? line.bbox.y0 : 0;
 
-    // 1. Проверяем дату
+    const lowerText = text.toLowerCase();
+
+    // Проверяем на аналитику
+    let isAnalytics = false;
+    for (const word of SBER_ANALYTICS_WORDS) {
+      if (lowerText.includes(word)) {
+        isAnalytics = true;
+        break;
+      }
+    }
+    if (isAnalytics) continue; // Пропускаем эту строку
+
+    // Проверяем дату
     let foundDate = null;
     if (DATE_WORD_RE.test(text)) {
       const word = text.match(DATE_WORD_RE)[0].toLowerCase();
@@ -224,12 +271,7 @@ function parseSber(lines) {
       continue;
     }
 
-    // 2. Пропускаем рекламу и заголовки
-    if (text.includes('Сберу') || text.includes('Кредит') || text.includes('Специальные условия') || text.includes('Подробнее об акции')) {
-      continue;
-    }
-
-    // 3. Ищем сумму в конце строки
+    // Ищем сумму в конце строки
     const amountMatch = text.match(SBER_AMOUNT_RE);
     if (!amountMatch) continue;
 
@@ -238,34 +280,26 @@ function parseSber(lines) {
     let amount = parseFloat(rawAmount);
     if (isNaN(amount) || amount <= 0) continue;
 
-    // Пропускаем копеечные мусорные операции, если это не настоящая сумма
     if (amount < 1 && !text.includes('₽')) continue;
 
-    // Если есть "+", значит доход. Если "-", расход. Если ничего, по умолчанию расход.
     const type = sign === '+' ? 'income' : 'expense';
     amount = Math.round(amount);
 
-    // 4. Вытаскиваем название (всё, что осталось слева от суммы)
     let description = text.replace(amountMatch[0], '').trim();
     description = description.replace(/[|•·\-\+−]/g, '').trim();
 
-    // Если описание пустое или это просто цифры, идем вверх/вниз
     if (!description || description.length < 2 || /^\d+$/.test(description)) {
        if (i - 1 >= 0 && !DATE_WORD_RE.test(lines[i-1].text) && !DATE_NUM_RE.test(lines[i-1].text)) {
            description = lines[i-1].text;
        }
     }
 
-    // Проверяем, не является ли это рекламой (если описание слишком длинное и с точками)
     if (description.length > 80 && description.includes('.')) continue;
-
     if (!description) description = 'Операция';
 
-    // 5. Ищем категорию. В Сбере категория под названием (следующая строка)
     let category = 'Прочее';
     const nextLine = lines[i+1]?.text || '';
     
-    // Если следующая строка начинается с "Оплата", "Перевод", "Комиссия" и т.д.
     if (nextLine.includes('Оплата') || nextLine.includes('товаров') || nextLine.includes('услуг')) {
        category = extractCategory(nextLine);
     } else {
@@ -287,6 +321,10 @@ function parseSber(lines) {
 export function parseBankScreenshot(textLines, bankType = 'tbank') {
   if (!textLines || !textLines.length) return [];
 
+  if (!isValidBankScreenshot(textLines)) {
+    throw new Error('Этот скриншот не похож на выписку из банка. Попробуйте загрузить скриншот операций.');
+  }
+
   const lines = [...textLines].sort((a, b) => {
     if (!a.bbox || !b.bbox) return 0;
     return a.bbox.y0 - b.bbox.y0;
@@ -299,7 +337,10 @@ export function parseBankScreenshot(textLines, bankType = 'tbank') {
     parsedItems = parseTbank(lines);
   }
 
-  // Распределение дат (снизу вверх)
+  if (parsedItems.length === 0) {
+    throw new Error('Не удалось распознать операции. Убедитесь, что на скриншоте есть список операций с суммами.');
+  }
+
   const operations = [];
   let currentDate = new Date();
   currentDate.setHours(12, 0, 0, 0);
