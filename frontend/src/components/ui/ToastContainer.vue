@@ -12,9 +12,9 @@ const { toasts, runAction, dismiss } = useToast();
         class="toast"
         :class="[t.type, { 'has-action': !!t.action }]"
       >
-        <div v-if="t.type === 'success'" class="toast-icon">✅</div>
-        <div v-else-if="t.type === 'error'" class="toast-icon">❌</div>
-        <div v-else class="toast-icon">ℹ️</div>
+        <div class="toast-icon" v-if="t.type === 'success'">✅</div>
+        <div class="toast-icon" v-else-if="t.type === 'error'">❌</div>
+        <div class="toast-icon" v-else>ℹ️</div>
 
         <span class="toast-msg">{{ t.message }}</span>
 
