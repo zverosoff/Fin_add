@@ -147,37 +147,30 @@ async function drawMaskedImage() {
   img.onload = () => {
     canvas.width = img.width;
     canvas.height = img.height;
+    // Рисуем оригинальное изображение без затемнения
     ctx.drawImage(img, 0, 0);
-    
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-    ctx.globalCompositeOperation = 'destination-out';
-    for (const item of items.value) {
-      if (!item.bbox) continue;
-      const x = item.bbox.x0 / 2;
-      const y = item.bbox.y0 / 2;
-      const w = (item.bbox.x1 - item.bbox.x0) / 2;
-      const h = (item.bbox.y1 - item.bbox.y0) / 2;
-
-      ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(x - 10, y - 10, w + 20, h + 20, 8);
-      else ctx.rect(x - 10, y - 10, w + 20, h + 20);
-      ctx.fill();
-    }
-
-    ctx.globalCompositeOperation = 'source-over';
+    // Рисуем только рамки вокруг найденных операций
     ctx.lineWidth = 3;
     for (const item of items.value) {
       if (!item.bbox) continue;
+      
+      // Цвет рамки: оранжевый для подозрительных, красный для обычных
       ctx.strokeStyle = item.isSuspicious ? '#f59e0b' : '#ef4444';
+      
+      // Координаты рамки (делим на 2, так как картинка была увеличена в 2 раза при препроцессинге)
       const x = item.bbox.x0 / 2;
       const y = item.bbox.y0 / 2;
       const w = (item.bbox.x1 - item.bbox.x0) / 2;
       const h = (item.bbox.y1 - item.bbox.y0) / 2;
+
       ctx.beginPath();
-      if (ctx.roundRect) ctx.roundRect(x - 10, y - 10, w + 20, h + 20, 8);
-      else ctx.rect(x - 10, y - 10, w + 20, h + 20);
+      // Добавляем небольшие отступы (padding) вокруг текста
+      if (ctx.roundRect) {
+        ctx.roundRect(x - 10, y - 10, w + 20, h + 20, 8);
+      } else {
+        ctx.rect(x - 10, y - 10, w + 20, h + 20);
+      }
       ctx.stroke();
     }
   };
