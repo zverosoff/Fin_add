@@ -12,7 +12,8 @@ import WelcomeOverlay from '@/components/ui/WelcomeOverlay.vue';
 import ToastContainer from '@/components/ui/ToastContainer.vue';
 import BottomNav from '@/components/ui/BottomNav.vue';
 import ScanModal from '@/components/scan/ScanModal.vue';
-import ChatWidget from '@/components/chat/ChatWidget.vue';
+// ✅ ЧАТ УБРАН, чтобы сборка прошла успешно
+// import ChatWidget from '@/components/chat/ChatWidget.vue';
 
 const auth = useAuthStore();
 const accounts = useAccountsStore();
@@ -28,11 +29,8 @@ const stage = ref('Запуск…');
 const done = ref(false);
 
 const showBottomNav = computed(() => route.name !== 'login');
-const showChat = computed(() =>
-  route.name !== 'login' &&
-  route.name !== 'profile' &&
-  auth.isAuthenticated
-);
+// ✅ ЧАТ УБРАН
+// const showChat = computed(() => ... );
 
 const TAB_ORDER = ['finance', 'analytics', 'deposits', 'profile'];
 const transitionName = ref('fade-page');
@@ -154,9 +152,11 @@ onUnmounted(() => {
   </div>
 
   <BottomNav v-if="showBottomNav" />
-  <ChatWidget v-if="showChat" />
+  
+  <!-- ✅ ЧАТ УБРАН -->
+  <!-- <ChatWidget v-if="showChat" /> -->
 
-  <!-- ✅ Теперь у нас только одна модалка, которая умеет всё -->
+  <!-- Теперь у нас только одна модалка, которая умеет всё -->
   <ScanModal v-model="scanStore.isOpen" />
 
   <WelcomeOverlay
