@@ -27,6 +27,8 @@ const file = ref(null);
 const filePreview = ref('');
 const progress = ref(0);
 const statusText = ref('');
+const scanLogs = ref([]); // Строчки "размышлений"
+const currentLogIndex = ref(0);
 
 const items = ref([]);
 const selectedIndices = ref(new Set());
@@ -42,11 +44,36 @@ const userAccounts = computed(() =>
   accounts.accounts.filter(a => (a.owner || 'Сергей') === user.value)
 );
 
+// Следим за сменой счёта и меняем банк
 watch(accountId, (newId) => {
   if (newId.startsWith('sber')) bankType.value = 'sber';
   else if (newId.startsWith('tbank')) bankType.value = 'tbank';
 }, { immediate: true });
 
+// Логика для перелистывания "мыслей" сканера
+let logInterval = null;
+function addLog(text) {
+  scanLogs.value.push(text);
+}
+
+watch(scanLogs, () => {
+  if (!logInterval) {
+    logInterval = setInterval(() => {
+      if (currentLogIndex.value < scanLogs.value.length - 1) {
+        currentLogIndex.value++;
+      }
+    }, 1500);
+  }
+});
+
+watch(step, (val) => {
+  if (val !== 'recognizing' && logInterval) {
+    clearInterval(logInterval);
+    logInterval = null;
+  }
+});
+
+// Логика для дат
 const hasUncertainDates = computed(() => items.value.some(it => it.dateUncertain));
 const uncertainDateInput = ref('');
 const defaultNextDay = computed(() => {
@@ -86,6 +113,8 @@ function reset() {
   filePreview.value = '';
   progress.value = 0;
   statusText.value = '';
+  scanLogs.value = [];
+  currentLogIndex.value = 0;
   items.value = [];
   selectedIndices.value = new Set();
   user.value = auth.user || 'Сергей';
@@ -93,6 +122,7 @@ function reset() {
   error.value = '';
   saving.value = false;
   uncertainDateInput.value = '';
+  if (logInterval) { clearInterval(logInterval); logInterval = null; }
 }
 
 watch(() => props.modelValue, (open) => {
@@ -165,15 +195,22 @@ async function processFile(f) {
   step.value = 'recognizing';
   progress.value = 0;
   statusText.value = 'Подготовка изображения…';
+  scanLogs.value = [];
+  currentLogIndex.value = 0;
+  addLog('Открываю изображение…');
 
   try {
     const processed = await preprocessImage(f);
+    addLog('Обрабатываю картинку (контрастность)…');
     statusText.value = 'Загрузка модели OCR…';
     
     const result = await recognizeText(processed, (pct) => {
       progress.value = pct;
       statusText.value = `Сканирование: ${pct}%`;
+      if (pct === 15) addLog('Распознаю текст на картинке…');
+      if (pct === 60) addLog('Собираю строки в единый текст…');
     });
+    addLog('Чтение завершено. Ищу операции…');
 
     const parsed = parseBankScreenshot(result.lines, bankType.value);
 
@@ -183,9 +220,16 @@ async function processFile(f) {
       return;
     }
 
-    items.value = parsed;
+    addLog(`Нашел строк: ${parsed.length}`);
     
-    // ✅ Автоматически ставим галочки только на НЕ сомнительные операции
+    const suspicious = parsed.filter(p => p.isSuspicious).length;
+    if (suspicious > 0) {
+      addLog(`Обнаружил ${suspicious} сомнительных операций.`);
+    } else {
+      addLog('Все операции выглядят надежно.');
+    }
+
+    items.value = parsed;
     selectedIndices.value = new Set(
       parsed.map((it, i) => it.isSuspicious ? -1 : i).filter(i => i !== -1)
     );
@@ -259,6 +303,7 @@ function close() { emit('update:modelValue', false); }
     title="📸 Сканирование"
     @update:model-value="emit('update:modelValue', $event)"
   >
+    <!-- ✅ ПАНЕЛЬ ВКЛАДОК (закреплена) -->
     <div class="sticky-tabs">
       <div class="mode-switch">
         <button type="button" class="mode active" disabled>
@@ -274,6 +319,7 @@ function close() { emit('update:modelValue', false); }
     </div>
 
     <div v-if="step === 'upload'" class="step">
+      <!-- Выбор счёта -->
       <div class="bank-selector">
         <div class="bs-label">Выберите счёт</div>
         <div class="bs-options">
@@ -313,6 +359,7 @@ function close() { emit('update:modelValue', false); }
       <div v-if="error" class="error-msg">{{ error }}</div>
     </div>
 
+    <!-- ШАГ РАСПОЗНАВАНИЯ (С ЛОГАМИ) -->
     <div v-else-if="step === 'recognizing'" class="step">
       <div class="recognize">
         <div class="spinner"></div>
@@ -320,9 +367,20 @@ function close() { emit('update:modelValue', false); }
         <div class="progress">
           <div class="progress-fill" :style="{ width: progress + '%' }"></div>
         </div>
+        
+        <!-- ✅ Строчка "размышлений" -->
+        <div class="ai-thoughts">
+          <div class="ai-thoughts-label">AI Парсер:</div>
+          <Transition name="thought-fade" mode="out-in">
+            <div class="ai-thoughts-text" :key="currentLogIndex">
+              {{ scanLogs[currentLogIndex] }}
+            </div>
+          </Transition>
+        </div>
       </div>
     </div>
 
+    <!-- ШАГ ПРЕДПРОСМОТРА -->
     <div v-else-if="step === 'preview'" class="step">
       <div v-if="filePreview" class="preview-wrapper">
         <canvas ref="canvasRef" class="preview-canvas"></canvas>
@@ -372,7 +430,6 @@ function close() { emit('update:modelValue', false); }
                 {{ it.dateUncertain ? '??.??' : new Date(it.date).toLocaleDateString('ru-RU', {day:'2-digit', month:'2-digit'}) }}
               </span>
               <span class="item-cat">{{ it.category }}</span>
-              <!-- ✅ Значок вопроса для сомнительных операций -->
               <span v-if="it.isSuspicious" class="suspicious-badge" :title="it.suspicionReason">?</span>
             </div>
             <div class="item-name">{{ it.name }}</div>
@@ -408,13 +465,44 @@ function close() { emit('update:modelValue', false); }
 </template>
 
 <style scoped lang="scss">
-/* Все стили из предыдущего файла + новые для сомнительных операций */
+/* ✅ Панель вкладок (закреплена, всегда сверху) */
+.sticky-tabs {
+  position: sticky;
+  top: -16px;
+  z-index: 100;
+  background: #ffffff;
+  padding: 16px 0 12px;
+  margin: -16px 0 12px;
+  border-bottom: 1px solid #e2e8f0;
+}
 
-.sticky-tabs { position: sticky; top: -16px; z-index: 10; background: #fff; padding: 16px 0 12px; margin: -16px 0 12px; border-bottom: 1px solid #e2e8f0; }
 .mode-switch { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; padding: 4px; background: linear-gradient(180deg, #f1f5f9, #e2e8f0); border-radius: 14px; }
 .mode { display: flex; align-items: center; justify-content: center; gap: 6px; padding: 10px 12px; border: none; background: transparent; color: #64748b; font-family: inherit; font-size: 12.5px; font-weight: 800; border-radius: 10px; cursor: pointer; }
 .mode.active { background: linear-gradient(180deg, #818cf8, #6366f1); color: #fff; box-shadow: 0 1px 0 rgba(255,255,255,0.3) inset, 0 -2px 0 rgba(49,46,129,0.3) inset, 0 4px 10px -2px rgba(99,102,241,0.5); }
 
+/* ✅ Логи AI */
+.ai-thoughts {
+  width: 100%;
+  max-width: 320px;
+  margin-top: 16px;
+  padding: 10px 14px;
+  background: rgba(99, 102, 241, 0.05);
+  border: 1px dashed rgba(99, 102, 241, 0.3);
+  border-radius: 10px;
+  text-align: left;
+  min-height: 52px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.ai-thoughts-label { font-size: 10px; font-weight: 800; color: #818cf8; text-transform: uppercase; margin-bottom: 2px; }
+.ai-thoughts-text { font-size: 12px; font-weight: 600; color: #4f46e5; line-height: 1.3; }
+
+.thought-fade-enter-active, .thought-fade-leave-active { transition: all 0.3s ease; }
+.thought-fade-enter-from { opacity: 0; transform: translateY(4px); }
+.thought-fade-leave-to { opacity: 0; transform: translateY(-4px); }
+
+/* Остальные стили */
 .date-warning { display: flex; gap: 12px; padding: 12px 14px; background: #fffbeb; border: 1px solid #fcd34d; border-radius: 12px; margin-bottom: 12px; }
 .dw-icon { font-size: 20px; }
 .dw-content { flex: 1; }
@@ -467,7 +555,6 @@ function close() { emit('update:modelValue', false); }
 .ph-hint { font-size: 11px; color: #94a3b8; }
 .items-list { display: flex; flex-direction: column; gap: 8px; max-height: 40vh; overflow-y: auto; padding-right: 4px; }
 
-/* ✅ Стили для сомнительных операций */
 .item-row { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border-radius: 14px; border: 1.5px solid #e2e8f0; background: #fff; cursor: pointer; position: relative; }
 .item-row.selected { border-color: #6366f1; background: #f5f3ff; }
 .item-row.suspicious { border-color: #f59e0b; background: #fffbeb; }
