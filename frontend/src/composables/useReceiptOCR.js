@@ -25,14 +25,10 @@ export function preprocessImage(file) {
 
       for (let i = 0; i < data.length; i += 4) {
         let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+        if (isDarkTheme) gray = 255 - gray; 
         
-        if (isDarkTheme) {
-          gray = 255 - gray; 
-        }
-
-        // Жесткая бинаризация для текста
+        // Бинаризация: текст черный (0), фон белый (255)
         const v = gray > 180 ? 0 : 255; 
-        
         data[i] = data[i + 1] = data[i + 2] = v;
       }
 
@@ -83,7 +79,7 @@ export async function recognizeText(file, onProgress) {
 }
 
 // ============================================================
-// ОБЩИЕ УТИЛИТЫ ДЛЯ ПАРСИНГА
+// ОБЩИЕ УТИЛИТЫ
 // ============================================================
 const MONTHS = {
   'января': 0, 'февраля': 1, 'марта': 2, 'апреля': 3, 'мая': 4, 'июня': 5,
@@ -106,17 +102,15 @@ function extractCategory(text) {
 }
 
 // ============================================================
-// ПАРСЕР ДЛЯ Т-БАНКА
+// ПАРСЕР ДЛЯ Т-БАНКА (Старый)
 // ============================================================
 function parseTbank(lines) {
-  const operations = [];
   const parsedItems = [];
   const now = new Date();
   let defaultYear = now.getFullYear();
 
   const DATE_WORD_RE = /(Сегодня|Вчера|Позавчера)/i;
   const DATE_NUM_RE = /(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:[,\s]+([а-я]{2}))?/i;
-  // В Т-банке сумма обычно в формате "- 1 227,51 ₽" или "+ 10 000 ₽"
   const AMOUNT_RE = /([+\-−])\s*([\d\s]+(?:[.,]\d{2})?)\s*[₽pPрР]?/;
 
   for (let i = 0; i < lines.length; i++) {
@@ -160,50 +154,32 @@ function parseTbank(lines) {
     const type = sign === '+' ? 'income' : 'expense';
 
     let description = text.replace(amountMatch[0], '').trim();
-    
-    // Пропускаем кэшбэк
-    if (description.toLowerCase().includes('black') || description.toLowerCase().includes('+')) {
-        continue;
-    }
+    if (description.toLowerCase().includes('black') || description.toLowerCase().includes('+')) continue;
 
     let mainLineIndex = i;
     if (!description || description.length < 2) {
-      if (i - 1 >= 0 && !DATE_WORD_RE.test(lines[i-1].text) && !DATE_NUM_RE.test(lines[i-1].text)) {
-        description = lines[i-1].text;
-        mainLineIndex = i - 1;
-      } else if (i + 1 < lines.length) {
-        description = lines[i+1].text;
-      }
+      if (i - 1 >= 0) { description = lines[i-1].text; mainLineIndex = i - 1; }
+      else if (i + 1 < lines.length) description = lines[i+1].text;
     }
 
     description = description.replace(/[|•·\-\+−]/g, '').trim();
     if (!description) description = 'Операция';
-
     const category = extractCategory(description + ' ' + (lines[i+1]?.text || ''));
 
     let opBbox = line.bbox;
     if (lines[mainLineIndex] && lines[mainLineIndex].bbox && line.bbox) {
        const l1 = lines[mainLineIndex].bbox;
        const l2 = line.bbox;
-       opBbox = {
-           x0: Math.min(l1.x0, l2.x0),
-           y0: Math.min(l1.y0, l2.y0),
-           x1: Math.max(l1.x1, l2.x1),
-           y1: Math.max(l1.y1, l2.y1)
-       };
+       opBbox = { x0: Math.min(l1.x0, l2.x0), y0: Math.min(l1.y0, l2.y0), x1: Math.max(l1.x1, l2.x1), y1: Math.max(l1.y1, l2.y1) };
     }
 
-    parsedItems.push({
-      type: 'op',
-      y,
-      opData: { name: description.slice(0, 80), amount, type, category, bbox: opBbox }
-    });
+    parsedItems.push({ type: 'op', y, opData: { name: description.slice(0, 80), amount, type, category, bbox: opBbox } });
   }
   return parsedItems;
 }
 
 // ============================================================
-// ПАРСЕР ДЛЯ СБЕРА
+// ПАРСЕР ДЛЯ СБЕРА (НОВЫЙ)
 // ============================================================
 function parseSber(lines) {
   const parsedItems = [];
@@ -211,10 +187,12 @@ function parseSber(lines) {
   let defaultYear = now.getFullYear();
 
   const DATE_WORD_RE = /(Сегодня|Вчера|Позавчера)/i;
-  // Сбер: "19 октября, пн" или "19 октября"
+  // Сбер: "19 октября, пн"
   const DATE_NUM_RE = /(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:[,\s]+([а-я]{2}))?/i;
-  // Сбер: сумма обычно просто цифры "279 ₽" или "1 663,55 ₽"
-  const AMOUNT_RE = /([+\-−]?)\s*([\d\s]+(?:[.,]\d{2})?)\s*[₽pPрР]?/;
+
+  // В Сбере сумма всегда в конце строки. Ловим последнее число.
+  // Оно может быть с "+" или без, с копейками или без. В конце может быть "₽".
+  const SBER_AMOUNT_RE = /([+\-−]?)\s*(\d[\d\s]*(?:[.,]\d{2})?)\s*[₽pPрР]?\s*$/;
 
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
@@ -222,6 +200,7 @@ function parseSber(lines) {
     if (!text) continue;
     const y = line.bbox ? line.bbox.y0 : 0;
 
+    // 1. Проверяем дату
     let foundDate = null;
     if (DATE_WORD_RE.test(text)) {
       const word = text.match(DATE_WORD_RE)[0].toLowerCase();
@@ -245,38 +224,52 @@ function parseSber(lines) {
       continue;
     }
 
-    // В Сбере сумма может быть без знака минус
-    const amountMatch = text.match(AMOUNT_RE);
+    // 2. Пропускаем рекламу и заголовки
+    if (text.includes('Сберу') || text.includes('Кредит') || text.includes('Специальные условия') || text.includes('Подробнее об акции')) {
+      continue;
+    }
+
+    // 3. Ищем сумму в конце строки
+    const amountMatch = text.match(SBER_AMOUNT_RE);
     if (!amountMatch) continue;
 
+    const sign = amountMatch[1];
     const rawAmount = amountMatch[2].replace(/\s+/g, '').replace(',', '.');
     let amount = parseFloat(rawAmount);
     if (isNaN(amount) || amount <= 0) continue;
 
-    // Если в строке есть "+", значит доход. Иначе расход.
-    const type = text.includes('+') ? 'income' : 'expense';
+    // Пропускаем копеечные мусорные операции, если это не настоящая сумма
+    if (amount < 1 && !text.includes('₽')) continue;
+
+    // Если есть "+", значит доход. Если "-", расход. Если ничего, по умолчанию расход.
+    const type = sign === '+' ? 'income' : 'expense';
     amount = Math.round(amount);
 
+    // 4. Вытаскиваем название (всё, что осталось слева от суммы)
     let description = text.replace(amountMatch[0], '').trim();
-    
-    // В Сбере сумма часто идет просто как "279 ₽", поэтому описание может быть пустым
-    // Если пусто, берем строчку выше
-    if (!description || description.length < 3) {
-      if (i - 1 >= 0 && !DATE_WORD_RE.test(lines[i-1].text) && !DATE_NUM_RE.test(lines[i-1].text)) {
-        description = lines[i-1].text;
-      }
+    description = description.replace(/[|•·\-\+−]/g, '').trim();
+
+    // Если описание пустое или это просто цифры, идем вверх/вниз
+    if (!description || description.length < 2 || /^\d+$/.test(description)) {
+       if (i - 1 >= 0 && !DATE_WORD_RE.test(lines[i-1].text) && !DATE_NUM_RE.test(lines[i-1].text)) {
+           description = lines[i-1].text;
+       }
     }
 
-    description = description.replace(/[|•·\-\+−]/g, '').trim();
+    // Проверяем, не является ли это рекламой (если описание слишком длинное и с точками)
+    if (description.length > 80 && description.includes('.')) continue;
+
     if (!description) description = 'Операция';
 
-    // Категория в Сбере обычно написана под названием (следующая строка)
-    const nextLineText = lines[i+1]?.text || '';
-    let category = extractCategory(description + ' ' + nextLineText);
+    // 5. Ищем категорию. В Сбере категория под названием (следующая строка)
+    let category = 'Прочее';
+    const nextLine = lines[i+1]?.text || '';
     
-    // Если не нашли в словах, пробуем взять вторую строку (часто там "Оплата товаров и услуг")
-    if (category === 'Прочее' && nextLineText && !nextLineText.match(AMOUNT_RE)) {
-       description += ' (' + nextLineText + ')';
+    // Если следующая строка начинается с "Оплата", "Перевод", "Комиссия" и т.д.
+    if (nextLine.includes('Оплата') || nextLine.includes('товаров') || nextLine.includes('услуг')) {
+       category = extractCategory(nextLine);
+    } else {
+       category = extractCategory(description + ' ' + nextLine);
     }
 
     parsedItems.push({
