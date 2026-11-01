@@ -37,6 +37,7 @@ const monthExpenses = computed(() => {
   return (accounts.transactions || []).filter(t => {
     if (t.type !== 'expense') return false;
     if (t.fromReconcile) return false;
+    if (t.category === 'Внутренний перевод') return false; // ✅ Игнорируем технические
     const d = new Date(t.date);
     return d >= start && d <= end;
   });
@@ -53,7 +54,7 @@ const items = computed(() => {
     map.set(cat, (map.get(cat) || 0) + (Number(t.amount) || 0));
   }
 
-  // ✅ БЕЗ .slice(0, 8) — выводим ВСЕ категории
+  // ✅ Выводим ВСЕ категории, без лимита в 8 штук
   const sorted = Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
 
   return sorted.map(([category, amount], idx) => {

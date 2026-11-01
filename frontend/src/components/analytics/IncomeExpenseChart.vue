@@ -8,7 +8,6 @@ import IconOrEmoji from '@/components/ui/IconOrEmoji.vue';
 
 const accounts = useAccountsStore();
 const txStore = useTransactionsStore();
-const categoriesStore = useCategoriesStore();
 
 const mode = ref('expense'); // 'income' | 'expense'
 const canvas = ref(null);
@@ -33,6 +32,7 @@ const monthTransactions = computed(() => {
   return accounts.transactions.filter(t => {
     if (t.type !== mode.value) return false;
     if (t.fromReconcile) return false;
+    if (t.category === 'Внутренний перевод') return false; // ✅ Игнорируем технические
     const td = new Date(t.date);
     return td >= start && td <= end;
   });

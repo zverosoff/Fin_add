@@ -73,7 +73,10 @@ export const useTransactionsStore = defineStore('transactions', () => {
         groups[key] = { date: d, key, items: [], sum: 0 };
       }
       groups[key].items.push(t);
-      groups[key].sum += (t.type === 'income' ? t.amount : -t.amount);
+      // Если это внутренний перевод, не добавляем его в общую сумму за день
+      if (t.category !== 'Внутренний перевод') {
+        groups[key].sum += (t.type === 'income' ? t.amount : -t.amount);
+      }
     }
     return Object.values(groups).sort((a, b) => b.date - a.date);
   });
@@ -82,6 +85,7 @@ export const useTransactionsStore = defineStore('transactions', () => {
     let income = 0, expense = 0;
     for (const t of monthTransactions.value) {
       if (t.fromReconcile) continue;
+      if (t.category === 'Внутренний перевод') continue; // ✅ Игнорируем технические
       if (t.type === 'income') income += t.amount;
       else expense += t.amount;
     }
@@ -95,6 +99,8 @@ export const useTransactionsStore = defineStore('transactions', () => {
     };
     for (const t of monthTransactions.value) {
       if (t.fromReconcile) continue;
+      if (t.category === 'Внутренний перевод') continue; // ✅ Игнорируем технические
+      
       if (!result[t.user]) result[t.user] = { income: 0, expense: 0 };
       if (t.type === 'income') result[t.user].income += t.amount;
       else result[t.user].expense += t.amount;

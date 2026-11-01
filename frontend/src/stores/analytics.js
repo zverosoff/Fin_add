@@ -13,7 +13,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
 
     if (periodMonths.value === 'all') {
       const dates = accountsStore.transactions
-        .filter(t => !t.fixed)
+        .filter(t => !t.fixed && t.category !== 'Внутренний перевод')
         .map(t => new Date(t.date).getTime())
         .filter(isFinite);
       const min = dates.length ? Math.min(...dates) : Date.now();
@@ -33,6 +33,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     const { start, end } = dateRange.value;
     return accountsStore.transactions.filter(t => {
       if (t.fixed) return false;
+      if (t.category === 'Внутренний перевод') return false; // ✅ Игнорируем технические
       const d = new Date(t.date);
       return d >= start && d <= end;
     });
@@ -83,7 +84,6 @@ export const useAnalyticsStore = defineStore('analytics', () => {
 
   // ============================================================
   // ✅ Метрики за ТЕКУЩИЙ месяц
-  // monthSave = 10% от дохода (сколько МОЖНО откладывать)
   // ============================================================
   const currentMonthMetrics = computed(() => {
     const now = new Date();
@@ -92,6 +92,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
 
     const monthTxs = accountsStore.transactions.filter(t => {
       if (t.fixed) return false;
+      if (t.category === 'Внутренний перевод') return false; // ✅ Игнорируем технические
       const d = new Date(t.date);
       return d >= monthStart && d <= monthEnd;
     });
@@ -103,7 +104,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
       else expense += t.amount;
     }
 
-    // ✅ 10% от прибыли (income)
+    // 10% от прибыли (income)
     const SAVE_PERCENT = 10;
     const save = (income * SAVE_PERCENT) / 100;
 
@@ -125,10 +126,10 @@ export const useAnalyticsStore = defineStore('analytics', () => {
     return {
       monthIncome: income,
       monthExpense: expense,
-      monthSave: save,               // ✅ 10% от дохода
-      realFree,                       // ✅ реальный остаток
-      savePercent: SAVE_PERCENT,      // = 10
-      monthSaveRate: saveRate,        // = 10
+      monthSave: save,               // 10% от дохода
+      realFree,                      // реальный остаток
+      savePercent: SAVE_PERCENT,
+      monthSaveRate: saveRate,
       monthName: ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
                   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'][now.getMonth()],
       accountsTotal,
@@ -148,6 +149,7 @@ export const useAnalyticsStore = defineStore('analytics', () => {
 
     const prev = accountsStore.transactions.filter(t => {
       if (t.fixed) return false;
+      if (t.category === 'Внутренний перевод') return false; // ✅ Игнорируем технические
       const d = new Date(t.date);
       return d >= prevStart && d <= prevEnd;
     });

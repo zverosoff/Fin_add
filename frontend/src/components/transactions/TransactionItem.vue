@@ -28,9 +28,15 @@ const accounts = useAccountsStore();
 const filters = useFiltersStore();
 const auth = useAuthStore();
 
+// ✅ Проверяем, является ли операция внутренним переводом
+const isInternal = computed(() => props.tx.category === 'Внутренний перевод' || props.tx.internalTransfer === true);
+
 const accountName = computed(() => accounts.getAccountName(props.tx.accountId));
 const amountSign = computed(() => (props.tx.type === 'income' ? '+' : '−'));
-const amountClass = computed(() => (props.tx.type === 'income' ? 'income' : 'expense'));
+const amountClass = computed(() => {
+  if (isInternal.value) return 'internal';
+  return props.tx.type === 'income' ? 'income' : 'expense';
+});
 
 const categoryIconPath = computed(() => categoryIcon(props.tx.category));
 const categoryEmojiChar = computed(() => categoryEmoji(props.tx.category));
@@ -73,13 +79,14 @@ watch(() => props.tx.amount, (newVal, oldVal) => {
   setTimeout(() => { amountFlash.value = null; }, 900);
 });
 
-// ✅ Вычисление времени (скрываем дефолтные 12:00 у импортированных операций)
 const txTime = computed(() => {
   if (!props.tx.date) return '';
   const d = new Date(props.tx.date);
   if (isNaN(d.getTime())) return '';
+  
   const h = d.getHours();
   const m = d.getMinutes();
+  
   if (h === 12 && m === 0) return '';
   return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 });
@@ -222,7 +229,7 @@ const progress = computed(() =>
     ref="el"
     class="tx-item"
     :class="[
-      { 'is-appearing': appearing, 'is-deleting': deleting, 'is-revealed': revealed },
+      { 'is-appearing': appearing, 'is-deleting': deleting, 'is-revealed': revealed, 'is-internal': isInternal },
     ]"
   >
     <div
@@ -314,7 +321,6 @@ const progress = computed(() =>
             </button>
           </div>
 
-          <!-- ✅ Аккуратное время операции перед иконкой банка -->
           <span v-if="txTime" class="tx-time-small">{{ txTime }}</span>
 
           <div
@@ -338,9 +344,7 @@ const progress = computed(() =>
 </template>
 
 <style scoped lang="scss">
-/* ============================================================
-   КОНТЕЙНЕР
-   ============================================================ */
+/* ... стили для контейнера и свайпа остаются прежними ... */
 .tx-item {
   position: relative;
   border-radius: 16px;
@@ -372,9 +376,6 @@ const progress = computed(() =>
   to   { opacity: 0; transform: translateX(60px) scale(0.9); }
 }
 
-/* ============================================================
-   ПАНЕЛЬ ДЕЙСТВИЙ (свайп)
-   ============================================================ */
 .tx-actions-panel {
   position: absolute;
   top: 0; right: 0; bottom: 0;
@@ -386,85 +387,40 @@ const progress = computed(() =>
   padding: 0 8px;
   z-index: 0;
   pointer-events: none;
-
-  background: linear-gradient(
-    270deg,
-    rgba(139, 92, 246, 0.14) 0%,
-    rgba(139, 92, 246, 0.06) 100%
-  );
+  background: linear-gradient(270deg, rgba(139, 92, 246, 0.14) 0%, rgba(139, 92, 246, 0.06) 100%);
   transition: opacity 0.15s linear;
 
   .tx-item.is-revealed & { pointer-events: auto; }
 }
 
 .tx-action-btn {
-  width: 40px;
-  height: 40px;
-  min-width: 40px;
-  max-width: 40px;
-  max-height: 40px;
-  border-radius: 12px;
-  border: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  padding: 0;
-  font-family: inherit;
-  flex-shrink: 0;
-  overflow: hidden;
+  width: 40px; height: 40px; min-width: 40px; max-width: 40px; max-height: 40px;
+  border-radius: 12px; border: none;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: pointer; padding: 0; font-family: inherit; flex-shrink: 0; overflow: hidden;
   transition: transform 0.15s cubic-bezier(.34,1.56,.64,1), box-shadow 0.2s;
-
   &:active { transform: scale(0.92); }
 }
 
 .tab-icon-img {
-  display: block;
-  width: 22px;
-  height: 22px;
-  min-width: 22px;
-  max-width: 22px;
-  max-height: 22px;
-  object-fit: contain;
-  flex-shrink: 0;
+  display: block; width: 22px; height: 22px;
+  min-width: 22px; max-width: 22px; max-height: 22px;
+  object-fit: contain; flex-shrink: 0;
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.25)) brightness(1.05);
 }
 
 .tx-action-edit {
   background: linear-gradient(180deg, #818cf8, #6366f1);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.4) inset,
-    0 -2px 0 rgba(29, 78, 216, 0.3) inset,
-    0 4px 10px -2px rgba(99, 102, 241, 0.5);
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.4) inset,
-      0 -2px 0 rgba(29, 78, 216, 0.3) inset,
-      0 8px 16px -2px rgba(99, 102, 241, 0.7);
-  }
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset, 0 -2px 0 rgba(29, 78, 216, 0.3) inset, 0 4px 10px -2px rgba(99, 102, 241, 0.5);
+  &:hover { transform: translateY(-2px); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset, 0 -2px 0 rgba(29, 78, 216, 0.3) inset, 0 8px 16px -2px rgba(99, 102, 241, 0.7); }
 }
 
 .tx-action-delete {
   background: linear-gradient(180deg, #f87171, #dc2626);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.4) inset,
-    0 -2px 0 rgba(153, 27, 27, 0.3) inset,
-    0 4px 10px -2px rgba(239, 68, 68, 0.5);
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.4) inset,
-      0 -2px 0 rgba(153, 27, 27, 0.3) inset,
-      0 8px 16px -2px rgba(239, 68, 68, 0.7);
-  }
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset, 0 -2px 0 rgba(153, 27, 27, 0.3) inset, 0 4px 10px -2px rgba(239, 68, 68, 0.5);
+  &:hover { transform: translateY(-2px); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset, 0 -2px 0 rgba(153, 27, 27, 0.3) inset, 0 8px 16px -2px rgba(239, 68, 68, 0.7); }
 }
 
-/* ============================================================
-   КАРТОЧКА
-   ============================================================ */
 .tx-card {
   position: relative;
   z-index: 1;
@@ -472,200 +428,113 @@ const progress = computed(() =>
   align-items: center;
   gap: 12px;
   padding: 14px 16px;
-
   background: var(--grad-card);
   border: 1px solid var(--border);
   border-radius: 16px;
   overflow: hidden;
   box-sizing: border-box;
-
   box-shadow: var(--shadow-md);
-
   will-change: transform;
-  transition:
-    transform 0.32s cubic-bezier(.34,1.56,.64,1),
-    box-shadow 0.3s ease,
-    border-color 0.25s ease,
-    background 0.3s ease;
+  transition: transform 0.32s cubic-bezier(.34,1.56,.64,1), box-shadow 0.3s ease, border-color 0.25s ease, background 0.3s ease;
+  &:hover { border-color: var(--border-strong); box-shadow: var(--shadow-lg); }
+}
 
+/* ✅ Стили для Внутренних переводов (приглушенные) */
+.tx-item.is-internal .tx-card {
+  opacity: 0.65;
+  background: rgba(148, 163, 184, 0.08);
+  border-color: rgba(148, 163, 184, 0.15);
+  box-shadow: none;
   &:hover {
-    border-color: var(--border-strong);
-    box-shadow: var(--shadow-lg);
+    opacity: 0.85;
   }
 }
 
-/* ============================================================
-   АВАТАР
-   ============================================================ */
+.tx-item.is-internal .tx-name {
+  color: var(--muted);
+}
+
+.tx-item.is-internal .tx-avatar {
+  filter: grayscale(0.8);
+}
+
 .tx-avatar {
   flex: 0 0 42px;
-  width: 42px;
-  height: 42px;
-  min-width: 42px;
-  max-width: 42px;
-  max-height: 42px;
+  width: 42px; height: 42px; min-width: 42px; max-width: 42px; max-height: 42px;
   border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  position: relative;
-  z-index: 2;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden; position: relative; z-index: 2;
 }
 
-.tx-avatar.sergey {
-  background: linear-gradient(180deg, rgba(147, 197, 253, 0.35), rgba(139, 92, 246, 0.35));
-  border: 1.5px solid rgba(99, 102, 241, 0.55);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.35) inset,
-    0 4px 10px -2px rgba(99, 102, 241, 0.35);
-}
-.tx-avatar.sasha {
-  background: linear-gradient(180deg, rgba(251, 207, 232, 0.35), rgba(253, 186, 116, 0.3));
-  border: 1.5px solid rgba(236, 72, 153, 0.55);
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.35) inset,
-    0 4px 10px -2px rgba(236, 72, 153, 0.35);
-}
+.tx-avatar.sergey { background: linear-gradient(180deg, rgba(147, 197, 253, 0.35), rgba(139, 92, 246, 0.35)); border: 1.5px solid rgba(99, 102, 241, 0.55); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 4px 10px -2px rgba(99, 102, 241, 0.35); }
+.tx-avatar.sasha { background: linear-gradient(180deg, rgba(251, 207, 232, 0.35), rgba(253, 186, 116, 0.3)); border: 1.5px solid rgba(236, 72, 153, 0.55); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.35) inset, 0 4px 10px -2px rgba(236, 72, 153, 0.35); }
 
 .tx-avatar-img {
-  display: block;
-  width: 100%;
-  height: 100%;
-  max-width: 42px;
-  max-height: 42px;
-  object-fit: cover;
-  border-radius: 50%;
+  display: block; width: 100%; height: 100%; max-width: 42px; max-height: 42px;
+  object-fit: cover; border-radius: 50%;
 }
 
-/* ============================================================
-   ТЕКСТ
-   ============================================================ */
 .tx-main { flex: 1; min-width: 0; position: relative; z-index: 2; }
 
 .tx-name {
-  font-weight: 700;
-  font-size: 15px;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-bottom: 4px;
-  letter-spacing: -0.01em;
+  font-weight: 700; font-size: 15px; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-bottom: 4px; letter-spacing: -0.01em;
 }
 
 .tx-meta {
-  display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
-  align-items: center;
-  font-size: 12px;
-  color: var(--muted);
-  position: relative;
-  z-index: 2;
+  display: flex; gap: 6px; flex-wrap: wrap; align-items: center;
+  font-size: 12px; color: var(--muted); position: relative; z-index: 2;
 }
 
 .tx-meta .who {
-  font-weight: 700;
-  color: var(--text);
-  cursor: pointer;
-  user-select: none;
-  transition: color 0.15s ease;
+  font-weight: 700; color: var(--text); cursor: pointer; user-select: none; transition: color 0.15s ease;
   &:hover { color: var(--accent); }
 }
 
 .tx-meta .cat {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 9px 3px 5px;
-  border-radius: 999px;
-  background: var(--panel-2);
-  color: var(--accent);
-  font-size: 11px;
-  font-weight: 700;
-  cursor: pointer;
-  user-select: none;
-  white-space: nowrap;
-  border: 1px solid var(--border);
-  transition: all 0.18s ease;
-
-  &:hover {
-    background: var(--grad-primary);
-    color: #ffffff;
-    border-color: transparent;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px -2px rgba(139, 92, 246, 0.5);
-
-    .tx-cat-icon { filter: drop-shadow(0 0 6px rgba(255,255,255,0.5)); }
-  }
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 3px 9px 3px 5px; border-radius: 999px;
+  background: var(--panel-2); color: var(--accent);
+  font-size: 11px; font-weight: 700; cursor: pointer; user-select: none; white-space: nowrap;
+  border: 1px solid var(--border); transition: all 0.18s ease;
+  &:hover { background: var(--grad-primary); color: #ffffff; border-color: transparent; transform: translateY(-1px); box-shadow: 0 4px 12px -2px rgba(139, 92, 246, 0.5); }
 }
 
 .tx-cat-icon {
-  display: block;
-  width: 16px;
-  height: 16px;
-  min-width: 16px;
-  max-width: 16px;
-  max-height: 16px;
-  object-fit: contain;
-  flex-shrink: 0;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2));
-  transition: filter 0.2s ease;
+  display: block; width: 16px; height: 16px;
+  min-width: 16px; max-width: 16px; max-height: 16px;
+  object-fit: contain; flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2)); transition: filter 0.2s ease;
 }
 
-/* ============================================================
-   ПРАВАЯ ЧАСТЬ
-   ============================================================ */
 .tx-right {
-  flex: 0 0 auto;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 6px;
-  position: relative;
-  z-index: 2;
+  flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+  position: relative; z-index: 2;
 }
 
 .tx-right-bottom {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display: flex; align-items: center; gap: 8px;
 }
 
-/* ✅ Аккуратное время операции */
 .tx-time-small {
-  font-size: 10.5px;
-  font-weight: 700;
-  color: var(--muted);
-  opacity: 0.6;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-  margin-right: 2px;
-  letter-spacing: 0.02em;
+  font-size: 10.5px; font-weight: 700; color: var(--muted); opacity: 0.6;
+  font-variant-numeric: tabular-nums; white-space: nowrap; margin-right: 2px; letter-spacing: 0.02em;
 }
 
 .tx-amount {
-  font-family: var(--mono);
-  font-size: 18px;
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  cursor: pointer;
-  white-space: nowrap;
-  user-select: none;
-  border-radius: 8px;
-  padding: 2px 8px;
+  font-family: var(--mono); font-size: 18px; font-weight: 800; letter-spacing: -0.02em;
+  cursor: pointer; white-space: nowrap; user-select: none; border-radius: 8px; padding: 2px 8px;
   transition: all 0.2s ease;
 
-  &.income {
-    color: var(--accent-2);
-    background: rgba(34, 197, 94, 0.12);
-    text-shadow: 0 0 12px rgba(34, 197, 94, 0.35);
-  }
-  &.expense {
-    color: var(--danger);
-    background: rgba(244, 63, 94, 0.12);
-    text-shadow: 0 0 12px rgba(244, 63, 94, 0.35);
+  &.income { color: var(--accent-2); background: rgba(34, 197, 94, 0.12); text-shadow: 0 0 12px rgba(34, 197, 94, 0.35); }
+  &.expense { color: var(--danger); background: rgba(244, 63, 94, 0.12); text-shadow: 0 0 12px rgba(244, 63, 94, 0.35); }
+  
+  /* ✅ Серый стиль для внутренних переводов */
+  &.internal {
+    color: var(--muted);
+    background: rgba(148, 163, 184, 0.15);
+    text-shadow: none;
   }
 
   &:hover { transform: scale(1.04); }
@@ -674,147 +543,39 @@ const progress = computed(() =>
   &.flash-down { animation: amountFlashDown 0.9s ease-out; }
 }
 
-@keyframes amountFlashUp {
-  0%   { background: rgba(34, 197, 94, 0.5); transform: scale(1.12); }
-  100% { background: transparent; transform: scale(1); }
-}
-@keyframes amountFlashDown {
-  0%   { background: rgba(244, 63, 94, 0.5); transform: scale(1.12); }
-  100% { background: transparent; transform: scale(1); }
-}
+@keyframes amountFlashUp { 0% { background: rgba(34, 197, 94, 0.5); transform: scale(1.12); } 100% { background: transparent; transform: scale(1); } }
+@keyframes amountFlashDown { 0% { background: rgba(244, 63, 94, 0.5); transform: scale(1.12); } 100% { background: transparent; transform: scale(1); } }
 
-/* ============================================================
-   ИНЛАЙН-КНОПКИ (ПК)
-   ============================================================ */
-.tx-actions-inline {
-  display: none;
-  align-items: center;
-  gap: 6px;
-}
-
+/* ... остальные стили кнопок, монет и медиа-запросов оставь как были ... */
+.tx-actions-inline { display: none; align-items: center; gap: 6px; }
 .tx-inline-btn {
-  width: 34px;
-  height: 34px;
-  min-width: 34px;
-  max-width: 34px;
-  max-height: 34px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--panel-2);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  flex-shrink: 0;
-  overflow: hidden;
-
-  box-shadow: var(--shadow-sm);
-
-  transition:
-    transform 0.18s cubic-bezier(.34,1.56,.64,1),
-    box-shadow 0.22s ease,
-    background 0.15s ease,
-    border-color 0.15s ease;
-
+  width: 34px; height: 34px; min-width: 34px; max-width: 34px; max-height: 34px;
+  border-radius: 10px; border: 1px solid var(--border); background: var(--panel-2);
+  cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+  padding: 0; flex-shrink: 0; overflow: hidden; box-shadow: var(--shadow-sm);
+  transition: transform 0.18s cubic-bezier(.34,1.56,.64,1), box-shadow 0.22s ease, background 0.15s ease, border-color 0.15s ease;
   &:active { transform: scale(0.94); }
 }
+.tib-icon-img { display: block; width: 18px; height: 18px; min-width: 18px; max-width: 18px; max-height: 18px; object-fit: contain; flex-shrink: 0; opacity: 0.8; transition: opacity 0.15s ease, transform 0.2s cubic-bezier(.34,1.56,.64,1); }
+.tx-inline-edit:hover { background: rgba(139, 92, 246, 0.15); border-color: rgba(139, 92, 246, 0.5); transform: translateY(-2px); box-shadow: 0 6px 14px -4px rgba(139, 92, 246, 0.4), 0 0 0 1px rgba(139, 92, 246, 0.3); .tib-icon-img { opacity: 1; transform: translateY(-1px) rotate(-6deg) scale(1.1); } }
+.tx-inline-delete:hover { background: rgba(244, 63, 94, 0.15); border-color: rgba(244, 63, 94, 0.5); transform: translateY(-2px); box-shadow: 0 6px 14px -4px rgba(244, 63, 94, 0.4), 0 0 0 1px rgba(244, 63, 94, 0.3); .tib-icon-img { opacity: 1; transform: scale(1.12); } }
+@media (min-width: 701px) { .tx-actions-inline { display: inline-flex; } }
 
-.tib-icon-img {
-  display: block;
-  width: 18px;
-  height: 18px;
-  min-width: 18px;
-  max-width: 18px;
-  max-height: 18px;
-  object-fit: contain;
-  flex-shrink: 0;
-  opacity: 0.8;
-  transition: opacity 0.15s ease, transform 0.2s cubic-bezier(.34,1.56,.64,1);
-}
-
-.tx-inline-edit:hover {
-  background: rgba(139, 92, 246, 0.15);
-  border-color: rgba(139, 92, 246, 0.5);
-  transform: translateY(-2px);
-  box-shadow:
-    0 6px 14px -4px rgba(139, 92, 246, 0.4),
-    0 0 0 1px rgba(139, 92, 246, 0.3);
-
-  .tib-icon-img { opacity: 1; transform: translateY(-1px) rotate(-6deg) scale(1.1); }
-}
-
-.tx-inline-delete:hover {
-  background: rgba(244, 63, 94, 0.15);
-  border-color: rgba(244, 63, 94, 0.5);
-  transform: translateY(-2px);
-  box-shadow:
-    0 6px 14px -4px rgba(244, 63, 94, 0.4),
-    0 0 0 1px rgba(244, 63, 94, 0.3);
-
-  .tib-icon-img { opacity: 1; transform: scale(1.12); }
-}
-
-@media (min-width: 701px) {
-  .tx-actions-inline { display: inline-flex; }
-}
-
-/* ============================================================
-   БАНК-МОНЕТА
-   ============================================================ */
 .tx-bank-coin {
-  position: relative;
-  width: 30px;
-  height: 30px;
-  min-width: 30px;
-  max-width: 30px;
-  max-height: 30px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  flex-shrink: 0;
-  overflow: hidden;
-
-  background: #ffffff;
-  border: 1px solid var(--border);
-
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.95) inset,
-    0 -1px 0 rgba(148, 163, 184, 0.08) inset,
-    0 4px 10px -2px rgba(15, 23, 42, 0.18);
-
+  position: relative; width: 30px; height: 30px; min-width: 30px; max-width: 30px; max-height: 30px;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
+  cursor: pointer; flex-shrink: 0; overflow: hidden; background: #ffffff; border: 1px solid var(--border);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.95) inset, 0 -1px 0 rgba(148, 163, 184, 0.08) inset, 0 4px 10px -2px rgba(15, 23, 42, 0.18);
   transition: transform 0.18s cubic-bezier(.34,1.56,.64,1), box-shadow 0.2s ease;
-
-  &:hover {
-    transform: translateY(-2px) scale(1.06);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.95) inset,
-      0 -1px 0 rgba(148, 163, 184, 0.08) inset,
-      0 8px 18px -2px rgba(139, 92, 246, 0.4),
-      0 0 0 1px var(--neon-purple);
-  }
+  &:hover { transform: translateY(-2px) scale(1.06); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.95) inset, 0 -1px 0 rgba(148, 163, 184, 0.08) inset, 0 8px 18px -2px rgba(139, 92, 246, 0.4), 0 0 0 1px var(--neon-purple); }
   &:active { transform: scale(0.95); }
-
   &.coin-tbank { border-color: rgba(234, 179, 8, 0.5); }
   &.coin-sber { border-color: rgba(33, 160, 56, 0.5); }
   &.coin-cash { border-color: rgba(34, 197, 94, 0.5); }
   &.coin-default { border-color: rgba(139, 92, 246, 0.5); }
 }
+.tx-bank-coin-img { display: block; width: 78%; height: 78%; max-width: 24px; max-height: 24px; object-fit: contain; }
 
-.tx-bank-coin-img {
-  display: block;
-  width: 78%;
-  height: 78%;
-  max-width: 24px;
-  max-height: 24px;
-  object-fit: contain;
-}
-
-/* ============================================================
-   ТЁМНАЯ ТЕМА
-   ============================================================ */
 :global(:root[data-app-theme="dark"]) {
   .tx-bank-coin {
     background: rgba(255, 255, 255, 0.95);
