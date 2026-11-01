@@ -163,10 +163,38 @@ const fallingBills = [
     </div>
 
     <div v-if="goalsStore.primaryGoal" class="cn-goal" :class="{ done: isDone }">
-      <!-- без изменений -->
-    </div>
-  </div>
-</div>
+            <div class="cn-goal-head">
+              <img
+                v-if="!goalsStore.primaryGoal.emoji || goalsStore.primaryGoal.emoji === '🎯'"
+                :src="ICON_GOAL"
+                class="cn-goal-icon-img"
+                alt="Цель"
+              />
+              <span v-else class="cn-goal-emoji">{{ goalsStore.primaryGoal.emoji }}</span>
+              <span class="cn-goal-name">{{ goalsStore.primaryGoal.name }}</span>
+              <span class="cn-goal-badge" :class="{ done: isDone }">
+                {{ isDone ? '✅' : '⭐' }}
+              </span>
+            </div>
+
+            <div class="cn-goal-progress">
+              <div class="cn-goal-track">
+                <div
+                  class="cn-goal-fill"
+                  :class="{ done: isDone }"
+                  :style="{ width: progressPct + '%' }"
+                ></div>
+              </div>
+              <div class="cn-goal-info">
+                <span class="cn-goal-left">
+                  {{ isDone ? 'Цель достигнута!' : `Осталось ${fmt(remaining)} ₽` }}
+                </span>
+                <span class="cn-goal-target">из {{ fmt(goalsStore.primaryGoal.target) }} ₽</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <CashModal
