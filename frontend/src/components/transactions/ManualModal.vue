@@ -35,6 +35,7 @@ const INCOME_CATEGORIES = [
   'Зарплата', 'Аванс', 'Премия', 'Фриланс', 'Бизнес',
   'Инвестиции', 'Дивиденды', 'Проценты по вкладу', 'Кэшбэк',
   'Возврат', 'Подарки', 'Аренда', 'Перевод от', 'Прочее',
+  'Внутренний перевод', // ✅ Добавлено
 ];
 
 const EXPENSE_CATEGORIES = [
@@ -46,6 +47,7 @@ const EXPENSE_CATEGORIES = [
   'Путешествия', 'Кредиты', 'Страхование', 'Налоги', 'Ремонт',
   'Автомобиль', 'Гараж', 'Сад и огород', 'Подарки',
   'Благотворительность', 'Прочее',
+  'Внутренний перевод', // ✅ Добавлено
 ];
 
 const categories = computed(() =>
@@ -245,130 +247,14 @@ function close() {
 </template>
 
 <style scoped lang="scss">
+/* Стили без изменений */
 .form { display: flex; flex-direction: column; gap: 12px; }
-
-.field {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-
-  label {
-    font-size: 11px;
-    font-weight: 700;
-    color: var(--muted);
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  input, select {
-    padding: 9px 12px;
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    background: var(--panel-2);
-    color: var(--text);
-    font-family: inherit;
-    font-size: 14px;
-    outline: none;
-    width: 100%;
-    transition: border-color 0.15s, box-shadow 0.15s, background 0.3s ease;
-
-    &:focus {
-      border-color: var(--accent);
-      box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
-    }
-
-    &::placeholder { color: var(--muted); opacity: 0.6; }
-  }
-}
-
-.row {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.type-switch {
-  display: inline-flex;
-  gap: 0;
-  padding: 3px;
-  background: var(--panel-2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-
-  button {
-    flex: 1;
-    padding: 8px 14px;
-    border: none;
-    background: transparent;
-    color: var(--muted);
-    font-family: inherit;
-    font-size: 13px;
-    font-weight: 700;
-    border-radius: 7px;
-    cursor: pointer;
-    transition: all 0.18s;
-
-    &.active {
-      background: var(--grad-primary);
-      color: #fff;
-      box-shadow:
-        0 1px 0 rgba(255, 255, 255, 0.3) inset,
-        0 -2px 0 rgba(0, 0, 0, 0.15) inset,
-        0 4px 12px -4px rgba(139, 92, 246, 0.6);
-    }
-  }
-}
-
-.error-msg {
-  padding: 8px 12px;
-  border-radius: 8px;
-  background: rgba(244, 63, 94, 0.1);
-  border: 1px solid rgba(244, 63, 94, 0.3);
-  color: var(--danger);
-  font-size: 12.5px;
-  font-weight: 600;
-}
-
-.btn-cancel, .btn-save {
-  padding: 10px 20px;
-  border-radius: 10px;
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-  border: 1px solid transparent;
-}
-
-.btn-cancel {
-  background: var(--panel-2);
-  color: var(--text);
-  border-color: var(--border);
-  transition: all 0.15s;
-
-  &:hover { border-color: var(--border-strong); }
-}
-
-.btn-save {
-  background: var(--grad-primary);
-  color: #fff;
-  box-shadow:
-    0 1px 0 rgba(255, 255, 255, 0.3) inset,
-    0 -2px 0 rgba(0, 0, 0, 0.15) inset,
-    0 6px 18px -6px rgba(139, 92, 246, 0.7);
-  transition: all 0.15s;
-
-  &:disabled { opacity: 0.5; cursor: wait; }
-
-  &:not(:disabled):hover {
-    transform: translateY(-1px);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.3) inset,
-      0 -2px 0 rgba(0, 0, 0, 0.15) inset,
-      0 10px 24px -6px rgba(139, 92, 246, 0.9);
-  }
-}
-
-@media (max-width: 700px) {
-  .row { grid-template-columns: 1fr; gap: 10px; }
-}
+.field { display: flex; flex-direction: column; gap: 5px; label { font-size: 11px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; } input, select { padding: 9px 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel-2); color: var(--text); font-family: inherit; font-size: 14px; outline: none; width: 100%; transition: border-color 0.15s, box-shadow 0.15s, background 0.3s ease; &:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15); } &::placeholder { color: var(--muted); opacity: 0.6; } } }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.type-switch { display: inline-flex; gap: 0; padding: 3px; background: var(--panel-2); border: 1px solid var(--border); border-radius: 10px; button { flex: 1; padding: 8px 14px; border: none; background: transparent; color: var(--muted); font-family: inherit; font-size: 13px; font-weight: 700; border-radius: 7px; cursor: pointer; transition: all 0.18s; &.active { background: var(--grad-primary); color: #fff; box-shadow: 0 1px 0 rgba(255, 255, 255, 0.3) inset, 0 -2px 0 rgba(0, 0, 0, 0.15) inset, 0 4px 12px -4px rgba(139, 92, 246, 0.6); } } }
+.error-msg { padding: 8px 12px; border-radius: 8px; background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.3); color: var(--danger); font-size: 12.5px; font-weight: 600; }
+.btn-cancel, .btn-save { padding: 10px 20px; border-radius: 10px; font-family: inherit; font-size: 14px; font-weight: 700; cursor: pointer; border: 1px solid transparent; }
+.btn-cancel { background: var(--panel-2); color: var(--text); border-color: var(--border); transition: all 0.15s; &:hover { border-color: var(--border-strong); } }
+.btn-save { background: var(--grad-primary); color: #fff; box-shadow: 0 1px 0 rgba(255, 255, 255, 0.3) inset, 0 -2px 0 rgba(0, 0, 0, 0.15) inset, 0 6px 18px -6px rgba(139, 92, 246, 0.7); transition: all 0.15s; &:disabled { opacity: 0.5; cursor: wait; } &:not(:disabled):hover { transform: translateY(-1px); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.3) inset, 0 -2px 0 rgba(0, 0, 0, 0.15) inset, 0 10px 24px -6px rgba(139, 92, 246, 0.9); } }
+@media (max-width: 700px) { .row { grid-template-columns: 1fr; gap: 10px; } }
 </style>
