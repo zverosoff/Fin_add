@@ -13,6 +13,7 @@ const txStore = useTransactionsStore();
 const selected = ref(new Set());
 const initialized = ref(false);
 
+// ✅ Расширенная палитра для большого количества категорий
 const palette = [
   { grad: 'linear-gradient(135deg, #a855f7, #ec4899)', glow: 'rgba(168,85,247,0.5)' },
   { grad: 'linear-gradient(135deg, #06b6d4, #3b82f6)', glow: 'rgba(6,182,212,0.5)' },
@@ -20,6 +21,12 @@ const palette = [
   { grad: 'linear-gradient(135deg, #10b981, #22c55e)', glow: 'rgba(16,185,129,0.5)' },
   { grad: 'linear-gradient(135deg, #f43f5e, #ef4444)', glow: 'rgba(244,63,94,0.5)' },
   { grad: 'linear-gradient(135deg, #8b5cf6, #6366f1)', glow: 'rgba(139,92,246,0.5)' },
+  { grad: 'linear-gradient(135deg, #14b8a6, #06b6d4)', glow: 'rgba(20,184,166,0.5)' },
+  { grad: 'linear-gradient(135deg, #fb923c, #f59e0b)', glow: 'rgba(251,146,60,0.5)' },
+  { grad: 'linear-gradient(135deg, #e11d48, #be123c)', glow: 'rgba(225,29,72,0.5)' },
+  { grad: 'linear-gradient(135deg, #84cc16, #65a30d)', glow: 'rgba(132,204,22,0.5)' },
+  { grad: 'linear-gradient(135deg, #d946ef, #a21caf)', glow: 'rgba(217,70,239,0.5)' },
+  { grad: 'linear-gradient(135deg, #0ea5e9, #0284c7)', glow: 'rgba(14,165,233,0.5)' },
 ];
 
 const monthExpenses = computed(() => {
@@ -46,9 +53,8 @@ const items = computed(() => {
     map.set(cat, (map.get(cat) || 0) + (Number(t.amount) || 0));
   }
 
-  const sorted = Array.from(map.entries())
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 8);
+  // ✅ БЕЗ .slice(0, 8) — выводим ВСЕ категории
+  const sorted = Array.from(map.entries()).sort((a, b) => b[1] - a[1]);
 
   return sorted.map(([category, amount], idx) => {
     const p = palette[idx % palette.length];
@@ -217,8 +223,6 @@ const monthLabel = computed(() => {
   </section>
 </template>
 
-<!-- Стили — оставь без изменений -->
-
 <style scoped lang="scss">
 .cat-breakdown {
   color: #ffffff;
@@ -298,7 +302,6 @@ const monthLabel = computed(() => {
   gap: 10px;
 }
 
-/* ✅ PNG-иконка графика — фикс 26×26 */
 .cat-head__icon-img {
   display: block;
   width: 26px;
@@ -481,7 +484,6 @@ const monthLabel = computed(() => {
   overflow: hidden;
 }
 
-/* ✅ PNG-иконка категории внутри — фикс 24×24 */
 .cat-row__icon-img {
   display: block;
   width: 24px;

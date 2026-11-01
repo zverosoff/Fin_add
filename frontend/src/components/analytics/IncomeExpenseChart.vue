@@ -1,75 +1,79 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
+import { categoryIcon, categoryEmoji } from '@/composables/useFormat';
+import IconOrEmoji from '@/components/ui/IconOrEmoji.vue';
 
 const accounts = useAccountsStore();
 
-const mode = ref('expense');   // 'income' | 'expense'
-const period = ref(6);         // месяцев: 3, 6, 12
-const selectedCategory = ref('all');
-
+const mode = ref('expense'); // 'income' | 'expense'
 const canvas = ref(null);
 let ro = null;
 
-// ✅ Список месяцев для оси X
+// ✅ 3 последних месяца (включая текущий)
 const months = computed(() => {
   const now = new Date();
-  const result = [];
-  for (let i = period.value - 1; i >= 0; i--) {
+  const res = [];
+  for (let i = 2; i >= 0; i--) {
     const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    result.push({
+    res.push({
       year: d.getFullYear(),
       month: d.getMonth(),
       label: ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'][d.getMonth()],
-      income: 0,
-      expense: 0,
+      key: `${d.getFullYear()}-${d.getMonth()}`,
     });
   }
-  return result;
+  return res;
 });
 
-// ✅ Список категорий (только те, что были в текущем месяце)
+// ✅ Категории, использованные за эти 3 месяца, с суммами по каждому месяцу
 const categories = computed(() => {
-  const set = new Set();
-  const now = new Date();
-  const start = new Date(now.getFullYear(), now.getMonth(), 1);
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
-  
+  const monthKeys = new Set(months.value.map(m => m.key));
+  const map = new Map(); // category -> { total, byMonth: { key: amount } }
+
   for (const t of accounts.transactions) {
-    if (t.type !== mode.value) continue;
     if (t.fromReconcile) continue;
+    if (t.type !== mode.value) continue;
     const d = new Date(t.date);
-    if (d < start || d > end) continue;
-    if (t.category) set.add(t.category);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    if (!monthKeys.has(key)) continue;
+
+    const cat = t.category || 'Прочее';
+    if (!map.has(cat)) {
+      map.set(cat, { category: cat, total: 0, byMonth: {} });
+    }
+    const entry = map.get(cat);
+    const amt = Number(t.amount) || 0;
+    entry.total += amt;
+    entry.byMonth[key] = (entry.byMonth[key] || 0) + amt;
   }
-  return ['all', ...Array.from(set).sort()];
+
+  return Array.from(map.values()).sort((a, b) => b.total - a.total);
 });
 
-// ✅ Данные для графика
-const chartData = computed(() => {
-  const data = months.value.map(m => ({ ...m, value: 0 }));
-  const map = new Map();
-  
-  for (const m of data) {
-    map.set(`${m.year}-${m.month}`, m);
+// ✅ Высота графика и максимальное значение
+const maxValue = computed(() => {
+  let max = 1;
+  for (const c of categories.value) {
+    for (const m of months.value) {
+      const v = c.byMonth[m.key] || 0;
+      if (v > max) max = v;
+    }
   }
-  
-  for (const t of accounts.transactions) {
-    if (t.type !== mode.value) continue;
-    if (t.fromReconcile) continue;
-    if (selectedCategory.value !== 'all' && t.category !== selectedCategory.value) continue;
-    
-    const d = new Date(t.date);
-    const bucket = map.get(`${d.getFullYear()}-${d.getMonth()}`);
-    if (bucket) bucket.value += Number(t.amount) || 0;
-  }
-  
-  return data;
+  return max;
 });
 
-const maxValue = computed(() =>
-  Math.max(1, ...chartData.value.map(d => d.value))
-);
+// ✅ Палитра для категорий
+const PALETTE = [
+  '#a855f7', '#ec4899', '#06b6d4', '#10b981',
+  '#f59e0b', '#f43f5e', '#8b5cf6', '#22d3ee',
+  '#84cc16', '#fb923c', '#e11d48', '#14b8a6',
+  '#fbbf24', '#3b82f6', '#d946ef', '#0ea5e9',
+];
+
+function colorFor(i) {
+  return PALETTE[i % PALETTE.length];
+}
 
 // ✅ Отрисовка Canvas
 function draw() {
@@ -77,20 +81,20 @@ function draw() {
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.value.getBoundingClientRect();
   const w = rect.width || 300;
-  const h = rect.height || 200;
-  
+  const h = rect.height || 240;
+
   canvas.value.width = w * dpr;
   canvas.value.height = h * dpr;
-  
+
   const ctx = canvas.value.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
 
-  const padL = 48, padR = 12, padT = 20, padB = 32;
+  const padL = 48, padR = 16, padT = 20, padB = 36;
   const chartW = w - padL - padR;
   const chartH = h - padT - padB;
 
-  // Сетка и подписи Y
+  // Сетка и Y
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
   ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
   ctx.font = '10px Inter, sans-serif';
@@ -104,68 +108,65 @@ function draw() {
     ctx.moveTo(padL, y);
     ctx.lineTo(w - padR, y);
     ctx.stroke();
-    
+
     const val = maxValue.value * (i / steps);
     const label = val >= 1000 ? (val / 1000).toFixed(0) + 'K' : val.toFixed(0);
     ctx.fillText(label, padL - 8, y);
   }
 
-  // Точки графика
-  const pts = chartData.value.map((d, i) => ({
-    x: padL + (chartW / Math.max(1, chartData.value.length - 1)) * i,
-    y: padT + chartH * (1 - d.value / maxValue.value),
-    value: d.value,
-    label: d.label,
-  }));
+  // ✅ Группы по месяцам
+  const groupCount = months.value.length;
+  const groupW = chartW / groupCount;
+  const catCount = categories.value.length;
 
-  // Цвета в зависимости от режима
-  const isIncome = mode.value === 'income';
-  const lineColor = isIncome ? '#4ade80' : '#f43f5e';
-  const gradTop = isIncome ? 'rgba(74, 222, 128, 0.4)' : 'rgba(244, 63, 94, 0.4)';
-  const gradBottom = isIncome ? 'rgba(74, 222, 128, 0)' : 'rgba(244, 63, 94, 0)';
+  if (catCount === 0) return;
 
-  // Градиент под линией
-  const grad = ctx.createLinearGradient(0, padT, 0, padT + chartH);
-  grad.addColorStop(0, gradTop);
-  grad.addColorStop(1, gradBottom);
+  // Ширина столбиков внутри месяца
+  const gapBetweenGroups = 16;
+  const usableGroupW = groupW - gapBetweenGroups;
+  const barW = Math.max(4, Math.min(28, usableGroupW / catCount - 2));
+  const totalBarsW = barW * catCount + (catCount - 1) * 2;
+  const startX = padL + (groupW - totalBarsW) / 2 + gapBetweenGroups / 2;
 
-  ctx.beginPath();
-  ctx.moveTo(pts[0].x, padT + chartH);
-  pts.forEach(p => ctx.lineTo(p.x, p.y));
-  ctx.lineTo(pts[pts.length - 1].x, padT + chartH);
-  ctx.closePath();
-  ctx.fillStyle = grad;
-  ctx.fill();
+  // ✅ Рисуем столбики
+  months.value.forEach((m, mi) => {
+    const groupStartX = padL + groupW * mi + (groupW - totalBarsW) / 2;
 
-  // Линия
-  ctx.beginPath();
-  ctx.strokeStyle = lineColor;
-  ctx.lineWidth = 2.5;
-  ctx.lineCap = 'round';
-  ctx.lineJoin = 'round';
-  pts.forEach((p, i) => i === 0 ? ctx.moveTo(p.x, p.y) : ctx.lineTo(p.x, p.y));
-  ctx.stroke();
+    categories.value.forEach((c, ci) => {
+      const value = c.byMonth[m.key] || 0;
+      if (value <= 0) return;
 
-  // Точки на линии
-  pts.forEach(p => {
-    ctx.beginPath();
-    ctx.arc(p.x, p.y, 4, 0, Math.PI * 2);
-    ctx.fillStyle = lineColor;
-    ctx.fill();
-    ctx.strokeStyle = '#1e1b4b'; // темный контур (как фон карточки)
-    ctx.lineWidth = 2;
-    ctx.stroke();
+      const barH = (value / maxValue.value) * chartH;
+      const x = groupStartX + ci * (barW + 2);
+      const y = padT + chartH - barH;
+
+      const grad = ctx.createLinearGradient(0, y, 0, padT + chartH);
+      const col = colorFor(ci);
+      grad.addColorStop(0, col);
+      grad.addColorStop(1, col + '80');
+
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      const r = Math.min(4, barW / 2, barH / 2);
+      // roundRect с fallback
+      if (ctx.roundRect) {
+        ctx.roundRect(x, y, barW, barH, r);
+      } else {
+        ctx.rect(x, y, barW, barH);
+      }
+      ctx.fill();
+    });
+
+    // ✅ Подпись месяца под группой
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
+    ctx.font = '11px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const labelX = padL + groupW * mi + groupW / 2;
+    ctx.fillText(m.label, labelX, padT + chartH + 10);
   });
-
-  // Подписи X
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-  ctx.font = '10px Inter, sans-serif';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'top';
-  pts.forEach(p => ctx.fillText(p.label, p.x, padT + chartH + 8));
 }
 
-// ✅ Ресайз и реактивность
 onMounted(() => {
   draw();
   ro = new ResizeObserver(draw);
@@ -176,8 +177,7 @@ onUnmounted(() => {
   if (ro) ro.disconnect();
 });
 
-watch([chartData, mode], () => {
-  // Ждем обновления DOM при смене периода/категории
+watch([categories, mode, months], () => {
   nextTick(draw);
 }, { deep: true });
 </script>
@@ -185,33 +185,42 @@ watch([chartData, mode], () => {
 <template>
   <section class="ie-chart">
     <header class="ie-head">
-      <h2 class="ie-title">📈 Анализ</h2>
+      <h2 class="ie-title">📈 Анализ за 3 месяца</h2>
 
       <div class="ie-switch">
         <button
           type="button"
           :class="{ active: mode === 'income' }"
-          @click="mode = 'income'; selectedCategory = 'all'"
+          @click="mode = 'income'"
         >Доходы</button>
         <button
           type="button"
           :class="{ active: mode === 'expense' }"
-          @click="mode = 'expense'; selectedCategory = 'all'"
+          @click="mode = 'expense'"
         >Расходы</button>
       </div>
     </header>
 
-    <div class="ie-filters">
-      <select v-model="period" class="ie-select">
-        <option :value="3">3 мес</option>
-        <option :value="6">6 мес</option>
-        <option :value="12">12 мес</option>
-      </select>
+    <!-- ✅ Легенда категорий с горизонтальным скроллом -->
+    <div v-if="categories.length > 0" class="ie-legend">
+      <div
+        v-for="(c, i) in categories"
+        :key="c.category"
+        class="ie-legend-item"
+      >
+        <span class="ie-legend-dot" :style="{ background: colorFor(i) }"></span>
+        <IconOrEmoji
+          :src="categoryIcon(c.category)"
+          :emoji="categoryEmoji(c.category)"
+          :size="14"
+          :alt="c.category"
+        />
+        <span class="ie-legend-name">{{ c.category }}</span>
+      </div>
+    </div>
 
-      <select v-model="selectedCategory" class="ie-select">
-        <option value="all">Все категории</option>
-        <option v-for="c in categories.filter(x => x !== 'all')" :key="c" :value="c">{{ c }}</option>
-      </select>
+    <div v-else class="ie-empty">
+      Нет данных за последние 3 месяца
     </div>
 
     <div class="ie-canvas-wrap">
@@ -274,33 +283,62 @@ watch([chartData, mode], () => {
   }
 }
 
-.ie-filters {
+/* ✅ Легенда */
+.ie-legend {
   display: flex;
   gap: 8px;
-  margin-bottom: 12px;
-  flex-wrap: wrap;
-}
+  overflow-x: auto;
+  padding-bottom: 8px;
+  margin-bottom: 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 
-.ie-select {
-  padding: 6px 12px;
-  border-radius: 10px;
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  background: rgba(255, 255, 255, 0.06);
-  color: #fff;
-  font-family: inherit;
-  font-size: 12px;
-  font-weight: 600;
-  outline: none;
-  cursor: pointer;
-
-  option { 
-    background: #1e1b4b; 
-    color: #fff; 
+  &::-webkit-scrollbar {
+    height: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.2);
+    border-radius: 2px;
   }
 }
 
+.ie-legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 8px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  font-size: 11px;
+  font-weight: 600;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.ie-legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ie-legend-name {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.ie-empty {
+  padding: 20px 12px;
+  text-align: center;
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.6);
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 12px;
+  margin-bottom: 8px;
+}
+
 .ie-canvas-wrap {
-  height: 220px;
+  height: 240px;
   background: rgba(0, 0, 0, 0.15);
   border-radius: 12px;
   padding: 8px;
@@ -317,6 +355,7 @@ watch([chartData, mode], () => {
   .ie-chart { padding: 14px; border-radius: 14px; }
   .ie-title { font-size: 12px; }
   .ie-switch button { padding: 5px 12px; font-size: 11px; }
-  .ie-canvas-wrap { height: 180px; }
+  .ie-canvas-wrap { height: 200px; }
+  .ie-legend-item { font-size: 10px; padding: 3px 6px; }
 }
 </style>
