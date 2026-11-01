@@ -1,74 +1,74 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
-import { categoryIcon, categoryEmoji } from '@/composables/useFormat';
+import { useTransactionsStore } from '@/stores/transactions';
+import { useCategoriesStore } from '@/stores/categories';
+import { fmt, categoryIcon, categoryEmoji } from '@/composables/useFormat';
 import IconOrEmoji from '@/components/ui/IconOrEmoji.vue';
 
 const accounts = useAccountsStore();
+const txStore = useTransactionsStore();
+const categoriesStore = useCategoriesStore();
 
 const mode = ref('expense'); // 'income' | 'expense'
 const canvas = ref(null);
 let ro = null;
 
-// ✅ 3 последних месяца (включая текущий)
-const months = computed(() => {
-  const now = new Date();
-  const res = [];
-  for (let i = 2; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    res.push({
-      year: d.getFullYear(),
-      month: d.getMonth(),
-      label: ['Янв','Фев','Мар','Апр','Май','Июн','Июл','Авг','Сен','Окт','Ноя','Дек'][d.getMonth()],
-      key: `${d.getFullYear()}-${d.getMonth()}`,
-    });
-  }
-  return res;
+// ✅ Берем текущий месяц из глобального стора транзакций (он меняется через MonthNav)
+const currentMonthDate = computed(() => txStore.currentMonth);
+
+const monthLabel = computed(() => {
+  const d = currentMonthDate.value;
+  const months = ['Январь','Февраль','Март','Апрель','Май','Июнь',
+                  'Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  return `${months[d.getMonth()]} ${d.getFullYear()}`;
 });
 
-// ✅ Категории, использованные за эти 3 месяца, с суммами по каждому месяцу
-const categories = computed(() => {
-  const monthKeys = new Set(months.value.map(m => m.key));
-  const map = new Map(); // category -> { total, byMonth: { key: amount } }
+// ✅ Фильтруем транзакции за выбранный месяц и нужный тип
+const monthTransactions = computed(() => {
+  const d = currentMonthDate.value;
+  const start = new Date(d.getFullYear(), d.getMonth(), 1);
+  const end = new Date(d.getFullYear(), d.getMonth() + 1, 0, 23, 59, 59, 999);
 
-  for (const t of accounts.transactions) {
-    if (t.fromReconcile) continue;
-    if (t.type !== mode.value) continue;
-    const d = new Date(t.date);
-    const key = `${d.getFullYear()}-${d.getMonth()}`;
-    if (!monthKeys.has(key)) continue;
+  return accounts.transactions.filter(t => {
+    if (t.type !== mode.value) return false;
+    if (t.fromReconcile) return false;
+    const td = new Date(t.date);
+    return td >= start && td <= end;
+  });
+});
 
+// ✅ Группируем по категориям
+const chartData = computed(() => {
+  const map = new Map();
+  for (const t of monthTransactions.value) {
     const cat = t.category || 'Прочее';
-    if (!map.has(cat)) {
-      map.set(cat, { category: cat, total: 0, byMonth: {} });
-    }
-    const entry = map.get(cat);
-    const amt = Number(t.amount) || 0;
-    entry.total += amt;
-    entry.byMonth[key] = (entry.byMonth[key] || 0) + amt;
+    map.set(cat, (map.get(cat) || 0) + (Number(t.amount) || 0));
   }
 
-  return Array.from(map.values()).sort((a, b) => b.total - a.total);
+  // Сортируем по убыванию суммы
+  const sorted = Array.from(map.entries())
+    .map(([category, amount]) => ({ category, amount }))
+    .sort((a, b) => b.amount - a.amount);
+
+  // Берем топ-10 для графика, чтобы не было каши
+  return sorted.slice(0, 10);
 });
 
-// ✅ Высота графика и максимальное значение
+const totalAmount = computed(() => 
+  chartData.value.reduce((s, item) => s + item.amount, 0)
+);
+
 const maxValue = computed(() => {
-  let max = 1;
-  for (const c of categories.value) {
-    for (const m of months.value) {
-      const v = c.byMonth[m.key] || 0;
-      if (v > max) max = v;
-    }
-  }
-  return max;
+  if (chartData.value.length === 0) return 1;
+  return Math.max(...chartData.value.map(d => d.amount));
 });
 
-// ✅ Палитра для категорий
+// ✅ Палитра для столбиков
 const PALETTE = [
   '#a855f7', '#ec4899', '#06b6d4', '#10b981',
   '#f59e0b', '#f43f5e', '#8b5cf6', '#22d3ee',
-  '#84cc16', '#fb923c', '#e11d48', '#14b8a6',
-  '#fbbf24', '#3b82f6', '#d946ef', '#0ea5e9',
+  '#84cc16', '#fb923c',
 ];
 
 function colorFor(i) {
@@ -90,11 +90,11 @@ function draw() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.clearRect(0, 0, w, h);
 
-  const padL = 48, padR = 16, padT = 20, padB = 36;
+  const padL = 48, padR = 16, padT = 20, padB = 40;
   const chartW = w - padL - padR;
   const chartH = h - padT - padB;
 
-  // Сетка и Y
+  // Сетка и подписи Y
   ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
   ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
   ctx.font = '10px Inter, sans-serif';
@@ -114,56 +114,40 @@ function draw() {
     ctx.fillText(label, padL - 8, y);
   }
 
-  // ✅ Группы по месяцам
-  const groupCount = months.value.length;
-  const groupW = chartW / groupCount;
-  const catCount = categories.value.length;
-
-  if (catCount === 0) return;
-
-  // Ширина столбиков внутри месяца
-  const gapBetweenGroups = 16;
-  const usableGroupW = groupW - gapBetweenGroups;
-  const barW = Math.max(4, Math.min(28, usableGroupW / catCount - 2));
-  const totalBarsW = barW * catCount + (catCount - 1) * 2;
-  const startX = padL + (groupW - totalBarsW) / 2 + gapBetweenGroups / 2;
+  if (chartData.value.length === 0) {
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+    ctx.textAlign = 'center';
+    ctx.fillText('Нет данных за этот месяц', w / 2, padT + chartH / 2);
+    return;
+  }
 
   // ✅ Рисуем столбики
-  months.value.forEach((m, mi) => {
-    const groupStartX = padL + groupW * mi + (groupW - totalBarsW) / 2;
+  const count = chartData.value.length;
+  const gap = 12;
+  const barW = Math.min(40, (chartW - gap * (count - 1)) / count);
+  const totalBarsW = barW * count + gap * (count - 1);
+  const startX = padL + (chartW - totalBarsW) / 2;
 
-    categories.value.forEach((c, ci) => {
-      const value = c.byMonth[m.key] || 0;
-      if (value <= 0) return;
+  chartData.value.forEach((d, i) => {
+    const barH = (d.amount / maxValue.value) * chartH;
+    const x = startX + i * (barW + gap);
+    const y = padT + chartH - barH;
 
-      const barH = (value / maxValue.value) * chartH;
-      const x = groupStartX + ci * (barW + 2);
-      const y = padT + chartH - barH;
+    // Градиент для столбика
+    const grad = ctx.createLinearGradient(0, y, 0, padT + chartH);
+    const col = colorFor(i);
+    grad.addColorStop(0, col);
+    grad.addColorStop(1, col + '80');
 
-      const grad = ctx.createLinearGradient(0, y, 0, padT + chartH);
-      const col = colorFor(ci);
-      grad.addColorStop(0, col);
-      grad.addColorStop(1, col + '80');
-
-      ctx.fillStyle = grad;
-      ctx.beginPath();
-      const r = Math.min(4, barW / 2, barH / 2);
-      // roundRect с fallback
-      if (ctx.roundRect) {
-        ctx.roundRect(x, y, barW, barH, r);
-      } else {
-        ctx.rect(x, y, barW, barH);
-      }
-      ctx.fill();
-    });
-
-    // ✅ Подпись месяца под группой
-    ctx.fillStyle = 'rgba(255, 255, 255, 0.75)';
-    ctx.font = '11px Inter, sans-serif';
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'top';
-    const labelX = padL + groupW * mi + groupW / 2;
-    ctx.fillText(m.label, labelX, padT + chartH + 10);
+    ctx.fillStyle = grad;
+    ctx.beginPath();
+    const r = Math.min(6, barW / 2, barH / 2);
+    if (ctx.roundRect) {
+      ctx.roundRect(x, y, barW, barH, r);
+    } else {
+      ctx.rect(x, y, barW, barH);
+    }
+    ctx.fill();
   });
 }
 
@@ -177,7 +161,8 @@ onUnmounted(() => {
   if (ro) ro.disconnect();
 });
 
-watch([categories, mode, months], () => {
+// Перерисовываем при изменении месяца, режима или данных
+watch([chartData, mode, currentMonthDate], () => {
   nextTick(draw);
 }, { deep: true });
 </script>
@@ -185,7 +170,10 @@ watch([categories, mode, months], () => {
 <template>
   <section class="ie-chart">
     <header class="ie-head">
-      <h2 class="ie-title">📈 Анализ за 3 месяца</h2>
+      <div>
+        <h2 class="ie-title">📈 Анализ за месяц</h2>
+        <div class="ie-subtitle">{{ monthLabel }}</div>
+      </div>
 
       <div class="ie-switch">
         <button
@@ -201,10 +189,10 @@ watch([categories, mode, months], () => {
       </div>
     </header>
 
-    <!-- ✅ Легенда категорий с горизонтальным скроллом -->
-    <div v-if="categories.length > 0" class="ie-legend">
+    <!-- ✅ Легенда (топ категорий) с горизонтальным скроллом -->
+    <div v-if="chartData.length > 0" class="ie-legend">
       <div
-        v-for="(c, i) in categories"
+        v-for="(c, i) in chartData"
         :key="c.category"
         class="ie-legend-item"
       >
@@ -216,15 +204,18 @@ watch([categories, mode, months], () => {
           :alt="c.category"
         />
         <span class="ie-legend-name">{{ c.category }}</span>
+        <span class="ie-legend-amount">{{ fmt(c.amount) }} ₽</span>
       </div>
-    </div>
-
-    <div v-else class="ie-empty">
-      Нет данных за последние 3 месяца
     </div>
 
     <div class="ie-canvas-wrap">
       <canvas ref="canvas" class="ie-canvas"></canvas>
+    </div>
+    
+    <!-- ✅ Итоговая сумма за месяц -->
+    <div v-if="chartData.length > 0" class="ie-total">
+      <span class="ie-total-label">Всего {{ mode === 'income' ? 'доходов' : 'расходов' }}:</span>
+      <span class="ie-total-value">{{ fmt(totalAmount) }} ₽</span>
     </div>
   </section>
 </template>
@@ -255,6 +246,13 @@ watch([categories, mode, months], () => {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin: 0;
+}
+
+.ie-subtitle {
+  font-size: 11px;
+  opacity: 0.6;
+  font-weight: 600;
+  margin-top: 2px;
 }
 
 .ie-switch {
@@ -327,18 +325,15 @@ watch([categories, mode, months], () => {
   color: rgba(255, 255, 255, 0.85);
 }
 
-.ie-empty {
-  padding: 20px 12px;
-  text-align: center;
-  font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
-  background: rgba(0, 0, 0, 0.15);
-  border-radius: 12px;
-  margin-bottom: 8px;
+.ie-legend-amount {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-left: 2px;
 }
 
 .ie-canvas-wrap {
-  height: 240px;
+  height: 220px;
   background: rgba(0, 0, 0, 0.15);
   border-radius: 12px;
   padding: 8px;
@@ -351,11 +346,36 @@ watch([categories, mode, months], () => {
   height: 100%;
 }
 
+/* ✅ Итоговая сумма */
+.ie-total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(255, 255, 255, 0.15);
+}
+
+.ie-total-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.ie-total-value {
+  font-family: var(--mono);
+  font-size: 16px;
+  font-weight: 800;
+  color: #fff;
+}
+
 @media (max-width: 700px) {
   .ie-chart { padding: 14px; border-radius: 14px; }
   .ie-title { font-size: 12px; }
+  .ie-subtitle { font-size: 10px; }
   .ie-switch button { padding: 5px 12px; font-size: 11px; }
-  .ie-canvas-wrap { height: 200px; }
+  .ie-canvas-wrap { height: 180px; }
   .ie-legend-item { font-size: 10px; padding: 3px 6px; }
+  .ie-total-value { font-size: 14px; }
 }
 </style>
