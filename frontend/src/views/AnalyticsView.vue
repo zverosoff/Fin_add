@@ -8,8 +8,7 @@ import { useToast } from '@/composables/useToast';
 import { notifySaved, notifyError } from '@/composables/useDataStatus';
 import { fmt } from '@/composables/useFormat';
 
-import AnalyticsHero from '@/components/analytics/AnalyticsHero.vue';
-import MetricTile from '@/components/analytics/MetricTile.vue';
+import IncomeExpenseChart from '@/components/analytics/IncomeExpenseChart.vue';
 import MascotImage from '@/components/analytics/MascotImage.vue';
 
 import MonthNav from '@/components/analytics/MonthNav.vue';
@@ -93,6 +92,7 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
   <div class="analytics-page">
     <div class="analytics-grid">
       <div class="an-col an-col-left">
+        <IncomeExpenseChart />
         <MonthNav />
 
         <section class="card card-dark">
@@ -101,7 +101,6 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
       </div>
 
       <div class="an-col an-col-right">
-        <FinancialAssistant />
 
         <section class="card card-dark card-goals">
           <MascotImage

@@ -32,13 +32,6 @@ const accountName = computed(() => accounts.getAccountName(props.tx.accountId));
 const amountSign = computed(() => (props.tx.type === 'income' ? '+' : '−'));
 const amountClass = computed(() => (props.tx.type === 'income' ? 'income' : 'expense'));
 
-const txTime = computed(() => {
-  if (!props.tx.date) return '';
-  const d = new Date(props.tx.date);
-  if (isNaN(d.getTime())) return '';
-  return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
-});
-
 const categoryIconPath = computed(() => categoryIcon(props.tx.category));
 const categoryEmojiChar = computed(() => categoryEmoji(props.tx.category));
 
@@ -78,6 +71,17 @@ watch(() => props.tx.amount, (newVal, oldVal) => {
   if (newVal === oldVal) return;
   amountFlash.value = newVal > oldVal ? 'up' : 'down';
   setTimeout(() => { amountFlash.value = null; }, 900);
+});
+
+// ✅ Вычисление времени (скрываем дефолтные 12:00 у импортированных операций)
+const txTime = computed(() => {
+  if (!props.tx.date) return '';
+  const d = new Date(props.tx.date);
+  if (isNaN(d.getTime())) return '';
+  const h = d.getHours();
+  const m = d.getMinutes();
+  if (h === 12 && m === 0) return '';
+  return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 });
 
 function onFilter(key, value) { filters.toggle(key, value); }
@@ -264,20 +268,19 @@ const progress = computed(() =>
 
       <div class="tx-main">
         <div class="tx-name">{{ tx.name || 'Без названия' }}</div>
-<div class="tx-meta">
-  <span class="who" @click.stop="onFilter('user', tx.user)">{{ displayUserName }}</span>
-  <span class="cat" @click.stop="onFilter('category', tx.category)">
-    <IconOrEmoji
-      :src="categoryIconPath"
-      :emoji="categoryEmojiChar"
-      :size="14"
-      :alt="tx.category"
-      class-name="tx-cat-icon"
-    />
-    {{ tx.category || 'Прочее' }}
-  </span>
-  <span class="tx-time">{{ txTime }}</span>
-</div>
+        <div class="tx-meta">
+          <span class="who" @click.stop="onFilter('user', tx.user)">{{ displayUserName }}</span>
+          <span class="cat" @click.stop="onFilter('category', tx.category)">
+            <IconOrEmoji
+              :src="categoryIconPath"
+              :emoji="categoryEmojiChar"
+              :size="14"
+              :alt="tx.category"
+              class-name="tx-cat-icon"
+            />
+            {{ tx.category || 'Прочее' }}
+          </span>
+        </div>
       </div>
 
       <div class="tx-right">
@@ -311,6 +314,9 @@ const progress = computed(() =>
             </button>
           </div>
 
+          <!-- ✅ Аккуратное время операции перед иконкой банка -->
+          <span v-if="txTime" class="tx-time-small">{{ txTime }}</span>
+
           <div
             class="tx-bank-coin"
             :class="'coin-' + bankType"
@@ -331,8 +337,6 @@ const progress = computed(() =>
   </div>
 </template>
 
-<!-- Стили — оставь без изменений из прошлой версии -->
-
 <style scoped lang="scss">
 /* ============================================================
    КОНТЕЙНЕР
@@ -351,7 +355,6 @@ const progress = computed(() =>
   }
 }
 
-/* ✅ ЖЁСТКИЙ СБРОС — все картинки внутри карточки ограничены */
 .tx-item img {
   display: block;
   max-width: 100%;
@@ -394,7 +397,6 @@ const progress = computed(() =>
   .tx-item.is-revealed & { pointer-events: auto; }
 }
 
-/* ✅ Кнопки swipe — фикс 40×40 */
 .tx-action-btn {
   width: 40px;
   height: 40px;
@@ -416,7 +418,6 @@ const progress = computed(() =>
   &:active { transform: scale(0.92); }
 }
 
-/* ✅ Иконка внутри swipe-кнопки — фикс 22×22 */
 .tab-icon-img {
   display: block;
   width: 22px;
@@ -494,7 +495,7 @@ const progress = computed(() =>
 }
 
 /* ============================================================
-   АВАТАР — жёстко 42×42
+   АВАТАР
    ============================================================ */
 .tx-avatar {
   flex: 0 0 42px;
@@ -527,7 +528,6 @@ const progress = computed(() =>
     0 4px 10px -2px rgba(236, 72, 153, 0.35);
 }
 
-/* ✅ Аватар-картинка — 100% родителя, не больше */
 .tx-avatar-img {
   display: block;
   width: 100%;
@@ -563,15 +563,6 @@ const progress = computed(() =>
   color: var(--muted);
   position: relative;
   z-index: 2;
-}
-
-.tx-time {
-  font-size: 11px;
-  color: var(--muted);
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  opacity: 0.7;
-  margin-left: auto;
 }
 
 .tx-meta .who {
@@ -610,7 +601,6 @@ const progress = computed(() =>
   }
 }
 
-/* ✅ Иконка категории — фикс 16×16 */
 .tx-cat-icon {
   display: block;
   width: 16px;
@@ -641,6 +631,18 @@ const progress = computed(() =>
   display: flex;
   align-items: center;
   gap: 8px;
+}
+
+/* ✅ Аккуратное время операции */
+.tx-time-small {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--muted);
+  opacity: 0.6;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  margin-right: 2px;
+  letter-spacing: 0.02em;
 }
 
 .tx-amount {
@@ -682,7 +684,7 @@ const progress = computed(() =>
 }
 
 /* ============================================================
-   ИНЛАЙН-КНОПКИ (ПК) — фикс 34×34
+   ИНЛАЙН-КНОПКИ (ПК)
    ============================================================ */
 .tx-actions-inline {
   display: none;
@@ -718,7 +720,6 @@ const progress = computed(() =>
   &:active { transform: scale(0.94); }
 }
 
-/* ✅ Иконка внутри inline-кнопки — фикс 18×18 */
 .tib-icon-img {
   display: block;
   width: 18px;
@@ -759,7 +760,7 @@ const progress = computed(() =>
 }
 
 /* ============================================================
-   БАНК-МОНЕТА — фикс 30×30
+   БАНК-МОНЕТА
    ============================================================ */
 .tx-bank-coin {
   position: relative;
@@ -802,7 +803,6 @@ const progress = computed(() =>
   &.coin-default { border-color: rgba(139, 92, 246, 0.5); }
 }
 
-/* ✅ Логотип банка внутри монеты — 78%, не больше 24px */
 .tx-bank-coin-img {
   display: block;
   width: 78%;
@@ -860,6 +860,8 @@ const progress = computed(() =>
   }
 
   .tx-amount { font-size: 15px; }
+  
+  .tx-time-small { font-size: 9.5px; margin-right: 0; }
 
   .tx-bank-coin {
     width: 26px;
