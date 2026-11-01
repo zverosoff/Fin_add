@@ -1,47 +1,52 @@
+<!-- frontend/src/components/ui/ToastContainer.vue -->
 <script setup>
 import { useToast } from '@/composables/useToast';
 const { toasts, runAction, dismiss } = useToast();
 
-const ICON_CLOSE = '/img/icons/ui/close.png';
+function iconFor(type) {
+  if (type === 'success') return '✓';
+  if (type === 'error') return '!';
+  return 'i';
+}
 </script>
 
 <template>
-  <div class="toast-container">
-    <TransitionGroup name="toast">
+  <div class="ios-toast-container">
+    <TransitionGroup name="ios-toast">
       <div
         v-for="t in toasts"
         :key="t.id"
-        class="toast"
-        :class="[t.type, { 'has-action': !!t.action }]"
+        class="ios-toast"
+        :class="t.type"
+        @click="dismiss(t.id)"
       >
-        <span class="toast-msg">{{ t.message }}</span>
-
-        <div class="toast-actions">
-          <button
-            v-if="t.action"
-            class="toast-action"
-            @click="runAction(t.id)"
-          >
-            {{ t.action.label }}
-          </button>
-
-          <button
-            class="toast-close"
-            @click="dismiss(t.id)"
-            aria-label="Закрыть"
-          >
-            <img :src="ICON_CLOSE" class="toast-close-img" alt="Закрыть" />
-          </button>
+        <div class="ios-toast-icon" :class="t.type">
+          {{ iconFor(t.type) }}
         </div>
+
+        <div class="ios-toast-body">
+          <div class="ios-toast-title">
+            {{ t.type === 'success' ? 'Готово' : t.type === 'error' ? 'Ошибка' : 'Уведомление' }}
+          </div>
+          <div class="ios-toast-msg">{{ t.message }}</div>
+        </div>
+
+        <button
+          v-if="t.action"
+          class="ios-toast-action"
+          @click.stop="runAction(t.id)"
+        >
+          {{ t.action.label }}
+        </button>
       </div>
     </TransitionGroup>
   </div>
 </template>
 
 <style scoped lang="scss">
-.toast-container {
+.ios-toast-container {
   position: fixed;
-  bottom: calc(90px + env(safe-area-inset-bottom, 0));
+  top: calc(8px + env(safe-area-inset-top, 0));
   left: 50%;
   transform: translateX(-50%);
   z-index: 9999;
@@ -52,247 +57,112 @@ const ICON_CLOSE = '/img/icons/ui/close.png';
   align-items: stretch;
 
   width: 100%;
-  max-width: 460px;
+  max-width: 420px;
   padding: 0 12px;
   box-sizing: border-box;
   pointer-events: none;
 }
 
-.toast {
+.ios-toast {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 
   width: 100%;
   box-sizing: border-box;
+  padding: 12px 14px;
+  border-radius: 16px;
 
-  padding: 12px 14px 12px 18px;
-  border-radius: 14px;
+  background: rgba(28, 28, 30, 0.92);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
 
-  background: var(--overlay-bg, #ffffff);
-  border: 1.5px solid var(--accent);
-  color: var(--text);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #fff;
 
-  font-size: 13.5px;
-  font-weight: 600;
-  line-height: 1.35;
-
-  box-shadow: var(--shadow-lg);
-
-  backdrop-filter: blur(20px) saturate(180%);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  box-shadow:
+    0 8px 24px -6px rgba(0, 0, 0, 0.5),
+    0 0 0 0.5px rgba(255, 255, 255, 0.05) inset;
 
   pointer-events: auto;
-
-  transition: background 0.3s ease, border-color 0.3s ease, color 0.3s ease, box-shadow 0.3s ease;
-
-  &.success { border-color: var(--accent-2, #16a34a); }
-  &.error   { border-color: var(--danger, #dc2626); }
-
-  &.has-action {
-    padding-right: 12px;
-  }
-}
-
-:global(:root[data-app-theme="dark"]) .toast {
-  background: rgba(30, 16, 48, 0.95);
-  border-color: rgba(168, 85, 247, 0.6);
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.6),
-    0 16px 40px -12px rgba(139, 92, 246, 0.5),
-    0 0 0 1px rgba(168, 85, 247, 0.3);
-
-  &.success {
-    border-color: rgba(74, 222, 128, 0.7);
-    box-shadow:
-      0 4px 12px rgba(0, 0, 0, 0.6),
-      0 16px 40px -12px rgba(34, 197, 94, 0.4),
-      0 0 0 1px rgba(74, 222, 128, 0.3);
-  }
-  &.error {
-    border-color: rgba(244, 63, 94, 0.7);
-    box-shadow:
-      0 4px 12px rgba(0, 0, 0, 0.6),
-      0 16px 40px -12px rgba(244, 63, 94, 0.4),
-      0 0 0 1px rgba(244, 63, 94, 0.3);
-  }
-}
-
-.toast-msg {
-  flex: 1;
-  min-width: 0;
-  word-break: break-word;
-  overflow-wrap: anywhere;
-}
-
-.toast-actions {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-shrink: 0;
-}
-
-.toast-action {
-  padding: 7px 14px;
-  border-radius: 10px;
-  border: 1px solid var(--accent);
-  background: rgba(139, 92, 246, 0.1);
-  color: var(--accent);
-
-  font-family: inherit;
-  font-size: 12.5px;
-  font-weight: 800;
   cursor: pointer;
-  white-space: nowrap;
-
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.1) inset;
-
-  transition: all 0.15s cubic-bezier(.34,1.56,.64,1);
-
-  &:hover {
-    background: var(--accent);
-    color: #ffffff;
-    transform: translateY(-1px);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.3) inset,
-      0 4px 10px -2px rgba(139, 92, 246, 0.5);
-  }
-  &:active { transform: scale(0.96); }
 }
 
-/* ✅ Кнопка закрытия — фикс 26×26 */
-.toast-close {
-  width: 26px;
-  height: 26px;
-  min-width: 26px;
-  max-width: 26px;
-  min-height: 26px;
-  max-height: 26px;
-
+.ios-toast-icon {
+  width: 22px;
+  height: 22px;
+  min-width: 22px;
   border-radius: 50%;
-  border: none;
-  background: rgba(148, 163, 184, 0.15);
-
-  cursor: pointer;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: 0;
-  overflow: hidden;
+  font-size: 13px;
+  font-weight: 900;
   flex-shrink: 0;
 
-  transition: background 0.15s, transform 0.15s;
-
-  &:hover {
-    background: rgba(244, 63, 94, 0.15);
-  }
-  &:active { transform: scale(0.92); }
+  &.success { background: #22c55e; color: #fff; }
+  &.error   { background: #ef4444; color: #fff; }
+  &.info    { background: #3b82f6; color: #fff; }
 }
 
-/* ✅ PNG-крестик — фикс 14×14 */
-.toast-close-img {
-  display: block;
-  width: 14px;
-  height: 14px;
-  min-width: 14px;
-  max-width: 14px;
-  max-height: 14px;
-  object-fit: contain;
-  opacity: 0.75;
-  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.15));
-  transition: opacity 0.15s, filter 0.15s;
+.ios-toast-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
 }
 
-.toast-close:hover .toast-close-img {
-  opacity: 1;
-  filter: drop-shadow(0 0 6px rgba(244, 63, 94, 0.6)) brightness(1.15);
+.ios-toast-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.9);
+  letter-spacing: 0.01em;
 }
 
-/* Анимации */
-.toast-enter-active {
-  transition:
-    opacity 0.25s ease,
-    transform 0.35s cubic-bezier(.34,1.56,.64,1);
+.ios-toast-msg {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
-.toast-leave-active {
-  transition:
-    opacity 0.2s ease,
-    transform 0.25s ease;
+
+.ios-toast-action {
+  padding: 6px 12px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(255, 255, 255, 0.15);
+  color: #0a84ff;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
 }
-.toast-enter-from {
+
+/* Анимация как в iOS — сверху */
+.ios-toast-enter-active {
+  transition: opacity 0.3s ease, transform 0.4s cubic-bezier(.34,1.56,.64,1);
+}
+.ios-toast-leave-active {
+  transition: opacity 0.25s ease, transform 0.3s ease;
+}
+.ios-toast-enter-from {
   opacity: 0;
-  transform: translateY(20px) scale(0.94);
+  transform: translateY(-40px) scale(0.94);
 }
-.toast-leave-to {
+.ios-toast-leave-to {
   opacity: 0;
-  transform: translateY(-10px) scale(0.94);
+  transform: translateY(-20px) scale(0.96);
 }
 
-/* ============================================================
-   МОБИЛЬНЫЙ
-   ============================================================ */
-@media (max-width: 700px) {
-  .toast-container {
-    bottom: calc(84px + env(safe-area-inset-bottom, 0));
-    max-width: 100%;
-    padding: 0 10px;
-    gap: 6px;
-  }
-
-  .toast {
-    padding: 12px 12px 12px 16px;
-    font-size: 13px;
-    gap: 10px;
-    border-radius: 13px;
-  }
-
-  .toast-msg {
-    font-size: 13px;
-    line-height: 1.3;
-  }
-
-  .toast-action {
-    padding: 7px 12px;
-    font-size: 12px;
-  }
-
-  .toast-close {
-    width: 24px;
-    height: 24px;
-    min-width: 24px;
-    max-width: 24px;
-    min-height: 24px;
-    max-height: 24px;
-  }
-
-  .toast-close-img {
-    width: 12px;
-    height: 12px;
-    min-width: 12px;
-    max-width: 12px;
-    max-height: 12px;
-  }
-}
-
-@media (max-width: 380px) {
-  .toast {
-    font-size: 12.5px;
-    padding: 11px 10px 11px 14px;
-    gap: 8px;
-  }
-  .toast-action {
-    padding: 6px 10px;
-    font-size: 11.5px;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .toast-enter-active,
-  .toast-leave-active,
-  .toast-action,
-  .toast-close {
-    transition: none !important;
-    transform: none !important;
-  }
+.ios-toast-move {
+  transition: transform 0.3s ease;
 }
 </style>

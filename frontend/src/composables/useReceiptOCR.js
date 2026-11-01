@@ -122,33 +122,30 @@ function detectBankType(lines) {
 
 function isValidBankScreenshot(lines) {
   const fullText = lines.map(l => l.text).join(' ').toLowerCase();
-  const bankMarkers = ['₽', 'руб', 'оплата', 'перевод', 'баланс', 'карта', 'счёт', 'счет', 'сбер', 'т-банк', 'tbank', 'история', 'операции'];
-  let foundMarkers = 0;
-  for (const marker of bankMarkers) {
-    if (fullText.includes(marker)) foundMarkers++;
-  }
-  if (foundMarkers === 0) return false;
+  const bankMarkers = ['₽', 'руб', 'оплата', 'перевод', 'баланс', 'карта', 'счёт', 'счет',
+                       'сбер', 'т-банк', 'tbank', 'история', 'операции', 'дата', 'сумма'];
+  let found = 0;
+  for (const m of bankMarkers) if (fullText.includes(m)) found++;
+  if (found < 2) return false;  // ✅ было 0 — слишком строго/слабо
 
-  let russianLettersCount = 0;
-  let totalCharsCount = 0;
+  let ru = 0, total = 0;
   for (const line of lines) {
     const t = line.text || '';
-    totalCharsCount += t.length;
+    total += t.length;
     for (let i = 0; i < t.length; i++) {
-      if (t.charCodeAt(i) >= 1040 && t.charCodeAt(i) <= 1103) {
-        russianLettersCount++;
-      }
+      if (t.charCodeAt(i) >= 1040 && t.charCodeAt(i) <= 1103) ru++;
     }
   }
-  if (totalCharsCount > 0 && (russianLettersCount / totalCharsCount) < 0.3) {
-    return false;
-  }
+  // ✅ было 0.3 — на скриншотах с цифрами доля букв ниже
+  if (total > 0 && (ru / total) < 0.15) return false;
   return true;
 }
 
 // ============================================================
 // ПАРСЕР ДЛЯ Т-БАНКА (v7, ФИНАЛ)
 // ============================================================
+// useReceiptOCR.js — заменить функцию parseTbank
+
 function parseTbank(lines) {
   const parsedItems = [];
   const now = new Date();
@@ -156,19 +153,19 @@ function parseTbank(lines) {
 
   const DATE_WORD_RE = /(Сегодня|Вчера|Позавчера)/i;
   const DATE_NUM_RE = /(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)/i;
-  
-  // Суммы: ищем с минусом или плюсом, сохраняем копейки
-  const AMOUNT_RE = /([+\-−])\s*(\d[\d\s]*[.,]?\d*)\s*(?:₽|p|P|р|Р)?/;
-  
-  // Игнорируем заголовки и системный мусор
-  const JUNK_RE = /^(траты|доходы|счета и карты|без переводов|операции|октябрь|сентябрь|баланс|всего|расходы|поступления)/i;
 
-  // 1. Находим все даты и их Y-координаты
+  // ✅ суммы: -774, -1 234,56, +10 000, 606.00, 1 500
+  const AMOUNT_RE = /([+\-−])\s*(\d[\d\s]*(?:[.,]\d{1,2})?)\s*(?:₽|p|P|р|Р|руб\.?)?/;
+
+  // ✅ мусор — только точные заголовки, НЕ «расходы» в названии
+  const JUNK_RE = /^(траты|доходы|счета и карты|без переводов|операции|баланс|всего|итого|поступления)$/i;
+
+  // 1. Даты-якоря
   const dateAnchors = [];
   for (const line of lines) {
     const text = (line.text || '').trim();
     let foundDate = null;
-    
+
     if (DATE_WORD_RE.test(text)) {
       const word = text.match(DATE_WORD_RE)[0].toLowerCase();
       foundDate = new Date();
@@ -189,69 +186,59 @@ function parseTbank(lines) {
       dateAnchors.push({ y: line.bbox.y0, date: foundDate });
     }
   }
-
   dateAnchors.sort((a, b) => a.y - b.y);
 
-  // 2. Ищем все операции
+  // 2. Операции
   for (let i = 0; i < lines.length; i++) {
     const line = lines[i];
     const text = (line.text || '').trim();
     if (!text) continue;
-    
+
     const y = line.bbox ? line.bbox.y0 : 0;
     const x = line.bbox ? line.bbox.x0 : 0;
 
     if (JUNK_RE.test(text)) continue;
 
-    // ✅ ФИКС: Если в строке есть дата (14 октября) и сумма (-774) —
-    // это заголовок дня с итогом. Пропускаем, чтобы не создавать фейковую операцию.
-    if (DATE_NUM_RE.test(text) && /[+\-−]\s*\d/.test(text)) {
-        continue; 
-    }
+    // заголовок дня «14 октября -774» — пропускаем
+    if (DATE_NUM_RE.test(text) && /[+\-−]\s*\d/.test(text)) continue;
 
-    // Ищем сумму
     const amountMatch = text.match(AMOUNT_RE);
     if (!amountMatch) continue;
 
     const sign = amountMatch[1];
     const rawAmount = amountMatch[2].replace(/\s+/g, '').replace(',', '.');
     let amount = parseFloat(rawAmount);
-    
     if (isNaN(amount) || amount <= 0) continue;
 
-    // Отсекаем кэшбэк (например, +10)
-    if (amount < 50 && sign === '+') continue;
-
-    // Отсекаем итоговые суммы
-    if (amount > 50000) continue; 
+    // ✅ убрал лимит 50000 — крупные операции тоже нужны
+    // ✅ убрал отсечку «кэшбэк < 50» — пусть будет, пользователь снимет галочку
 
     const type = sign === '+' ? 'income' : 'expense';
     amount = Math.round(amount * 100) / 100;
 
-    // 3. ДВОЙНАЯ ПРОВЕРКА: Ищем описание
+    // описание
     let description = text.replace(amountMatch[0], '').trim();
     description = description.replace(/[|•·\-\+−₽]/g, '').trim();
-    
+
     if (!description || description.length < 2 || /^\d+$/.test(description) || description.toLowerCase() === 'black') {
-      if (i - 1 >= 0 && lines[i-1].bbox) {
-          const prevText = lines[i-1].text.trim();
-          const prevY = lines[i-1].bbox.y0;
-          const prevX = lines[i-1].bbox.x0;
-          
-          if (!AMOUNT_RE.test(prevText) && !JUNK_RE.test(prevText) && !DATE_WORD_RE.test(prevText) && !DATE_NUM_RE.test(prevText)) {
-              if (Math.abs(prevX - x) < 150 || Math.abs(prevY - y) < 60) {
-                  description = prevText;
-              }
+      if (i - 1 >= 0 && lines[i - 1].bbox) {
+        const prevText = lines[i - 1].text.trim();
+        const prevY = lines[i - 1].bbox.y0;
+        const prevX = lines[i - 1].bbox.x0;
+        if (!AMOUNT_RE.test(prevText) && !JUNK_RE.test(prevText) &&
+            !DATE_WORD_RE.test(prevText) && !DATE_NUM_RE.test(prevText)) {
+          if (Math.abs(prevX - x) < 150 || Math.abs(prevY - y) < 60) {
+            description = prevText;
           }
+        }
       }
     }
 
     if (!description || description.length < 2) description = 'Операция';
 
-    // 4. Определяем дату
+    // дата
     let opDate = null;
     let dateUncertain = true;
-    
     for (let d = dateAnchors.length - 1; d >= 0; d--) {
       if (dateAnchors[d].y < y) {
         opDate = dateAnchors[d].date;
@@ -259,39 +246,36 @@ function parseTbank(lines) {
         break;
       }
     }
+    if (!opDate) { opDate = new Date(); dateUncertain = true; }
 
-    if (!opDate) {
-      opDate = new Date();
-      dateUncertain = true;
-    }
-
+    // категория
     let category = 'Прочее';
-    const nextLine = lines[i+1]?.text || '';
+    const nextLine = lines[i + 1]?.text || '';
     if (nextLine && !AMOUNT_RE.test(nextLine) && !JUNK_RE.test(nextLine)) {
-        category = extractCategory(nextLine) || extractCategory(description);
+      category = extractCategory(nextLine) || extractCategory(description);
     } else {
-        category = extractCategory(description);
+      category = extractCategory(description);
     }
 
     let opBbox = line.bbox;
-    if (lines[i-1] && lines[i-1].bbox && line.bbox && description === lines[i-1].text.trim()) {
-       const l1 = lines[i-1].bbox;
-       const l2 = line.bbox;
-       opBbox = { x0: Math.min(l1.x0, l2.x0), y0: Math.min(l1.y0, l2.y0), x1: Math.max(l1.x1, l2.x1), y1: Math.max(l1.y1, l2.y1) };
+    if (lines[i - 1] && lines[i - 1].bbox && line.bbox && description === lines[i - 1].text.trim()) {
+      const l1 = lines[i - 1].bbox;
+      const l2 = line.bbox;
+      opBbox = {
+        x0: Math.min(l1.x0, l2.x0), y0: Math.min(l1.y0, l2.y0),
+        x1: Math.max(l1.x1, l2.x1), y1: Math.max(l1.y1, l2.y1),
+      };
     }
 
-    parsedItems.push({ 
-        type: 'op', 
-        y, 
-        opData: { 
-            name: description.slice(0, 80), 
-            amount, 
-            type, 
-            category, 
-            date: opDate.toISOString(),
-            dateUncertain,
-            bbox: opBbox
-        } 
+    parsedItems.push({
+      type: 'op', y,
+      opData: {
+        name: description.slice(0, 80),
+        amount, type, category,
+        date: opDate.toISOString(),
+        dateUncertain,
+        bbox: opBbox,
+      },
     });
   }
   return parsedItems;
@@ -300,14 +284,18 @@ function parseTbank(lines) {
 // ============================================================
 // ПАРСЕР ДЛЯ СБЕРА
 // ============================================================
+// useReceiptOCR.js — заменить функцию parseSber
+
 function parseSber(lines) {
   const parsedItems = [];
   const now = new Date();
-  let defaultYear = now.getFullYear();
+  const defaultYear = now.getFullYear();
 
   const DATE_WORD_RE = /(Сегодня|Вчера|Позавчера)/i;
   const DATE_NUM_RE = /(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:[,\s]+([а-я]{2}))?/i;
-  const SBER_AMOUNT_RE = /([+\-−]?)\s*(\d[\d\s]*(?:[.,]\d{2})?)\s*[₽pPрР]?\s*$/;
+
+  // ✅ сумма в конце строки, с опциональным ₽ и знаком
+  const SBER_AMOUNT_RE = /([+\-−]?)\s*(\d[\d\s]*(?:[.,]\d{1,2})?)\s*(?:₽|p|P|р|Р)?\s*$/;
 
   let listStartY = 0;
   for (const line of lines) {
@@ -326,6 +314,7 @@ function parseSber(lines) {
 
     if (y < listStartY - 10) continue;
 
+    // дата
     let foundDate = null;
     if (DATE_WORD_RE.test(text)) {
       const word = text.match(DATE_WORD_RE)[0].toLowerCase();
@@ -357,7 +346,7 @@ function parseSber(lines) {
     let amount = parseFloat(rawAmount);
     if (isNaN(amount) || amount <= 0) continue;
 
-    if (amount < 1 && !text.includes('₽')) continue;
+    // ✅ убрал отсечку «< 1» — мелкие операции тоже нужны
 
     const type = sign === '+' ? 'income' : 'expense';
     amount = Math.round(amount * 100) / 100;
@@ -366,27 +355,25 @@ function parseSber(lines) {
     description = description.replace(/[|•·\-\+−]/g, '').trim();
 
     if (!description || description.length < 2 || /^\d+$/.test(description)) {
-       if (i - 1 >= 0 && !DATE_WORD_RE.test(lines[i-1].text) && !DATE_NUM_RE.test(lines[i-1].text)) {
-           description = lines[i-1].text;
-       }
+      if (i - 1 >= 0 && !DATE_WORD_RE.test(lines[i - 1].text) && !DATE_NUM_RE.test(lines[i - 1].text)) {
+        description = lines[i - 1].text;
+      }
     }
 
     if (description.length > 80 && description.includes('.')) continue;
     if (!description) description = 'Операция';
 
     let category = 'Прочее';
-    const nextLine = lines[i+1]?.text || '';
-    
+    const nextLine = lines[i + 1]?.text || '';
     if (nextLine.includes('Оплата') || nextLine.includes('товаров') || nextLine.includes('услуг')) {
-       category = extractCategory(nextLine);
+      category = extractCategory(nextLine);
     } else {
-       category = extractCategory(description + ' ' + nextLine);
+      category = extractCategory(description + ' ' + nextLine);
     }
 
     parsedItems.push({
-      type: 'op',
-      y,
-      opData: { name: description.slice(0, 80), amount, type, category, bbox: line.bbox }
+      type: 'op', y,
+      opData: { name: description.slice(0, 80), amount, type, category, bbox: line.bbox },
     });
   }
   return parsedItems;

@@ -93,47 +93,6 @@ function openEditContrib({ goal, user }) { editContribGoal.value = goal; editCon
   <div class="analytics-page">
     <div class="analytics-grid">
       <div class="an-col an-col-left">
-        <AnalyticsHero />
-
-        <div class="metrics-grid">
-          <MetricTile
-            label="Свободно"
-            :value="metrics.realFree"
-            unit="₽"
-            :sub="realFreeHint"
-            color="emerald"
-            mascot="wallet"
-            mascot-pos="left"
-            emoji="💰"
-            :mascot-size="120"
-          />
-
-          <MetricTile
-            label="Подушка"
-            :value="Number(metrics.runway || 0).toFixed(1)"
-            unit="мес"
-            :sub="runwayHint"
-            color="amber"
-            mascot="shield"
-            mascot-pos="right"
-            emoji="⏳"
-            :mascot-size="120"
-          />
-
-          <MetricTile
-            label="Расход/день"
-            :value="metrics.dailyAvg"
-            unit="₽"
-            :sub="dailyAvgHint"
-            color="rose"
-            mascot="calculator"
-            mascot-pos="right"
-            emoji="🔥"
-            :mascot-size="120"
-            class="tile-calc"
-          />
-        </div>
-
         <MonthNav />
 
         <section class="card card-dark">

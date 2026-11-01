@@ -32,6 +32,13 @@ const accountName = computed(() => accounts.getAccountName(props.tx.accountId));
 const amountSign = computed(() => (props.tx.type === 'income' ? '+' : '−'));
 const amountClass = computed(() => (props.tx.type === 'income' ? 'income' : 'expense'));
 
+const txTime = computed(() => {
+  if (!props.tx.date) return '';
+  const d = new Date(props.tx.date);
+  if (isNaN(d.getTime())) return '';
+  return d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+});
+
 const categoryIconPath = computed(() => categoryIcon(props.tx.category));
 const categoryEmojiChar = computed(() => categoryEmoji(props.tx.category));
 
@@ -257,19 +264,20 @@ const progress = computed(() =>
 
       <div class="tx-main">
         <div class="tx-name">{{ tx.name || 'Без названия' }}</div>
-        <div class="tx-meta">
-          <span class="who" @click.stop="onFilter('user', tx.user)">{{ displayUserName }}</span>
-          <span class="cat" @click.stop="onFilter('category', tx.category)">
-            <IconOrEmoji
-              :src="categoryIconPath"
-              :emoji="categoryEmojiChar"
-              :size="14"
-              :alt="tx.category"
-              class-name="tx-cat-icon"
-            />
-            {{ tx.category || 'Прочее' }}
-          </span>
-        </div>
+<div class="tx-meta">
+  <span class="who" @click.stop="onFilter('user', tx.user)">{{ displayUserName }}</span>
+  <span class="cat" @click.stop="onFilter('category', tx.category)">
+    <IconOrEmoji
+      :src="categoryIconPath"
+      :emoji="categoryEmojiChar"
+      :size="14"
+      :alt="tx.category"
+      class-name="tx-cat-icon"
+    />
+    {{ tx.category || 'Прочее' }}
+  </span>
+  <span class="tx-time">{{ txTime }}</span>
+</div>
       </div>
 
       <div class="tx-right">
@@ -555,6 +563,15 @@ const progress = computed(() =>
   color: var(--muted);
   position: relative;
   z-index: 2;
+}
+
+.tx-time {
+  font-size: 11px;
+  color: var(--muted);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+  margin-left: auto;
 }
 
 .tx-meta .who {
