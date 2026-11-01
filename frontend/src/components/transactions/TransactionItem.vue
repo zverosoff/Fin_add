@@ -36,7 +36,6 @@ const toast = useToast();
 // ✅ Проверяем, является ли операция внутренним переводом
 const isInternal = computed(() => props.tx.category === 'Внутренний перевод');
 
-const accountName = computed(() => accounts.getAccountName(props.tx.accountId));
 const amountSign = computed(() => (props.tx.type === 'income' ? '+' : '−'));
 const amountClass = computed(() => {
   if (isInternal.value) return 'internal';
@@ -111,6 +110,7 @@ function onEdit() {
 
 // ✅ Логика переключения внутреннего перевода
 async function toggleInternal() {
+  closeReveal();
   const newCategory = isInternal.value ? 'Прочее' : 'Внутренний перевод';
   
   try {
@@ -141,7 +141,8 @@ let isHorizontal = null;
 let rafId = null;
 let pendingX = null;
 
-const REVEAL_WIDTH = 96;
+// ✅ Ширина панели свайпа увеличена под 3 кнопки
+const REVEAL_WIDTH = 140; 
 const THRESHOLD = 40;
 
 function isMobile() { return window.innerWidth <= 700; }
@@ -258,11 +259,23 @@ const progress = computed(() =>
       { 'is-appearing': appearing, 'is-deleting': deleting, 'is-revealed': revealed, 'is-internal': isInternal },
     ]"
   >
+    <!-- ✅ Свайп-панель (видна на мобильных) -->
     <div
       class="tx-actions-panel"
       :style="{ opacity: progress }"
       aria-hidden="true"
     >
+      <!-- ✅ Новая кнопка перевода -->
+      <button
+        class="tx-action-btn tx-action-internal"
+        :class="{ active: isInternal }"
+        type="button"
+        @click.stop="toggleInternal"
+        aria-label="Внутренний перевод"
+      >
+        <img :src="ICON_TRANSFER" class="tab-icon-img" alt="Перевод" />
+      </button>
+
       <button
         class="tx-action-btn tx-action-edit"
         type="button"
@@ -326,19 +339,18 @@ const progress = computed(() =>
         </div>
 
         <div class="tx-right-bottom">
+          <!-- ✅ Инлайн-кнопки (видны на ПК) -->
           <div class="tx-actions-inline">
-            <!-- ✅ Новая кнопка перевода -->
             <button
               class="tx-inline-btn tx-inline-internal"
               :class="{ active: isInternal }"
               type="button"
               @click.stop="toggleInternal"
-              :title="isInternal ? 'Вернуть в статистику' : 'Исключить из статистики'"
-              aria-label="Переключить внутренний перевод"
+              title="Внутренний перевод"
+              aria-label="Внутренний перевод"
             >
               <img :src="ICON_TRANSFER" class="tib-icon-img" alt="Перевод" />
             </button>
-
             <button
               class="tx-inline-btn tx-inline-edit"
               type="button"
@@ -422,7 +434,7 @@ const progress = computed(() =>
 .tx-actions-panel {
   position: absolute;
   top: 0; right: 0; bottom: 0;
-  width: 96px;
+  width: 140px; /* Увеличили под 3 кнопки */
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -461,6 +473,21 @@ const progress = computed(() =>
   background: linear-gradient(180deg, #f87171, #dc2626);
   box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset, 0 -2px 0 rgba(153, 27, 27, 0.3) inset, 0 4px 10px -2px rgba(239, 68, 68, 0.5);
   &:hover { transform: translateY(-2px); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset, 0 -2px 0 rgba(153, 27, 27, 0.3) inset, 0 8px 16px -2px rgba(239, 68, 68, 0.7); }
+}
+
+/* ✅ Стили для кнопки перевода */
+.tx-action-internal {
+  background: linear-gradient(180deg, #fbbf24, #f59e0b);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset, 0 -2px 0 rgba(180, 83, 9, 0.3) inset, 0 4px 10px -2px rgba(245, 158, 11, 0.5);
+  &:hover { transform: translateY(-2px); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset, 0 -2px 0 rgba(180, 83, 9, 0.3) inset, 0 8px 16px -2px rgba(245, 158, 11, 0.7); }
+}
+
+.tx-action-internal.active {
+  background: #ffffff;
+  border: 2px solid #f59e0b;
+  .tab-icon-img {
+    filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.8));
+  }
 }
 
 /* ============================================================
@@ -620,7 +647,7 @@ const progress = computed(() =>
 .tx-inline-edit:hover { background: rgba(139, 92, 246, 0.15); border-color: rgba(139, 92, 246, 0.5); transform: translateY(-2px); box-shadow: 0 6px 14px -4px rgba(139, 92, 246, 0.4), 0 0 0 1px rgba(139, 92, 246, 0.3); .tib-icon-img { opacity: 1; transform: translateY(-1px) rotate(-6deg) scale(1.1); } }
 .tx-inline-delete:hover { background: rgba(244, 63, 94, 0.15); border-color: rgba(244, 63, 94, 0.5); transform: translateY(-2px); box-shadow: 0 6px 14px -4px rgba(244, 63, 94, 0.4), 0 0 0 1px rgba(244, 63, 94, 0.3); .tib-icon-img { opacity: 1; transform: scale(1.12); } }
 
-/* ✅ Стили для новой кнопки перевода */
+/* ✅ Стили для инлайн-кнопки перевода */
 .tx-inline-internal:hover {
   background: rgba(245, 158, 11, 0.15);
   border-color: rgba(245, 158, 11, 0.5);
@@ -690,13 +717,10 @@ const progress = computed(() =>
   }
   .tx-bank-coin-img { max-width: 20px; max-height: 20px; }
 
-  .tx-actions-panel { width: 92px; }
-  .tx-action-btn {
-    width: 36px; height: 36px; min-width: 36px; max-width: 36px; max-height: 36px;
-  }
-  .tab-icon-img {
-    width: 20px; height: 20px; min-width: 20px; max-width: 20px; max-height: 20px;
-  }
+  /* ✅ Кнопки свайпа */
+  .tx-actions-panel { width: 136px; }
+  .tx-action-btn { width: 38px; height: 38px; min-width: 38px; max-width: 38px; max-height: 38px; }
+  .tab-icon-img { width: 20px; height: 20px; min-width: 20px; max-width: 20px; max-height: 20px; }
 }
 
 @media (max-width: 380px) {
