@@ -3,6 +3,8 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue';
 import { useAccountsStore } from '@/stores/accounts';
 import { useFiltersStore } from '@/stores/filters';
 import { useAuthStore } from '@/stores/auth';
+import { useTransactionsStore } from '@/stores/transactions';
+import { useToast } from '@/composables/useToast';
 import {
   fmt,
   categoryIcon,
@@ -16,6 +18,7 @@ import IconOrEmoji from '@/components/ui/IconOrEmoji.vue';
 
 const ICON_EDIT   = '/img/icons/ui/edit.png';
 const ICON_DELETE = '/img/icons/ui/delete.png';
+const ICON_TRANSFER = '/img/icons/ui/switch.png'; // Иконка перевода (стрелочки)
 
 const props = defineProps({
   tx: { type: Object, required: true },
@@ -27,9 +30,11 @@ const emit = defineEmits(['edit', 'delete']);
 const accounts = useAccountsStore();
 const filters = useFiltersStore();
 const auth = useAuthStore();
+const txStore = useTransactionsStore();
+const toast = useToast();
 
 // ✅ Проверяем, является ли операция внутренним переводом
-const isInternal = computed(() => props.tx.category === 'Внутренний перевод' || props.tx.internalTransfer === true);
+const isInternal = computed(() => props.tx.category === 'Внутренний перевод');
 
 const accountName = computed(() => accounts.getAccountName(props.tx.accountId));
 const amountSign = computed(() => (props.tx.type === 'income' ? '+' : '−'));
@@ -102,6 +107,27 @@ function onDelete() {
 function onEdit() {
   closeReveal();
   emit('edit', props.tx);
+}
+
+// ✅ Логика переключения внутреннего перевода
+async function toggleInternal() {
+  const newCategory = isInternal.value ? 'Прочее' : 'Внутренний перевод';
+  
+  try {
+    await txStore.save({
+      ...props.tx,
+      category: newCategory,
+      internalTransfer: newCategory === 'Внутренний перевод',
+    });
+    
+    if (newCategory === 'Внутренний перевод') {
+      toast.success('🔄 Операция скрыта из статистики');
+    } else {
+      toast.success('↩️ Операция возвращена в статистику');
+    }
+  } catch (e) {
+    toast.error('Ошибка: ' + e.message);
+  }
 }
 
 const el = ref(null);
@@ -301,6 +327,18 @@ const progress = computed(() =>
 
         <div class="tx-right-bottom">
           <div class="tx-actions-inline">
+            <!-- ✅ Новая кнопка перевода -->
+            <button
+              class="tx-inline-btn tx-inline-internal"
+              :class="{ active: isInternal }"
+              type="button"
+              @click.stop="toggleInternal"
+              :title="isInternal ? 'Вернуть в статистику' : 'Исключить из статистики'"
+              aria-label="Переключить внутренний перевод"
+            >
+              <img :src="ICON_TRANSFER" class="tib-icon-img" alt="Перевод" />
+            </button>
+
             <button
               class="tx-inline-btn tx-inline-edit"
               type="button"
@@ -344,7 +382,9 @@ const progress = computed(() =>
 </template>
 
 <style scoped lang="scss">
-/* ... стили для контейнера и свайпа остаются прежними ... */
+/* ============================================================
+   КОНТЕЙНЕР
+   ============================================================ */
 .tx-item {
   position: relative;
   border-radius: 16px;
@@ -376,6 +416,9 @@ const progress = computed(() =>
   to   { opacity: 0; transform: translateX(60px) scale(0.9); }
 }
 
+/* ============================================================
+   ПАНЕЛЬ ДЕЙСТВИЙ (свайп)
+   ============================================================ */
 .tx-actions-panel {
   position: absolute;
   top: 0; right: 0; bottom: 0;
@@ -389,7 +432,6 @@ const progress = computed(() =>
   pointer-events: none;
   background: linear-gradient(270deg, rgba(139, 92, 246, 0.14) 0%, rgba(139, 92, 246, 0.06) 100%);
   transition: opacity 0.15s linear;
-
   .tx-item.is-revealed & { pointer-events: auto; }
 }
 
@@ -421,6 +463,9 @@ const progress = computed(() =>
   &:hover { transform: translateY(-2px); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.4) inset, 0 -2px 0 rgba(153, 27, 27, 0.3) inset, 0 8px 16px -2px rgba(239, 68, 68, 0.7); }
 }
 
+/* ============================================================
+   КАРТОЧКА
+   ============================================================ */
 .tx-card {
   position: relative;
   z-index: 1;
@@ -458,11 +503,13 @@ const progress = computed(() =>
   filter: grayscale(0.8);
 }
 
+/* ============================================================
+   АВАТАР
+   ============================================================ */
 .tx-avatar {
-  flex: 0 0 42px;
-  width: 42px; height: 42px; min-width: 42px; max-width: 42px; max-height: 42px;
-  border-radius: 50%;
-  display: flex; align-items: center; justify-content: center;
+  flex: 0 0 42px; width: 42px; height: 42px;
+  min-width: 42px; max-width: 42px; max-height: 42px;
+  border-radius: 50%; display: flex; align-items: center; justify-content: center;
   overflow: hidden; position: relative; z-index: 2;
 }
 
@@ -474,6 +521,9 @@ const progress = computed(() =>
   object-fit: cover; border-radius: 50%;
 }
 
+/* ============================================================
+   ТЕКСТ
+   ============================================================ */
 .tx-main { flex: 1; min-width: 0; position: relative; z-index: 2; }
 
 .tx-name {
@@ -508,6 +558,9 @@ const progress = computed(() =>
   filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.2)); transition: filter 0.2s ease;
 }
 
+/* ============================================================
+   ПРАВАЯ ЧАСТЬ
+   ============================================================ */
 .tx-right {
   flex: 0 0 auto; display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
   position: relative; z-index: 2;
@@ -546,8 +599,13 @@ const progress = computed(() =>
 @keyframes amountFlashUp { 0% { background: rgba(34, 197, 94, 0.5); transform: scale(1.12); } 100% { background: transparent; transform: scale(1); } }
 @keyframes amountFlashDown { 0% { background: rgba(244, 63, 94, 0.5); transform: scale(1.12); } 100% { background: transparent; transform: scale(1); } }
 
-/* ... остальные стили кнопок, монет и медиа-запросов оставь как были ... */
-.tx-actions-inline { display: none; align-items: center; gap: 6px; }
+/* ============================================================
+   ИНЛАЙН-КНОПКИ (ПК)
+   ============================================================ */
+.tx-actions-inline {
+  display: none; align-items: center; gap: 6px;
+}
+
 .tx-inline-btn {
   width: 34px; height: 34px; min-width: 34px; max-width: 34px; max-height: 34px;
   border-radius: 10px; border: 1px solid var(--border); background: var(--panel-2);
@@ -556,11 +614,32 @@ const progress = computed(() =>
   transition: transform 0.18s cubic-bezier(.34,1.56,.64,1), box-shadow 0.22s ease, background 0.15s ease, border-color 0.15s ease;
   &:active { transform: scale(0.94); }
 }
+
 .tib-icon-img { display: block; width: 18px; height: 18px; min-width: 18px; max-width: 18px; max-height: 18px; object-fit: contain; flex-shrink: 0; opacity: 0.8; transition: opacity 0.15s ease, transform 0.2s cubic-bezier(.34,1.56,.64,1); }
+
 .tx-inline-edit:hover { background: rgba(139, 92, 246, 0.15); border-color: rgba(139, 92, 246, 0.5); transform: translateY(-2px); box-shadow: 0 6px 14px -4px rgba(139, 92, 246, 0.4), 0 0 0 1px rgba(139, 92, 246, 0.3); .tib-icon-img { opacity: 1; transform: translateY(-1px) rotate(-6deg) scale(1.1); } }
 .tx-inline-delete:hover { background: rgba(244, 63, 94, 0.15); border-color: rgba(244, 63, 94, 0.5); transform: translateY(-2px); box-shadow: 0 6px 14px -4px rgba(244, 63, 94, 0.4), 0 0 0 1px rgba(244, 63, 94, 0.3); .tib-icon-img { opacity: 1; transform: scale(1.12); } }
+
+/* ✅ Стили для новой кнопки перевода */
+.tx-inline-internal:hover {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.5);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 14px -4px rgba(245, 158, 11, 0.4), 0 0 0 1px rgba(245, 158, 11, 0.3);
+  .tib-icon-img { opacity: 1; transform: rotate(180deg) scale(1.1); }
+}
+
+.tx-inline-internal.active {
+  background: rgba(245, 158, 11, 0.2);
+  border-color: rgba(245, 158, 11, 0.6);
+  .tib-icon-img { opacity: 1; filter: drop-shadow(0 0 6px rgba(245, 158, 11, 0.6)); }
+}
+
 @media (min-width: 701px) { .tx-actions-inline { display: inline-flex; } }
 
+/* ============================================================
+   БАНК-МОНЕТА
+   ============================================================ */
 .tx-bank-coin {
   position: relative; width: 30px; height: 30px; min-width: 30px; max-width: 30px; max-height: 30px;
   border-radius: 50%; display: flex; align-items: center; justify-content: center;
@@ -577,19 +656,9 @@ const progress = computed(() =>
 .tx-bank-coin-img { display: block; width: 78%; height: 78%; max-width: 24px; max-height: 24px; object-fit: contain; }
 
 :global(:root[data-app-theme="dark"]) {
-  .tx-bank-coin {
-    background: rgba(255, 255, 255, 0.95);
-    box-shadow:
-      0 1px 0 rgba(255, 255, 255, 0.9) inset,
-      0 -1px 0 rgba(0, 0, 0, 0.2) inset,
-      0 4px 12px -2px rgba(0, 0, 0, 0.5),
-      0 0 0 1px rgba(139, 92, 246, 0.3);
-  }
-
-  .tx-inline-btn {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(139, 92, 246, 0.2);
-  }
+  .tx-bank-coin { background: rgba(255, 255, 255, 0.95); box-shadow: 0 1px 0 rgba(255, 255, 255, 0.9) inset, 0 -1px 0 rgba(0, 0, 0, 0.2) inset, 0 4px 12px -2px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(139, 92, 246, 0.3); }
+  .tx-inline-btn { background: rgba(255, 255, 255, 0.05); border-color: rgba(139, 92, 246, 0.2); }
+  .tx-inline-internal.active { background: rgba(245, 158, 11, 0.2); border-color: rgba(245, 158, 11, 0.6); }
 }
 
 /* ============================================================
@@ -599,12 +668,8 @@ const progress = computed(() =>
   .tx-card { padding: 12px 14px; gap: 10px; border-radius: 14px; }
 
   .tx-avatar {
-    flex: 0 0 38px;
-    width: 38px;
-    height: 38px;
-    min-width: 38px;
-    max-width: 38px;
-    max-height: 38px;
+    flex: 0 0 38px; width: 38px; height: 38px;
+    min-width: 38px; max-width: 38px; max-height: 38px;
   }
   .tx-avatar-img { max-width: 38px; max-height: 38px; }
 
@@ -613,11 +678,7 @@ const progress = computed(() =>
   .tx-meta .cat { font-size: 10px; padding: 2px 8px 2px 4px; gap: 4px; }
 
   .tx-cat-icon {
-    width: 14px;
-    height: 14px;
-    min-width: 14px;
-    max-width: 14px;
-    max-height: 14px;
+    width: 14px; height: 14px; min-width: 14px; max-width: 14px; max-height: 14px;
   }
 
   .tx-amount { font-size: 15px; }
@@ -625,54 +686,30 @@ const progress = computed(() =>
   .tx-time-small { font-size: 9.5px; margin-right: 0; }
 
   .tx-bank-coin {
-    width: 26px;
-    height: 26px;
-    min-width: 26px;
-    max-width: 26px;
-    max-height: 26px;
+    width: 26px; height: 26px; min-width: 26px; max-width: 26px; max-height: 26px;
   }
   .tx-bank-coin-img { max-width: 20px; max-height: 20px; }
 
   .tx-actions-panel { width: 92px; }
   .tx-action-btn {
-    width: 36px;
-    height: 36px;
-    min-width: 36px;
-    max-width: 36px;
-    max-height: 36px;
+    width: 36px; height: 36px; min-width: 36px; max-width: 36px; max-height: 36px;
   }
   .tab-icon-img {
-    width: 20px;
-    height: 20px;
-    min-width: 20px;
-    max-width: 20px;
-    max-height: 20px;
+    width: 20px; height: 20px; min-width: 20px; max-width: 20px; max-height: 20px;
   }
 }
 
 @media (max-width: 380px) {
   .tx-bank-coin {
-    width: 24px;
-    height: 24px;
-    min-width: 24px;
-    max-width: 24px;
-    max-height: 24px;
+    width: 24px; height: 24px; min-width: 24px; max-width: 24px; max-height: 24px;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .tx-card,
-  .tx-avatar,
-  .tx-bank-coin,
-  .tx-inline-btn,
-  .tx-amount,
-  .tib-icon-img { transition: none !important; }
+  .tx-card, .tx-avatar, .tx-bank-coin, .tx-inline-btn, .tx-amount, .tib-icon-img { transition: none !important; }
   .tx-card:hover { transform: none; }
   .tx-inline-btn:hover { transform: none; }
   .tx-inline-btn:hover .tib-icon-img { transform: none; }
-  .tx-amount.flash-up,
-  .tx-amount.flash-down,
-  .tx-item.is-appearing,
-  .tx-item.is-deleting { animation: none !important; }
+  .tx-amount.flash-up, .tx-amount.flash-down, .tx-item.is-appearing, .tx-item.is-deleting { animation: none !important; }
 }
 </style>
