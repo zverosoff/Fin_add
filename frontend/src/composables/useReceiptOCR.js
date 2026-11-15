@@ -1,5 +1,5 @@
 // frontend/src/composables/useReceiptOCR.js
-import { normalizeCategory } from './useCategories';
+import { normalizeCategory } from '@/constants/categories';
 
 export function preprocessImage(file) {
   return new Promise((resolve) => {
