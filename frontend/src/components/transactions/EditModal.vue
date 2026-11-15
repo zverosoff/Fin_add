@@ -4,7 +4,8 @@ import { useAccountsStore } from '@/stores/accounts';
 import { useTransactionsStore } from '@/stores/transactions';
 import { useToast } from '@/composables/useToast';
 import { notifySaved, notifyError } from '@/composables/useDataStatus';
-import { INCOME_CATEGORIES, EXPENSE_CATEGORIES, normalizeCategory } from '@/constants/categories';
+// ✅ Импорт из composables с относительным путем
+import { INCOME_CATEGORIES, EXPENSE_CATEGORIES, normalizeCategory } from '../composables/useCategories';
 import Modal from '@/components/ui/Modal.vue';
 
 const props = defineProps({

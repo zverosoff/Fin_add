@@ -1,5 +1,5 @@
 // frontend/src/composables/useFormat.js
-import { ALL_CATEGORIES } from '@/constants/categories';
+import { ALL_CATEGORIES } from './useCategories';
 
 /** Число → «12 345» */
 export function fmt(n) {
@@ -55,7 +55,7 @@ export function isToday(date) {
 
 /* ============================================================
    ✅ ИКОНКИ КАТЕГОРИЙ — PNG
-   Покрытие 1:1 с ALL_CATEGORIES из constants/categories.js
+   Покрытие 1:1 с ALL_CATEGORIES из useCategories.js
    ============================================================ */
 
 const CATEGORY_ICON_MAP = {
