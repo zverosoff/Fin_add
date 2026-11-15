@@ -1,4 +1,5 @@
 // frontend/src/composables/useReceiptOCR.js
+import { normalizeCategory } from '@/constants/categories';
 
 export function preprocessImage(file) {
   return new Promise((resolve) => {
@@ -9,8 +10,8 @@ export function preprocessImage(file) {
       canvas.width = img.width * scale;
       canvas.height = img.height * scale;
       const ctx = canvas.getContext('2d');
-      
-      ctx.imageSmoothingEnabled = false; 
+
+      ctx.imageSmoothingEnabled = false;
       ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
       const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
@@ -25,9 +26,9 @@ export function preprocessImage(file) {
 
       for (let i = 0; i < data.length; i += 4) {
         let gray = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
-        if (isDarkTheme) gray = 255 - gray; 
-        
-        const v = gray > 180 ? 0 : 255; 
+        if (isDarkTheme) gray = 255 - gray;
+
+        const v = gray > 180 ? 0 : 255;
         data[i] = data[i + 1] = data[i + 2] = v;
       }
 
@@ -85,24 +86,40 @@ const MONTHS = {
   'июля': 6, 'августа': 7, 'сентября': 8, 'октября': 9, 'ноября': 10, 'декабря': 11
 };
 
-const CATEGORY_WORDS = [
-  'Супермаркеты', 'Фастфуд', 'Переводы', 'Заправки', 'Сервис', 
-  'Кафе и рестораны', 'Транспорт', 'Развлечения', 'Здоровье', 
-  'Аптеки', 'Одежда и обувь', 'Разное', 'Коммунальные', 
-  'Связь', 'Подписки', 'Выдача наличных', 'Пополнение'
-];
+// ✅ Маппинг «сырых» слов из OCR → стандартные категории
+const OCR_TO_STD = {
+  'Супермаркеты': 'Продукты',
+  'Фастфуд': 'Кафе и рестораны',
+  'Кафе и рестораны': 'Кафе и рестораны',
+  'Переводы': 'Перевод от',
+  'Заправки': 'Бензин',
+  'Сервис': 'Прочее',
+  'Транспорт': 'Общественный транспорт',
+  'Развлечения': 'Развлечения',
+  'Здоровье': 'Здоровье',
+  'Аптеки': 'Аптека',
+  'Одежда и обувь': 'Одежда и обувь',
+  'Разное': 'Прочее',
+  'Коммунальные': 'Коммунальные',
+  'Связь': 'Интернет и связь',
+  'Подписки': 'Подписки',
+  'Выдача наличных': 'Прочее',
+  'Пополнение': 'Перевод от',
+};
 
-function extractCategory(text) {
-  const low = text.toLowerCase();
-  for (const cat of CATEGORY_WORDS) {
-    if (low.includes(cat.toLowerCase())) return cat;
+function extractCategory(text, type = 'expense') {
+  const low = (text || '').toLowerCase();
+  for (const [needle, std] of Object.entries(OCR_TO_STD)) {
+    if (low.includes(needle.toLowerCase())) {
+      return normalizeCategory(std, type);
+    }
   }
   return 'Прочее';
 }
 
 function detectBankType(lines) {
   const fullText = lines.map(l => l.text).join(' ').toLowerCase();
-  
+
   let tbankScore = 0;
   let sberScore = 0;
 
@@ -157,7 +174,7 @@ function parseTbank(lines) {
   const DATE_WORD_RE = /^(Сегодня|Вчера|Позавчера)/i;
   const DATE_NUM_RE = /(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)/i;
   const TIME_RE = /(\d{2}:\d{2})/;
-  
+
   const AMOUNT_RE = /([+\-−])\s*(\d[\d\s]*(?:[.,]\d{1,2})?)\s*(?:₽|p|P|р|Р)?/;
   const JUNK_RE = /^(траты|доходы|счета и карты|без переводов|операции|октябрь|сентябрь|баланс|всего|расходы|поступления)/i;
 
@@ -165,7 +182,7 @@ function parseTbank(lines) {
   for (const line of lines) {
     const text = (line.text || '').trim();
     let foundDate = null;
-    
+
     if (DATE_WORD_RE.test(text)) {
       const word = text.match(DATE_WORD_RE)[0].toLowerCase();
       foundDate = new Date();
@@ -193,13 +210,13 @@ function parseTbank(lines) {
     const line = lines[i];
     const text = (line.text || '').trim();
     if (!text) continue;
-    
+
     const y = line.bbox ? line.bbox.y0 : 0;
     const x = line.bbox ? line.bbox.x0 : 0;
 
     // ✅ ЖЕСТКИЙ ФИКС: Пропускаем строки с заголовками дат ("Вчера", "Сегодня")
     if (DATE_WORD_RE.test(text)) continue;
-    if (DATE_NUM_RE.test(text) && /[+\-−]\s*\d/.test(text)) continue; 
+    if (DATE_NUM_RE.test(text) && /[+\-−]\s*\d/.test(text)) continue;
 
     if (JUNK_RE.test(text)) continue;
 
@@ -209,7 +226,7 @@ function parseTbank(lines) {
     const sign = amountMatch[1];
     const rawAmount = amountMatch[2].replace(/\s+/g, '').replace(',', '.');
     let amount = parseFloat(rawAmount);
-    
+
     if (isNaN(amount) || amount <= 0) continue;
 
     const type = sign === '+' ? 'income' : 'expense';
@@ -220,7 +237,7 @@ function parseTbank(lines) {
     if (currentTimeMatch) {
       timeStr = currentTimeMatch[1];
     } else if (i > 0) {
-      const prevText = lines[i-1].text || '';
+      const prevText = lines[i - 1].text || '';
       const prevTimeMatch = prevText.match(TIME_RE);
       if (prevTimeMatch) timeStr = prevTimeMatch[1];
     }
@@ -228,18 +245,18 @@ function parseTbank(lines) {
     let description = text.replace(amountMatch[0], '').trim();
     if (timeStr) description = description.replace(timeStr, '');
     description = description.replace(/[|•·\-\+−₽]/g, '').trim();
-    
+
     if (!description || description.length < 2 || /^\d+$/.test(description) || description.toLowerCase() === 'black') {
-      if (i - 1 >= 0 && lines[i-1].bbox) {
-          const prevText = lines[i-1].text.trim().replace(TIME_RE, '').trim();
-          const prevY = lines[i-1].bbox.y0;
-          const prevX = lines[i-1].bbox.x0;
-          
-          if (!AMOUNT_RE.test(prevText) && !JUNK_RE.test(prevText) && !DATE_WORD_RE.test(prevText) && !DATE_NUM_RE.test(prevText)) {
-              if (Math.abs(prevX - x) < 150 || Math.abs(prevY - y) < 60) {
-                  description = prevText;
-              }
+      if (i - 1 >= 0 && lines[i - 1].bbox) {
+        const prevText = lines[i - 1].text.trim().replace(TIME_RE, '').trim();
+        const prevY = lines[i - 1].bbox.y0;
+        const prevX = lines[i - 1].bbox.x0;
+
+        if (!AMOUNT_RE.test(prevText) && !JUNK_RE.test(prevText) && !DATE_WORD_RE.test(prevText) && !DATE_NUM_RE.test(prevText)) {
+          if (Math.abs(prevX - x) < 150 || Math.abs(prevY - y) < 60) {
+            description = prevText;
           }
+        }
       }
     }
 
@@ -247,7 +264,7 @@ function parseTbank(lines) {
 
     let opDate = null;
     let dateUncertain = true;
-    
+
     for (let d = dateAnchors.length - 1; d >= 0; d--) {
       if (dateAnchors[d].y < y) {
         opDate = new Date(dateAnchors[d].date);
@@ -265,37 +282,39 @@ function parseTbank(lines) {
       const [h, m] = timeStr.split(':').map(Number);
       opDate.setHours(h, m, 0, 0);
     } else {
-      opDate.setHours(12, 0, 0, 0); 
+      opDate.setHours(12, 0, 0, 0);
     }
 
+    // ✅ Категория — через единый маппинг с учётом типа
     let category = 'Прочее';
-    const nextLine = lines[i+1]?.text || '';
+    const nextLine = lines[i + 1]?.text || '';
     if (nextLine && !AMOUNT_RE.test(nextLine) && !JUNK_RE.test(nextLine)) {
-        category = extractCategory(nextLine) || extractCategory(description);
+      category = extractCategory(nextLine, type);
+      if (category === 'Прочее') category = extractCategory(description, type);
     } else {
-        category = extractCategory(description);
+      category = extractCategory(description, type);
     }
 
     let opBbox = line.bbox;
-    if (lines[i-1] && lines[i-1].bbox && line.bbox && description === lines[i-1].text.trim()) {
-       const l1 = lines[i-1].bbox;
-       const l2 = line.bbox;
-       opBbox = { x0: Math.min(l1.x0, l2.x0), y0: Math.min(l1.y0, l2.y0), x1: Math.max(l1.x1, l2.x1), y1: Math.max(l1.y1, l2.y1) };
+    if (lines[i - 1] && lines[i - 1].bbox && line.bbox && description === lines[i - 1].text.trim()) {
+      const l1 = lines[i - 1].bbox;
+      const l2 = line.bbox;
+      opBbox = { x0: Math.min(l1.x0, l2.x0), y0: Math.min(l1.y0, l2.y0), x1: Math.max(l1.x1, l2.x1), y1: Math.max(l1.y1, l2.y1) };
     }
 
-    parsedItems.push({ 
-        type: 'op', 
-        y, 
-        hasTime: !!timeStr,
-        opData: { 
-            name: description.slice(0, 80), 
-            amount, 
-            type, 
-            category, 
-            date: opDate.toISOString(),
-            dateUncertain,
-            bbox: opBbox
-        } 
+    parsedItems.push({
+      type: 'op',
+      y,
+      hasTime: !!timeStr,
+      opData: {
+        name: description.slice(0, 80),
+        amount,
+        type,
+        category,
+        date: opDate.toISOString(),
+        dateUncertain,
+        bbox: opBbox
+      }
     });
   }
   return parsedItems;
@@ -311,8 +330,8 @@ function parseSber(lines) {
 
   const DATE_WORD_RE = /^(Сегодня|Вчера|Позавчера)/i;
   const DATE_NUM_RE = /(\d{1,2})\s+(января|февраля|марта|апреля|мая|июня|июля|августа|сентября|октября|ноября|декабря)(?:[,\s]+([а-я]{2}))?/i;
-  const TIME_RE = /(\d{2}:\d{2})/; 
-  
+  const TIME_RE = /(\d{2}:\d{2})/;
+
   const SBER_AMOUNT_RE = /([+\-−]?)\s*(\d[\d\s]*(?:[.,]\d{2})?)\s*[₽pPрР]?\s*$/;
 
   let listStartY = 0;
@@ -370,7 +389,7 @@ function parseSber(lines) {
     let opHour = 12;
     let opMin = 0;
     let hasTime = false;
-    
+
     const timeMatch = text.match(TIME_RE);
     if (timeMatch) {
       const [h, m] = timeMatch[1].split(':').map(Number);
@@ -384,21 +403,24 @@ function parseSber(lines) {
     description = description.replace(/[|•·\-\+−]/g, '').trim();
 
     if (!description || description.length < 2 || /^\d+$/.test(description)) {
-       if (i - 1 >= 0 && !DATE_WORD_RE.test(lines[i-1].text) && !DATE_NUM_RE.test(lines[i-1].text)) {
-           description = lines[i-1].text;
-       }
+      if (i - 1 >= 0 && !DATE_WORD_RE.test(lines[i - 1].text) && !DATE_NUM_RE.test(lines[i - 1].text)) {
+        description = lines[i - 1].text;
+      }
     }
 
     if (description.length > 80 && description.includes('.')) continue;
     if (!description) description = 'Операция';
 
+    // ✅ Категория — через единый маппинг с учётом типа
     let category = 'Прочее';
-    const nextLine = lines[i+1]?.text || '';
-    
+    const nextLine = lines[i + 1]?.text || '';
+
     if (nextLine.includes('Оплата') || nextLine.includes('товаров') || nextLine.includes('услуг')) {
-       category = extractCategory(nextLine);
+      category = extractCategory(nextLine, type);
     } else {
-       category = extractCategory(description + ' ' + nextLine);
+      const fromNext = extractCategory(nextLine, type);
+      const fromDesc = extractCategory(description + ' ' + nextLine, type);
+      category = fromNext !== 'Прочее' ? fromNext : fromDesc;
     }
 
     parsedItems.push({
@@ -448,18 +470,18 @@ export function parseBankScreenshot(textLines, currentBankType = 'tbank') {
 
   const operations = [];
   const now = new Date();
-  
+
   if (currentBankType === 'tbank') {
     for (const item of parsedItems) {
       if (item.type === 'op') {
         const opDate = new Date(item.opData.date);
         const isToday = opDate.toDateString() === now.toDateString();
-        
+
         if (isToday && !item.hasTime) {
           opDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
           item.opData.date = opDate.toISOString();
         }
-        
+
         operations.push(item.opData);
       }
     }
@@ -467,7 +489,7 @@ export function parseBankScreenshot(textLines, currentBankType = 'tbank') {
     let currentDate = new Date();
     currentDate.setHours(12, 0, 0, 0);
     let currentOpsGroup = [];
-    let isUncertainGroup = false; 
+    let isUncertainGroup = false;
 
     for (let i = parsedItems.length - 1; i >= 0; i--) {
       const item = parsedItems[i];
@@ -477,18 +499,18 @@ export function parseBankScreenshot(textLines, currentBankType = 'tbank') {
         currentDate = item.date;
         for (const op of currentOpsGroup) {
           const finalDate = new Date(currentDate);
-          
+
           const isToday = finalDate.toDateString() === now.toDateString();
           if (isToday && !op.hasTime) {
-             finalDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
+            finalDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
           } else {
-             finalDate.setHours(op.opHour, op.opMin, 0, 0);
+            finalDate.setHours(op.opHour, op.opMin, 0, 0);
           }
-          
+
           operations.push({ ...op.opData, date: finalDate.toISOString(), dateUncertain: isUncertainGroup });
         }
-        currentOpsGroup = []; 
-        isUncertainGroup = false; 
+        currentOpsGroup = [];
+        isUncertainGroup = false;
         currentDate = new Date(currentDate);
         currentDate.setDate(currentDate.getDate() + 1);
       }
@@ -497,13 +519,13 @@ export function parseBankScreenshot(textLines, currentBankType = 'tbank') {
     for (const op of currentOpsGroup) {
       const finalDate = new Date(currentDate);
       const isToday = finalDate.toDateString() === now.toDateString();
-      
+
       if (isToday && !op.hasTime) {
-         finalDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
+        finalDate.setHours(now.getHours(), now.getMinutes(), now.getSeconds());
       } else {
-         finalDate.setHours(op.opHour, op.opMin, 0, 0);
+        finalDate.setHours(op.opHour, op.opMin, 0, 0);
       }
-      
+
       operations.push({ ...op.opData, date: finalDate.toISOString(), dateUncertain: true });
     }
     operations.reverse();
@@ -525,8 +547,8 @@ export function parseBankScreenshot(textLines, currentBankType = 'tbank') {
     }
 
     if (op.amount > 10000 && op.amount % 1000 === 0) {
-       isSuspicious = true;
-       suspicionReason = 'Похоже на аналитику';
+      isSuspicious = true;
+      suspicionReason = 'Похоже на аналитику';
     }
 
     return { ...op, isSuspicious, suspicionReason };

@@ -1,3 +1,6 @@
+// frontend/src/composables/useFormat.js
+import { ALL_CATEGORIES } from '@/constants/categories';
+
 /** Число → «12 345» */
 export function fmt(n) {
   const v = Number(n) || 0;
@@ -52,17 +55,30 @@ export function isToday(date) {
 
 /* ============================================================
    ✅ ИКОНКИ КАТЕГОРИЙ — PNG
+   Покрытие 1:1 с ALL_CATEGORIES из constants/categories.js
    ============================================================ */
 
 const CATEGORY_ICON_MAP = {
+  // Доходы
+  'Зарплата': 'salary',
+  'Аванс': 'advance',
+  'Премия': 'bonus',
+  'Фриланс': 'freelance',
+  'Бизнес': 'business',
+  'Инвестиции': 'investments',
+  'Дивиденды': 'dividends',
+  'Проценты по вкладу': 'deposit',
+  'Кэшбэк': 'cashback',
+  'Возврат': 'refund',
+  'Перевод от': 'transfer-in',
+  'Внутренний перевод': 'transfer-internal',
+
   // Расходы
   'Продукты': 'groceries',
   'Кафе и рестораны': 'cafe',
-  'Еда': 'food',
   'Такси': 'taxi',
   'Бензин': 'fuel',
   'Общественный транспорт': 'transport',
-  'Транспорт': 'car',
   'Аренда': 'rent',
   'Ипотека': 'mortgage',
   'Жильё': 'home',
@@ -91,28 +107,13 @@ const CATEGORY_ICON_MAP = {
   'Подарки': 'gifts',
   'Благотворительность': 'charity',
 
-  // Доходы
-  'Зарплата': 'salary',
-  'Аванс': 'advance',
-  'Премия': 'bonus',
-  'Фриланс': 'freelance',
-  'Бизнес': 'business',
-  'Инвестиции': 'investments',
-  'Дивиденды': 'dividends',
-  'Проценты по вкладу': 'deposit',
-  'Кэшбэк': 'cashback',
-  'Возврат': 'refund',
-  'Перевод от': 'transfer-in',
-  'Перевод между счетами': 'transfer',
-  'Перевод между пользователями': 'transfer-user',
-  'Внутренний перевод': 'transfer-internal',
-
-  // Прочее
+  // Общее
   'Прочее': 'other',
 };
 
 /**
  * ✅ Путь к PNG-иконке категории
+ * Если для категории нет иконки — вернёт other.png
  */
 export function categoryIcon(category) {
   const name = CATEGORY_ICON_MAP[category] || 'other';
@@ -121,18 +122,30 @@ export function categoryIcon(category) {
 
 /* ============================================================
    ✅ ЭМОДЗИ-ФОЛБЭК ДЛЯ КАТЕГОРИЙ
-   Используется компонентом <IconOrEmoji>
+   Покрытие 1:1 с ALL_CATEGORIES
    ============================================================ */
 
 export const CATEGORY_EMOJI = {
+  // Доходы
+  'Зарплата': '💼',
+  'Аванс': '💰',
+  'Премия': '🏆',
+  'Фриланс': '💻',
+  'Бизнес': '📊',
+  'Инвестиции': '📈',
+  'Дивиденды': '💹',
+  'Проценты по вкладу': '🏦',
+  'Кэшбэк': '💸',
+  'Возврат': '↩️',
+  'Перевод от': '👤',
+  'Внутренний перевод': '🔄',
+
   // Расходы
   'Продукты': '🛒',
   'Кафе и рестораны': '☕',
-  'Еда': '🍔',
   'Такси': '🚕',
   'Бензин': '⛽',
   'Общественный транспорт': '🚌',
-  'Транспорт': '🚗',
   'Аренда': '🔑',
   'Ипотека': '🏦',
   'Жильё': '🏠',
@@ -161,23 +174,7 @@ export const CATEGORY_EMOJI = {
   'Подарки': '🎁',
   'Благотворительность': '❤️',
 
-  // Доходы
-  'Зарплата': '💼',
-  'Аванс': '💰',
-  'Премия': '🏆',
-  'Фриланс': '💻',
-  'Бизнес': '📊',
-  'Инвестиции': '📈',
-  'Дивиденды': '💹',
-  'Проценты по вкладу': '🏦',
-  'Кэшбэк': '💸',
-  'Возврат': '↩️',
-  'Перевод от': '👤',
-  'Перевод между счетами': '🔁',
-  'Перевод между пользователями': '👥',
-  'Внутренний перевод': '🔄',
-
-  // Прочее
+  // Общее
   'Прочее': '📦',
 };
 
@@ -188,6 +185,19 @@ export const CATEGORY_EMOJI = {
  */
 export function categoryEmoji(category) {
   return CATEGORY_EMOJI[category] || '📦';
+}
+
+/**
+ * ✅ Диагностика: каких категорий не хватает в картах
+ * Можно вызвать в консоли: __checkCategories()
+ */
+if (typeof window !== 'undefined') {
+  window.__checkCategories = () => {
+    const missingIcons = ALL_CATEGORIES.filter(c => !CATEGORY_ICON_MAP[c]);
+    const missingEmoji = ALL_CATEGORIES.filter(c => !CATEGORY_EMOJI[c]);
+    console.table({ missingIcons, missingEmoji });
+    return { missingIcons, missingEmoji };
+  };
 }
 
 /* ============================================================
